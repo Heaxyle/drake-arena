@@ -339,29 +339,42 @@ async function testVersion(browser, key) {
     return failures;
 }
 
-// Loads the page on top of OLD_SHOWCASE_SAVE, checks the White → Green swap, then reloads to prove it's idempotent
+// Loads the page on top of OLD_SHOWCASE_SAVE and checks the White → Green swap. Then proves the migration is idempotent
+// twice over: re-running migrateOldSaves() in the same page, and loading a fresh page seeded with the migrated save.
+// Every load is seeded explicitly by its own init script, so nothing depends on browser storage surviving a reload
+// (Chromium commits DOM storage asynchronously; relying on that made this check flaky on CI).
 async function testMigration(browser, key) {
     const failures = [];
     const fail = msg => { failures.push(msg); console.log(`    ✗ ${msg}`); };
     const pass = msg => console.log(`    ✓ ${msg}`);
     const cfg = VERSIONS[key];
-    console.log(`\n=== ${key}: old-save migration ===`);
+    const DB_KEY = 'drake_arena_showcase_db';
+    console.log(`
+=== ${key}: old-save migration ===`);
 
     const context = await browser.newContext();
-    const page = await context.newPage();
     const pageErrors = [];
-    page.on('pageerror', e => pageErrors.push(e.message));
-    await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
-    // Seed the old save once per tab (sessionStorage survives the reload, so the second load sees migrated data)
-    await page.addInitScript(([save, streamerKey, streamer]) => {
-        if (!sessionStorage.getItem('__seeded')) {
-            localStorage.setItem('drake_arena_showcase_db', save);
+    // Opens the game in a new page whose localStorage holds exactly `save` (plus the streamer) before any game script runs
+    const openWithSave = async save => {
+        const page = await context.newPage();
+        page.on('pageerror', e => pageErrors.push(e.message));
+        await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
+        await page.addInitScript(([dbKey, raw, streamerKey, streamer]) => {
+            localStorage.setItem(dbKey, raw);
             localStorage.setItem(streamerKey, streamer);
-            sessionStorage.setItem('__seeded', '1');
-        }
-    }, [JSON.stringify(OLD_SHOWCASE_SAVE), cfg.dragon.storageKey, cfg.dragon.streamer]);
-    await page.goto('file:///' + path.join(ROOT, cfg.file).replace(/\\/g, '/'));
-    const raw1 = await page.evaluate(() => localStorage.getItem('drake_arena_showcase_db'));
+        }, [DB_KEY, save, cfg.dragon.storageKey, cfg.dragon.streamer]);
+        await page.goto('file:///' + path.join(ROOT, cfg.file).replace(/\\/g, '/'));
+        return page;
+    };
+    // Which users differ between two raw saves, for a readable failure message
+    const changedUsers = (a, b) => {
+        const x = JSON.parse(a), y = JSON.parse(b);
+        return [...new Set([...Object.keys(x), ...Object.keys(y)])].filter(u => JSON.stringify(x[u]) !== JSON.stringify(y[u]))
+            .map(u => `@${u} ${JSON.stringify(x[u] && { type: x[u].drakeObj.type, title: x[u].title && x[u].title.id })} → ${JSON.stringify(y[u] && { type: y[u].drakeObj.type, title: y[u].title && y[u].title.id })}`).join('; ');
+    };
+
+    const page = await openWithSave(JSON.stringify(OLD_SHOWCASE_SAVE));
+    const raw1 = await page.evaluate(k => localStorage.getItem(k), DB_KEY);
     const db = JSON.parse(raw1);
     const drakeNames = await page.evaluate(() => Object.fromEntries(DRAKE_TYPES.map(d => [d.type, d.name])));
 
@@ -380,10 +393,16 @@ async function testMigration(browser, key) {
     if (titleOf(cfg.dragon.streamer) !== cfg.dragon.titleId || !st.name) fail(`streamer should keep a full title 999, got ${JSON.stringify(st)}`);
     else pass(`streamer keeps title 999 (${st.name.en})`);
 
-    await page.reload();
-    const raw2 = await page.evaluate(() => localStorage.getItem('drake_arena_showcase_db'));
-    if (raw2 !== raw1) fail('second load changed the save again: migration is not idempotent');
-    else pass('second load left the save byte-for-byte identical (idempotent)');
+    // Same page: run the migration again (as happens when the streamer setting changes)
+    const rawRerun = await page.evaluate(k => { migrateOldSaves(); return localStorage.getItem(k); }, DB_KEY);
+    if (rawRerun !== raw1) fail(`running migrateOldSaves() again changed the save: ${changedUsers(raw1, rawRerun)}`);
+    else pass('re-running migrateOldSaves() left the save byte-for-byte identical');
+
+    // Fresh page loaded on top of the migrated save: the on-load migration must leave it alone
+    const page2 = await openWithSave(raw1);
+    const raw2 = await page2.evaluate(k => localStorage.getItem(k), DB_KEY);
+    if (raw2 !== raw1) fail(`loading the migrated save changed it again (migration is not idempotent): ${changedUsers(raw1, raw2)}`);
+    else pass('loading the migrated save left it byte-for-byte identical (idempotent)');
 
     if (pageErrors.length) [...new Set(pageErrors)].forEach(e => fail(`JS error: ${e}`));
     else pass('no JS errors');
