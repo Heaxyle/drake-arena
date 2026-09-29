@@ -1,0 +1,2268 @@
+<!DOCTYPE html>
+<html lang="uk" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <title data-i18n="title">Дрейк-Арена: Битва Дрейків</title>
+    <script src="https://unpkg.com/tmi.js@latest/dist/tmi.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 15px;
+            background: #0b0b14;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        /* OBS overlay mode: add ?obs to the URL */
+        body.obs { background: transparent; overflow: hidden; }
+        body.obs .chat-sim, body.obs .top-controls, body.obs .controls-row, body.obs #debug-menu { display: none !important; }
+        .main-container {
+            display: flex;
+            justify-content: center;
+            align-items: stretch; 
+            gap: 15px;
+            width: 1180px;
+            margin: 0 auto;
+        }
+        .top-controls {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            z-index: 100;
+        }
+        .lang-btn {
+            background: #222;
+            color: #ffd700;
+            border: 1px solid #ffd700;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .lang-btn:hover {
+            background: #333;
+        }
+        .arena-container {
+            width: 780px;
+            min-height: 550px; 
+            display: flex;
+            flex-direction: column;
+            background: rgba(15, 15, 25, 0.9);
+            border: 2px solid #ffd700;
+            border-radius: 16px;
+            padding: 12px 15px;
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.4);
+            box-sizing: border-box;
+            position: relative;
+        }
+        .leaderboard-container {
+            background: rgba(15, 15, 25, 0.9);
+            border: 2px solid #ffd700;
+            border-radius: 16px;
+            padding: 15px;
+            color: #fff;
+            width: 380px;
+            height: 550px; 
+            align-self: flex-start;
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.4);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        .leaderboard-container h3 {
+            text-align: center;
+            color: #ffd700;
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            flex-shrink: 0;
+        }
+        .leaderboard-scroll-box {
+            overflow-y: auto;
+            flex-grow: 1;
+            padding-right: 4px;
+        }
+        .leaderboard-scroll-box::-webkit-scrollbar { width: 5px; }
+        .leaderboard-scroll-box::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 4px; }
+        .leaderboard-scroll-box::-webkit-scrollbar-thumb { background: #ffd700; border-radius: 4px; }
+        
+        #leaderboard-list {
+            padding-left: 0;
+            margin: 0;
+            list-style: none;
+        }
+        .lb-card {
+            background: rgba(30, 30, 50, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin-bottom: 6px;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .lb-card:hover { border-color: #ffd700; }
+        .lb-header { display: flex; justify-content: space-between; align-items: center; }
+        .lb-sub { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #bbb; }
+        .lb-stats { color: #00ffcc; font-family: monospace; font-weight: bold; }
+
+        /* Right column: registry on top, chat-request window below (fixed heights, so nothing shifts) */
+        .side-column { width: 380px; height: 550px; align-self: flex-start; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+        .side-column .leaderboard-container { width: 100%; height: 250px; flex-shrink: 0; }
+        .side-column .info-container { height: auto; flex: 1 1 0; min-height: 0; }
+
+        /* Chat-request window */
+        #info-feed { list-style: none; margin: 0; padding: 0 4px 0 0; overflow: hidden; flex-grow: 1; min-height: 0; display: flex; flex-direction: column; gap: 5px; }
+        .info-empty { text-align: center; color: #777; font-size: 11px; padding: 8px 0; font-style: italic; }
+        .info-card {
+            background: rgba(30, 30, 50, 0.85); border: 1px solid rgba(255,255,255,0.12); border-left: 3px solid #4a4a75;
+            border-radius: 8px; padding: 5px 9px; font-size: 11px; line-height: 1.35; flex-shrink: 0;
+            animation: infoIn 0.35s ease-out; transition: opacity 0.8s ease;
+        }
+        .info-card.fading { opacity: 0; }
+        .info-card.warn { border-left-color: #ff9900; color: #ddd; }
+        .info-card.ok { border-left-color: #00ffcc; }
+        .info-card.stat { border-left-color: #ffd700; background: rgba(40, 35, 20, 0.85); }
+        .info-card.glow-mythic { border-color: #ff4757; box-shadow: 0 0 14px rgba(255, 71, 87, 0.55); }
+        .info-card.glow-meme { border-color: #ff66cc; box-shadow: 0 0 14px rgba(255, 102, 204, 0.6); }
+        .info-card.glow-legendary { border-color: #f1c40f; box-shadow: 0 0 12px rgba(241, 196, 15, 0.45); }
+        .ic-head { display: flex; justify-content: space-between; align-items: baseline; font-weight: bold; font-size: 12px; }
+        .ic-row { display: flex; align-items: center; gap: 8px; margin-top: 3px; color: #ccc; }
+        .ic-xp { flex-grow: 1; height: 6px; background: #333; border-radius: 4px; overflow: hidden; }
+        .ic-xp > div { height: 100%; background: linear-gradient(90deg, #d4af37, #ffe680); }
+        .ic-title { margin-top: 3px; font-weight: bold; }
+        .ic-desc { color: #9fd; font-size: 10px; }
+        .rarity-tag { font-size: 8px; padding: 1px 4px; border-radius: 3px; border: 1px solid currentColor; margin-left: 4px; font-weight: bold; text-transform: uppercase; vertical-align: middle; }
+        .log-drop { text-align: center; font-weight: bold; padding: 4px; border-radius: 6px; border: 1px solid currentColor; background: rgba(255,255,255,0.05); }
+        @keyframes infoIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+        h2 { margin: 0 0 8px 0; color: #ffd700; text-transform: uppercase; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); text-align: center; flex-shrink: 0;}
+        
+        .controls-row { display: flex; justify-content: center; gap: 10px; margin-bottom: 8px; flex-shrink: 0; }
+        .test-btn { padding: 5px 12px; background: #ffd700; color: #000; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 12px; transition: background 0.2s; }
+        .test-btn:hover { background: #ffea75; }
+        .test-btn.secondary { background: #4a4a75; color: #fff; }
+        .test-btn.secondary:hover { background: #5c5c8a; }
+
+        #debug-menu { display: none; background: rgba(10, 10, 15, 0.95); border: 1px dashed #ffd700; border-radius: 8px; padding: 10px; margin-bottom: 10px; font-size: 11px; flex-shrink: 0; }
+        .debug-col { display: flex; gap: 10px; margin-bottom: 5px; align-items: center; }
+        .debug-col select, .debug-col input { background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 3px; font-size: 11px; }
+        .debug-col select { width: 140px; }
+        .debug-col select.title-select { width: 200px; }
+
+        .fighters-box { display: flex; justify-content: space-between; width: 100%; margin-bottom: 8px; flex-shrink: 0; }
+        .fighter-card { background: rgba(30, 30, 50, 0.9); border: 1px solid #4a4a75; border-radius: 10px; padding: 8px 10px; width: 48%; box-sizing: border-box; display: flex; flex-direction: column; }
+        .fighter-name { font-weight: bold; font-size: 14px; margin-bottom: 2px; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+        .fighter-title-badge { display: inline-block; vertical-align: top; font-size: 9px; padding: 1px 5px; border-radius: 4px; margin-bottom: 2px; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); }   /* top-aligned: on the text baseline it sat 5px low and its bottom was clipped by the fixed-height container */
+        .fighter-info { font-size: 11px; color: #ccc; margin-bottom: 4px; height: 14px; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        [id^="badge-container-"] { height: 18px; overflow: hidden; }
+        .fighter-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Піксельний дрейк у куті картки бійця */
+        .fighter-card { position: relative; }
+        .fighter-card > .fighter-name, .fighter-card > [id^="badge-container-"], .fighter-card > .fighter-info { padding-right: 78px; }
+        .sprite-wrap { position: absolute; top: 6px; right: 8px; width: 72px; height: 54px; pointer-events: none; }
+        #card-p2 .sprite-wrap { transform: scaleX(-1); }
+        .sprite-wrap.dragon { width: 90px; height: 63px; top: -6px; z-index: 2; }   /* Дракон більший за дрейків і трохи виходить за рамку */
+        .fighter-card.has-dragon > .fighter-name, .fighter-card.has-dragon > [id^="badge-container-"], .fighter-card.has-dragon > .fighter-info { padding-right: 100px; }   /* правий боєць дивиться ліворуч, на суперника */
+        .drake-sprite { width: 100%; height: 100%; object-fit: contain; object-position: bottom right; image-rendering: pixelated; image-rendering: crisp-edges; animation: drakeBob 1.8s ease-in-out infinite; }
+        #card-p2 .drake-sprite { animation-delay: -0.9s; }
+        .drake-sprite.hit { animation: drakeHit 0.35s ease-out; }
+        @keyframes drakeBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+        @keyframes drakeHit { 0% { transform: translateX(0); filter: brightness(2.2) saturate(0.3); } 30% { transform: translateX(-4px); } 60% { transform: translateX(3px); filter: none; } 100% { transform: translateX(0); } }
+        .ic-sprite { width: 40px; height: 30px; image-rendering: pixelated; vertical-align: middle; margin-left: 4px; }
+        .fighter-stats-sub { font-size: 10px; color: #ffd700; background: rgba(0, 0, 0, 0.4); padding: 3px 6px; border-radius: 4px; margin-bottom: 5px; border: 1px dashed rgba(255, 215, 0, 0.3); line-height: 13px; height: 26px; overflow: hidden; }
+        
+        .status-column { background: rgba(15, 15, 25, 0.8); border: 1px dashed #666; border-radius: 5px; padding: 4px; margin-bottom: 6px; font-size: 9px; }
+        .status-list { display: flex; flex-wrap: nowrap; gap: 3px; height: 15px; align-items: center; overflow: hidden; }
+        .status-empty { color: #777; font-size: 8px; }
+        .status-category { margin-bottom: 2px; }
+        .status-title { font-weight: bold; color: #ff9900; font-size: 8px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1px; margin-bottom: 2px; display: flex; justify-content: space-between; }
+        .status-item { display: inline-block; background: rgba(255, 153, 0, 0.2); border: 1px solid #ff9900; border-radius: 3px; padding: 1px 3px; font-size: 8px; line-height: 10px; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .hp-bar-container { width: 100%; background: #444; border-radius: 4px; height: 12px; overflow: hidden; border: 1px solid #222; margin-bottom: 2px; margin-top: auto; flex-shrink: 0; }
+        .hp-bar { height: 100%; background: linear-gradient(90deg, #ff4141, #ffb347); width: 100%; transition: width 0.3s ease; }
+        .hp-text { font-size: 10px; text-align: center; margin-bottom: 4px; font-weight: bold; }
+
+        .battle-log { width: 100%; background: rgba(10, 10, 15, 0.95); border: 1px solid #333; border-radius: 8px; padding: 8px; flex-grow: 1; flex-basis: 0; min-height: 180px; overflow-y: auto; font-size: 11px; line-height: 1.3; box-sizing: border-box; scroll-behavior: smooth; margin-bottom: 6px; }
+        .battle-log::-webkit-scrollbar { width: 5px; }
+        .battle-log::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 4px; }
+        .battle-log::-webkit-scrollbar-thumb { background: #ffd700; border-radius: 4px; }
+        .log-line { margin-bottom: 2px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 2px; }
+
+        .queue-display-box {
+            background: rgba(30, 30, 50, 0.6);
+            border: 1px solid #4a4a75;
+            border-radius: 8px;
+            padding: 5px 10px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+        .queue-title { color: #ffd700; font-weight: bold; white-space: nowrap; }
+        .queue-list-container { display: flex; gap: 6px; flex-wrap: nowrap; }
+        .queue-badge {
+            background: rgba(0, 255, 204, 0.15);
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .queue-empty { color: #888; font-style: italic; }
+
+        /* Chat simulator */
+        .chat-sim {
+            width: 1180px; margin: 15px auto 0; box-sizing: border-box;
+            background: rgba(15, 15, 25, 0.9); border: 2px dashed #4a4a75; border-radius: 16px;
+            padding: 12px 15px; font-size: 12px;
+        }
+        .chat-sim-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+        .chat-sim-head b { color: #ffd700; font-size: 14px; }
+        .chat-sim-hint { color: #999; }
+        .chat-sim-row { display: flex; gap: 8px; align-items: center; }
+        .chat-sim input[type=text] {
+            background: #111; color: #fff; border: 1px solid #4a4a75; border-radius: 6px; padding: 6px 8px; font-size: 13px;
+        }
+        .chat-sim input[type=text]:focus { outline: none; border-color: #ffd700; }
+        #sim-user { width: 150px; }
+        #sim-msg { flex-grow: 1; }
+        .sim-points { display: flex; align-items: center; gap: 4px; color: #ccc; white-space: nowrap; cursor: pointer; }
+        .sim-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .sim-chip {
+            background: rgba(0, 255, 204, 0.1); border: 1px solid #00ffcc; color: #00ffcc; border-radius: 12px;
+            padding: 2px 9px; cursor: pointer; font-family: monospace; font-size: 12px;
+        }
+        .sim-chip:hover { background: rgba(0, 255, 204, 0.25); }
+        .sim-chip.demo { border-color: #ffd700; color: #ffd700; background: rgba(255, 215, 0, 0.1); font-family: inherit; }
+    </style>
+</head>
+<body>
+
+
+    <div class="main-container">
+        <!-- Основна арена -->
+        <div class="arena-container">
+            <h2 data-i18n="arena_title">⚔️ Дрейк-Арена: Битва Стихій ⚔️</h2>
+            
+            <div class="controls-row">
+                <button class="lang-btn" onclick="toggleLanguage()" id="lang-toggle-btn">🇬🇧 EN</button>
+                <button class="test-btn" onclick="testBattle()" data-i18n="btn_test">🧪 Запустити тест бою</button>
+                <button class="test-btn secondary" onclick="toggleDebugMenu()" data-i18n="btn_settings">⚙️ Налаштування тесту</button>
+            </div>
+
+            <!-- Панель тестування -->
+            <div id="debug-menu">
+                <div class="debug-col">
+                    <strong style="color: #ff4500; width: 80px;" id="label-fighter1">Alpha:</strong>
+                    <select id="debug-p1-drake"></select>
+                    <select id="debug-p1-title" class="title-select"></select>
+                    <span data-i18n="label_level">Рівень</span>: <input type="number" id="debug-p1-level" min="1" max="20" value="20" style="width: 40px;">
+                </div>
+                <div class="debug-col">
+                    <strong style="color: #00ff7f; width: 80px;" id="label-fighter2">Omega:</strong>
+                    <select id="debug-p2-drake"></select>
+                    <select id="debug-p2-title" class="title-select"></select>
+                    <span data-i18n="label_level">Рівень</span>: <input type="number" id="debug-p2-level" min="1" max="20" value="20" style="width: 40px;">
+                </div>
+                <div style="text-align: right; margin-top: 5px;">
+                    <button class="test-btn" onclick="applyDebugSettings()" style="padding: 4px 10px;" data-i18n="btn_apply">✅ Застосувати та оновити</button>
+                </div>
+            </div>
+
+            <div class="fighters-box">
+                <div class="fighter-card" id="card-p1">
+                    <div class="sprite-wrap"><canvas class="drake-sprite" id="sprite-p1" width="32" height="24"></canvas></div>
+                    <div class="fighter-name" id="name-p1" data-i18n="waiting">Очікування...</div>
+                    <div id="badge-container-p1"></div>
+                    <div class="fighter-info" id="info-p1">— | Рівень: 1 (0/100 XP)</div>
+                    <div class="fighter-stats-sub" id="stats-sub-p1">Крит: 15% (Сила: 1.5x) | Шанс накласти Баф|Дебаф: 30%<br>🛡️ Захист (Зниження шкоди): 0%</div>
+                    <div class="status-column" id="status-p1">
+                        <div class="status-category"><div class="status-title"><span>✨ Buffs</span> <span>0/2</span></div><div class="status-list"><span class="status-empty">No buffs</span></div></div>
+                        <div class="status-category" style="margin-top: 3px;"><div class="status-title" style="color: #ff4141;"><span>💀 Debuffs</span> <span>0/2</span></div><div class="status-list"><span class="status-empty">No debuffs</span></div></div>
+                    </div>
+                    <div class="hp-bar-container">
+                        <div class="hp-bar" id="bar-p1" style="width: 100%;"></div>
+                    </div>
+                    <div class="hp-text" id="hp-text-p1">150 / 150 HP</div>
+                </div>
+
+                <div class="fighter-card" id="card-p2">
+                    <div class="sprite-wrap"><canvas class="drake-sprite" id="sprite-p2" width="32" height="24"></canvas></div>
+                    <div class="fighter-name" id="name-p2" data-i18n="waiting">Очікування...</div>
+                    <div id="badge-container-p2"></div>
+                    <div class="fighter-info" id="info-p2">— | Рівень: 1 (0/100 XP)</div>
+                    <div class="fighter-stats-sub" id="stats-sub-p2">Крит: 15% (Сила: 1.5x) | Шанс накласти Баф|Дебаф: 30%<br>🛡️ Захист (Зниження шкоди): 0%</div>
+                    <div class="status-column" id="status-p2">
+                        <div class="status-category"><div class="status-title"><span>✨ Buffs</span> <span>0/2</span></div><div class="status-list"><span class="status-empty">No buffs</span></div></div>
+                        <div class="status-category" style="margin-top: 3px;"><div class="status-title" style="color: #ff4141;"><span>💀 Debuffs</span> <span>0/2</span></div><div class="status-list"><span class="status-empty">No debuffs</span></div></div>
+                    </div>
+                    <div class="hp-bar-container">
+                        <div class="hp-bar" id="bar-p2" style="width: 100%;"></div>
+                    </div>
+                    <div class="hp-text" id="hp-text-p2">150 / 150 HP</div>
+                </div>
+            </div>
+            
+            <div class="battle-log" id="battle-log">
+                <div class="log-line" style="color: #888; text-align: center;" data-i18n="arena_ready">Арена готова! Очікування бійців...</div>
+            </div>
+
+            <!-- Відображення черги на екрані -->
+            <div class="queue-display-box">
+                <span class="queue-title" data-i18n="queue_title">⏳ Черга на бій:</span>
+                <div class="queue-list-container" id="queue-list-ui">
+                    <span class="queue-empty" data-i18n="queue_empty">Нікого немає у черзі (напишіть !черга)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right column: Drake registry + chat-request window -->
+        <div class="side-column">
+        <div class="leaderboard-container">
+            <h3 data-i18n="registry_title">📜 Реєстр Дрейків Чату</h3>
+            <div class="leaderboard-scroll-box">
+                <ul id="leaderboard-list"></ul>
+            </div>
+        </div>
+
+        <div class="leaderboard-container info-container">
+            <h3 data-i18n="info_title">💬 Запити чату</h3>
+            <ul id="info-feed"><li class="info-empty" data-i18n="info_empty">Напишіть !стата, щоб побачити свого Дрейка</li></ul>
+        </div>
+        </div>
+    </div>
+
+    <!-- Chat simulator: play without Twitch -->
+    <div class="chat-sim">
+        <div class="chat-sim-head">
+            <b data-i18n="sim_title">💬 Chat Simulator</b>
+            <span class="chat-sim-hint" data-i18n="sim_hint">Type commands as any viewer — they go through the same code as real Twitch chat.</span>
+        </div>
+        <form class="chat-sim-row" onsubmit="simSend(); return false;">
+            <input type="text" id="sim-user" value="viewer1" autocomplete="off" aria-label="Username">
+            <input type="text" id="sim-msg" placeholder="!drake red" autocomplete="off" aria-label="Message">
+            <label class="sim-points"><input type="checkbox" id="sim-points"> <span data-i18n="sim_points">💎 Channel points</span></label>
+            <button class="test-btn" type="submit" data-i18n="sim_send">Send</button>
+        </form>
+        <div class="sim-chips" id="sim-chips"></div>
+    </div>
+
+    <script>
+        // ===== НАЛАШТУВАННЯ / SETTINGS =====
+        const TWITCH_CHANNEL = "heaxyle";   // Twitch channel to read chat from
+        let currentLang = 'en';             // default language: 'en' or 'uk'
+
+        const translations = {
+            uk: {
+                title: "Дрейк-Арена: Битва Дрейків",
+                arena_title: "⚔️ Дрейк-Арена: Битва Стихій ⚔️",
+                btn_test: "🧪 Запустити тест бою",
+                btn_settings: "⚙️ Налаштування тесту",
+                label_level: "Рівень",
+                btn_apply: "✅ Застосувати та оновити",
+                waiting: "Очікування...",
+                no_effects: "Немає ефектів",
+                arena_ready: "Арена готова! Очікування бійців...",
+                queue_title: "⏳ Черга на бій:",
+                queue_empty: "Нікого немає у черзі (напишіть !черга)",
+                registry_title: "📜 Реєстр Дрейків Чату",
+                no_drakes: "Ще немає зареєстрованих Дрейків",
+                info_title: "💬 Запити чату",
+                info_empty: "Напишіть !стата, щоб побачити свого Дрейка",
+                sim_title: "💬 Симулятор чату",
+                sim_hint: "Пишіть команди від імені будь-якого глядача — вони проходять через той самий код, що й справжній чат Twitch.",
+                sim_points: "💎 Бали каналу",
+                sim_send: "Надіслати",
+                sim_demo: "🎬 Демо: 4 глядачі стають у чергу"
+            },
+            en: {
+                title: "Drake Arena: Battle of Elements",
+                arena_title: "⚔️ Drake Arena: Element Battle ⚔️",
+                btn_test: "🧪 Run Test Battle",
+                btn_settings: "⚙️ Test Settings",
+                label_level: "Level",
+                btn_apply: "✅ Apply & Update",
+                waiting: "Waiting...",
+                no_effects: "No effects",
+                arena_ready: "Arena ready! Waiting for fighters...",
+                queue_title: "⏳ Battle Queue:",
+                queue_empty: "Queue is empty (type !queue)",
+                registry_title: "📜 Chat Drake Registry",
+                no_drakes: "No registered Drakes yet",
+                info_title: "💬 Chat Requests",
+                info_empty: "Type !stats to see your Drake",
+                sim_title: "💬 Chat Simulator",
+                sim_hint: "Type commands as any viewer — they go through the same code as real Twitch chat.",
+                sim_points: "💎 Channel points",
+                sim_send: "Send",
+                sim_demo: "🎬 Demo: 4 viewers join the queue"
+            }
+        };
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'uk' ? 'en' : 'uk';
+            document.getElementById('lang-toggle-btn').innerText = currentLang === 'uk' ? '🇺🇦 UK' : '🇬🇧 EN';
+            document.getElementById('html-root').setAttribute('lang', currentLang);
+            updateUITranslations();
+            renderSimChips();
+            updateQueueUI();
+            if (!isBattleRunning) renderEmptyStatus();
+            if(document.getElementById('debug-menu').style.display === 'block') {
+                populateDropdowns();
+            }
+            renderLeaderboard();
+        }
+
+        function updateUITranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                let key = el.getAttribute('data-i18n');
+                if (translations[currentLang][key]) {
+                    el.innerText = translations[currentLang][key];
+                }
+            });
+        }
+
+        const REWARD_ID_TITLE = "PASTE_REWARD_ID_HERE";  
+        const REWARD_ID_REROLL = "PASTE_REWARD_ID_HERE"; 
+
+        let playerLeaderboardStats = JSON.parse(localStorage.getItem('drake_arena_showcase_stats')) || {};
+        let isBattleRunning = false;
+        let matchmakingQueue = [];
+        let cooldowns = {}; 
+        const COOLDOWN_MINUTES = 3; 
+
+        let pendingChallenges = {}; 
+        let challengeTimeouts = {};
+
+        function getCooldownRemaining(username) {
+            if (!cooldowns[username]) return 0;
+            let timePassed = Date.now() - cooldowns[username];
+            let requiredTime = COOLDOWN_MINUTES * 60 * 1000;
+            if (timePassed >= requiredTime) return 0;
+            return Math.ceil((requiredTime - timePassed) / 1000 / 60); 
+        }
+
+        function updateQueueUI() {
+            const queueContainer = document.getElementById('queue-list-ui');
+            if (!queueContainer) return;
+
+            if (matchmakingQueue.length === 0) {
+                queueContainer.innerHTML = `<span class="queue-empty">${translations[currentLang].queue_empty}</span>`;
+                return;
+            }
+
+            let html = '';
+            matchmakingQueue.forEach((user, index) => {
+                html += `<span class="queue-badge">#${index + 1} @${user}</span>`;
+            });
+            queueContainer.innerHTML = html;
+        }
+
+// ===== ПІКСЕЛЬНІ ДРЕЙКИ =====
+// Спільне тіло (32×24, дивиться праворуч) + палітра стихії + предмети, що показують її здібність.
+// Символи: . прозоро | O контур | B тіло | S тінь | L черево | W крило | w тінь крила | E око | H ріг | T зуби/кігті
+const DRAKE_BODY = [
+    "................................",
+    "....OO.............OO...........",
+    "....OHO...........OHO...........",
+    "...OWwO..........OHOOOO.........",
+    "..OWWwwO........OBBBBBBOO.......",
+    ".OWWWWwwO......OBBBBBBBBBO......",
+    ".OWWwWWwwO.....OBBBBOEBBBBO.....",
+    "OWWWwWWWwwO....OBBBBOOBBBBBO....",
+    "OWWwWWWwWwwO..OOBBBBBBBBSSSSO...",
+    "OWWwWWwWWWwwO.OSBBBBBLLLLLLO....",
+    ".OwOWWwWWWWwwO.OSBBBBOOOOOO.....",
+    "..O.OwOWWWWWww.OSBBBBO..........",
+    "......OOwWWWWwOSBBBBO...........",
+    "........OOOOOOSBBBBBO...........",
+    "..........OBBBBBBBBBO...........",
+    ".........OBBBBBBBBBLLO..........",
+    "..OO....OBBSBBBBBBBLLO..........",
+    ".OBBO..OBBSBBBBBBBLLLLO.........",
+    ".OBO..OBBSBBBBBBBBLLLLO.........",
+    "..OBOOBBSBBBBBBBBBLLLO..........",
+    "...OBBBBBSBBOOOOBBBLO...........",
+    "....OOOBBBO....OBBBO............",
+    "......OTTTO....OTTTO............",
+    "................................"
+];
+
+// Зелений — справжній Дракон: класичний західний, на чотирьох лапах, рогата голова, складене крило, 40×28
+// Додаткові символи: G світлий блік, D дальні лапи, l луска черева, K кістки крила й шипи, h тінь рогу, P зіниця, t дальні кігті
+const DRAGON_BODY = [
+    "...........................OHOOhO.......",
+    ".................O..........OHHOhO......",
+    "................OHO..........OhHOOO.....",
+    "...............OOOHO.........OhhGGGO....",
+    "..............OWWKKO........OGBhBSSSOO..",
+    ".............OWwwwKO........OBBBBBEPGGO.",
+    "...........OOWwwwwKKO.......OBBBBBBBBBOO",
+    "..........OWWwwwWwWKO......OOSBOOOOOOOOO",
+    ".........OWWwWWwWwWKKO.....OBOOLSSSSSSLO",
+    ".O......OWWwWWwWWwWWKO....OOBBOOLLLLLLO.",
+    "OGO....OWWwWWWwWwWWWKO.OOOGGBBLLOOOOOO..",
+    "OBGO...OWwWWWwWWwWWWWKOGGGBBBBLLO.......",
+    "GBBGO..OWOOWwOWWwWWWWKOBBBBBBLLO........",
+    "SBBSO...OOOOOOOWwOOWWWKOBBBBBLLO........",
+    "OBBO....OOOGGGOOOBBOOOOBOOOBBLO.........",
+    "OBBO...OGOGBBBGOBBBBBBBOGGGOLO..........",
+    "OBBO..OGOGBBBBBGOBBBBBBOBBBOO...........",
+    "OSBGOOGBOBBBBBBBOLlLLlLOBBBGO...........",
+    ".OBBGGBBOSBBBBBSOLlLLlLOSBBBO...........",
+    ".OSBBBBBBOBBBBSOLLlLLlLLOBBBO...........",
+    "..OSSSSSSOBBBSOOLLlLOOOOOBBBO...........",
+    "...OOOOOOGBBSOODOOOOODDOOBBBO...........",
+    "........OSBBO.ODDO..ODDOOBBBO...........",
+    ".........OBBGOODDDO.ODDOOBBBO...........",
+    ".........OBBBGGODDO.ODDOGBBBGO..........",
+    ".........OTSTSTOtDtOtDtOTSTSTO..........",
+    "..........OOOOOOOOO.OOOOOOOOO...........",
+    "........................................"
+];
+
+// Палітри: O контур, B тіло, S тінь, L черево, W крило, w тінь крила, E око, H ріг, T зуби/кігті
+const DRAKE_PALETTES = {
+    red:    { O: '#2a0808', B: '#d7263d', S: '#8f1526', L: '#ffb26b', W: '#b31f33', w: '#6e1020', E: '#ffe45c', H: '#f1e3c8', T: '#ffffff' },
+    blue:   { O: '#08162e', B: '#2f7fe0', S: '#1b4e96', L: '#bfe6ff', W: '#2766b8', w: '#163f78', E: '#ffffff', H: '#dff4ff', T: '#ffffff' },
+    black:  { O: '#000000', B: '#2c2c3a', S: '#17171f', L: '#4a4560', W: '#3b3450', w: '#1f1a2c', E: '#c86bff', H: '#6d6680', T: '#d9d0ff' },
+    gold:   { O: '#2e1f02', B: '#f2b705', S: '#b07f00', L: '#fff1a8', W: '#d99a00', w: '#8f6400', E: '#8a2be2', H: '#fff8dc', T: '#ffffff' },
+    purple: { O: '#1a0628', B: '#8e44ad', S: '#5b2475', L: '#e6b8ff', W: '#7a3bb0', w: '#4b1f70', E: '#6bfff0', H: '#f0dcff', T: '#ffffff' },
+    white:  { O: '#34465a', B: '#eef6fc', S: '#b3c9dc', L: '#ffffff', W: '#bcd9ee', w: '#7fa9c8', E: '#2f8fe0', H: '#dff4ff', T: '#ffffff' },
+    green:  { O: '#04230f', B: '#22b35a', S: '#137a3a', G: '#5fe08a', D: '#0c5a2a', L: '#d6f5b8', l: '#a8d98a', W: '#0f8f72', w: '#04382c', K: '#02261c', H: '#ffd84a', h: '#c99a16', E: '#fff36b', P: '#1a0f00', T: '#f4f1e0', t: '#b8b39a' }
+};
+
+// Предмети здібностей: [x, y, колір] поверх тіла (координати в тій самій сітці)
+const px = (pts, c) => pts.map(([x, y]) => [x, y, c]);
+const DRAKE_PROPS = {
+    // Червоний — вогняний подих (сильні крити)
+    red: [
+        ...px([[28, 8], [29, 8], [30, 7], [29, 9], [30, 9], [31, 9], [29, 10], [30, 11]], '#ff7b00'),
+        ...px([[28, 9], [28, 10], [30, 8], [30, 10]], '#ffe45c'),
+        ...px([[31, 7], [31, 11], [31, 10]], '#d7263d')
+    ],
+    // Синій — щит-дзеркало, що відбиває шкоду
+    blue: [
+        ...px([[23, 13], [24, 13], [25, 13], [22, 14], [26, 14], [22, 15], [26, 15], [22, 16], [26, 16], [23, 17], [25, 17], [24, 18]], '#dff4ff'),
+        ...px([[23, 14], [24, 14], [25, 14], [23, 15], [25, 15], [23, 16], [24, 16], [25, 16], [24, 17]], '#5fb3ff'),
+        ...px([[24, 15]], '#ffffff'),
+        ...px([[28, 13], [29, 12], [28, 17], [29, 18]], '#9fd8ff')
+    ],
+    // Чорний — тіньова аура (ультраблок)
+    black: [
+        ...px([[2, 3], [1, 6], [2, 9], [25, 2], [27, 4], [28, 12], [26, 16], [24, 20], [1, 21], [0, 14]], '#7a3bff'),
+        ...px([[3, 2], [0, 7], [24, 1], [28, 5], [29, 13], [27, 17], [2, 22]], '#3b1a70'),
+        ...px([[21, 6]], '#e0b0ff')
+    ],
+    // Золотий — монети й сяйво (бонусний досвід і фортуна)
+    gold: [
+        ...px([[24, 17], [25, 17], [23, 18], [26, 18], [23, 19], [26, 19], [24, 20], [25, 20]], '#b07f00'),
+        ...px([[24, 18], [25, 18], [24, 19], [25, 19]], '#ffe45c'),
+        ...px([[27, 21], [28, 21], [27, 22], [28, 22]], '#f2b705'),
+        ...px([[2, 3], [1, 4], [3, 4], [2, 5], [28, 3], [26, 1], [29, 15]], '#fff8a0')
+    ],
+    // Фіолетовий — руни, що кружляють (сильніші бафи/дебафи)
+    purple: [
+        ...px([[27, 3], [26, 4], [28, 4], [27, 5]], '#6bfff0'),
+        ...px([[1, 4], [2, 4], [1, 5], [2, 5]], '#e6b8ff'),
+        ...px([[26, 15], [27, 16], [26, 17], [25, 16]], '#e6b8ff'),
+        ...px([[0, 15], [1, 14]], '#6bfff0'),
+        ...px([[27, 4], [26, 16]], '#ffffff')
+    ],
+    // Білий — сніжна грива та крижані кристали (більше HP, міцний як лід)
+    white: [
+        ...px([[17, 3], [16, 4], [15, 5], [16, 6], [15, 7], [14, 8], [15, 9], [14, 10], [15, 11], [14, 12]], '#ffffff'),
+        ...px([[16, 3], [15, 4], [14, 5], [15, 6], [14, 7], [13, 8], [14, 9], [13, 10], [14, 11]], '#bfe9ff'),
+        ...px([[15, 3], [14, 4], [13, 6], [12, 8], [13, 11]], '#7cc4ec'),
+        ...px([[27, 2], [26, 3], [28, 3], [27, 4], [27, 3]], '#9fe3ff'),
+        ...px([[28, 16], [27, 17], [29, 17], [28, 18], [28, 17]], '#9fe3ff'),
+        ...px([[2, 12], [1, 13], [3, 13], [2, 14], [2, 13]], '#9fe3ff'),
+        ...px([[27, 3], [28, 17], [2, 13]], '#ffffff')
+    ],
+    // Зелений — усе вже намальовано в самому Драконі (золоті роги, крило, шипи)
+    green: []
+};
+
+const __spriteCache = {};
+// Малює дрейка (32×24) або Дракона (40×28) і повертає canvas (або null, якщо canvas недоступний)
+function makeDrakeCanvas(type) {
+    if (__spriteCache[type]) return __spriteCache[type];
+    if (typeof document === 'undefined' || !document.createElement) return null;
+    const c = document.createElement('canvas');
+    if (!c.getContext) return null;
+    const body = type === 'green' ? DRAGON_BODY : DRAKE_BODY;
+    c.width = body[0].length; c.height = body.length;
+    const g = c.getContext('2d');
+    const pal = DRAKE_PALETTES[type] || DRAKE_PALETTES.red;
+    body.forEach((row, y) => [...row].forEach((ch, x) => {
+        if (ch !== '.' && pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); }
+    }));
+    (DRAKE_PROPS[type] || []).forEach(([x, y, col]) => { g.fillStyle = col; g.fillRect(x, y, 1, 1); });
+    __spriteCache[type] = c;
+    return c;
+}
+
+// Картинка дрейка як data URL (для <img>), або '' якщо малювати нема чим
+function drakeSpriteURL(type) {
+    const c = makeDrakeCanvas(type);
+    try { return c ? c.toDataURL() : ''; } catch (e) { return ''; }
+}
+
+        // Малює дрейка стихії в canvas картки бійця
+        function drawFighterSprite(prefix, type) {
+            const target = document.getElementById(`sprite-${prefix}`);
+            if (!target || !target.getContext) return;
+            const g = target.getContext('2d');
+            if (!g) return;
+            const src = makeDrakeCanvas(type);
+            g.clearRect(0, 0, target.width, target.height);
+            const isDragon = type === 'green';
+            if (target.parentElement) target.parentElement.classList.toggle('dragon', isDragon);
+            const card = document.getElementById(`card-${prefix}`);
+            if (card && card.classList) card.classList.toggle('has-dragon', isDragon);
+            if (src) {
+                if (target.width !== src.width) target.width = src.width;
+                if (target.height !== src.height) target.height = src.height;
+                g.drawImage(src, 0, 0);
+            }
+        }
+        // Коротке "струшування" дрейка, коли він отримує удар
+        function flashSpriteHit(prefix) {
+            const el = document.getElementById(`sprite-${prefix}`);
+            if (!el || !el.classList) return;
+            el.classList.remove('hit');
+            void el.offsetWidth;   // перезапуск анімації
+            el.classList.add('hit');
+            setTimeout(() => el.classList.remove('hit'), 380);
+        }
+
+        const DRAKE_TYPES = [
+            { name: { uk: 'Червоний Дрейк 🟥', en: 'Red Drake 🟥' }, type: 'red' },
+            { name: { uk: 'Синій Дрейк 🟦', en: 'Blue Drake 🟦' }, type: 'blue' },
+            { name: { uk: 'Чорний Дрейк ⬛', en: 'Black Drake ⬛' }, type: 'black' },
+            { name: { uk: 'Золотий Дрейк 🟨', en: 'Gold Drake 🟨' }, type: 'gold' },
+            { name: { uk: 'Фіолетовий Дрейк 🟪', en: 'Purple Drake 🟪' }, type: 'purple' },
+            { name: { uk: 'Білий Дрейк ⬜', en: 'White Drake ⬜' }, type: 'white' }
+        ];
+
+        // ===== TITLES =====
+        // Rarity sets the drop chance (weight, in %) and colour. Titles within a rarity drop evenly.
+        const RARITIES = {
+            common:    { name: { uk: 'Звичайний',   en: 'Common' },    color: '#a0a0a0', weight: 45 },
+            uncommon:  { name: { uk: 'Незвичайний', en: 'Uncommon' },  color: '#2ecc71', weight: 25 },
+            rare:      { name: { uk: 'Рідкісний',   en: 'Rare' },      color: '#3498db', weight: 15 },
+            epic:      { name: { uk: 'Епічний',     en: 'Epic' },      color: '#b36bff', weight: 9 },
+            legendary: { name: { uk: 'Легендарний', en: 'Legendary' }, color: '#f1c40f', weight: 4.5 },
+            mythic:    { name: { uk: 'Міфічний',    en: 'Mythic' },    color: '#ff4757', weight: 1.3 },
+            meme:      { name: { uk: 'Мемний',      en: 'Meme' },      color: '#ff66cc', weight: 0.2 }
+        };
+
+        const TITLES_DB = [
+            { id: 1, rarity: 'common', icon: '📦', name: { uk: "Сесійний задрот", en: "Session Tryhard" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 2, rarity: 'common', icon: '🥟', name: { uk: "Сонний пельмень", en: "Sleepy Dumpling" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 3, rarity: 'common', icon: '🛋️', name: { uk: "Майстер диванних військ", en: "Couch Forces Master" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 4, rarity: 'common', icon: '🤓', name: { uk: "Професійний душніла", en: "Professional Nitpicker" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 5, rarity: 'common', icon: '🍕', name: { uk: "Володар піци", en: "Pizza Lord" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 6, rarity: 'common', icon: '🥱', name: { uk: "Спеціаліст з нічого", en: "Specialist in Nothing" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 7, rarity: 'common', icon: '💤', name: { uk: "Любитель поспати", en: "Sleep Enthusiast" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 8, rarity: 'common', icon: '😱', name: { uk: "Генерал паніки", en: "Panic General" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 9, rarity: 'common', icon: '🛜', name: { uk: "Король лагів", en: "Lag King" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 10, rarity: 'common', icon: '🐱', name: { uk: "Володар котів", en: "Cat Lord" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 11, rarity: 'common', icon: '🍳', name: { uk: "Частий гість кухні", en: "Frequent Kitchen Guest" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 12, rarity: 'common', icon: '🧪', name: { uk: "Побутовий алхімік", en: "Household Alchemist" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 13, rarity: 'common', icon: '🕰️', name: { uk: "Магістр прокрастинації", en: "Procrastination Master" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 14, rarity: 'common', icon: '🖱️', name: { uk: "Оператор мишки", en: "Mouse Operator" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 15, rarity: 'common', icon: '📺', name: { uk: "Володар пульта", en: "Remote Controller" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 16, rarity: 'common', icon: '🛏️', name: { uk: "Провідник дивану", en: "Couch Guide" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 17, rarity: 'common', icon: '🥐', name: { uk: "Збирач крихт", en: "Crumb Collector" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 18, rarity: 'common', icon: '🧠', name: { uk: "Побутовий філософ", en: "Household Philosopher" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 19, rarity: 'common', icon: '🧊', name: { uk: "Патрульний холодильника", en: "Fridge Patrol" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 20, rarity: 'common', icon: '☕', name: { uk: "Магістр кавоваріння", en: "Coffee Brewing Master" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 21, rarity: 'common', icon: '🥱', name: { uk: "Чемпіон з позіхання", en: "Yawning Champion" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 22, rarity: 'common', icon: '🛌', name: { uk: "Володар ковдри", en: "Blanket Lord" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 23, rarity: 'common', icon: '🪑', name: { uk: "Лицар табуретки", en: "Stool Knight" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 24, rarity: 'common', icon: '🦥', name: { uk: "Генерал лінощів", en: "Laziness General" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 25, rarity: 'common', icon: '📖', name: { uk: "Майстер казки", en: "Fairytale Master" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 26, rarity: 'common', icon: '💡', name: { uk: "Капітан очевидність", en: "Captain Obvious" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 27, rarity: 'common', icon: '🤡', name: { uk: "Спеціаліст з мемів", en: "Meme Specialist" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 28, rarity: 'common', icon: '🧺', name: { uk: "Володар брудної білизни", en: "Dirty Laundry Lord" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 29, rarity: 'common', icon: '🤫', name: { uk: "Директор тиші", en: "Silence Director" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 30, rarity: 'common', icon: '❓', name: { uk: "Експерт з питань", en: "Q&A Expert" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 31, rarity: 'common', icon: '🩴', name: { uk: "Володар тапків", en: "Slipper Lord" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 32, rarity: 'common', icon: '🍔', name: { uk: "Нічний жерун", en: "Night Eater" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 33, rarity: 'common', icon: '📑', name: { uk: "Король вкладок", en: "Tab King" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 34, rarity: 'common', icon: '👀', name: { uk: "Спеціаліст з поглядів", en: "Gaze Specialist" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 35, rarity: 'common', icon: '🛌', name: { uk: "Буріто з ковдри", en: "Blanket Burrito" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 36, rarity: 'common', icon: '⏳', name: { uk: "Той, хто ще 5 хвилиночок", en: "Just 5 More Minutes" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 37, rarity: 'common', icon: '🕸️', name: { uk: "Володар павутиння", en: "Cobweb Lord" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 38, rarity: 'common', icon: '🌪️', name: { uk: "Генерал хаосу", en: "Chaos General" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 39, rarity: 'common', icon: '🛋️', name: { uk: "Патрульний залу", en: "Hall Patrol" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 40, rarity: 'common', icon: '🔌', name: { uk: "Лицар розетки", en: "Outlet Knight" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 41, rarity: 'common', icon: '🔌', name: { uk: "Володар кабелів", en: "Cable Lord" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 42, rarity: 'common', icon: '🥜', name: { uk: "Король лушпиння", en: "Husk King" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 43, rarity: 'common', icon: '🤫', name: { uk: "Шепіт у голосовому", en: "Voice Chat Whisperer" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 44, rarity: 'common', icon: '🛌', name: { uk: "Будівельник фортеці з подушок", en: "Pillow Fort Builder" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 45, rarity: 'common', icon: '🍵', name: { uk: "Володар чашки", en: "Cup Lord" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 46, rarity: 'common', icon: '🪄', name: { uk: "Побутовий маг", en: "Household Mage" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 47, rarity: 'common', icon: '🛋️', name: { uk: "Спеціаліст з диванів", en: "Couch Specialist" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 48, rarity: 'common', icon: '⏰', name: { uk: "Капітан «потім зроблю»", en: "Captain «I'll do it later»" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 49, rarity: 'common', icon: '😴', name: { uk: "Директор сну", en: "Sleep Director" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 50, rarity: 'common', icon: '🧦', name: { uk: "Володар носків", en: "Sock Lord" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 51, rarity: 'common', icon: '🛌', name: { uk: "Патрульний ліжка", en: "Bed Patrol" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 52, rarity: 'common', icon: '🤫', name: { uk: "Король мʼюту", en: "Mute King" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 53, rarity: 'common', icon: '👀', name: { uk: "Той, хто читає чат із затримкою", en: "Reads Chat on Delay" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 54, rarity: 'common', icon: '📺', name: { uk: "Друга серія того ж серіалу", en: "Same Show, Next Episode" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 55, rarity: 'common', icon: '🤫', name: { uk: "Генерал «я на хвилинку»", en: "\"Be Right Back\" General" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 56, rarity: 'common', icon: '🍵', name: { uk: "Лицар чаю", en: "Tea Knight" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 57, rarity: 'common', icon: '🐱', name: { uk: "Котячий дворецький", en: "Cat Butler" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 58, rarity: 'common', icon: '🥐', name: { uk: "Хранитель останнього шматочка", en: "Keeper of the Last Slice" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 59, rarity: 'common', icon: '🧐', name: { uk: "Побутовий критик", en: "Household Critic" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 60, rarity: 'common', icon: '💭', name: { uk: "Спеціаліст з мрій", en: "Dream Specialist" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 131, rarity: 'common', icon: '🎧', name: { uk: "Слухач без мікрофона", en: "Listener Without a Mic" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 132, rarity: 'common', icon: '🍜', name: { uk: "Магістр мівіни", en: "Instant Noodle Master" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 133, rarity: 'common', icon: '📱', name: { uk: "Скролер до третьої ночі", en: "3 AM Scroller" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 134, rarity: 'common', icon: '🔋', name: { uk: "Вічні 3% заряду", en: "Forever at 3% Battery" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 135, rarity: 'common', icon: '🧦', name: { uk: "Шкарпетка-одиначка", en: "The Lonely Sock" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 136, rarity: 'common', icon: '🥔', name: { uk: "Картопляний стратег", en: "Potato Strategist" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 137, rarity: 'common', icon: '🪴', name: { uk: "Той, хто забув полити кактус", en: "Forgot to Water the Cactus" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 138, rarity: 'common', icon: '🛒', name: { uk: "Турист інтернет-магазинів", en: "Online Shopping Tourist" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 139, rarity: 'common', icon: '🔕', name: { uk: "Хранитель беззвучного режиму", en: "Keeper of Silent Mode" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 140, rarity: 'common', icon: '🍞', name: { uk: "Батон на ранок", en: "Loaf for the Morning" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 141, rarity: 'common', icon: '🧃', name: { uk: "Сік без трубочки", en: "Juice Box Without a Straw" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 142, rarity: 'common', icon: '🐌', name: { uk: "Равлик-спринтер", en: "Sprinting Snail" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 143, rarity: 'common', icon: '🥱', name: { uk: "Прокинувся на обід", en: "Woke Up at Lunch" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 144, rarity: 'common', icon: '📦', name: { uk: "Колекціонер коробок «а раптом знадобиться»", en: "Box Collector (\"Might Need It\")" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 145, rarity: 'common', icon: '🧂', name: { uk: "Солоний після програшу", en: "Salty After a Loss" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 146, rarity: 'common', icon: '🎮', name: { uk: "Знову «ще одна катка»", en: "\"Just One More Match\" Again" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 147, rarity: 'common', icon: '🍪', name: { uk: "Печивко з верхньої полиці", en: "Top-Shelf Cookie" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 148, rarity: 'common', icon: '👁️', name: { uk: "Сплю з відкритими очима", en: "Sleeps With Eyes Open" }, bonus: { type: 'stats', stats: { def: 7 } } },
+            { id: 149, rarity: 'common', icon: '🧊', name: { uk: "Кубик льоду в чаї", en: "Ice Cube in the Tea" }, bonus: { type: 'stats', stats: { hp: 9 } } },
+            { id: 150, rarity: 'common', icon: '🔌', name: { uk: "Зарядка на 20 сантиметрів", en: "20-Centimeter Charger Cable" }, bonus: { type: 'stats', stats: { crit: 10 } } },
+            { id: 101, rarity: 'uncommon', icon: '🙋', name: { uk: "Той, хто пише «привіт» о 3 ночі", en: "Says \"Hi\" at 3 AM" }, bonus: { type: 'stats', stats: { hp: 18 } } },
+            { id: 102, rarity: 'uncommon', icon: '🔇', name: { uk: "Модератор без банхамера", en: "Mod Without a Banhammer" }, bonus: { type: 'stats', stats: { crit: 16 } } },
+            { id: 103, rarity: 'uncommon', icon: '🕹️', name: { uk: "Чемпіон AFK", en: "AFK Champion" }, bonus: { type: 'stats', stats: { def: 13 } } },
+            { id: 104, rarity: 'uncommon', icon: '📺', name: { uk: "Шукач пульта між подушками", en: "Remote Hunter (Between Cushions)" }, bonus: { type: 'stats', stats: { effect: 15 } } },
+            { id: 105, rarity: 'uncommon', icon: '⌨️', name: { uk: "Капслок-оратор", en: "Caps Lock Orator" }, bonus: { type: 'stats', stats: { hp: 18 } } },
+            { id: 106, rarity: 'uncommon', icon: '🐢', name: { uk: "Інтернет на 2 мегабіти", en: "2 Megabit Internet" }, bonus: { type: 'stats', stats: { crit: 16 } } },
+            { id: 107, rarity: 'uncommon', icon: '🍿', name: { uk: "Глядач з попкорном", en: "Popcorn Spectator" }, bonus: { type: 'stats', stats: { def: 13 } } },
+            { id: 108, rarity: 'uncommon', icon: '🎤', name: { uk: "Співак у душі", en: "Shower Singer" }, bonus: { type: 'stats', stats: { effect: 15 } } },
+            { id: 109, rarity: 'uncommon', icon: '⏰', name: { uk: "Будильник з кнопкою «ще 5»", en: "Snooze Button Alarm" }, bonus: { type: 'stats', stats: { hp: 18 } } },
+            { id: 110, rarity: 'uncommon', icon: '🧹', name: { uk: "Прибирає тільки перед гостями", en: "Cleans Only Before Guests" }, bonus: { type: 'stats', stats: { crit: 16 } } },
+            { id: 111, rarity: 'uncommon', icon: '🐸', name: { uk: "Любитель смайлика з жабкою", en: "Frog Emote Fan" }, bonus: { type: 'stats', stats: { def: 13 } } },
+            { id: 112, rarity: 'uncommon', icon: '🧀', name: { uk: "Сирний барон", en: "Cheese Baron" }, bonus: { type: 'stats', stats: { effect: 15 } } },
+            { id: 113, rarity: 'uncommon', icon: '🌙', name: { uk: "Нічна сова чату", en: "Chat Night Owl" }, bonus: { type: 'stats', stats: { hp: 18 } } },
+            { id: 114, rarity: 'uncommon', icon: '🥤', name: { uk: "Повелитель енергетиків", en: "Energy Drink Overlord" }, bonus: { type: 'stats', stats: { crit: 16 } } },
+            { id: 115, rarity: 'uncommon', icon: '🎲', name: { uk: "Везунчик на кубиках", en: "Lucky Dice Roller" }, bonus: { type: 'stats', stats: { def: 13 } } },
+            { id: 116, rarity: 'uncommon', icon: '🫖', name: { uk: "Чайний церемоніймейстер", en: "Tea Ceremony Master" }, bonus: { type: 'stats', stats: { effect: 15 } } },
+            { id: 117, rarity: 'uncommon', icon: '📸', name: { uk: "Скріншотер моментів", en: "Moment Screenshotter" }, bonus: { type: 'stats', stats: { hp: 18 } } },
+            { id: 118, rarity: 'uncommon', icon: '🗯️', name: { uk: "Майстер «ну я ж казав»", en: "\"Told You So\" Master" }, bonus: { type: 'stats', stats: { crit: 16 } } },
+            { id: 119, rarity: 'uncommon', icon: '🦆', name: { uk: "Гумова качечка", en: "Rubber Duck" }, bonus: { type: 'stats', stats: { def: 13 } } },
+            { id: 120, rarity: 'uncommon', icon: '🍍', name: { uk: "Ананас на піці (серйозно)", en: "Pineapple on Pizza (Seriously)" }, bonus: { type: 'stats', stats: { effect: 15 } } },
+            { id: 121, rarity: 'uncommon', icon: '🚪', name: { uk: "Пішов на хвилинку (годину тому)", en: "Back in a Minute (an Hour Ago)" }, bonus: { type: 'stats', stats: { hp: 18 } } },
+            { id: 122, rarity: 'uncommon', icon: '🪑', name: { uk: "Лицар крісла, що скрипить", en: "Knight of the Squeaky Chair" }, bonus: { type: 'stats', stats: { crit: 16 } } },
+            { id: 123, rarity: 'uncommon', icon: '🤳', name: { uk: "Селфі на фоні стріму", en: "Selfie With the Stream" }, bonus: { type: 'stats', stats: { def: 13 } } },
+            { id: 124, rarity: 'uncommon', icon: '💡', name: { uk: "Геніальна ідея о 4 ранку", en: "Genius Idea at 4 AM" }, bonus: { type: 'stats', stats: { effect: 15 } } },
+            { id: 125, rarity: 'uncommon', icon: '🌮', name: { uk: "Тако щодня", en: "Taco Every Day" }, bonus: { type: 'stats', stats: { hp: 18 } } },
+            { id: 126, rarity: 'uncommon', icon: '🐈‍⬛', name: { uk: "Той, чий кіт важливіший", en: "Whose Cat Matters More" }, bonus: { type: 'stats', stats: { crit: 16 } } },
+            { id: 127, rarity: 'uncommon', icon: '📝', name: { uk: "Писав повідомлення, але стер", en: "Typed a Message, Then Deleted It" }, bonus: { type: 'stats', stats: { def: 13 } } },
+            { id: 128, rarity: 'uncommon', icon: '🎯', name: { uk: "Промахнувся по кнопці", en: "Missed the Button" }, bonus: { type: 'stats', stats: { effect: 15 } } },
+            { id: 129, rarity: 'uncommon', icon: '🧸', name: { uk: "Плюшевий охоронець", en: "Plush Bodyguard" }, bonus: { type: 'stats', stats: { hp: 18 } } },
+            { id: 130, rarity: 'uncommon', icon: '🍩', name: { uk: "Пончиковий кур'єр", en: "Donut Courier" }, bonus: { type: 'stats', stats: { crit: 16 } } },
+            { id: 61, rarity: 'rare', icon: '🃏', name: { uk: "Король смішних мемів", en: "Funny Meme King" }, bonus: { type: 'stats', stats: { hp: 22, hpPerLevel: 0.5 } } },
+            { id: 62, rarity: 'rare', icon: '🌐', name: { uk: "Володар швидкого інтернету", en: "Fast Internet Lord" }, bonus: { type: 'stats', stats: { crit: 14, power: 0.22 } } },
+            { id: 63, rarity: 'rare', icon: '⌨️', name: { uk: "Гроза клавіатури", en: "Keyboard Menace" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },
+            { id: 64, rarity: 'rare', icon: '☕', name: { uk: "Експерт з кави", en: "Coffee Expert" }, bonus: { type: 'stats', stats: { effect: 15, crit: 8 } } },
+            { id: 65, rarity: 'rare', icon: '☀️', name: { uk: "Володар світлої сторони", en: "Light Side Lord" }, bonus: { type: 'stats', stats: { hp: 22, hpPerLevel: 0.5 } } },
+            { id: 66, rarity: 'rare', icon: '🖱️', name: { uk: "Майстер правої кнопки", en: "Right Click Master" }, bonus: { type: 'stats', stats: { crit: 14, power: 0.22 } } },
+            { id: 67, rarity: 'rare', icon: '🏆', name: { uk: "Побутовий кіберспортсмен", en: "Household Esportsman" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },
+            { id: 68, rarity: 'rare', icon: '🃏', name: { uk: "Директор з приколів", en: "Director of Jokes" }, bonus: { type: 'stats', stats: { effect: 15, crit: 8 } } },
+            { id: 69, rarity: 'rare', icon: '👻', name: { uk: "Володар хоррор-ігор", en: "Horror Game Lord" }, bonus: { type: 'stats', stats: { hp: 22, hpPerLevel: 0.5 } } },
+            { id: 70, rarity: 'rare', icon: '⚖️', name: { uk: "Генерал балансу", en: "Balance General" }, bonus: { type: 'stats', stats: { crit: 14, power: 0.22 } } },
+            { id: 71, rarity: 'rare', icon: '🎥', name: { uk: "Король стрімінгу", en: "Streaming King" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },
+            { id: 72, rarity: 'rare', icon: '🖱️', name: { uk: "Магістр кліків", en: "Click Master" }, bonus: { type: 'stats', stats: { effect: 15, crit: 8 } } },
+            { id: 73, rarity: 'rare', icon: '🖱️', name: { uk: "Лицар Ctrl+Z", en: "Ctrl+Z Knight" }, bonus: { type: 'stats', stats: { hp: 22, hpPerLevel: 0.5 } } },
+            { id: 74, rarity: 'rare', icon: '💸', name: { uk: "Володар донатів", en: "Donation Lord" }, bonus: { type: 'stats', stats: { crit: 14, power: 0.22 } } },
+            { id: 75, rarity: 'rare', icon: '📰', name: { uk: "Спеціаліст з гарних новин", en: "Good News Specialist" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },
+            { id: 76, rarity: 'rare', icon: '🛡️', name: { uk: "Патрульний чату", en: "Chat Patrol" }, bonus: { type: 'stats', stats: { effect: 15, crit: 8 } } },
+            { id: 77, rarity: 'rare', icon: '⚔️', name: { uk: "Король модерації", en: "Moderation King" }, bonus: { type: 'stats', stats: { hp: 22, hpPerLevel: 0.5 } } },
+            { id: 78, rarity: 'rare', icon: '😎', name: { uk: "Майстер смайликів", en: "Emoji Master" }, bonus: { type: 'stats', stats: { crit: 14, power: 0.22 } } },
+            { id: 79, rarity: 'rare', icon: '🐛', name: { uk: "Володар багів", en: "Bug Lord" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },
+            { id: 80, rarity: 'rare', icon: '🛠️', name: { uk: "Генерал патчів", en: "Patch General" }, bonus: { type: 'stats', stats: { effect: 15, crit: 8 } } },
+            { id: 81, rarity: 'rare', icon: '⚙️', name: { uk: "Експерт з оптимізації", en: "Optimization Expert" }, bonus: { type: 'stats', stats: { hp: 22, hpPerLevel: 0.5 } } },
+            { id: 82, rarity: 'rare', icon: '⚡', name: { uk: "Володар високих FPS", en: "High FPS Lord" }, bonus: { type: 'stats', stats: { crit: 14, power: 0.22 } } },
+            { id: 83, rarity: 'rare', icon: '🖥️', name: { uk: "Король 2K моніторів", en: "2K Monitor King" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },
+            { id: 84, rarity: 'rare', icon: '🎨', name: { uk: "Магістр ультра-настроїв", en: "Ultra Settings Master" }, bonus: { type: 'stats', stats: { effect: 15, crit: 8 } } },
+            { id: 85, rarity: 'rare', icon: '🛜', name: { uk: "Лицар гарного пінгу", en: "Good Ping Knight" }, bonus: { type: 'stats', stats: { hp: 22, hpPerLevel: 0.5 } } },
+            { id: 151, rarity: 'rare', icon: '🛡️', name: { uk: "Щит від спойлерів", en: "Spoiler Shield" }, bonus: { type: 'stats', stats: { crit: 14, power: 0.22 } } },
+            { id: 152, rarity: 'rare', icon: '🔥', name: { uk: "Гарячий дубль", en: "Hot Take" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },
+            { id: 153, rarity: 'rare', icon: '🎰', name: { uk: "Щасливчик рулетки", en: "Roulette Lucky Charm" }, bonus: { type: 'stats', stats: { effect: 15, crit: 8 } } },
+            { id: 154, rarity: 'rare', icon: '🧙', name: { uk: "Чарівник Wi-Fi", en: "Wi-Fi Wizard" }, bonus: { type: 'stats', stats: { hp: 22, hpPerLevel: 0.5 } } },
+            { id: 155, rarity: 'rare', icon: '🎬', name: { uk: "Режисер хайлайтів", en: "Highlight Director" }, bonus: { type: 'stats', stats: { crit: 14, power: 0.22 } } },
+            { id: 156, rarity: 'rare', icon: '🕵️', name: { uk: "Детектив з пошуку багів", en: "Bug-Hunting Detective" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },
+            { id: 157, rarity: 'rare', icon: '🚀', name: { uk: "Пінг нуль", en: "Zero Ping" }, bonus: { type: 'stats', stats: { effect: 15, crit: 8 } } },
+            { id: 158, rarity: 'rare', icon: '📢', name: { uk: "Голос чату", en: "Voice of Chat" }, bonus: { type: 'stats', stats: { hp: 22, hpPerLevel: 0.5 } } },
+            { id: 159, rarity: 'rare', icon: '🥇', name: { uk: "Перша кров арени", en: "Arena First Blood" }, bonus: { type: 'stats', stats: { crit: 14, power: 0.22 } } },
+            { id: 160, rarity: 'rare', icon: '🍀', name: { uk: "Чотирилисник на щастя", en: "Four-Leaf Clover" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },
+            { id: 161, rarity: 'rare', icon: '🌶️', name: { uk: "Гострий на язик", en: "Sharp Tongue" }, bonus: { type: 'stats', stats: { effect: 15, crit: 8 } } },
+            { id: 162, rarity: 'rare', icon: '🔪', name: { uk: "Ніж у масло", en: "Knife Through Butter" }, bonus: { type: 'stats', stats: { hp: 22, hpPerLevel: 0.5 } } },
+            { id: 163, rarity: 'rare', icon: '🧲', name: { uk: "Магніт для критів", en: "Crit Magnet" }, bonus: { type: 'stats', stats: { crit: 14, power: 0.22 } } },
+            { id: 164, rarity: 'rare', icon: '🌊', name: { uk: "Цунамі емодзі", en: "Emoji Tsunami" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },
+            { id: 165, rarity: 'rare', icon: '🏹', name: { uk: "Снайпер з дивана", en: "Couch Sniper" }, bonus: { type: 'stats', stats: { effect: 15, crit: 8 } } },
+            { id: 86, rarity: 'epic', icon: '👑', name: { uk: "Імператор чату", en: "Chat Emperor" }, bonus: { type: 'stats', stats: { power: 0.4, crit: 8 } } },
+            { id: 87, rarity: 'epic', icon: '🧐', name: { uk: "Легендарний душніла", en: "Legendary Nitpicker" }, bonus: { type: 'stats', stats: { hpPerLevel: 2, hp: 25 } } },
+            { id: 88, rarity: 'epic', icon: '⏳', name: { uk: "Титан прокрастинації", en: "Procrastination Titan" }, bonus: { type: 'stats', stats: { buffEff: 40, effect: 12 } } },
+            { id: 89, rarity: 'epic', icon: '🌌', name: { uk: "Володар всесвіту", en: "Universe Lord" }, bonus: { type: 'stats', stats: { crit: 12, power: 0.28 } } },
+            { id: 90, rarity: 'epic', icon: '🧙‍♂️', name: { uk: "Архімаг стріму", en: "Stream Archmage" }, bonus: { type: 'stats', stats: { power: 0.4, crit: 8 } } },
+            { id: 91, rarity: 'epic', icon: '🎲', name: { uk: "Бог рандому", en: "RNG God" }, bonus: { type: 'stats', stats: { hpPerLevel: 2, hp: 25 } } },
+            { id: 92, rarity: 'epic', icon: '🐉', name: { uk: "Легенда дрейк-арени", en: "Drake Arena Legend" }, bonus: { type: 'stats', stats: { buffEff: 40, effect: 12 } } },
+            { id: 93, rarity: 'epic', icon: '💥', name: { uk: "Повелитель критичних ударів", en: "Critical Strike Lord" }, bonus: { type: 'stats', stats: { crit: 12, power: 0.28 } } },
+            { id: 94, rarity: 'epic', icon: '🏆', name: { uk: "Міфічний кіберспортсмен", en: "Mythic Esportsman" }, bonus: { type: 'stats', stats: { power: 0.4, crit: 8 } } },
+            { id: 95, rarity: 'epic', icon: '☕', name: { uk: "Володар абсолютної кави", en: "Absolute Coffee Lord" }, bonus: { type: 'stats', stats: { hpPerLevel: 2, hp: 25 } } },
+            { id: 166, rarity: 'epic', icon: '🌋', name: { uk: "Вулкан емоцій", en: "Emotion Volcano" }, bonus: { type: 'stats', stats: { buffEff: 40, effect: 12 } } },
+            { id: 167, rarity: 'epic', icon: '🦅', name: { uk: "Орел з вайфаєм", en: "Eagle With Wi-Fi" }, bonus: { type: 'stats', stats: { crit: 12, power: 0.28 } } },
+            { id: 168, rarity: 'epic', icon: '🔮', name: { uk: "Провидець рандому", en: "RNG Seer" }, bonus: { type: 'stats', stats: { power: 0.4, crit: 8 } } },
+            { id: 169, rarity: 'epic', icon: '⚡', name: { uk: "Блискавка в пляшці", en: "Lightning in a Bottle" }, bonus: { type: 'stats', stats: { hpPerLevel: 2, hp: 25 } } },
+            { id: 170, rarity: 'epic', icon: '🐺', name: { uk: "Вовк-одинак (у дуо)", en: "Lone Wolf (in Duos)" }, bonus: { type: 'stats', stats: { buffEff: 40, effect: 12 } } },
+            { id: 171, rarity: 'epic', icon: '🏰', name: { uk: "Власник замку з подушок", en: "Pillow Castle Owner" }, bonus: { type: 'stats', stats: { crit: 12, power: 0.28 } } },
+            { id: 172, rarity: 'epic', icon: '🎻', name: { uk: "Скрипаль на нервах", en: "Violinist on Edge" }, bonus: { type: 'stats', stats: { power: 0.4, crit: 8 } } },
+            { id: 173, rarity: 'epic', icon: '🌪️', name: { uk: "Ураган у чашці чаю", en: "Storm in a Teacup" }, bonus: { type: 'stats', stats: { hpPerLevel: 2, hp: 25 } } },
+            { id: 174, rarity: 'epic', icon: '🦖', name: { uk: "Динозавр чату", en: "Chat Dinosaur" }, bonus: { type: 'stats', stats: { buffEff: 40, effect: 12 } } },
+            { id: 175, rarity: 'epic', icon: '🦇', name: { uk: "Нічний вампір стріму", en: "Stream Night Vampire" }, bonus: { type: 'stats', stats: { crit: 12, power: 0.28 } } },
+            { id: 96, rarity: 'legendary', icon: '👼', name: { uk: "Ангел-охоронець стрімера", en: "Streamer Guardian Angel" }, bonus: { type: 'unique', mechanic: 'guardian_shield', stats: { hp: 6 } } },
+            { id: 97, rarity: 'legendary', icon: '🧠', name: { uk: "Надмозок всесвіту", en: "Universal Superbrain" }, bonus: { type: 'unique', mechanic: 'armor_piercer', stats: { power: 0.5 } } },
+            { id: 98, rarity: 'legendary', icon: '🐉', name: { uk: "Абсолютний Дрейк", en: "Absolute Drake" }, bonus: { type: 'unique', mechanic: 'debuff_immunity', stats: { hp: 12 } } },
+            { id: 99, rarity: 'legendary', icon: '🌀', name: { uk: "Володар матриці", en: "Matrix Lord" }, bonus: { type: 'unique', mechanic: 'quantum_dodge', stats: { hp: 8 } } },
+            { id: 100, rarity: 'legendary', icon: '⚡', name: { uk: "Творець хаосу", en: "Chaos Creator" }, bonus: { type: 'unique', mechanic: 'chaotic_charge', stats: { effect: 15 } } },
+            { id: 176, rarity: 'legendary', icon: '🛡️', name: { uk: "Незламний модератор", en: "Unbreakable Moderator" }, bonus: { type: 'unique', mechanic: 'guardian_shield', stats: { hp: 6 } } },
+            { id: 177, rarity: 'legendary', icon: '📜', name: { uk: "Той, хто прочитав патчноут", en: "Read the Patch Notes" }, bonus: { type: 'unique', mechanic: 'armor_piercer', stats: { power: 0.5 } } },
+            { id: 178, rarity: 'legendary', icon: '🧘', name: { uk: "Дзен при 1 HP", en: "Zen at 1 HP" }, bonus: { type: 'unique', mechanic: 'debuff_immunity', stats: { hp: 12 } } },
+            { id: 179, rarity: 'legendary', icon: '👻', name: { uk: "Привид лагу", en: "Lag Ghost" }, bonus: { type: 'unique', mechanic: 'quantum_dodge', stats: { hp: 8 } } },
+            { id: 180, rarity: 'legendary', icon: '🎆', name: { uk: "Феєрверк хаосу", en: "Chaos Fireworks" }, bonus: { type: 'unique', mechanic: 'chaotic_charge', stats: { effect: 15 } } },
+            { id: 181, rarity: 'mythic', icon: '🌅', name: { uk: "Прокинувся в ударі", en: "Woke Up Swinging" }, bonus: { type: 'unique', mechanic: 'opening_buff', stats: { hp: 20, effect: 10, hpPerLevel: 0.8 } } },
+            { id: 182, rarity: 'mythic', icon: '☕', name: { uk: "Перша кава дня", en: "First Coffee of the Day" }, bonus: { type: 'unique', mechanic: 'opening_buff', stats: { hp: 20, effect: 10, hpPerLevel: 0.8 } } },
+            { id: 183, rarity: 'mythic', icon: '🌵', name: { uk: "Кактус з характером", en: "Cactus With Attitude" }, bonus: { type: 'unique', mechanic: 'thorns', stats: { hp: 15, hpPerLevel: 0.8 } } },
+            { id: 184, rarity: 'mythic', icon: '🦔', name: { uk: "Їжак-ображака", en: "Grumpy Hedgehog" }, bonus: { type: 'unique', mechanic: 'thorns', stats: { hp: 15, hpPerLevel: 0.8 } } },
+            { id: 185, rarity: 'mythic', icon: '🧛', name: { uk: "Енергетичний вампір", en: "Energy Vampire" }, bonus: { type: 'unique', mechanic: 'lifesteal', stats: { hp: 15, crit: 8, hpPerLevel: 0.8 } } },
+            { id: 186, rarity: 'mythic', icon: '🍷', name: { uk: "Граф Дракула чату", en: "Count Dracula of Chat" }, bonus: { type: 'unique', mechanic: 'lifesteal', stats: { hp: 15, crit: 8, hpPerLevel: 0.8 } } },
+            { id: 187, rarity: 'mythic', icon: '⚰️', name: { uk: "Добивач на 1 HP", en: "1 HP Finisher" }, bonus: { type: 'unique', mechanic: 'executioner', stats: { crit: 12, hp: 20, hpPerLevel: 0.8 } } },
+            { id: 188, rarity: 'mythic', icon: '🪓', name: { uk: "Кат лоу-хп", en: "Low-HP Executioner" }, bonus: { type: 'unique', mechanic: 'executioner', stats: { crit: 12, hp: 20, hpPerLevel: 0.8 } } },
+            { id: 189, rarity: 'meme', icon: '🪙', name: { uk: "Орел чи решка", en: "Heads or Tails" }, bonus: { type: 'unique', mechanic: 'coin_flip', stats: { hp: 20 } } },
+            { id: 190, rarity: 'meme', icon: '🥔', name: { uk: "Картопля Шредінгера", en: "Schrödinger's Potato" }, bonus: { type: 'unique', mechanic: 'coin_flip', stats: { hp: 20 } } },
+            { id: 191, rarity: 'meme', icon: '😴', name: { uk: "Заснув на стрімі", en: "Fell Asleep on Stream" }, bonus: { type: 'unique', mechanic: 'sleepy', stats: { hp: 5 } } },
+            { id: 192, rarity: 'meme', icon: '🦥', name: { uk: "Лінивець-берсерк", en: "Berserk Sloth" }, bonus: { type: 'unique', mechanic: 'sleepy', stats: { hp: 5 } } },
+            { id: 193, rarity: 'meme', icon: '🐈', name: { uk: "Кіт пройшовся по клавіатурі", en: "Cat Walked on the Keyboard" }, bonus: { type: 'unique', mechanic: 'cat_keyboard', stats: { hp: 18 } } },
+            { id: 194, rarity: 'meme', icon: '🍝', name: { uk: "Код-спагеті", en: "Spaghetti Code" }, bonus: { type: 'unique', mechanic: 'cat_keyboard', stats: { hp: 18 } } }
+        ].map(t => ({ ...t, rarityName: RARITIES[t.rarity].name, color: RARITIES[t.rarity].color }));
+
+        const TITLES_BY_RARITY = {};
+        TITLES_DB.forEach(t => (TITLES_BY_RARITY[t.rarity] = TITLES_BY_RARITY[t.rarity] || []).push(t));
+
+        // Title ability numbers (tuned with the balance simulator)
+        const MECH = {"armorPierce": 0.7, "guardianHeal": 0.25, "dodgeBonus": 10, "chaosChance": 15, "executeBonus": 0.5, "executeThreshold": 0.35, "coinHigh": 1.5, "coinLow": 0.6, "sleepChance": 0.1, "sleepBonus": 0.25, "thorns": 0.15, "lifesteal": 0.15, "catChance": 0.25};
+
+        // All numeric title bonuses in one format (also reads the old bonus types from older saves)
+        function titleStats(title) {
+            const st = { hp: 0, hpPerLevel: 0, def: 0, crit: 0, power: 0, effect: 0, buffEff: 0 };
+            const b = title && title.bonus;
+            if (!b) return st;
+            if (b.stats) for (const k in b.stats) st[k] += b.stats[k];
+            switch (b.type) {
+                case 'hp': st.hp += b.value; break;
+                case 'hp_per_level': st.hpPerLevel += b.value; break;
+                case 'def': case 'def_both': st.def += b.value; break;
+                case 'crit': st.crit += b.value; break;
+                case 'crit_power': st.crit += b.value.crit; st.power += b.value.power; break;
+                case 'power': st.power += b.value; break;
+                case 'effect_chance': st.effect += b.value; break;
+                case 'buff_eff': st.buffEff += b.value; break;
+            }
+            return st;
+        }
+
+        const titleMechanic = (d) => (d && d.title && d.title.bonus) ? d.title.bonus.mechanic : undefined;
+
+        const pctOf = x => Math.round(x * 100);
+        const MECHANIC_TEXT = {
+            uk: {
+                guardian_shield: `Раз за бій при <15% HP лікує ${pctOf(MECH.guardianHeal)}%`,
+                armor_piercer: `Ігнорує ${pctOf(MECH.armorPierce)}% захисту ворога`,
+                debuff_immunity: 'Імунітет до дебафів',
+                quantum_dodge: `+${MECH.dodgeBonus}% шанс ультраблоку`,
+                chaotic_charge: `${MECH.chaosChance}% шанс на додатковий дебаф`,
+                opening_buff: 'Починає бій з випадковим бафом',
+                thorns: `Повертає ${pctOf(MECH.thorns)}% отриманої шкоди`,
+                lifesteal: `Лікується на ${pctOf(MECH.lifesteal)}% завданої шкоди`,
+                executioner: `+${pctOf(MECH.executeBonus)}% шкоди по цілі з <${pctOf(MECH.executeThreshold)}% HP`,
+                coin_flip: `Кожен удар: ×${MECH.coinLow} або ×${MECH.coinHigh}`,
+                sleepy: `${pctOf(MECH.sleepChance)}% шанс проспати хід, інакше +${pctOf(MECH.sleepBonus)}% шкоди`,
+                cat_keyboard: `${pctOf(MECH.catChance)}% шанс на випадковий ефект — будь-кому`
+            },
+            en: {
+                guardian_shield: `Once per fight at <15% HP heals ${pctOf(MECH.guardianHeal)}%`,
+                armor_piercer: `Ignores ${pctOf(MECH.armorPierce)}% of enemy defense`,
+                debuff_immunity: 'Immune to debuffs',
+                quantum_dodge: `+${MECH.dodgeBonus}% ultra block chance`,
+                chaotic_charge: `${MECH.chaosChance}% chance of an extra debuff`,
+                opening_buff: 'Starts the fight with a random buff',
+                thorns: `Returns ${pctOf(MECH.thorns)}% of damage taken`,
+                lifesteal: `Heals ${pctOf(MECH.lifesteal)}% of damage dealt`,
+                executioner: `+${pctOf(MECH.executeBonus)}% damage to targets below ${pctOf(MECH.executeThreshold)}% HP`,
+                coin_flip: `Every hit: ×${MECH.coinLow} or ×${MECH.coinHigh}`,
+                sleepy: `${pctOf(MECH.sleepChance)}% chance to sleep through a turn, otherwise +${pctOf(MECH.sleepBonus)}% damage`,
+                cat_keyboard: `${pctOf(MECH.catChance)}% chance of a random effect — on anyone`
+            }
+        };
+        function describeTitleBonus(title) {
+            if (!title || !title.bonus) return '';
+            const uk = currentLang === 'uk';
+            const st = titleStats(title);
+            const parts = [];
+            const mech = title.bonus.mechanic && MECHANIC_TEXT[currentLang][title.bonus.mechanic];
+            if (mech) parts.push(mech);
+            if (st.hp) parts.push(`+${st.hp} HP`);
+            if (st.hpPerLevel) parts.push(uk ? `+${st.hpPerLevel} HP/рів.` : `+${st.hpPerLevel} HP/lvl`);
+            if (st.crit) parts.push(uk ? `+${st.crit}% криту` : `+${st.crit}% crit`);
+            if (st.power) parts.push(uk ? `+${st.power} сили криту` : `+${st.power} crit power`);
+            if (st.def) parts.push(uk ? `+${st.def}% захисту` : `+${st.def}% defense`);
+            if (st.effect) parts.push(uk ? `+${st.effect}% шанс ефекту` : `+${st.effect}% effect chance`);
+            if (st.buffEff) parts.push(uk ? `+${st.buffEff}% сила ефектів` : `+${st.buffEff}% effect strength`);
+            return parts.join(', ');
+        }
+
+        function toggleDebugMenu() {
+            let menu = document.getElementById('debug-menu');
+            if (!menu.classList.contains('initialized')) {
+                populateDropdowns();
+                document.getElementById('debug-p1-title').value = "100"; 
+                document.getElementById('debug-p2-title').value = "98";  
+                document.getElementById('debug-p2-drake').value = "2";   
+                menu.classList.add('initialized');
+            }
+            menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'block' : 'none';
+        }
+
+        function populateDropdowns() {
+            // keep the current picks when the language changes
+            const ids = ['debug-p1-drake', 'debug-p1-title', 'debug-p2-drake', 'debug-p2-title'];
+            const saved = ids.map(id => document.getElementById(id).value);
+            setTimeout(() => ids.forEach((id, i) => { if (saved[i]) document.getElementById(id).value = saved[i]; }), 0);
+            let drakeOptions = DRAKE_TYPES.map((d, i) => `<option value="${i}">${d.name[currentLang]}</option>`).join('');
+            let titleOptions = TITLES_DB.map(t => `<option value="${t.id}" style="color:${t.color}">${t.icon} ${t.name[currentLang]} (${t.rarityName[currentLang]})</option>`).join('');
+            document.getElementById('debug-p1-drake').innerHTML = drakeOptions;
+            document.getElementById('debug-p1-title').innerHTML = titleOptions;
+            document.getElementById('debug-p2-drake').innerHTML = drakeOptions;
+            document.getElementById('debug-p2-title').innerHTML = titleOptions;
+            document.getElementById('label-fighter1').innerText = currentLang === 'uk' ? 'Тестер 1:' : 'Tester 1:';
+            document.getElementById('label-fighter2').innerText = currentLang === 'uk' ? 'Тестер 2:' : 'Tester 2:';
+        }
+
+        function applyDebugSettings() {
+            let p1Drake = parseInt(document.getElementById('debug-p1-drake').value);
+            let p1Title = parseInt(document.getElementById('debug-p1-title').value);
+            let p1Level = parseInt(document.getElementById('debug-p1-level').value);
+            let p2Drake = parseInt(document.getElementById('debug-p2-drake').value);
+            let p2Title = parseInt(document.getElementById('debug-p2-title').value);
+            let p2Level = parseInt(document.getElementById('debug-p2-level').value);
+
+            let db = getDragonDB();
+            
+            let dragon1 = { name: "QA-Tester-Alpha", color: '#ff4500', drakeObj: DRAKE_TYPES[p1Drake], title: TITLES_DB.find(t => t.id === p1Title), xp: 0, level: 1 };
+            let targetXP1 = 0; for (let l = 1; l < p1Level; l++) targetXP1 += getRequiredXP(l);
+            dragon1.xp = targetXP1; dragon1.level = p1Level;
+            db["QA-Tester-Alpha"] = dragon1;
+
+            let dragon2 = { name: "QA-Tester-Omega", color: '#00ff7f', drakeObj: DRAKE_TYPES[p2Drake], title: TITLES_DB.find(t => t.id === p2Title), xp: 0, level: 1 };
+            let targetXP2 = 0; for (let l = 1; l < p2Level; l++) targetXP2 += getRequiredXP(l);
+            dragon2.xp = targetXP2; dragon2.level = p2Level;
+            db["QA-Tester-Omega"] = dragon2;
+            
+            saveDragonDB(db);
+
+            updateFighterCard('p1', dragon1, [], []);
+            updateFighterCard('p2', dragon2, [], []);
+            updateUIHP(getMaxHP(p1Level, dragon1.drakeObj.type, dragon1.title), getMaxHP(p1Level, dragon1.drakeObj.type, dragon1.title), 
+                       getMaxHP(p2Level, dragon2.drakeObj.type, dragon2.title), getMaxHP(p2Level, dragon2.drakeObj.type, dragon2.title));
+                       
+            renderLeaderboard();
+            let msg = currentLang === 'uk' ? '🛠️ <span style="color: #ffd700;">Тестові налаштування застосовано!</span> Ви готові до бою.' : '🛠️ <span style="color: #ffd700;">Test settings applied!</span> You are ready for battle.';
+            addLog(msg);
+        }
+
+        // Roll a rarity by weight, then a title from that rarity
+        function getRandomTitle() {
+            const tiers = Object.keys(TITLES_BY_RARITY);
+            const total = tiers.reduce((sum, r) => sum + RARITIES[r].weight, 0);
+            let roll = Math.random() * total;
+            let rarity = tiers[0];
+            for (const r of tiers) { roll -= RARITIES[r].weight; if (roll < 0) { rarity = r; break; } }
+            const pool = TITLES_BY_RARITY[rarity];
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+
+        function getRequiredXP(level) { return Math.floor(100 * Math.pow(level, 1.4)); }
+
+        function calculateLevelAndProgress(totalXP) {
+            let level = 1;
+            let remainingXP = totalXP;
+            while (level < 20) {
+                let req = getRequiredXP(level);
+                if (remainingXP >= req) { remainingXP -= req; level++; }
+                else break;
+            }
+            if (level >= 20) { level = 20; remainingXP = 0; }
+            return { level: level, currentXP: remainingXP, requiredXP: level >= 20 ? 0 : getRequiredXP(level) };
+        }
+
+        function getDragonDB() { return JSON.parse(localStorage.getItem('drake_arena_showcase_db')) || {}; }
+        function saveDragonDB(db) { localStorage.setItem('drake_arena_showcase_db', JSON.stringify(db)); }
+
+        function getDragonStrict(username) {
+            let db = getDragonDB();
+            return db[username];
+        }
+
+        function getDragon(username, userColor = '#00ffff') {
+            let db = getDragonDB();
+            if (!db[username]) {
+                let randomDrakeObj = DRAKE_TYPES[Math.floor(Math.random() * DRAKE_TYPES.length)];
+                let randomTitle = getRandomTitle();
+                db[username] = { name: username, color: userColor || '#00ffff', drakeObj: randomDrakeObj, title: randomTitle, xp: 0, level: 1 };
+                saveDragonDB(db);
+            }
+            if (!db[username].color) db[username].color = userColor || '#00ffff';
+            if (db[username].xp === undefined) db[username].xp = 0;
+            if (!db[username].drakeObj) db[username].drakeObj = DRAKE_TYPES[Math.floor(Math.random() * DRAKE_TYPES.length)];
+            if (!db[username].title) db[username].title = getRandomTitle();
+            
+            let prog = calculateLevelAndProgress(db[username].xp);
+            db[username].level = prog.level;
+            saveDragonDB(db);
+            return db[username];
+        }
+
+        function addXP(username, amount) {
+            let db = getDragonDB();
+            if (!db[username]) return 0; 
+            let dragon = db[username];
+            if (dragon.level >= 20) return 0;
+
+            let finalAmount = amount;
+            let tierBonusMultiplier = getTierMultiplier(dragon.level);
+
+            if (dragon.drakeObj.type === 'gold') {
+                let goldBonusPct = ELEMENT_BASE.goldXp + tierBonusMultiplier.goldXpBonus;
+                finalAmount = Math.round(amount * (1 + goldBonusPct / 100));
+                let logMsg = currentLang === 'uk' ? 
+                    `<span style="color: #ffd700; font-weight: bold;">✨ Золотий Дрейк спрацював!</span> <span style="color: ${dragon.color}; font-weight: bold;">@${username}</span> отримує бонусну лавину досвіду (+${finalAmount} XP)!` :
+                    `<span style="color: #ffd700; font-weight: bold;">✨ Gold Drake triggered!</span> <span style="color: ${dragon.color}; font-weight: bold;">@${username}</span> receives bonus XP avalanche (+${finalAmount} XP)!`;
+                addLog(logMsg);
+            }
+
+            dragon.xp += finalAmount;
+            let prog = calculateLevelAndProgress(dragon.xp);
+            dragon.level = prog.level;
+            saveDragonDB(db);
+            renderLeaderboard();
+            return finalAmount;
+        }
+
+        // ===== ELEMENT BALANCE =====
+        // Element base (from level 1) + bonus per level tier: [1-4, 5-9, 10-14, 15-19, 20]
+        const ELEMENT_BASE = { redCrit: 10, redPower: 0.35, blueDef: 5, blueReflect: 10, blackBlock: 3, blackChance: 18, goldXp: 50, goldOneHp: 4, purpleEff: 25, purpleChance: 20, whiteHp: 15 };
+        const ELEMENT_TIERS = {
+            redCrit:      [0, 2, 4, 6, 8],
+            redPower:     [0, 0.05, 0.10, 0.15, 0.25],
+            blueDef:      [0, 3, 3, 6, 9],
+            blueReflect:  [0, 2, 4, 6, 8],
+            blackBlock:   [0, 2, 3, 5, 7],
+            blackChance:  [0, 2, 3, 5, 7],
+            goldXpBonus:  [0, 5, 15, 25, 40],
+            goldOneHp:    [0, 0, 1, 1, 2],
+            purpleEff:    [0, 3, 5, 10, 15],
+            purpleChance: [0, 3, 5, 10, 15],
+            whiteHp:      [0, 5, 10, 15, 20]
+        };
+        function getTierMultiplier(level) {
+            const i = level >= 20 ? 4 : level >= 15 ? 3 : level >= 10 ? 2 : level >= 5 ? 1 : 0;
+            const out = {};
+            for (const k in ELEMENT_TIERS) out[k] = ELEMENT_TIERS[k][i];
+            return out;
+        }
+
+        function addLog(text) {
+            const logBox = document.getElementById('battle-log');
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            line.innerHTML = text;
+            logBox.appendChild(line);
+            
+            if (logBox.children.length > 35) { logBox.removeChild(logBox.children[0]); }
+            setTimeout(() => { logBox.scrollTop = logBox.scrollHeight; }, 50);
+        }
+
+        /* --- CHAT-REQUEST WINDOW --- */
+        // Replies to viewers go here (not the battle log). Cards fade out on their own.
+        const INFO_MAX_CARDS = 4;
+        const INFO_LIFETIME_MS = { note: 25000, warn: 20000, ok: 30000, stat: 45000 };
+
+        function addInfo(html, kind = 'note', extraClass = '') {
+            const feed = document.getElementById('info-feed');
+            if (!feed) return;
+            const empty = feed.querySelector ? feed.querySelector('.info-empty') : null;
+            if (empty) empty.remove();
+            const card = document.createElement('li');
+            card.className = `info-card ${kind} ${extraClass}`.trim();
+            card.innerHTML = html;
+            feed.prepend(card);
+            while (feed.children.length > INFO_MAX_CARDS) feed.removeChild(feed.lastChild);
+            // Tall cards (stats, odds) can outgrow the panel before the card limit — drop the oldest so none is cut off
+            while (feed.scrollHeight > feed.clientHeight && feed.children.length > 1) feed.removeChild(feed.lastChild);
+            setTimeout(() => {
+                card.classList.add('fading');
+                setTimeout(() => { if (card.remove) card.remove(); }, 900);
+            }, INFO_LIFETIME_MS[kind] || 25000);
+        }
+
+        function rarityTag(title) {
+            const r = title && RARITIES[title.rarity];
+            const name = r ? r.name[currentLang] : (title && title.rarityName && title.rarityName[currentLang]) || '';
+            const color = r ? r.color : (title && title.color) || '#ccc';
+            return name ? `<span class="rarity-tag" style="color: ${color};">${name}</span>` : '';
+        }
+
+        function showStatsCard(username, userColor) {
+            const dragon = getDragonStrict(username);
+            if (!dragon) return;
+            const uk = currentLang === 'uk';
+            const prog = calculateLevelAndProgress(dragon.xp || 0);
+            const stats = playerLeaderboardStats[username] || { wins: 0, losses: 0 };
+            const xpPct = prog.level >= 20 ? 100 : Math.floor((prog.currentXP / prog.requiredXP) * 100);
+            const t = dragon.title;
+            const hp = getMaxHP(prog.level, dragon.drakeObj.type, t);
+            const crit = getCritStats(prog.level, dragon.drakeObj.type, t, []);
+            const defs = getModifiedDefenses(prog.level, dragon.drakeObj.type, t, [], []);
+            const lvl = uk ? 'Рівень' : 'Level';
+            const levelText = prog.level >= 20 ? `${lvl} 20 (MAX)` : `${lvl} ${prog.level}`;
+            addInfo(`
+                <div class="ic-head"><span style="color: ${userColor || dragon.color};">📊 @${username}</span><span>${dragon.drakeObj.name[currentLang]}</span></div>
+                <div class="ic-row"><span>${levelText}</span><div class="ic-xp"><div style="width: ${xpPct}%;"></div></div><span>${xpPct}%</span></div>
+                <div class="ic-row">❤️ ${hp} HP · 💥 ${crit.critChance}% (x${crit.critPower}) · 🛡️ ${defs.physDef}% · ⚔️ ${stats.wins} / 💀 ${stats.losses}</div>
+                ${t ? `<div class="ic-title" style="color: ${t.color};">${t.icon} ${t.name[currentLang]}${rarityTag(t)}</div><div class="ic-desc">${describeTitleBonus(t)}</div>` : ''}
+            `, 'stat');
+        }
+
+        function showTitleRoll(username, userColor, title) {
+            const uk = currentLang === 'uk';
+            const top = ['legendary', 'mythic', 'meme'].includes(title.rarity);
+            addInfo(`
+                <div class="ic-head"><span style="color: ${userColor};">🎲 @${username}</span><span style="font-size: 10px; color: #aaa;">${uk ? 'рулетка титулів' : 'title roulette'}</span></div>
+                <div class="ic-title" style="color: ${title.color};">${title.icon} ${title.name[currentLang]}${rarityTag(title)}</div>
+                <div class="ic-desc">${describeTitleBonus(title)}</div>
+            `, 'ok', top ? 'glow-' + title.rarity : '');
+            if (top) {
+                const shout = uk
+                    ? { legendary: '🌟 ЛЕГЕНДАРНИЙ ТИТУЛ!', mythic: '🔥 МІФІЧНИЙ ТИТУЛ!!', meme: '🤪 МЕМНИЙ ТИТУЛ?!' }[title.rarity]
+                    : { legendary: '🌟 LEGENDARY TITLE!', mythic: '🔥 MYTHIC TITLE!!', meme: '🤪 MEME TITLE?!' }[title.rarity];
+                addLog(`<div class="log-drop" style="color: ${title.color};">${shout} <span style="color: ${userColor};">@${username}</span> ${uk ? 'вибиває' : 'rolls'} ${title.icon} ${title.name[currentLang]}!</div>`);
+            }
+        }
+
+        function showOddsCard() {
+            const total = Object.values(RARITIES).reduce((sum, r) => sum + r.weight, 0);
+            const rows = Object.values(RARITIES).filter(r => r.weight > 0)
+                .map(r => `<span style="color: ${r.color};">${r.name[currentLang]} ${(100 * r.weight / total).toFixed(1).replace('.0', '')}%</span>`).join(' · ');
+            addInfo(`<div class="ic-head"><span>${currentLang === 'uk' ? '🎰 Шанси рулетки титулів' : '🎰 Title roulette odds'}</span></div><div class="ic-row" style="flex-wrap: wrap; gap: 4px 8px;">${rows}</div>`, 'note');
+        }
+
+        /* --- ІНТЕГРАЦІЯ З TWITCH --- */
+        // If tmi.js can't load (offline), the page still works — Twitch chat just won't connect
+        const client = window.tmi ? new tmi.Client({ channels: [TWITCH_CHANNEL] }) : null;
+        if (client) client.connect().catch(console.error);
+        else console.warn('tmi.js not loaded: Twitch chat disabled');
+
+        function handleChatMessage(target, context, message, self) {
+            const msg = message.trim().toLowerCase();
+            const args = msg.split(' ');
+            const command = args[0];
+            const sender = context.username;
+            const senderColor = context.color || '#00ffff';
+            
+            const isBroadcaster = (sender === target.replace('#', ''));
+            const rewardId = context['custom-reward-id'];
+
+            let db = getDragonDB();
+
+            if (command === '!дрейк' || command === '!drake') {
+                if (db[sender]) {
+                    let msg = currentLang === 'uk' ? 
+                        `⚠️ <span style="color: ${senderColor};">@${sender}</span>, у вас вже є Дрейк! Змінити стихію зі скиданням до 1 рівня можна за бали каналу (<b>!рерол [колір]</b>).` :
+                        `⚠️ <span style="color: ${senderColor};">@${sender}</span>, you already have a Drake! To change element and reset to level 1, use channel points (<b>!reroll [color]</b>).`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
+
+                const typeMap = { 'червоний': 0, 'red': 0, 'синій': 1, 'blue': 1, 'чорний': 2, 'black': 2, 'золотий': 3, 'gold': 3, 'фіолетовий': 4, 'purple': 4, 'білий': 5, 'white': 5 };
+                let chosen = args[1];
+                if (chosen && typeMap[chosen] !== undefined) {
+                    let dragon = getDragon(sender, senderColor); 
+                    dragon.drakeObj = DRAKE_TYPES[typeMap[chosen]];
+                    let dbUpdate = getDragonDB();
+                    dbUpdate[sender] = dragon;
+                    saveDragonDB(dbUpdate);
+                    renderLeaderboard();
+                    let msg = currentLang === 'uk' ?
+                        `🐉 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> успішно створив бійця! Стихія: <b>${dragon.drakeObj.name[currentLang]}</b>!` :
+                        `🐉 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> successfully created a fighter! Element: <b>${dragon.drakeObj.name[currentLang]}</b>!`;
+                    addInfo(msg, 'ok');
+                } else {
+                    let msg = currentLang === 'uk' ?
+                        `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, щоб створити Дрейка, напишіть: <b>!дрейк [колір]</b> (червоний, синій, чорний, золотий, фіолетовий, білий).` :
+                        `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, to create a Drake, type: <b>!drake [color]</b> (red, blue, black, gold, purple, white).`;
+                    addInfo(msg, 'warn');
+                }
+                return;
+            }
+
+            if (command === '!шанси' || command === '!odds' || command === '!chances') { showOddsCard(); return; }
+
+            const gameCommands = ['!титул', '!title', '!бій', '!battle', '!черга', '!queue', '!стата', '!stats', '!профіль', '!profile', '!прийняти', '!accept', '!відхилити', '!decline'];
+            if (gameCommands.includes(command)) {
+                if (!db[sender]) {
+                    let msg = currentLang === 'uk' ?
+                        `⚠️ <span style="color: ${senderColor};">@${sender}</span>, ви ще не в грі! Спочатку створіть бійця командою <b>!дрейк [колір]</b>.` :
+                        `⚠️ <span style="color: ${senderColor};">@${sender}</span>, you are not in the game yet! First create a fighter with <b>!drake [color]</b>.`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
+            }
+
+            if (command === '!стата' || command === '!stats' || command === '!профіль' || command === '!profile') {
+                showStatsCard(sender, senderColor);
+                return;
+            }
+
+            if (command === '!рерол' || command === '!reroll') {
+                let isValidReroll = isBroadcaster || (REWARD_ID_REROLL !== "PASTE_REWARD_ID_HERE" ? rewardId === REWARD_ID_REROLL : rewardId != null);
+                
+                if (!isValidReroll) {
+                    let msg = currentLang === 'uk' ?
+                        `🛑 <span style="color: ${senderColor};">@${sender}</span>, команду !рерол можна використати <b>ТІЛЬКИ</b> за бали каналу!` :
+                        `🛑 <span style="color: ${senderColor};">@${sender}</span>, !reroll can <b>ONLY</b> be used via channel points!`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
+
+                const typeMap = { 'червоний': 0, 'red': 0, 'синій': 1, 'blue': 1, 'чорний': 2, 'black': 2, 'золотий': 3, 'gold': 3, 'фіолетовий': 4, 'purple': 4, 'білий': 5, 'white': 5 };
+                let chosen = args[1];
+                if (chosen && typeMap[chosen] !== undefined) {
+                    let dragon = getDragon(sender, senderColor); 
+                    dragon.drakeObj = DRAKE_TYPES[typeMap[chosen]];
+                    dragon.xp = 0; 
+                    dragon.level = 1;
+                    
+                    let dbUpdate = getDragonDB();
+                    dbUpdate[sender] = dragon;
+                    saveDragonDB(dbUpdate);
+                    
+                    renderLeaderboard();
+                    let msg = currentLang === 'uk' ?
+                        `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> ПЕРЕРОДИВСЯ! Нова стихія: <b>${dragon.drakeObj.name[currentLang]}</b>. Рівень скинуто до 1!` :
+                        `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> REBORN! New element: <b>${dragon.drakeObj.name[currentLang]}</b>. Level reset to 1!`;
+                    addInfo(msg, 'ok');
+                } else {
+                    let msg = currentLang === 'uk' ?
+                        `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, вкажіть колір у тексті нагороди (наприклад: !рерол синій).` :
+                        `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, specify color in reward text (e.g., !reroll blue).`;
+                    addInfo(msg, 'warn');
+                }
+                return;
+            }
+
+            if (command === '!титул' || command === '!title') {
+                let isValidTitle = isBroadcaster || (REWARD_ID_TITLE !== "PASTE_REWARD_ID_HERE" ? rewardId === REWARD_ID_TITLE : rewardId != null);
+
+                if (!isValidTitle) {
+                    let msg = currentLang === 'uk' ?
+                        `🛑 <span style="color: ${senderColor};">@${sender}</span>, крутити рулетку титулів можна <b>ТІЛЬКИ</b> за бали каналу!` :
+                        `🛑 <span style="color: ${senderColor};">@${sender}</span>, title roulette can <b>ONLY</b> be spun via channel points!`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
+
+                let dragon = getDragonStrict(sender);
+                let newTitle = getRandomTitle();
+                dragon.title = newTitle;
+                
+                let dbUpdate = getDragonDB();
+                dbUpdate[sender] = dragon;
+                saveDragonDB(dbUpdate);
+                
+                renderLeaderboard();
+                showTitleRoll(sender, senderColor, newTitle);
+                return;
+            }
+
+            if (command === '!прийняти' || command === '!accept') {
+                let challenger = pendingChallenges[sender];
+                if (!challenger) return;
+                
+                clearTimeout(challengeTimeouts[sender]);
+                delete pendingChallenges[sender];
+                
+                if (isBattleRunning) {
+                    let msg = currentLang === 'uk' ?
+                        `⚠️ Арена вже зайнята! Дуель між @${challenger} та @${sender} відкладено (відмінено).` :
+                        `⚠️ Arena is busy! Duel between @${challenger} and @${sender} postponed (canceled).`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
+                
+                let cColor = db[challenger] ? db[challenger].color : '#cccccc';
+                
+                isBattleRunning = true;
+                cooldowns[sender] = Date.now();
+                matchmakingQueue = matchmakingQueue.filter(u => u !== sender && u !== challenger);
+                updateQueueUI();
+                runBattle(challenger, cColor, sender, senderColor, false); 
+                return;
+            }
+
+            if (command === '!відхилити' || command === '!decline') {
+                let challenger = pendingChallenges[sender];
+                if (!challenger) return;
+                
+                clearTimeout(challengeTimeouts[sender]);
+                delete pendingChallenges[sender];
+                let msg = currentLang === 'uk' ?
+                    `❌ <span style="color: ${senderColor};">@${sender}</span> відхилив виклик на дуель від @${challenger}.` :
+                    `❌ <span style="color: ${senderColor};">@${sender}</span> declined duel challenge from @${challenger}.`;
+                addInfo(msg);
+                return;
+            }
+
+            if (command === '!черга' || command === '!queue' || command === '!бій' || command === '!battle') {
+                let cdMinutes = getCooldownRemaining(sender);
+                if (cdMinutes > 0 && !isBroadcaster) {
+                    let msg = currentLang === 'uk' ?
+                        `⏳ <span style="color: ${senderColor};">@${sender}</span>, ваша Арена виснажена! Зачекайте ще <b>${cdMinutes} хв.</b> перед наступним боєм.` :
+                        `⏳ <span style="color: ${senderColor};">@${sender}</span>, your Arena is exhausted! Wait another <b>${cdMinutes} min.</b> before next battle.`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
+            }
+
+            if (command === '!черга' || command === '!queue') {
+                if (matchmakingQueue.includes(sender)) {
+                    let msg = currentLang === 'uk' ?
+                        `⏳ <span style="color: ${senderColor};">@${sender}</span>, ви вже в черзі!` :
+                        `⏳ <span style="color: ${senderColor};">@${sender}</span>, you are already in queue!`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
+                matchmakingQueue.push(sender);
+                updateQueueUI();
+                let msg = currentLang === 'uk' ?
+                    `⏳ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> став у чергу на рейтинговий бій! (У черзі: ${matchmakingQueue.length})` :
+                    `⏳ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> joined ranked queue! (In queue: ${matchmakingQueue.length})`;
+                addInfo(msg);
+                checkQueue();
+                return;
+            }
+
+            if (command === '!бій' || command === '!battle') {
+                if (!args[1]) return;
+                let targetUser = args[1].replace('@', '').toLowerCase();
+                
+                if (targetUser === sender.toLowerCase()) {
+                    let msg = currentLang === 'uk' ?
+                        `🤡 <span style="color: ${senderColor};">@${sender}</span>, не можна битися з самим собою!` :
+                        `🤡 <span style="color: ${senderColor};">@${sender}</span>, you cannot fight yourself!`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
+                
+                if (!db[targetUser]) {
+                    let msg = currentLang === 'uk' ?
+                        `⚠️ <span style="color: ${senderColor};">@${sender}</span>, глядач <b>@${targetUser}</b> ще не грає в Арену! Викликати можна лише гравців з Дрейком.` :
+                        `⚠️ <span style="color: ${senderColor};">@${sender}</span>, viewer <b>@${targetUser}</b> is not playing Arena yet! You can only challenge players with a Drake.`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
+
+                if (pendingChallenges[targetUser]) {
+                    let msg = currentLang === 'uk' ?
+                        `⚠️ <span style="color: ${senderColor};">@${sender}</span>, гравця @${targetUser} вже викликали на дуель! Зачекайте.` :
+                        `⚠️ <span style="color: ${senderColor};">@${sender}</span>, player @${targetUser} is already challenged! Please wait.`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
+
+                pendingChallenges[targetUser] = sender;
+                cooldowns[sender] = Date.now(); 
+                
+                let msg = currentLang === 'uk' ?
+                    `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> викликає <span style="color: #ffaa00; font-weight: bold;">@${targetUser}</span> на Товариську Дуель! У вас є 30 секунд, щоб написати <b>!прийняти</b> або <b>!відхилити</b>.` :
+                    `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> challenges <span style="color: #ffaa00; font-weight: bold;">@${targetUser}</span> to a Friendly Duel! You have 30 seconds to type <b>!accept</b> or <b>!decline</b>.`;
+                addInfo(msg);
+
+                challengeTimeouts[targetUser] = setTimeout(() => {
+                    if (pendingChallenges[targetUser] === sender) {
+                        delete pendingChallenges[targetUser];
+                        let timeoutMsg = currentLang === 'uk' ?
+                            `⌛ @${targetUser} не відповів на виклик від @${sender} за 30 секунд. Дуель скасовано.` :
+                            `⌛ @${targetUser} did not answer challenge from @${sender} within 30 seconds. Duel canceled.`;
+                        addInfo(timeoutMsg);
+                    }
+                }, 30000);
+            }
+        }
+        if (client) client.on('message', handleChatMessage);
+
+        function checkQueue() {
+            if (isBattleRunning || matchmakingQueue.length < 2) return;
+            
+            let idx1 = Math.floor(Math.random() * matchmakingQueue.length);
+            let p1Name = matchmakingQueue.splice(idx1, 1)[0];
+
+            // Pick the opponent with the closest level (random among ties)
+            const levelOf = (u) => { let d = getDragonStrict(u); return d ? calculateLevelAndProgress(d.xp).level : 1; };
+            let p1Level = levelOf(p1Name);
+            let bestDiff = Infinity, candidates = [];
+            matchmakingQueue.forEach((u, i) => {
+                let diff = Math.abs(levelOf(u) - p1Level);
+                if (diff < bestDiff) { bestDiff = diff; candidates = [i]; }
+                else if (diff === bestDiff) candidates.push(i);
+            });
+            let idx2 = candidates[Math.floor(Math.random() * candidates.length)];
+            let p2Name = matchmakingQueue.splice(idx2, 1)[0];
+
+            isBattleRunning = true;
+            cooldowns[p1Name] = Date.now();
+            cooldowns[p2Name] = Date.now();
+            updateQueueUI();
+            
+            let p1Data = getDragonStrict(p1Name);
+            let p2Data = getDragonStrict(p2Name);
+            
+            let msg = currentLang === 'uk' ?
+                `🚨 <b>Рейтинговий матчмейкінг!</b> З черги обрано: <span style="color: ${p1Data.color};">@${p1Name}</span> та <span style="color: ${p2Data.color};">@${p2Name}</span>...` :
+                `🚨 <b>Ranked Matchmaking!</b> Selected from queue: <span style="color: ${p1Data.color};">@${p1Name}</span> and <span style="color: ${p2Data.color};">@${p2Name}</span>...`;
+            addLog(msg);
+            
+            runBattle(p1Name, p1Data.color, p2Name, p2Data.color, true);
+        }
+
+        function testBattle() {
+            if (isBattleRunning) return;
+            isBattleRunning = true;
+            runBattle("QA-Tester-Alpha", "#ff4500", "QA-Tester-Omega", "#00ff7f", false);
+        }
+
+        // Buff/debuff strength: Purple +25% (+tier bonus); the "buff_eff" title adds only its own value
+        function getEffectMult(drakeType, title, level) {
+            let titleBonus = titleStats(title).buffEff;
+            let purpleBonus = drakeType === 'purple' ? ELEMENT_BASE.purpleEff + getTierMultiplier(level).purpleEff : 0;
+            return 1.0 + (purpleBonus + titleBonus) / 100;
+        }
+
+        function getMaxHP(level, drakeType, title) {
+            let tier = getTierMultiplier(level);
+            let ts = titleStats(title);
+            let baseHpPerLevel = 10 + ts.hpPerLevel;
+            let titleBonusHP = ts.hp;
+            let hp = 150 + titleBonusHP + (level - 1) * baseHpPerLevel;
+
+            if (drakeType === 'white') {
+                let whiteBonusPct = ELEMENT_BASE.whiteHp + (tier.whiteHp || 0);
+                hp = Math.floor(hp * (1.0 + whiteBonusPct / 100));
+            }
+            return hp;
+        }
+
+        function getModifiedDefenses(baseLevel, drakeType, title, buffs = [], effects = []) {
+            let tier = getTierMultiplier(baseLevel);
+            let titleBonusDef = titleStats(title).def;
+
+            let baseDef = 5 + titleBonusDef + baseLevel;
+            if (drakeType === 'blue') baseDef += ELEMENT_BASE.blueDef + (tier.blueDef || 0);
+            
+            let physDef = baseDef;
+            let magDef = baseDef;
+
+            let multiplier = getEffectMult(drakeType, title, baseLevel);
+
+            if (buffs) {
+                buffs.forEach(b => {
+                    if (b.type === 'stoneskin') { physDef += Math.round(10 * multiplier); magDef += Math.round(10 * multiplier); }
+                });
+            }
+            if (effects) {
+                effects.forEach(e => {
+                    if (e.type === 'armorbreak') { physDef = Math.max(0, physDef - 15); magDef = Math.max(0, magDef - 15); }
+                });
+            }
+            
+            physDef = Math.min(65, physDef);
+            magDef = Math.min(65, magDef);
+
+            return { physDef, magDef };
+        }
+
+        function getCritStats(baseLevel, drakeType, title, buffs = []) {
+            let tier = getTierMultiplier(baseLevel);
+            let ts = titleStats(title);
+            let titleBonusCrit = ts.crit;
+            let titleBonusPower = ts.power;
+
+            let baseCrit = 15 + titleBonusCrit + (baseLevel - 1);
+            let critPower = 1.5 + titleBonusPower;
+
+            if (drakeType === 'red') { baseCrit += ELEMENT_BASE.redCrit + tier.redCrit; critPower += ELEMENT_BASE.redPower + tier.redPower; }
+
+            let mult = getEffectMult(drakeType, title, baseLevel);
+
+            if (buffs) {
+                buffs.forEach(b => {
+                    if (b.type === 'blessing') baseCrit += Math.round(15 * mult);
+                });
+            }
+            return { critChance: Math.min(100, baseCrit), critPower: Math.round(critPower * 100) / 100 };
+        }
+
+        function updateFighterCard(prefix, dragon, buffs = [], effects = []) {
+            if (!dragon) return;
+            let prog = calculateLevelAndProgress(dragon.xp);
+            let drakeType = dragon.drakeObj.type;
+            let defs = getModifiedDefenses(prog.level, drakeType, dragon.title, buffs, effects);
+            let critData = getCritStats(prog.level, drakeType, dragon.title, buffs);
+            let tier = getTierMultiplier(prog.level);
+            let extraEffectChance = titleStats(dragon.title).effect;
+            let castChanceVal = 30 + extraEffectChance + (drakeType === 'black' ? (ELEMENT_BASE.blackChance + tier.blackChance) : (drakeType === 'purple' ? (ELEMENT_BASE.purpleChance + tier.purpleChance) : 0));
+
+            drawFighterSprite(prefix, dragon.drakeObj ? dragon.drakeObj.type : 'red');
+            let nameEl = document.getElementById(`name-${prefix}`);
+            nameEl.removeAttribute('data-i18n'); // stop the language switch from resetting it to "Waiting..."
+            nameEl.innerText = `@${dragon.name}`;
+            nameEl.style.color = dragon.color;
+
+            let badgeContainer = document.getElementById(`badge-container-${prefix}`);
+            if (dragon.title) {
+                badgeContainer.innerHTML = `<span class="fighter-title-badge" style="background: ${dragon.title.color}33; border-color: ${dragon.title.color}; color: ${dragon.title.color};">${dragon.title.icon} ${dragon.title.name[currentLang]}</span>`;
+            } else badgeContainer.innerHTML = '';
+
+            let lvlText = currentLang === 'uk' ? 'Рівень' : 'Level';
+            let xpTextInfo = prog.level >= 20 ? `${lvlText} 20 (MAX)` : `${lvlText} ${prog.level} (${prog.currentXP}/${prog.requiredXP} XP)`;
+            document.getElementById(`info-${prefix}`).innerText = `${dragon.drakeObj.name[currentLang]} | ${xpTextInfo}`;
+            
+            let critText = currentLang === 'uk' ? 'Крит' : 'Crit';
+            let powerText = currentLang === 'uk' ? 'Сила' : 'Power';
+            let buffChanceText = currentLang === 'uk' ? 'Шанс накласти Баф|Дебаф' : 'Buff|Debuff Chance';
+            let defText = currentLang === 'uk' ? '🛡️ Захист (Зниження шкоди): Фіз' : '🛡️ Defense (Damage Reduction): Phys';
+            let magText = currentLang === 'uk' ? 'Маг' : 'Mag';
+
+            document.getElementById(`stats-sub-${prefix}`).innerHTML = `${critText}: ${critData.critChance}% (${powerText}: ${critData.critPower}x) | ${buffChanceText}: ${castChanceVal}%<br>${defText} ${defs.physDef}% | ${magText} ${defs.magDef}%`;
+        }
+
+        function updateUIHP(hp1, max1, hp2, max2) {
+            let h1 = Math.round(Math.max(0, hp1));
+            let h2 = Math.round(Math.max(0, hp2));
+            document.getElementById('bar-p1').style.width = Math.max(0, (h1 / max1) * 100) + '%';
+            document.getElementById('hp-text-p1').innerText = `${h1} / ${max1} HP`;
+            document.getElementById('bar-p2').style.width = Math.max(0, (h2 / max2) * 100) + '%';
+            document.getElementById('hp-text-p2').innerText = `${h2} / ${max2} HP`;
+        }
+
+        function runBattle(p1Name, p1Color, p2Name, p2Color, isRanked) {
+            // Coin flip: fighter 1 always attacks first, so randomise who that is
+            if (Math.random() < 0.5) {
+                [p1Name, p2Name] = [p2Name, p1Name];
+                [p1Color, p2Color] = [p2Color, p1Color];
+            }
+            let p1 = getDragonStrict(p1Name) || getDragon(p1Name, p1Color);
+            let p2 = getDragonStrict(p2Name) || getDragon(p2Name, p2Color);
+
+            let p1Prog = calculateLevelAndProgress(p1.xp);
+            let p2Prog = calculateLevelAndProgress(p2.xp);
+
+            let p1HP = getMaxHP(p1Prog.level, p1.drakeObj.type, p1.title);
+            let p2HP = getMaxHP(p2Prog.level, p2.drakeObj.type, p2.title);
+            let p1MaxHP = p1HP;
+            let p2MaxHP = p2HP;
+
+            let activeEffects = { [p1.name]: [], [p2.name]: [] }; 
+            let activeBuffs = { [p1.name]: [], [p2.name]: [] };   
+            let guardianUsed = { [p1.name]: false, [p2.name]: false };
+
+            updateFighterCard('p1', p1, activeBuffs[p1.name], activeEffects[p1.name]);
+            updateFighterCard('p2', p2, activeBuffs[p2.name], activeEffects[p2.name]);
+
+            updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
+            updateStatusUI(p1.name, p1Prog.level, p1.drakeObj.type, p1.title, activeBuffs[p1.name], activeEffects[p1.name]);
+            updateStatusUI(p2.name, p2Prog.level, p2.drakeObj.type, p2.title, activeBuffs[p2.name], activeEffects[p2.name]);
+
+            addLog(`<div style="border-top: 2px dashed #ffd700; margin: 8px 0; opacity: 0.5;"></div>`);
+            let battleTypeText = isRanked ? (currentLang === 'uk' ? "🏆 Рейтинговий бій" : "🏆 Ranked Battle") : (currentLang === 'uk' ? "🤝 Товариська Дуель" : "🤝 Friendly Duel");
+            let startMsg = currentLang === 'uk' ?
+                `⚔️ <b>${battleTypeText} розпочався:</b> <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> (${p1.drakeObj.name[currentLang]}) проти <span style="color: ${p2.color}; font-weight: bold;">@${p2.name}</span> (${p2.drakeObj.name[currentLang]})!` :
+                `⚔️ <b>${battleTypeText} started:</b> <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> (${p1.drakeObj.name[currentLang]}) vs <span style="color: ${p2.color}; font-weight: bold;">@${p2.name}</span> (${p2.drakeObj.name[currentLang]})!`;
+            addLog(startMsg);
+            addLog(currentLang === 'uk'
+                ? `🎲 Жереб: першим атакує <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span>!`
+                : `🎲 Coin flip: <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> attacks first!`);
+            [p1, p2].forEach(f => {
+                if (titleMechanic(f) === 'opening_buff') {
+                    const opts = ['shield', 'blessing', 'regeneration', 'stoneskin', 'rage', 'divinepower'];
+                    const fx = opts[Math.floor(Math.random() * opts.length)];
+                    activeBuffs[f.name].push({ type: fx, turns: 3 });
+                    addLog(currentLang === 'uk'
+                        ? `<span style="color: #ff4757; font-weight: bold;">🌅 ${f.title.name.uk}:</span> <span style="color: ${f.color}; font-weight: bold;">@${f.name}</span> починає бій з бафом ${fx}!`
+                        : `<span style="color: #ff4757; font-weight: bold;">🌅 ${f.title.name.en}:</span> <span style="color: ${f.color}; font-weight: bold;">@${f.name}</span> starts the fight with a ${fx} buff!`);
+                }
+            });
+            updateStatusUI(p1.name, p1Prog.level, p1.drakeObj.type, p1.title, activeBuffs[p1.name], activeEffects[p1.name]);
+            updateStatusUI(p2.name, p2Prog.level, p2.drakeObj.type, p2.title, activeBuffs[p2.name], activeEffects[p2.name]);
+
+            let turn = 1;
+
+            let battleInterval = setInterval(() => {
+                try {
+                    if (turn >= 30) {
+                        clearInterval(battleInterval);
+                        let timeoutMsg = currentLang === 'uk' ?
+                            `⏳ <span style="color: #ffaa00; font-weight: bold;">Час вийшов! (Ліміт: 30 ходів)</span> Обидва дракони занадто сильні і виснажені!` :
+                            `⏳ <span style="color: #ffaa00; font-weight: bold;">Time out! (Limit: 30 turns)</span> Both dragons are too strong and exhausted!`;
+                        addLog(timeoutMsg);
+                        finishBattle(p1, p2, p1HP, p2HP, isRanked);
+                        return;
+                    }
+
+                    let attacker = turn % 2 !== 0 ? p1 : p2;
+                    let defender = turn % 2 !== 0 ? p2 : p1;
+                    let attackerHP = turn % 2 !== 0 ? p1HP : p2HP;
+                    let attackerMaxHP = turn % 2 !== 0 ? p1MaxHP : p2MaxHP;
+
+                    let attackerProg = calculateLevelAndProgress(attacker.xp);
+                    let defenderProg = calculateLevelAndProgress(defender.xp);
+
+                    let defsDefender = getModifiedDefenses(defenderProg.level, defender.drakeObj.type, defender.title, activeBuffs[defender.name], activeEffects[defender.name]);
+                    let defenderPhysDef = defsDefender.physDef;
+                    let defenderMagDef = defsDefender.magDef;
+                    
+                    if (titleMechanic(attacker) === 'armor_piercer') {
+                        defenderPhysDef = Math.floor(defenderPhysDef * (1 - MECH.armorPierce));
+                        defenderMagDef = Math.floor(defenderMagDef * (1 - MECH.armorPierce));
+                    }
+
+                    let attackerTier = getTierMultiplier(attackerProg.level);
+                    let logExtra = "";
+                    
+                    if (!activeEffects[attacker.name]) activeEffects[attacker.name] = [];
+                    activeEffects[attacker.name].forEach(eff => {
+                        let effMult = eff.power || 1.0;
+                        if (eff.type === 'burn') {
+                            let burnDmg = Math.max(5, Math.round(attackerMaxHP * 0.05 * effMult));
+                            attackerHP -= burnDmg;
+                            let msg = currentLang === 'uk' ?
+                                `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> втрачає HP через 🔥 Підпал (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${burnDmg} HP</span>) [${eff.turns}х]` :
+                                `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> loses HP from 🔥 Burn (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${burnDmg} HP</span>) [${eff.turns}t]`;
+                            addLog(msg);
+                        } else if (eff.type === 'poison') {
+                            let poisonDmg = Math.max(5, Math.round(attackerMaxHP * 0.05 * effMult));
+                            attackerHP -= poisonDmg;
+                            let msg = currentLang === 'uk' ?
+                                `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> втрачає HP через ☠️ Отруєння (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${poisonDmg} HP</span>) [${eff.turns}х]` :
+                                `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> loses HP from ☠️ Poison (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${poisonDmg} HP</span>) [${eff.turns}t]`;
+                            addLog(msg);
+                        }
+                    });
+
+                    if (!activeBuffs[attacker.name]) activeBuffs[attacker.name] = [];
+                    activeBuffs[attacker.name].forEach(bff => {
+                        let bffMult = getEffectMult(attacker.drakeObj.type, attacker.title, attackerProg.level);
+                        if (bff.type === 'regeneration') {
+                            let healVal = Math.max(5, Math.round(attackerMaxHP * 0.08 * bffMult));
+                            attackerHP = Math.min(attackerMaxHP, attackerHP + healVal);
+                            let msg = currentLang === 'uk' ?
+                                `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> відновлює HP завдяки 💚 Регенерація (<span style="color: #41ff41; font-weight: bold;">+${healVal} HP</span>) [${bff.turns}х]` :
+                                `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> heals HP from 💚 Regeneration (<span style="color: #41ff41; font-weight: bold;">+${healVal} HP</span>) [${bff.turns}t]`;
+                            addLog(msg);
+                        }
+                    });
+
+                    if (turn % 2 !== 0) p1HP = attackerHP; else p2HP = attackerHP;
+                    updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
+
+                    let currAttackerLiveHP = turn % 2 !== 0 ? p1HP : p2HP;
+                    let currAttackerMaxHP = turn % 2 !== 0 ? p1MaxHP : p2MaxHP;
+                    if (titleMechanic(attacker) === 'guardian_shield' && !guardianUsed[attacker.name] && currAttackerLiveHP > 0 && currAttackerLiveHP < currAttackerMaxHP * 0.15) {
+                        guardianUsed[attacker.name] = true;
+                        let shieldHeal = Math.round(currAttackerMaxHP * MECH.guardianHeal);
+                        currAttackerLiveHP += shieldHeal;
+                        if (turn % 2 !== 0) p1HP = currAttackerLiveHP; else p2HP = currAttackerLiveHP;
+                        
+                        updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
+                        let msg = currentLang === 'uk' ?
+                            `<span style="color: #f1c40f; font-weight: bold;">👼 Ангел-охоронець стрімера:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> активує Щит надії і відновлює ${shieldHeal} HP!` :
+                            `<span style="color: #f1c40f; font-weight: bold;">👼 Streamer Guardian Angel:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> activates Shield of Hope and restores ${shieldHeal} HP!`;
+                        addLog(msg);
+                    }
+
+                    if (p1HP <= 0 || p2HP <= 0) {
+                        clearInterval(battleInterval);
+                        finishBattle(p1, p2, p1HP, p2HP, isRanked);
+                        return;
+                    }
+
+                    let attackRoll = Math.random() * 100;
+                    let attackType, subType, subTypeNameUk, baseDmg = 15;
+
+                    let levelDmgBonus = Math.floor(attackerProg.level * 0.8);
+
+                    if (attackRoll < 45) {
+                        attackType = 'physical';
+                        let sub = Math.random();
+                        if (sub < 0.33) { subType = 'light'; subTypeNameUk = currentLang === 'uk' ? 'Слабка' : 'Light'; baseDmg = (Math.floor(Math.random() * 8) + 10) + levelDmgBonus; } 
+                        else if (sub < 0.66) { subType = 'heavy'; subTypeNameUk = currentLang === 'uk' ? 'Сильна' : 'Heavy'; baseDmg = (Math.floor(Math.random() * 10) + 18) + levelDmgBonus; } 
+                        else { subType = 'sneaky'; subTypeNameUk = currentLang === 'uk' ? 'Підступна' : 'Sneaky'; baseDmg = (Math.floor(Math.random() * 10) + 20) + levelDmgBonus; } 
+                    } else if (attackRoll < 90) {
+                        attackType = 'magical';
+                        let sub = Math.random();
+                        if (sub < 0.33) { subType = 'light'; subTypeNameUk = currentLang === 'uk' ? 'Слабка' : 'Light'; baseDmg = (Math.floor(Math.random() * 8) + 10) + levelDmgBonus; }
+                        else if (sub < 0.66) { subType = 'heavy'; subTypeNameUk = currentLang === 'uk' ? 'Сильна' : 'Heavy'; baseDmg = (Math.floor(Math.random() * 10) + 18) + levelDmgBonus; }
+                        else { subType = 'sneaky'; subTypeNameUk = currentLang === 'uk' ? 'Підступна' : 'Sneaky'; baseDmg = (Math.floor(Math.random() * 10) + 20) + levelDmgBonus; }
+                    } else {
+                        attackType = 'vampire';
+                        let sub = Math.random();
+                        if (sub < 0.5) { subType = 'light'; subTypeNameUk = currentLang === 'uk' ? 'Слабка' : 'Light'; baseDmg = (Math.floor(Math.random() * 10) + 20) + levelDmgBonus; } 
+                        else { subType = 'heavy'; subTypeNameUk = currentLang === 'uk' ? 'Сильна' : 'Heavy'; baseDmg = (Math.floor(Math.random() * 15) + 30) + levelDmgBonus; } 
+                    }
+
+                    if (activeBuffs[attacker.name]) {
+                        let atkBuffMult = getEffectMult(attacker.drakeObj.type, attacker.title, attackerProg.level);
+                        if (activeBuffs[attacker.name].some(b => b.type === 'rage')) {
+                            baseDmg *= (1.0 + (0.25 * atkBuffMult));
+                        }
+                    }
+
+                    let damageMultiplier = 1.0;
+                    if (activeEffects[attacker.name] && activeEffects[attacker.name].some(e => e.type === 'weakness')) damageMultiplier *= 0.5;
+                    if (activeBuffs[attacker.name] && activeBuffs[attacker.name].some(b => b.type === 'divinepower')) {
+                        let powerBuffMult = getEffectMult(attacker.drakeObj.type, attacker.title, attackerProg.level);
+                        damageMultiplier *= (1.0 + (0.5 * powerBuffMult));
+                    }
+                    
+                    let suddenDeathMult = 1.0;
+                    if (turn >= 16) {
+                        suddenDeathMult = 1.0 + ((turn - 15) * 0.3); 
+                        damageMultiplier *= suddenDeathMult;
+                    }
+
+                    baseDmg *= damageMultiplier;
+
+                    // Mythic / Meme titles that change damage
+                    const atkMech = titleMechanic(attacker);
+                    if (atkMech === 'executioner') {
+                        const defHPNow = turn % 2 !== 0 ? p2HP : p1HP;
+                        const defMaxNow = turn % 2 !== 0 ? p2MaxHP : p1MaxHP;
+                        if (defHPNow < defMaxNow * MECH.executeThreshold) { baseDmg *= 1 + MECH.executeBonus; logExtra += currentLang === 'uk' ? `⚰️ Добивання! ` : `⚰️ Execute! `; }
+                    } else if (atkMech === 'coin_flip') {
+                        const heads = Math.random() < 0.5;
+                        baseDmg *= heads ? MECH.coinHigh : MECH.coinLow;
+                        logExtra += heads ? (currentLang === 'uk' ? `🪙 Орел! (×${MECH.coinHigh}) ` : `🪙 Heads! (×${MECH.coinHigh}) `)
+                                          : (currentLang === 'uk' ? `🪙 Решка... (×${MECH.coinLow}) ` : `🪙 Tails... (×${MECH.coinLow}) `);
+                    } else if (atkMech === 'sleepy') {
+                        if (Math.random() < MECH.sleepChance) { baseDmg = 0; logExtra += currentLang === 'uk' ? `😴 Проспав хід! ` : `😴 Slept through the turn! `; }
+                        else baseDmg *= 1 + MECH.sleepBonus;
+                    }
+
+                    let critData = getCritStats(attackerProg.level, attacker.drakeObj.type, attacker.title, activeBuffs[attacker.name]);
+                    let isCrit = Math.random() * 100 < critData.critChance;
+                    if (isCrit) {
+                        baseDmg *= critData.critPower;
+                        if (attacker.drakeObj.type === 'red') {
+                            let msg = currentLang === 'uk' ?
+                                `<span style="color: #ff4141; font-weight: bold;">🟥 Червоний Дрейк крит!</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> завдає вогняного криту (х${critData.critPower})!` :
+                                `<span style="color: #ff4141; font-weight: bold;">🟥 Red Drake crit!</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> deals fire crit (x${critData.critPower})!`;
+                            addLog(msg);
+                        }
+                    }
+
+                    let matrixBonus = titleMechanic(defender) === 'quantum_dodge' ? MECH.dodgeBonus : 0;
+                    let defenderTier = getTierMultiplier(defenderProg.level);
+                    let ultraBlockChance = 10 + matrixBonus + (defender.drakeObj.type === 'black' ? (ELEMENT_BASE.blackBlock + defenderTier.blackBlock) : 0);
+                    let ultraBlock = Math.random() * 100 < ultraBlockChance;
+
+                    if (ultraBlock && defender.drakeObj.type === 'black') {
+                        let msg = currentLang === 'uk' ?
+                            `<span style="color: #a335ee; font-weight: bold;">⬛ Чорний Дрейк ультраблок!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> поглинає атаку темною аурою!` :
+                            `<span style="color: #a335ee; font-weight: bold;">⬛ Black Drake ultra block!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> absorbs attack with dark aura!`;
+                        addLog(msg);
+                    } else if (ultraBlock && titleMechanic(defender) === 'quantum_dodge') {
+                        let msg = currentLang === 'uk' ?
+                            `<span style="color: #f1c40f; font-weight: bold;">🌀 Квантовий ухил:</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> ухиляється від атаки завдяки матриці!` :
+                            `<span style="color: #f1c40f; font-weight: bold;">🌀 Quantum Dodge:</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> dodges attack using the matrix!`;
+                        addLog(msg);
+                    }
+
+                    let finalDmg = baseDmg;
+                    let blockText = "";
+
+                    if (ultraBlock) {
+                        finalDmg = 0; 
+                        blockText = currentLang === 'uk' ? `🛡️ Ультраблок (0 шкоди)!` : `🛡️ Ultra Block (0 damage)!`;
+                    } else if (subType === 'sneaky' || attackType === 'vampire') {
+                        blockText = subType === 'sneaky' ? (currentLang === 'uk' ? `⚡ Пробиття броні!` : `⚡ Armor Piercing!`) : (currentLang === 'uk' ? `🧛 Вампіризм (Броня ігнорується)!` : `🧛 Vampire (Armor ignored)!`);
+                    } else {
+                        let activeDef = attackType === 'physical' ? defenderPhysDef : defenderMagDef;
+                        let shieldBuffMult = 1.0;
+                        if (activeBuffs[defender.name] && activeBuffs[defender.name].some(b => b.type === 'shield')) {
+                            let defBffMult = getEffectMult(defender.drakeObj.type, defender.title, defenderProg.level);
+                            shieldBuffMult = 1.0 - (0.2 * defBffMult); 
+                            blockText = currentLang === 'uk' ? `🛡️ Щит!` : `🛡️ Shield!`;
+                        }
+                        
+                        let mitigationMult = Math.max(0.35, 1.0 - (activeDef / 100)); 
+                        finalDmg = baseDmg * mitigationMult * shieldBuffMult;
+                    }
+
+                    finalDmg = Math.round(finalDmg);
+                    let blueReflectText = "";
+                    let blueReflectChance = ELEMENT_BASE.blueReflect + defenderTier.blueReflect;
+                    if (defender.drakeObj.type === 'blue' && finalDmg > 0 && Math.random() * 100 < blueReflectChance) {
+                        let reflectedDmg = Math.round(finalDmg * 0.5);
+                        finalDmg -= reflectedDmg;
+                        let attackerCurrentHP = turn % 2 !== 0 ? p1HP : p2HP;
+                        attackerCurrentHP -= reflectedDmg;
+                        if (turn % 2 !== 0) p1HP = Math.max(0, attackerCurrentHP); else p2HP = Math.max(0, attackerCurrentHP);
+                        blueReflectText = currentLang === 'uk' ? `🔵 Відбито! (-${reflectedDmg} назад)` : `🔵 Reflected! (-${reflectedDmg} back)`;
+                        let msg = currentLang === 'uk' ?
+                            `<span style="color: #00bfff; font-weight: bold;">🟦 Синій Дрейк!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> відбиває ${reflectedDmg} шкоди назад!` :
+                            `<span style="color: #00bfff; font-weight: bold;">🟦 Blue Drake!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> reflects ${reflectedDmg} damage back!`;
+                        addLog(msg);
+                    }
+
+                    let goldOneHpText = "";
+                    let goldOneHpChance = ELEMENT_BASE.goldOneHp + attackerTier.goldOneHp;
+                    if (attacker.drakeObj.type === 'gold' && finalDmg > 0) {
+                        let targetHPBefore = turn % 2 !== 0 ? p2HP : p1HP;
+                        if (targetHPBefore > 1 && finalDmg < targetHPBefore) {
+                            if (Math.random() * 100 < goldOneHpChance) {
+                                finalDmg = targetHPBefore - 1;
+                                goldOneHpText = currentLang === 'uk' ? `🟨 Фортуна (1 HP)! ` : `🟨 Fortune (1 HP)! `;
+                                let msg = currentLang === 'uk' ?
+                                    `<span style="color: #ffd700; font-weight: bold;">🟨 Золота фортуна!</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> завдає критичного пробиття, залишаючи 1 HP!` :
+                                    `<span style="color: #ffd700; font-weight: bold;">🟨 Golden Fortune!</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> lands critical breach, leaving 1 HP!`;
+                                addLog(msg);
+                            }
+                        }
+                    }
+
+                    if (finalDmg > 0) flashSpriteHit(turn % 2 !== 0 ? 'p2' : 'p1');
+                    if (turn % 2 !== 0) { p2HP -= finalDmg; if (p2HP < 0) p2HP = 0; }
+                    else { p1HP -= finalDmg; if (p1HP < 0) p1HP = 0; }
+
+                    if (attackType === 'vampire' && finalDmg > 0) {
+                        let heal = Math.round(finalDmg * 0.5);
+                        let currAtkHP = turn % 2 !== 0 ? p1HP : p2HP;
+                        let currAtkMaxHP = turn % 2 !== 0 ? p1MaxHP : p2MaxHP;
+                        let newHP = Math.min(currAtkMaxHP, currAtkHP + heal);
+                        if (turn % 2 !== 0) p1HP = newHP; else p2HP = newHP;
+                        logExtra += currentLang === 'uk' ? `🩸 +${heal} HP лікування! ` : `🩸 +${heal} HP healing! `;
+                    }
+
+                    if (finalDmg > 0 && titleMechanic(defender) === 'thorns') {
+                        const thorn = Math.max(1, Math.round(finalDmg * MECH.thorns));
+                        if (turn % 2 !== 0) p1HP = Math.max(0, p1HP - thorn); else p2HP = Math.max(0, p2HP - thorn);
+                        logExtra += currentLang === 'uk' ? `🌵 Шипи: -${thorn} HP атакуючому! ` : `🌵 Thorns: -${thorn} HP to the attacker! `;
+                    }
+                    if (finalDmg > 0 && titleMechanic(attacker) === 'lifesteal') {
+                        const steal = Math.max(1, Math.round(finalDmg * MECH.lifesteal));
+                        if (turn % 2 !== 0) p1HP = Math.min(p1MaxHP, p1HP + steal); else p2HP = Math.min(p2MaxHP, p2HP + steal);
+                        logExtra += currentLang === 'uk' ? `🧛 +${steal} HP (вампіризм титулу) ` : `🧛 +${steal} HP (title lifesteal) `;
+                    }
+
+                    let attackTypeColor = attackType === 'physical' ? '#ff6666' : (attackType === 'magical' ? '#66b3ff' : '#ff66ff');
+                    let attackTypeUk = attackType === 'physical' ? (currentLang === 'uk' ? 'Фіз' : 'Phys') : (attackType === 'magical' ? (currentLang === 'uk' ? 'Маг' : 'Mag') : (currentLang === 'uk' ? 'Вамп' : 'Vamp'));
+
+                    let p1ProgLive = calculateLevelAndProgress(p1.xp);
+                    let p2ProgLive = calculateLevelAndProgress(p2.xp);
+
+                    updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
+                    updateStatusUI(p1.name, p1ProgLive.level, p1.drakeObj.type, p1.title, activeBuffs[p1.name], activeEffects[p1.name]);
+                    updateStatusUI(p2.name, p2ProgLive.level, p2.drakeObj.type, p2.title, activeBuffs[p2.name], activeEffects[p2.name]);
+                    updateFighterCard('p1', p1, activeBuffs[p1.name], activeEffects[p1.name]);
+                    updateFighterCard('p2', p2, activeBuffs[p2.name], activeEffects[p2.name]);
+
+                    let critLabel = isCrit ? (currentLang === 'uk' ? `💥 КРИТ (x${critData.critPower})! ` : `💥 CRIT (x${critData.critPower})! `) : ``;
+                    let multLabel = "";
+                    if (activeEffects[attacker.name] && activeEffects[attacker.name].some(e => e.type === 'weakness')) multLabel += currentLang === 'uk' ? ` [Слабкість] ` : ` [Weakness] `;
+                    if (activeBuffs[attacker.name] && activeBuffs[attacker.name].some(b => b.type === 'divinepower')) multLabel += currentLang === 'uk' ? ` [Міць] ` : ` [Power] `;
+                    
+                    let sdLabel = turn >= 16 ? `<span style="color: #ff0000; font-weight: bold;">[${currentLang === 'uk' ? '💀 Раптова смерть' : '💀 Sudden Death'} x${suddenDeathMult.toFixed(1)}]</span> ` : ``;
+                    
+                    let damageFormatted = `<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">${finalDmg} ${currentLang === 'uk' ? 'шкоди' : 'damage'}</span>`;
+
+                    let logText = currentLang === 'uk' ?
+                        `[Хід ${turn}] <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> ➜ <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> (<span style="color: ${attackTypeColor};">${attackTypeUk} / ${subTypeNameUk}</span>): ${sdLabel}${critLabel}${multLabel}${blockText} ${goldOneHpText}${blueReflectText} Шкода: ${damageFormatted}. ${logExtra}` :
+                        `[Turn ${turn}] <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> ➜ <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> (<span style="color: ${attackTypeColor};">${attackTypeUk} / ${subTypeNameUk}</span>): ${sdLabel}${critLabel}${multLabel}${blockText} ${goldOneHpText}${blueReflectText} Damage: ${damageFormatted}. ${logExtra}`;
+                    addLog(logText);
+
+                    if (turn % 2 === 0) {
+                        [p1.name, p2.name].forEach(name => {
+                            if (activeEffects[name]) { activeEffects[name].forEach(eff => eff.turns--); activeEffects[name] = activeEffects[name].filter(eff => eff.turns > 0); }
+                            if (activeBuffs[name]) { activeBuffs[name].forEach(bff => bff.turns--); activeBuffs[name] = activeBuffs[name].filter(bff => bff.turns > 0); }
+                        });
+                    }
+
+                    let extraEffectChance = titleStats(attacker.title).effect;
+                    let castChance = 30 + extraEffectChance + (attacker.drakeObj.type === 'black' ? (ELEMENT_BASE.blackChance + attackerTier.blackChance) : 0) + (attacker.drakeObj.type === 'purple' ? (ELEMENT_BASE.purpleChance + attackerTier.purpleChance) : 0);
+
+                    if (Math.random() * 100 < castChance && finalDmg > 0) triggerEffect(attacker, defender, activeBuffs, activeEffects, false, attackerProg.level);
+
+                    if (titleMechanic(attacker) === 'chaotic_charge' && finalDmg > 0) {
+                        if (Math.random() * 100 < MECH.chaosChance) {
+                            let msg = currentLang === 'uk' ?
+                                `<span style="color: #f1c40f; font-weight: bold;">⚡ Хаос:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> створює вибух!` :
+                                `<span style="color: #f1c40f; font-weight: bold;">⚡ Chaos:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> creates an explosion!`;
+                            addLog(msg);
+                            triggerEffect(attacker, defender, activeBuffs, activeEffects, true, attackerProg.level);
+                        }
+                    }
+
+                    if (titleMechanic(attacker) === 'cat_keyboard' && Math.random() < MECH.catChance) {
+                        addLog(currentLang === 'uk'
+                            ? `<span style="color: #ff66cc; font-weight: bold;">🐈 Кіт пройшовся по клавіатурі!</span> Хтозна, кому цей ефект...`
+                            : `<span style="color: #ff66cc; font-weight: bold;">🐈 The cat walked across the keyboard!</span> Who knows who gets this effect...`);
+                        if (Math.random() < 0.5) triggerEffect(attacker, defender, activeBuffs, activeEffects, false, attackerProg.level);
+                        else triggerEffect(defender, attacker, activeBuffs, activeEffects, false, defenderProg.level);
+                    }
+
+                    if (p1HP <= 0 || p2HP <= 0) {
+                        clearInterval(battleInterval);
+                        finishBattle(p1, p2, p1HP, p2HP, isRanked);
+                        return;
+                    }
+                    turn++;
+                } catch (error) {
+                    clearInterval(battleInterval);
+                    isBattleRunning = false;
+                    let errorMsg = currentLang === 'uk' ?
+                        `❌ <span style="color: #ff4141; font-weight: bold;">Критична помилка симуляції:</span> ${error.message}. Бій перервано!` :
+                        `❌ <span style="color: #ff4141; font-weight: bold;">Critical simulation error:</span> ${error.message}. Battle aborted!`;
+                    addLog(errorMsg);
+                    setTimeout(() => { checkQueue(); }, 2000); 
+                }
+            }, 4500);
+        }
+
+        function triggerEffect(attacker, defender, activeBuffs, activeEffects, forceDebuff = false, attackerLevel = 1) {
+            const fxList = forceDebuff ? ['burn', 'poison', 'weakness', 'armorbreak'] : ['burn', 'poison', 'weakness', 'shield', 'blessing', 'regeneration', 'stoneskin', 'armorbreak', 'rage', 'divinepower'];
+            const fx = fxList[Math.floor(Math.random() * fxList.length)];
+            const fxDescriptionsUk = { 'burn': '🔥 Підпал (3х)', 'poison': '☠️ Отруєння (3х)', 'weakness': '🌀 Слабкість (3х)', 'shield': '🛡️ Щит (3х)', 'blessing': '🌟 Благословіння (3х)', 'regeneration': '💚 Регенерація (3х)', 'stoneskin': '💎 Кам’яна шкіра (3х)', 'armorbreak': '🛡️💥 Пролом броні (3х)', 'rage': '⚔️ Лють (3х)', 'divinepower': '💥 Божественна міць (3х)' };
+            const fxDescriptionsEn = { 'burn': '🔥 Burn (3t)', 'poison': '☠️ Poison (3t)', 'weakness': '🌀 Weakness (3t)', 'shield': '🛡️ Shield (3t)', 'blessing': '🌟 Blessing (3t)', 'regeneration': '💚 Regeneration (3t)', 'stoneskin': '💎 Stoneskin (3t)', 'armorbreak': '🛡️💥 Armor Break (3t)', 'rage': '⚔️ Rage (3t)', 'divinepower': '💥 Divine Power (3t)' };
+            const fxDescMap = currentLang === 'uk' ? fxDescriptionsUk : fxDescriptionsEn;
+
+            if (['burn', 'poison', 'weakness', 'armorbreak'].includes(fx)) {
+                if (titleMechanic(defender) === 'debuff_immunity') {
+                    let msg = currentLang === 'uk' ?
+                        `<span style="color: #f1c40f; font-weight: bold;">🐉 Імунітет:</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> ігнорує дебаф!` :
+                        `<span style="color: #f1c40f; font-weight: bold;">🐉 Immunity:</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> ignores debuff!`;
+                    addLog(msg);
+                    return;
+                }
+                if (!activeEffects[defender.name]) activeEffects[defender.name] = [];
+                if (!activeEffects[defender.name].some(e => e.type === fx) && activeEffects[defender.name].length < 2) {
+                    activeEffects[defender.name].push({ type: fx, turns: 3, power: getEffectMult(attacker.drakeObj.type, attacker.title, attackerLevel) });
+                    let msg = currentLang === 'uk' ?
+                        `<span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> отримує дебаф ${fxDescMap[fx]}` :
+                        `<span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> receives debuff ${fxDescMap[fx]}`;
+                    addLog(msg);
+                }
+            } else {
+                if (!activeBuffs[attacker.name]) activeBuffs[attacker.name] = [];
+                if (!activeBuffs[attacker.name].some(b => b.type === fx) && activeBuffs[attacker.name].length < 2) {
+                    activeBuffs[attacker.name].push({ type: fx, turns: 3 });
+                    let msg = currentLang === 'uk' ?
+                        `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> отримує баф ${fxDescMap[fx]}` :
+                        `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> receives buff ${fxDescMap[fx]}`;
+                    addLog(msg);
+                }
+            }
+        }
+
+        function finishBattle(p1, p2, p1HP, p2HP, isRanked) {
+            let winner, looser;
+            if (p1HP > p2HP) { winner = p1; looser = p2; }
+            else if (p2HP > p1HP) { winner = p2; looser = p1; }
+            else { winner = null; looser = null; }
+
+            if (!isRanked) {
+                if (!winner) {
+                    let msg = currentLang === 'uk' ?
+                        `🤝 <b>Товариський бій завершився нічиєю!</b> (Без зміни досвіду та статистики).` :
+                        `🤝 <b>Friendly battle ended in a draw!</b> (No XP or stats changed).`;
+                    addLog(msg);
+                } else {
+                    let msg = currentLang === 'uk' ?
+                        `🤝 <b>Товариський бій завершено!</b> Переміг <span style="color: ${winner.color}; font-weight: bold;">@${winner.name}</span>! <i>(Досвід та статистика не змінені)</i>` :
+                        `🤝 <b>Friendly battle finished!</b> Winner: <span style="color: ${winner.color}; font-weight: bold;">@${winner.name}</span>! <i>(XP and stats unchanged)</i>`;
+                    addLog(msg);
+                }
+                isBattleRunning = false;
+                setTimeout(() => { checkQueue(); }, 5000);
+                return;
+            }
+
+            if (!winner) {
+                let added1 = addXP(p1.name, 10);
+                let added2 = addXP(p2.name, 10);
+                recordStats(p1.name, false);
+                recordStats(p2.name, false);
+                let msg = currentLang === 'uk' ?
+                    `🤝 Нічия між <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> та <span style="color: ${p2.color}; font-weight: bold;">@${p2.name}</span>! (+${added1}/${added2} XP)` :
+                    `🤝 Draw between <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> and <span style="color: ${p2.color}; font-weight: bold;">@${p2.name}</span>! (+${added1}/${added2} XP)`;
+                addLog(msg);
+            } else {
+                recordStats(winner.name, true);
+                recordStats(looser.name, false);
+
+                let winXP = addXP(winner.name, 40);
+                let loseXP = addXP(looser.name, 10);
+
+                let maxLvlText = currentLang === 'uk' ? '(МАХ Рівень)' : '(MAX Level)';
+                let winXpText = winXP > 0 ? `(+${winXP} XP)` : maxLvlText;
+                let loseXpText = loseXP > 0 ? `(+${loseXP} XP)` : maxLvlText;
+
+                let msg = currentLang === 'uk' ?
+                    `🏆 <b>Переможець:</b> <span style="color: ${winner.color}; font-weight: bold;">@${winner.name}</span>! ${winXpText} 🎉 | Програв <span style="color: ${looser.color}; font-weight: bold;">@${looser.name}</span> ${loseXpText} 🛡️` :
+                    `🏆 <b>Winner:</b> <span style="color: ${winner.color}; font-weight: bold;">@${winner.name}</span>! ${winXpText} 🎉 | Lost <span style="color: ${looser.color}; font-weight: bold;">@${looser.name}</span> ${loseXpText} 🛡️`;
+                addLog(msg);
+            }
+
+            let p1Prog = calculateLevelAndProgress(getDragonStrict(p1.name).xp);
+            let p2Prog = calculateLevelAndProgress(getDragonStrict(p2.name).xp);
+            updateStatusUI(p1.name, p1Prog.level, p1.drakeObj.type, p1.title, [], []);
+            updateStatusUI(p2.name, p2Prog.level, p2.drakeObj.type, p2.title, [], []);
+            updateFighterCard('p1', getDragonStrict(p1.name), [], []);
+            updateFighterCard('p2', getDragonStrict(p2.name), [], []);
+            
+            isBattleRunning = false;
+            renderLeaderboard();
+            setTimeout(() => { checkQueue(); }, 5000);
+        }
+
+        function recordStats(username, isWin) {
+            if (!username) return;
+            if (!playerLeaderboardStats[username]) playerLeaderboardStats[username] = { wins: 0, losses: 0 };
+            if (isWin) playerLeaderboardStats[username].wins++;
+            else playerLeaderboardStats[username].losses++;
+            localStorage.setItem('drake_arena_showcase_stats', JSON.stringify(playerLeaderboardStats));
+        }
+
+        function renderLeaderboard() {
+            const listElement = document.getElementById('leaderboard-list');
+            if (!listElement) return;
+
+            let db = getDragonDB();
+            let allUsers = Object.keys(db).filter(user => user !== "QA-Tester-Alpha" && user !== "QA-Tester-Omega");
+
+            if (allUsers.length === 0) {
+                listElement.innerHTML = `<li style="text-align: center; color: #888; padding: 20px 0;">${translations[currentLang].no_drakes}</li>`;
+                return;
+            }
+
+            allUsers.sort((a, b) => {
+                let winsA = (playerLeaderboardStats[a] && playerLeaderboardStats[a].wins) || 0;
+                let winsB = (playerLeaderboardStats[b] && playerLeaderboardStats[b].wins) || 0;
+                if (winsB !== winsA) return winsB - winsA;
+                return (db[b].level || 1) - (db[a].level || 1);
+            });
+
+            listElement.innerHTML = '';
+
+            allUsers.forEach((user, index) => {
+                let dragon = db[user];
+                let stats = playerLeaderboardStats[user] || { wins: 0, losses: 0 };
+                let prog = calculateLevelAndProgress(dragon.xp || 0);
+
+                let lvlText = currentLang === 'uk' ? 'Рівень' : 'Level';
+
+                const li = document.createElement('li');
+                li.className = 'lb-card';
+                li.innerHTML = `
+                    <div class="lb-header">
+                        <span><strong>#${index + 1}</strong> <span style="color: ${dragon.color || '#00ffff'}; font-weight: bold;">@${user}</span></span>
+                        <span class="lb-stats">⚔️${stats.wins} / 💀${stats.losses}</span>
+                    </div>
+                    <div class="lb-sub">
+                        <span>${dragon.drakeObj ? dragon.drakeObj.name[currentLang].split(' ').pop() : '🐉'} <b>${lvlText} ${prog.level}</b></span>
+                        <span style="color: ${dragon.title ? dragon.title.color : '#ffd700'};">${dragon.title ? dragon.title.icon + ' ' + dragon.title.name[currentLang] : '—'}</span>
+                    </div>
+                `;
+                listElement.appendChild(li);
+            });
+        }
+
+        /* --- CHAT SIMULATOR --- */
+        const SIM_COLORS = ['#ff6b6b', '#4dabf7', '#ffd43b', '#b197fc', '#63e6be', '#ffa94d'];
+        function simColor(name) {
+            let h = 0; for (let c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+            return SIM_COLORS[h % SIM_COLORS.length];
+        }
+
+        // Sends one fake chat message through the real handler
+        function simSay(user, message, withPoints = false) {
+            user = user.trim().toLowerCase().replace(/^@/, '');
+            if (!user || !message.trim()) return;
+            const context = { username: user, color: simColor(user) };
+            if (withPoints) context['custom-reward-id'] = 'simulated-reward';
+            handleChatMessage('#' + TWITCH_CHANNEL, context, message, false);
+        }
+
+        function simSend() {
+            const msgEl = document.getElementById('sim-msg');
+            simSay(document.getElementById('sim-user').value, msgEl.value, document.getElementById('sim-points').checked);
+            msgEl.value = '';
+            msgEl.focus();
+        }
+
+        function simDemo() {
+            const viewers = [['aria', '!drake red'], ['borys', '!drake blue'], ['chen', '!drake purple'], ['dana', '!drake gold']];
+            viewers.forEach(([u, cmd], i) => setTimeout(() => simSay(u, cmd), i * 300));
+            viewers.forEach(([u], i) => setTimeout(() => simSay(u, '!queue'), 1400 + i * 300));
+        }
+
+        function renderSimChips() {
+            const chips = currentLang === 'uk'
+                ? ['!дрейк червоний', '!черга', '!стата', '!бій @viewer2', '!прийняти', '!титул', '!рерол синій']
+                : ['!drake red', '!queue', '!stats', '!battle @viewer2', '!accept', '!title', '!reroll blue'];
+            const box = document.getElementById('sim-chips');
+            if (!box) return;
+            box.innerHTML = `<span class="sim-chip demo" onclick="simDemo()">${translations[currentLang].sim_demo}</span>` +
+                chips.map(c => `<span class="sim-chip" onclick="simChip(this)">${c}</span>`).join('');
+        }
+        function simChip(el) {
+            const msgEl = document.getElementById('sim-msg');
+            msgEl.value = el.innerText;
+            // !title and !reroll are channel-point rewards on stream
+            document.getElementById('sim-points').checked = /^!(title|reroll|титул|рерол)/.test(el.innerText);
+            msgEl.focus();
+        }
+
+        // Empty buffs/debuffs panel in the current language (same layout as during a fight, so nothing shifts)
+        function renderEmptyStatus() {
+            const uk = currentLang === 'uk';
+            const html = `<div class="status-category"><div class="status-title"><span>${uk ? '✨ Бафи' : '✨ Buffs'}</span> <span>0/2</span></div><div class="status-list"><span class="status-empty">${uk ? 'Немає бафів' : 'No buffs'}</span></div></div>` +
+                `<div class="status-category" style="margin-top: 3px;"><div class="status-title" style="color: #ff4141;"><span>${uk ? '💀 Дебафи' : '💀 Debuffs'}</span> <span>0/2</span></div><div class="status-list"><span class="status-empty">${uk ? 'Немає дебафів' : 'No debuffs'}</span></div></div>`;
+            ['status-p1', 'status-p2'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
+        }
+
+        // Brings saves from older showcase versions up to date (runs once on load, only touches the showcase keys)
+        (function migrateOldSaves() {
+            let db = getDragonDB();
+            let changed = false;
+            Object.keys(db).forEach(u => {
+                let d = db[u];
+                // Element: refresh by type; unknown types (e.g. removed ones) get a random element
+                let freshDrake = d.drakeObj && DRAKE_TYPES.find(t => t.type === d.drakeObj.type);
+                if (!freshDrake) { d.drakeObj = DRAKE_TYPES[Math.floor(Math.random() * DRAKE_TYPES.length)]; changed = true; }
+                else if (JSON.stringify(d.drakeObj) !== JSON.stringify(freshDrake)) { d.drakeObj = freshDrake; changed = true; }
+                // Title: ids 1-100 kept their meaning, so refresh by id (new names, rarity and bonuses); unknown ids re-roll
+                let freshTitle = d.title && TITLES_DB.find(t => t.id === d.title.id);
+                if (!freshTitle) { d.title = getRandomTitle(); changed = true; }
+                else if (JSON.stringify(freshTitle) !== JSON.stringify(d.title)) { d.title = freshTitle; changed = true; }
+                if (typeof d.xp !== 'number' || isNaN(d.xp)) { d.xp = 0; changed = true; }
+                if ('gachaBuffs' in d || 'gachaWins' in d) { delete d.gachaBuffs; delete d.gachaWins; changed = true; }
+            });
+            if (changed) saveDragonDB(db);
+        })();
+
+        function initPage() {
+            const params = new URLSearchParams(location.search);
+            if (params.has('obs')) document.body.classList.add('obs');
+            if (['uk', 'en'].includes(params.get('lang'))) currentLang = params.get('lang');
+            document.getElementById('html-root').setAttribute('lang', currentLang);
+            document.getElementById('lang-toggle-btn').innerText = currentLang === 'uk' ? '🇺🇦 UK' : '🇬🇧 EN';
+            updateUITranslations();
+            renderSimChips();
+            renderEmptyStatus();
+            renderLeaderboard();
+        }
+        document.addEventListener('DOMContentLoaded', initPage);
+
+        function updateStatusUI(username, level, drakeType, title, buffs = [], effects = []) {
+            let isP1 = username === document.getElementById('name-p1').innerText.replace('@', '');
+            let cardId = isP1 ? 'status-p1' : 'status-p2';
+            let statsSubId = isP1 ? 'stats-sub-p1' : 'stats-sub-p2';
+            let container = document.getElementById(cardId);
+            let statsContainer = document.getElementById(statsSubId);
+            if (!container) return;
+
+            let defs = getModifiedDefenses(level, drakeType, title, buffs, effects);
+            let critData = getCritStats(level, drakeType, title, buffs);
+            let tier = getTierMultiplier(level);
+            let extraEffectChance = titleStats(title).effect;
+            let castChanceVal = 30 + extraEffectChance + (drakeType === 'black' ? (ELEMENT_BASE.blackChance + tier.blackChance) : (drakeType === 'purple' ? (ELEMENT_BASE.purpleChance + tier.purpleChance) : 0));
+
+            let critText = currentLang === 'uk' ? 'Крит' : 'Crit';
+            let powerText = currentLang === 'uk' ? 'Сила' : 'Power';
+            let buffChanceText = currentLang === 'uk' ? 'Шанс накласти Баф|Дебаф' : 'Buff|Debuff Chance';
+            let defText = currentLang === 'uk' ? '🛡️ Захист (Зниження шкоди): Фіз' : '🛡️ Defense (Damage Reduction): Phys';
+            let magText = currentLang === 'uk' ? 'Маг' : 'Mag';
+
+            if (statsContainer) statsContainer.innerHTML = `${critText}: ${critData.critChance}% (${powerText}: ${critData.critPower}x) | ${buffChanceText}: ${castChanceVal}%<br>${defText} ${defs.physDef}% | ${magText} ${defs.magDef}%`;
+
+            let html = '';
+            const namesMapUk = { 'shield': 'Щит (-20%)', 'blessing': 'Благословіння (+крит)', 'regeneration': 'Регенерація (+HP)', 'stoneskin': 'Кам’яна шкіра (+захист)', 'rage': 'Лють (+атака)', 'divinepower': 'Божественна міць (+шкода)', 'burn': 'Підпал (вогню)', 'poison': 'Отруєння (HP)', 'weakness': 'Слабкість (-50%)', 'armorbreak': 'Пролом броні (-захист)' };
+            const namesMapEn = { 'shield': 'Shield (-20%)', 'blessing': 'Blessing (+crit)', 'regeneration': 'Regeneration (+HP)', 'stoneskin': 'Stoneskin (+def)', 'rage': 'Rage (+atk)', 'divinepower': 'Divine Power (+dmg)', 'burn': 'Burn (fire)', 'poison': 'Poison (HP)', 'weakness': 'Weakness (-50%)', 'armorbreak': 'Armor Break (-def)' };
+            const namesMap = currentLang === 'uk' ? namesMapUk : namesMapEn;
+
+            let buffsTitle = currentLang === 'uk' ? '✨ Бафи' : '✨ Buffs';
+            let noBuffsText = currentLang === 'uk' ? 'Немає бафів' : 'No buffs';
+            let debuffsTitle = currentLang === 'uk' ? '💀 Дебафи' : '💀 Debuffs';
+            let noDebuffsText = currentLang === 'uk' ? 'Немає дебафів' : 'No debuffs';
+
+            html += `<div class="status-category">`;
+            html += `<div class="status-title"><span>${buffsTitle}</span> <span>${buffs.length}/2</span></div><div class="status-list">`;
+            if (buffs && buffs.length > 0) {
+                buffs.forEach(buff => {
+                    let isRegen = buff.type === 'regeneration'; let isStone = buff.type === 'stoneskin'; let isRage = buff.type === 'rage'; let isPower = buff.type === 'divinepower';
+                    let bColor = isRegen ? '#41ff41' : (isStone ? '#00e5ff' : (isRage ? '#ff4d4d' : (isPower ? '#ffd700' : '#ff9900')));
+                    let bBg = isRegen ? 'rgba(65,255,65,0.2)' : (isStone ? 'rgba(0,229,255,0.2)' : (isRage ? 'rgba(255,77,77,0.2)' : (isPower ? 'rgba(255,215,0,0.2)' : 'rgba(255,153,0,0.2)')));
+                    let bIcon = isRegen ? '💚' : (isStone ? '💎' : (isRage ? '⚔️' : (isPower ? '💥' : (buff.type === 'blessing' ? '🌟' : '🛡️'))));
+                    html += `<span class="status-item" style="border-color: ${bColor}; background: ${bBg};">${bIcon} ${namesMap[buff.type] || buff.type} (${buff.turns}t)</span>`;
+                });
+            } else {
+                html += `<span class="status-empty">${noBuffsText}</span>`;
+            }
+            html += `</div></div>`;
+
+            html += `<div class="status-category" style="margin-top: 3px;">`;
+            html += `<div class="status-title" style="color: #ff4141;"><span>${debuffsTitle}</span> <span>${effects.length}/2</span></div><div class="status-list">`;
+            if (effects && effects.length > 0) {
+                effects.forEach(effect => {
+                    let isArmorBreak = effect.type === 'armorbreak';
+                    let eColor = isArmorBreak ? '#ff8000' : '#ff4141';
+                    let eTag = isArmorBreak ? 'rgba(255,128,0,0.2)' : 'rgba(255,65,65,0.2)';
+                    let eIcon = effect.type === 'burn' ? '🔥' : (effect.type === 'poison' ? '☠️' : (isArmorBreak ? '🛡️💥' : '🌀'));
+                    html += `<span class="status-item" style="border-color: ${eColor}; background: ${eTag};">${eIcon} ${namesMap[effect.type] || effect.type} (${effect.turns}t)</span>`;
+                });
+            } else {
+                html += `<span class="status-empty">${noDebuffsText}</span>`;
+            }
+            html += `</div></div>`;
+
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
