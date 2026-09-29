@@ -108,6 +108,7 @@ if (scenario === 'rolls') {
 
 if (scenario === 'matrix') {
     const N = +(process.argv[4] || 400), lvl = +(process.argv[5] || 20);
+    const outOfBounds = [];
     console.log('row beats column, level ' + lvl);
     console.log('       ' + __TYPES.map(t => t.padStart(7)).join(''));
     for (const x of __TYPES) {
@@ -115,9 +116,17 @@ if (scenario === 'matrix') {
         for (const y of __TYPES) {
             if (x === y) { row += '     - '; continue; }
             let w = 0; for (let i = 0; i < N; i++) { const r = __fight({ type: x, level: lvl, title: __NEUTRAL }, { type: y, level: lvl, title: __NEUTRAL }); if (r.winner === 'A') w++; else if (r.winner === 'draw') w += .5; }
-            row += (100 * w / N).toFixed(0).padStart(6) + '%';
+            const pct = 100 * w / N;
+            if (global.__BOUNDS && (pct < __BOUNDS[0] || pct > __BOUNDS[1])) outOfBounds.push(`${x} vs ${y}: ${pct.toFixed(1)}%`);
+            row += pct.toFixed(0).padStart(6) + '%';
         }
         console.log(row);
+    }
+    if (global.__BOUNDS) {
+        if (outOfBounds.length) {
+            console.error(`\n${outOfBounds.length} matchup(s) outside ${__BOUNDS[0]}–${__BOUNDS[1]}%:\n  ` + outOfBounds.join('\n  '));
+            process.exitCode = 1;
+        } else console.log(`\nAll matchups within ${__BOUNDS[0]}–${__BOUNDS[1]}%.`);
     }
 }
 

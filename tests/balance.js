@@ -10,6 +10,7 @@
 //   node tests/balance.js rolls               title roulette drop rates
 // Add --file path/to/index.html to test a different file (default: showcase/index.html).
 // Add --seed N to change the random seed (default 12345). Same seed → identical results.
+// Add --bounds MIN,MAX (matrix only) to exit with an error if any matchup falls outside MIN–MAX %, e.g. --bounds 40,60.
 const fs = require('fs');
 const path = require('path');
 
@@ -24,6 +25,14 @@ if (si !== -1) {
     seed = Number(args[si + 1]);
     if (!Number.isInteger(seed)) { console.error('--seed needs a whole number, e.g. --seed 42'); process.exit(1); }
     args.splice(si, 2);
+}
+// Balance gate: sim_harness.js reads global.__BOUNDS in the matrix scenario
+const bi = args.indexOf('--bounds');
+if (bi !== -1) {
+    const b = String(args[bi + 1]).split(',').map(Number);
+    if (b.length !== 2 || b.some(isNaN) || b[0] >= b[1]) { console.error('--bounds needs MIN,MAX in percent, e.g. --bounds 40,60'); process.exit(1); }
+    global.__BOUNDS = b;
+    args.splice(bi, 2);
 }
 function mulberry32(a) {
     return () => {

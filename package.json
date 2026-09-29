@@ -7,7 +7,8 @@
     "test": "node tests/balance.js matrix 300 20 && node tests/balance.js tiers 600 && node tests/balance.js levels 400",
     "balance": "node tests/balance.js elements 200",
     "balance:showcase": "node tests/balance.js elements 200 --file showcase/index.html",
-    "test:ui": "node tests/ui.js"
+    "test:ui": "node tests/ui.js",
+    "test:balance-gate": "node tests/balance.js matrix 1500 20 --seed 12345 --bounds 40,60"
   },
   "devDependencies": {
     "playwright": "^1.63.0"

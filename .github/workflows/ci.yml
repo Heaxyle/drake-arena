@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Balance simulations
+        run: npm test
+
+      # Fails if any element matchup at level 20 leaves 40–60% (1500 seeded fights each, so the result is repeatable)
+      - name: Element balance gate
+        run: npm run test:balance-gate
+
+      - name: UI smoke test
+        run: npm run test:ui showcase
+
+      # Upload even when a test fails: the screenshots are how you see what went wrong
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots
+          path: tests/screenshots/
+          if-no-files-found: warn
