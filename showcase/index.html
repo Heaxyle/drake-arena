@@ -1776,11 +1776,16 @@ function drakeSpriteURL(type) {
                         let bffMult = getEffectMult(attacker.drakeObj.type, attacker.title, attackerProg.level);
                         if (bff.type === 'regeneration') {
                             let healVal = Math.max(5, Math.round(attackerMaxHP * 0.08 * bffMult));
+                            const hpBeforeRegen = attackerHP;
                             attackerHP = Math.min(attackerMaxHP, attackerHP + healVal);
-                            let msg = currentLang === 'uk' ?
-                                `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> відновлює HP завдяки 💚 Регенерація (<span style="color: #41ff41; font-weight: bold;">+${healVal} HP</span>) [${bff.turns}х]` :
-                                `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> heals HP from 💚 Regeneration (<span style="color: #41ff41; font-weight: bold;">+${healVal} HP</span>) [${bff.turns}t]`;
-                            addLog(msg);
+                            // Log what was actually restored; nothing to log when already at full HP
+                            const regenHealed = attackerHP - hpBeforeRegen;
+                            if (regenHealed > 0) {
+                                let msg = currentLang === 'uk' ?
+                                    `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> відновлює HP завдяки 💚 Регенерація (<span style="color: #41ff41; font-weight: bold;">+${regenHealed} HP</span>) [${bff.turns}х]` :
+                                    `<span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> heals HP from 💚 Regeneration (<span style="color: #41ff41; font-weight: bold;">+${regenHealed} HP</span>) [${bff.turns}t]`;
+                                addLog(msg);
+                            }
                         }
                     });
 
@@ -1792,13 +1797,15 @@ function drakeSpriteURL(type) {
                     if (titleMechanic(attacker) === 'guardian_shield' && !guardianUsed[attacker.name] && currAttackerLiveHP > 0 && currAttackerLiveHP < currAttackerMaxHP * 0.15) {
                         guardianUsed[attacker.name] = true;
                         let shieldHeal = Math.round(currAttackerMaxHP * MECH.guardianHeal);
+                        const hpBeforeShield = currAttackerLiveHP;
                         currAttackerLiveHP += shieldHeal;
+                        const shieldHealed = currAttackerLiveHP - hpBeforeShield;
                         if (turn % 2 !== 0) p1HP = currAttackerLiveHP; else p2HP = currAttackerLiveHP;
                         
                         updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
                         let msg = currentLang === 'uk' ?
-                            `<span style="color: #f1c40f; font-weight: bold;">👼 Ангел-охоронець стрімера:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> активує Щит надії і відновлює ${shieldHeal} HP!` :
-                            `<span style="color: #f1c40f; font-weight: bold;">👼 Streamer Guardian Angel:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> activates Shield of Hope and restores ${shieldHeal} HP!`;
+                            `<span style="color: #f1c40f; font-weight: bold;">👼 Ангел-охоронець стрімера:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> активує Щит надії і відновлює ${shieldHealed} HP!` :
+                            `<span style="color: #f1c40f; font-weight: bold;">👼 Streamer Guardian Angel:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> activates Shield of Hope and restores ${shieldHealed} HP!`;
                         addLog(msg);
                     }
 
@@ -1977,7 +1984,9 @@ function drakeSpriteURL(type) {
                         let currAtkMaxHP = turn % 2 !== 0 ? p1MaxHP : p2MaxHP;
                         let newHP = Math.min(currAtkMaxHP, currAtkHP + heal);
                         if (turn % 2 !== 0) p1HP = newHP; else p2HP = newHP;
-                        logExtra += currentLang === 'uk' ? `🩸 +${heal} HP лікування! ` : `🩸 +${heal} HP healing! `;
+                        // Log what was actually restored (capped at max HP), not the raw 50% of the hit
+                        const vampHealed = newHP - currAtkHP;
+                        if (vampHealed > 0) logExtra += currentLang === 'uk' ? `🩸 +${vampHealed} HP лікування! ` : `🩸 +${vampHealed} HP healing! `;
                     }
 
                     if (finalDmg > 0 && titleMechanic(defender) === 'thorns' && attacker.drakeObj.type !== DRAGON_TYPE) {
@@ -1987,8 +1996,10 @@ function drakeSpriteURL(type) {
                     }
                     if (finalDmg > 0 && titleMechanic(attacker) === 'lifesteal') {
                         const steal = Math.max(1, Math.round(finalDmg * MECH.lifesteal));
+                        const hpBeforeSteal = turn % 2 !== 0 ? p1HP : p2HP;
                         if (turn % 2 !== 0) p1HP = Math.min(p1MaxHP, p1HP + steal); else p2HP = Math.min(p2MaxHP, p2HP + steal);
-                        logExtra += currentLang === 'uk' ? `🧛 +${steal} HP (вампіризм титулу) ` : `🧛 +${steal} HP (title lifesteal) `;
+                        const stealHealed = (turn % 2 !== 0 ? p1HP : p2HP) - hpBeforeSteal;
+                        if (stealHealed > 0) logExtra += currentLang === 'uk' ? `🧛 +${stealHealed} HP (вампіризм титулу) ` : `🧛 +${stealHealed} HP (title lifesteal) `;
                     }
 
                     let attackTypeColor = attackType === 'physical' ? '#ff6666' : (attackType === 'magical' ? '#66b3ff' : '#ff66ff');

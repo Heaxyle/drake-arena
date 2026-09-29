@@ -9,6 +9,7 @@
 // a full fight finishes, !стата / !титул / !шанси answer, HP bars never move
 // vertically, the info feed never overflows its column. The White Dragon is streamer-only: it's refused while no
 // streamer is set and for every other viewer (!дрейк / !drake / !рерол), and works for the streamer set in Test Settings.
+// Fights with the dragon (one natural, one with vampire rolls forced) must never log a heal above the healer's max HP.
 // A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent.
 // Screenshots go to tests/screenshots/. Game timers run on a fake clock, so fights take seconds.
 const fs = require('fs');
@@ -257,6 +258,66 @@ async function testVersion(browser, key) {
             await chat(target, '!прийняти');
         });
     }
+    // 3b. Heals logged in a fight with the streamer's dragon must be what was actually restored (≤ that fighter's max HP)
+    if (dragonCfg) {
+        const dragonDuelCfg = cfg.duels.find(d => d.includes(dragonCfg.streamer));
+        const pair = [dragonCfg.streamer, dragonDuelCfg ? dragonDuelCfg.find(u => u !== dragonCfg.streamer) : cfg.drakes[0][0]];
+        const maxHp = Object.fromEntries(await page.evaluate(names => names.map(n => {
+            const d = getDragonDB()[n];
+            return [n.toLowerCase(), getMaxHP(calculateLevelAndProgress(d.xp).level, d.drakeObj.type, d.title)];
+        }), pair));
+        // The log keeps only the last 35 lines, so collect every line as it is added
+        const startLogCapture = () => page.evaluate(() => {
+            window.__logLines = [];
+            if (window.__logObs) window.__logObs.disconnect();
+            window.__logObs = new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => window.__logLines.push(n.textContent))));
+            window.__logObs.observe(document.getElementById('battle-log'), { childList: true });
+        });
+        const HEAL_RES = [/🩸 \+(-?\d+) HP/, /🧛 \+(-?\d+) HP/, /(?:Регенерація|Regeneration) \(\+(-?\d+) HP\)/, /(?:відновлює|restores) (-?\d+) HP/];
+        const checkHeals = async label => {
+            const lines = await page.evaluate(() => window.__logLines);
+            let heals = 0, vampHits = 0;
+            const bad = [];
+            for (const line of lines) {
+                const who = (line.match(/@([\w-]+)/) || [])[1];
+                if (/(Вамп|Vamp) \//.test(line) && who && who.toLowerCase() === dragonCfg.streamer) vampHits++;
+                for (const re of HEAL_RES) {
+                    const m = line.match(re);
+                    if (!m) continue;
+                    heals++;
+                    const amount = Number(m[1]), max = maxHp[(who || '').toLowerCase()];
+                    if (max === undefined) bad.push(`heal of ${amount} by unknown fighter: "${line.trim().slice(0, 120)}"`);
+                    else if (amount > max) bad.push(`@${who} healed +${amount} HP but max HP is ${max}: "${line.trim().slice(0, 120)}"`);
+                    else if (amount <= 0) bad.push(`@${who} logged a +${amount} HP heal (should be skipped): "${line.trim().slice(0, 120)}"`);
+                }
+            }
+            if (!lines.length) fail(`${label}: captured no battle-log lines`);
+            else if (bad.length) bad.slice(0, 5).forEach(b => fail(`${label}: ${b}`));
+            else pass(`${label}: ${heals} logged heal(s) all within max HP (${lines.length} log lines, ${vampHits} dragon vampire hit(s))`);
+            return vampHits;
+        };
+        const dragonDuel = async label => {
+            await page.clock.runFor(3 * 60000 + 6000);   // past the 3-minute per-player fight cooldown
+            await startLogCapture();
+            await runFight(label, async () => {
+                await chat(pair[0], `!бій @${pair[1]}`);
+                await chat(pair[1], '!прийняти');
+            });
+            return checkHeals(label);
+        };
+        await dragonDuel(`heal log: duel @${pair[0]} vs @${pair[1]}`);
+        // A natural fight rarely has a dragon vampire hit (10% roll, and the dragon one-shots), so force one:
+        // every roll lands in [0.9, 1), which picks the vampire attack type for both fighters
+        await page.evaluate(() => {
+            window.__realRandom = Math.random;
+            let s = 12345;
+            Math.random = () => { s = (s * 16807) % 2147483647; return 0.9 + 0.0999 * (s / 2147483647); };
+        });
+        const forcedVamp = await dragonDuel(`heal log: duel @${pair[0]} vs @${pair[1]} (vampire rolls forced)`);
+        await page.evaluate(() => { Math.random = window.__realRandom; });
+        if (!forcedVamp) fail('forced-vampire duel: the dragon never made a vampire attack, so the heal cap was not exercised');
+    }
+
     await shot('07-all-fights-done');
     await checkFeed('after all fights');
 
