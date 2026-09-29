@@ -8,6 +8,7 @@
 //   node tests/balance.js bonuses [N]         every title bonus / ability vs Common
 //   node tests/balance.js levels [N]          how much a level gap matters
 //   node tests/balance.js rolls               title roulette drop rates
+//   node tests/balance.js dragon [N]          the streamer's White Dragon must win every fight (exits non-zero otherwise)
 // Add --file path/to/index.html to test a different file (default: showcase/index.html).
 // Add --seed N to change the random seed (default 12345). Same seed → identical results.
 // Add --bounds MIN,MAX (matrix only) to exit with an error if any matchup falls outside MIN–MAX %, e.g. --bounds 40,60.

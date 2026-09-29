@@ -273,6 +273,11 @@
                     <select id="debug-p2-title" class="title-select"></select>
                     <span data-i18n="label_level">Рівень</span>: <input type="number" id="debug-p2-level" min="1" max="20" value="20" style="width: 40px;">
                 </div>
+                <div class="debug-col">
+                    <strong style="color: #9fe3ff; width: 80px;" data-i18n="label_streamer">Streamer:</strong>
+                    <input type="text" id="debug-streamer" placeholder="username" autocomplete="off" style="width: 140px;" onchange="setStreamerUser(this.value)">
+                    <span style="color: #999;" data-i18n="streamer_hint">only this user can pick the 🐉 White Dragon (empty = nobody)</span>
+                </div>
                 <div style="text-align: right; margin-top: 5px;">
                     <button class="test-btn" onclick="applyDebugSettings()" style="padding: 4px 10px;" data-i18n="btn_apply">✅ Застосувати та оновити</button>
                 </div>
@@ -360,6 +365,13 @@
         // ===== НАЛАШТУВАННЯ / SETTINGS =====
         const TWITCH_CHANNEL = "heaxyle";   // Twitch channel to read chat from
         let currentLang = 'en';             // default language: 'en' or 'uk'
+        // Twitch username of the streamer: the only one who can pick the 🐉 White Dragon. Empty = nobody can.
+        // Can also be changed in ⚙️ Test Settings (saved in this browser, overrides this value).
+        let STREAMER_USER = "";
+        const STREAMER_KEY = 'drake_arena_showcase_streamer';
+        const normalizeUser = name => String(name || '').trim().replace(/^@/, '').toLowerCase();
+        try { const saved = localStorage.getItem(STREAMER_KEY); if (saved !== null) STREAMER_USER = normalizeUser(saved); } catch (e) {}
+        const isStreamer = user => !!STREAMER_USER && normalizeUser(user) === normalizeUser(STREAMER_USER);
 
         const translations = {
             uk: {
@@ -382,7 +394,10 @@
                 sim_hint: "Пишіть команди від імені будь-якого глядача — вони проходять через той самий код, що й справжній чат Twitch.",
                 sim_points: "💎 Бали каналу",
                 sim_send: "Надіслати",
-                sim_demo: "🎬 Демо: 4 глядачі стають у чергу"
+                sim_demo: "🎬 Демо: 4 глядачі стають у чергу",
+                label_streamer: "Стрімер:",
+                streamer_hint: "лише цей користувач може обрати 🐉 Білого Дракона (порожньо = ніхто)",
+                sim_streamer: "🐉 стрімер: !дрейк білий"
             },
             en: {
                 title: "Drake Arena: Battle of Elements",
@@ -404,7 +419,10 @@
                 sim_hint: "Type commands as any viewer — they go through the same code as real Twitch chat.",
                 sim_points: "💎 Channel points",
                 sim_send: "Send",
-                sim_demo: "🎬 Demo: 4 viewers join the queue"
+                sim_demo: "🎬 Demo: 4 viewers join the queue",
+                label_streamer: "Streamer:",
+                streamer_hint: "only this user can pick the 🐉 White Dragon (empty = nobody)",
+                sim_streamer: "🐉 streamer: !drake white"
             }
         };
 
@@ -497,7 +515,7 @@ const DRAKE_BODY = [
     "................................"
 ];
 
-// Зелений — справжній Дракон: класичний західний, на чотирьох лапах, рогата голова, складене крило, 40×28
+// Білий — справжній Дракон стрімера: класичний західний, на чотирьох лапах, рогата голова, складене крило, 40×28
 // Додаткові символи: G світлий блік, D дальні лапи, l луска черева, K кістки крила й шипи, h тінь рогу, P зіниця, t дальні кігті
 const DRAGON_BODY = [
     "...........................OHOOhO.......",
@@ -537,8 +555,9 @@ const DRAKE_PALETTES = {
     black:  { O: '#000000', B: '#2c2c3a', S: '#17171f', L: '#4a4560', W: '#3b3450', w: '#1f1a2c', E: '#c86bff', H: '#6d6680', T: '#d9d0ff' },
     gold:   { O: '#2e1f02', B: '#f2b705', S: '#b07f00', L: '#fff1a8', W: '#d99a00', w: '#8f6400', E: '#8a2be2', H: '#fff8dc', T: '#ffffff' },
     purple: { O: '#1a0628', B: '#8e44ad', S: '#5b2475', L: '#e6b8ff', W: '#7a3bb0', w: '#4b1f70', E: '#6bfff0', H: '#f0dcff', T: '#ffffff' },
-    white:  { O: '#34465a', B: '#eef6fc', S: '#b3c9dc', L: '#ffffff', W: '#bcd9ee', w: '#7fa9c8', E: '#2f8fe0', H: '#dff4ff', T: '#ffffff' },
-    green:  { O: '#04230f', B: '#22b35a', S: '#137a3a', G: '#5fe08a', D: '#0c5a2a', L: '#d6f5b8', l: '#a8d98a', W: '#0f8f72', w: '#04382c', K: '#02261c', H: '#ffd84a', h: '#c99a16', E: '#fff36b', P: '#1a0f00', T: '#f4f1e0', t: '#b8b39a' }
+    green:  { O: '#0b2a12', B: '#3fae4f', S: '#23793a', L: '#e2f5b0', W: '#2e8b57', w: '#1a5c38', E: '#ffcf3a', H: '#e8dcb0', T: '#ffffff' },
+    // Дракон (40×28) має ще: G блік, D дальні лапи, l луска черева, K кістки крила, h тінь рогу, P зіниця, t дальні кігті
+    white:  { O: '#2a3b52', B: '#e8f2fb', S: '#a9c3dc', G: '#ffffff', D: '#7f9dbd', L: '#cfe9ff', l: '#9fc6e8', W: '#bfe3f7', w: '#6f9cc4', K: '#3d5a7a', H: '#8fd8ff', h: '#4ea6d9', E: '#2fb8ff', P: '#08213a', T: '#ffffff', t: '#b9cde0' }
 };
 
 // Предмети здібностей: [x, y, колір] поверх тіла (координати в тій самій сітці)
@@ -578,18 +597,23 @@ const DRAKE_PROPS = {
         ...px([[0, 15], [1, 14]], '#6bfff0'),
         ...px([[27, 4], [26, 16]], '#ffffff')
     ],
-    // Білий — сніжна грива та крижані кристали (більше HP, міцний як лід)
-    white: [
-        ...px([[17, 3], [16, 4], [15, 5], [16, 6], [15, 7], [14, 8], [15, 9], [14, 10], [15, 11], [14, 12]], '#ffffff'),
-        ...px([[16, 3], [15, 4], [14, 5], [15, 6], [14, 7], [13, 8], [14, 9], [13, 10], [14, 11]], '#bfe9ff'),
-        ...px([[15, 3], [14, 4], [13, 6], [12, 8], [13, 11]], '#7cc4ec'),
-        ...px([[27, 2], [26, 3], [28, 3], [27, 4], [27, 3]], '#9fe3ff'),
-        ...px([[28, 16], [27, 17], [29, 17], [28, 18], [28, 17]], '#9fe3ff'),
-        ...px([[2, 12], [1, 13], [3, 13], [2, 14], [2, 13]], '#9fe3ff'),
-        ...px([[27, 3], [28, 17], [2, 13]], '#ffffff')
+    // Зелений — паросток на голові, лоза з листям по шиї, квітка на хвості й трава під лапами (більше HP, живучий як ліс)
+    green: [
+        ...px([[23, 3], [23, 2]], '#3c8d2f'),
+        ...px([[22, 2], [21, 1], [22, 1], [24, 2], [24, 1], [25, 1]], '#7ee04a'),
+        ...px([[23, 1]], '#ff7eb6'), ...px([[23, 0]], '#ffd1e6'),
+        ...px([[16, 5], [16, 6], [15, 7], [15, 8], [15, 9], [15, 10], [15, 11], [14, 12]], '#2f6b1f'),
+        ...px([[14, 6], [13, 6], [14, 9], [13, 9], [13, 12], [12, 12]], '#7ee04a'),
+        ...px([[14, 7], [13, 10], [12, 13]], '#4caf50'),
+        ...px([[1, 14], [3, 14], [2, 13], [2, 15]], '#ff7eb6'), ...px([[2, 14]], '#fff36b'),
+        ...px([[4, 23], [5, 22], [6, 23], [12, 22], [13, 23], [14, 22], [21, 22], [22, 23], [23, 22]], '#4caf50'),
+        ...px([[5, 23], [13, 22], [22, 22]], '#7ee04a')
     ],
-    // Зелений — усе вже намальовано в самому Драконі (золоті роги, крило, шипи)
-    green: []
+    // Білий Дракон — сам спрайт уже крижаний; довкола лише сніжинки (сітка 40×28)
+    white: [
+        ...px([[4, 2], [3, 3], [5, 3], [4, 4], [35, 16], [34, 17], [36, 17], [35, 18], [36, 11], [35, 12], [37, 12], [36, 13]], '#9fe3ff'),
+        ...px([[4, 3], [35, 17], [36, 12], [1, 6], [37, 21], [8, 0]], '#ffffff')
+    ]
 };
 
 const __spriteCache = {};
@@ -599,7 +623,7 @@ function makeDrakeCanvas(type) {
     if (typeof document === 'undefined' || !document.createElement) return null;
     const c = document.createElement('canvas');
     if (!c.getContext) return null;
-    const body = type === 'green' ? DRAGON_BODY : DRAKE_BODY;
+    const body = type === DRAGON_TYPE ? DRAGON_BODY : DRAKE_BODY;
     c.width = body[0].length; c.height = body.length;
     const g = c.getContext('2d');
     const pal = DRAKE_PALETTES[type] || DRAKE_PALETTES.red;
@@ -625,7 +649,7 @@ function drakeSpriteURL(type) {
             if (!g) return;
             const src = makeDrakeCanvas(type);
             g.clearRect(0, 0, target.width, target.height);
-            const isDragon = type === 'green';
+            const isDragon = type === DRAGON_TYPE;
             if (target.parentElement) target.parentElement.classList.toggle('dragon', isDragon);
             const card = document.getElementById(`card-${prefix}`);
             if (card && card.classList) card.classList.toggle('has-dragon', isDragon);
@@ -651,8 +675,20 @@ function drakeSpriteURL(type) {
             { name: { uk: 'Чорний Дрейк ⬛', en: 'Black Drake ⬛' }, type: 'black' },
             { name: { uk: 'Золотий Дрейк 🟨', en: 'Gold Drake 🟨' }, type: 'gold' },
             { name: { uk: 'Фіолетовий Дрейк 🟪', en: 'Purple Drake 🟪' }, type: 'purple' },
-            { name: { uk: 'Білий Дрейк ⬜', en: 'White Drake ⬜' }, type: 'white' }
+            { name: { uk: 'Зелений Дрейк 🟩', en: 'Green Drake 🟩' }, type: 'green' },
+            { name: { uk: 'Білий Дракон 🐉', en: 'White Dragon 🐉' }, type: 'white' }   // streamer only (STREAMER_USER)
         ];
+        // The White Dragon is the streamer's; viewers (and random picks) only ever get the other six
+        const DRAGON_TYPE = 'white';
+        const DRAGON_TITLE_ID = 999;
+        const VIEWER_DRAKE_TYPES = DRAKE_TYPES.filter(d => d.type !== DRAGON_TYPE);
+        const randomViewerDrake = () => VIEWER_DRAKE_TYPES[Math.floor(Math.random() * VIEWER_DRAKE_TYPES.length)];
+        // Color words for !drake / !reroll, in both languages
+        const COLOR_WORDS = {
+            'червоний': 'red', red: 'red', 'синій': 'blue', blue: 'blue', 'чорний': 'black', black: 'black', 'золотий': 'gold', gold: 'gold',
+            'фіолетовий': 'purple', purple: 'purple', 'зелений': 'green', green: 'green', 'білий': 'white', white: 'white'
+        };
+        const drakeByWord = word => DRAKE_TYPES.find(d => d.type === COLOR_WORDS[word]);
 
         // ===== TITLES =====
         // Rarity sets the drop chance (weight, in %) and colour. Titles within a rarity drop evenly.
@@ -663,7 +699,8 @@ function drakeSpriteURL(type) {
             epic:      { name: { uk: 'Епічний',     en: 'Epic' },      color: '#b36bff', weight: 9 },
             legendary: { name: { uk: 'Легендарний', en: 'Legendary' }, color: '#f1c40f', weight: 4.5 },
             mythic:    { name: { uk: 'Міфічний',    en: 'Mythic' },    color: '#ff4757', weight: 1.3 },
-            meme:      { name: { uk: 'Мемний',      en: 'Meme' },      color: '#ff66cc', weight: 0.2 }
+            meme:      { name: { uk: 'Мемний',      en: 'Meme' },      color: '#ff66cc', weight: 0.2 },
+            divine:    { name: { uk: 'Божественний', en: 'Divine' },   color: '#9fe3ff', weight: 0 }   // never rolled: the White Dragon's own title
         };
 
         const TITLES_DB = [
@@ -860,11 +897,12 @@ function drakeSpriteURL(type) {
             { id: 191, rarity: 'meme', icon: '😴', name: { uk: "Заснув на стрімі", en: "Fell Asleep on Stream" }, bonus: { type: 'unique', mechanic: 'sleepy', stats: { hp: 5 } } },
             { id: 192, rarity: 'meme', icon: '🦥', name: { uk: "Лінивець-берсерк", en: "Berserk Sloth" }, bonus: { type: 'unique', mechanic: 'sleepy', stats: { hp: 5 } } },
             { id: 193, rarity: 'meme', icon: '🐈', name: { uk: "Кіт пройшовся по клавіатурі", en: "Cat Walked on the Keyboard" }, bonus: { type: 'unique', mechanic: 'cat_keyboard', stats: { hp: 18 } } },
-            { id: 194, rarity: 'meme', icon: '🍝', name: { uk: "Код-спагеті", en: "Spaghetti Code" }, bonus: { type: 'unique', mechanic: 'cat_keyboard', stats: { hp: 18 } } }
+            { id: 194, rarity: 'meme', icon: '🍝', name: { uk: "Код-спагеті", en: "Spaghetti Code" }, bonus: { type: 'unique', mechanic: 'cat_keyboard', stats: { hp: 18 } } },
+            { id: 999, rarity: 'divine', icon: '👑', name: { uk: "Владика Етеру", en: "Sovereign of the Aether" }, bonus: { type: 'unique', mechanic: 'streamer_god' } }
         ].map(t => ({ ...t, rarityName: RARITIES[t.rarity].name, color: RARITIES[t.rarity].color }));
 
         const TITLES_BY_RARITY = {};
-        TITLES_DB.forEach(t => (TITLES_BY_RARITY[t.rarity] = TITLES_BY_RARITY[t.rarity] || []).push(t));
+        TITLES_DB.forEach(t => { if (t.rarity !== 'divine') (TITLES_BY_RARITY[t.rarity] = TITLES_BY_RARITY[t.rarity] || []).push(t); });
 
         // Title ability numbers (tuned with the balance simulator)
         const MECH = {"armorPierce": 0.7, "guardianHeal": 0.25, "dodgeBonus": 10, "chaosChance": 15, "executeBonus": 0.5, "executeThreshold": 0.35, "coinHigh": 1.5, "coinLow": 0.6, "sleepChance": 0.1, "sleepBonus": 0.25, "thorns": 0.15, "lifesteal": 0.15, "catChance": 0.25};
@@ -904,7 +942,8 @@ function drakeSpriteURL(type) {
                 executioner: `+${pctOf(MECH.executeBonus)}% шкоди по цілі з <${pctOf(MECH.executeThreshold)}% HP`,
                 coin_flip: `Кожен удар: ×${MECH.coinLow} або ×${MECH.coinHigh}`,
                 sleepy: `${pctOf(MECH.sleepChance)}% шанс проспати хід, інакше +${pctOf(MECH.sleepBonus)}% шкоди`,
-                cat_keyboard: `${pctOf(MECH.catChance)}% шанс на випадковий ефект — будь-кому`
+                cat_keyboard: `${pctOf(MECH.catChance)}% шанс на випадковий ефект — будь-кому`,
+                streamer_god: 'Всемогутність: кожен удар смертельний, атаки та дебафи не діють'
             },
             en: {
                 guardian_shield: `Once per fight at <15% HP heals ${pctOf(MECH.guardianHeal)}%`,
@@ -918,7 +957,8 @@ function drakeSpriteURL(type) {
                 executioner: `+${pctOf(MECH.executeBonus)}% damage to targets below ${pctOf(MECH.executeThreshold)}% HP`,
                 coin_flip: `Every hit: ×${MECH.coinLow} or ×${MECH.coinHigh}`,
                 sleepy: `${pctOf(MECH.sleepChance)}% chance to sleep through a turn, otherwise +${pctOf(MECH.sleepBonus)}% damage`,
-                cat_keyboard: `${pctOf(MECH.catChance)}% chance of a random effect — on anyone`
+                cat_keyboard: `${pctOf(MECH.catChance)}% chance of a random effect — on anyone`,
+                streamer_god: 'Omnipotence: every hit is lethal, attacks and debuffs do nothing'
             }
         };
         function describeTitleBonus(title) {
@@ -945,6 +985,7 @@ function drakeSpriteURL(type) {
                 document.getElementById('debug-p1-title').value = "100"; 
                 document.getElementById('debug-p2-title').value = "98";  
                 document.getElementById('debug-p2-drake').value = "2";   
+                document.getElementById('debug-streamer').value = STREAMER_USER;
                 menu.classList.add('initialized');
             }
             menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'block' : 'none';
@@ -956,7 +997,7 @@ function drakeSpriteURL(type) {
             const saved = ids.map(id => document.getElementById(id).value);
             setTimeout(() => ids.forEach((id, i) => { if (saved[i]) document.getElementById(id).value = saved[i]; }), 0);
             let drakeOptions = DRAKE_TYPES.map((d, i) => `<option value="${i}">${d.name[currentLang]}</option>`).join('');
-            let titleOptions = TITLES_DB.map(t => `<option value="${t.id}" style="color:${t.color}">${t.icon} ${t.name[currentLang]} (${t.rarityName[currentLang]})</option>`).join('');
+            let titleOptions = TITLES_DB.filter(t => t.rarity !== 'divine').map(t => `<option value="${t.id}" style="color:${t.color}">${t.icon} ${t.name[currentLang]} (${t.rarityName[currentLang]})</option>`).join('');
             document.getElementById('debug-p1-drake').innerHTML = drakeOptions;
             document.getElementById('debug-p1-title').innerHTML = titleOptions;
             document.getElementById('debug-p2-drake').innerHTML = drakeOptions;
@@ -965,7 +1006,20 @@ function drakeSpriteURL(type) {
             document.getElementById('label-fighter2').innerText = currentLang === 'uk' ? 'Тестер 2:' : 'Tester 2:';
         }
 
+        // Sets who owns the White Dragon, saves it in this browser and re-applies the save rules right away
+        function setStreamerUser(name) {
+            STREAMER_USER = normalizeUser(name);
+            try { localStorage.setItem(STREAMER_KEY, STREAMER_USER); } catch (e) {}
+            const input = document.getElementById('debug-streamer');
+            if (input && input.value !== STREAMER_USER) input.value = STREAMER_USER;
+            migrateOldSaves();
+            renderLeaderboard();
+            renderSimChips();
+        }
+
         function applyDebugSettings() {
+            const streamerInput = document.getElementById('debug-streamer');
+            if (streamerInput && normalizeUser(streamerInput.value) !== STREAMER_USER) setStreamerUser(streamerInput.value);
             let p1Drake = parseInt(document.getElementById('debug-p1-drake').value);
             let p1Title = parseInt(document.getElementById('debug-p1-title').value);
             let p1Level = parseInt(document.getElementById('debug-p1-level').value);
@@ -978,11 +1032,13 @@ function drakeSpriteURL(type) {
             let dragon1 = { name: "QA-Tester-Alpha", color: '#ff4500', drakeObj: DRAKE_TYPES[p1Drake], title: TITLES_DB.find(t => t.id === p1Title), xp: 0, level: 1 };
             let targetXP1 = 0; for (let l = 1; l < p1Level; l++) targetXP1 += getRequiredXP(l);
             dragon1.xp = targetXP1; dragon1.level = p1Level;
+            if (dragon1.drakeObj.type === DRAGON_TYPE) dragon1.title = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
             db["QA-Tester-Alpha"] = dragon1;
 
             let dragon2 = { name: "QA-Tester-Omega", color: '#00ff7f', drakeObj: DRAKE_TYPES[p2Drake], title: TITLES_DB.find(t => t.id === p2Title), xp: 0, level: 1 };
             let targetXP2 = 0; for (let l = 1; l < p2Level; l++) targetXP2 += getRequiredXP(l);
             dragon2.xp = targetXP2; dragon2.level = p2Level;
+            if (dragon2.drakeObj.type === DRAGON_TYPE) dragon2.title = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
             db["QA-Tester-Omega"] = dragon2;
             
             saveDragonDB(db);
@@ -1033,14 +1089,14 @@ function drakeSpriteURL(type) {
         function getDragon(username, userColor = '#00ffff') {
             let db = getDragonDB();
             if (!db[username]) {
-                let randomDrakeObj = DRAKE_TYPES[Math.floor(Math.random() * DRAKE_TYPES.length)];
+                let randomDrakeObj = randomViewerDrake();
                 let randomTitle = getRandomTitle();
                 db[username] = { name: username, color: userColor || '#00ffff', drakeObj: randomDrakeObj, title: randomTitle, xp: 0, level: 1 };
                 saveDragonDB(db);
             }
             if (!db[username].color) db[username].color = userColor || '#00ffff';
             if (db[username].xp === undefined) db[username].xp = 0;
-            if (!db[username].drakeObj) db[username].drakeObj = DRAKE_TYPES[Math.floor(Math.random() * DRAKE_TYPES.length)];
+            if (!db[username].drakeObj) db[username].drakeObj = randomViewerDrake();
             if (!db[username].title) db[username].title = getRandomTitle();
             
             let prog = calculateLevelAndProgress(db[username].xp);
@@ -1077,7 +1133,7 @@ function drakeSpriteURL(type) {
 
         // ===== ELEMENT BALANCE =====
         // Element base (from level 1) + bonus per level tier: [1-4, 5-9, 10-14, 15-19, 20]
-        const ELEMENT_BASE = { redCrit: 10, redPower: 0.35, blueDef: 5, blueReflect: 10, blackBlock: 3, blackChance: 18, goldXp: 50, goldOneHp: 4, purpleEff: 25, purpleChance: 20, whiteHp: 15 };
+        const ELEMENT_BASE = { redCrit: 10, redPower: 0.35, blueDef: 5, blueReflect: 10, blackBlock: 3, blackChance: 18, goldXp: 50, goldOneHp: 4, purpleEff: 25, purpleChance: 20, greenHp: 15 };
         const ELEMENT_TIERS = {
             redCrit:      [0, 2, 4, 6, 8],
             redPower:     [0, 0.05, 0.10, 0.15, 0.25],
@@ -1089,7 +1145,7 @@ function drakeSpriteURL(type) {
             goldOneHp:    [0, 0, 1, 1, 2],
             purpleEff:    [0, 3, 5, 10, 15],
             purpleChance: [0, 3, 5, 10, 15],
-            whiteHp:      [0, 5, 10, 15, 20]
+            greenHp:      [0, 5, 10, 15, 20]
         };
         function getTierMultiplier(level) {
             const i = level >= 20 ? 4 : level >= 15 ? 3 : level >= 10 ? 2 : level >= 5 ? 1 : 0;
@@ -1189,6 +1245,20 @@ function drakeSpriteURL(type) {
         if (client) client.connect().catch(console.error);
         else console.warn('tmi.js not loaded: Twitch chat disabled');
 
+        // The White Dragon is the streamer's alone (STREAMER_USER); anyone else asking for it gets this reply
+        function refuseDragon(sender, senderColor) {
+            let msg = currentLang === 'uk' ?
+                `🛑 <span style="color: ${senderColor};">@${sender}</span>, Білий Дракон — це секретна зброя стрімера! Ви не можете його обрати. Інші кольори: червоний, синій, чорний, золотий, фіолетовий, зелений.` :
+                `🛑 <span style="color: ${senderColor};">@${sender}</span>, the White Dragon is the streamer's secret weapon! You can't pick it. Other colors: red, blue, black, gold, purple, green.`;
+            addInfo(msg, 'warn');
+        }
+        // The streamer's dragon starts at max level with its own title
+        function makeDragon(dragon) {
+            dragon.title = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
+            dragon.xp = 1000000;
+            dragon.level = 20;
+        }
+
         function handleChatMessage(target, context, message, self) {
             const msg = message.trim().toLowerCase();
             const args = msg.split(' ');
@@ -1210,11 +1280,12 @@ function drakeSpriteURL(type) {
                     return;
                 }
 
-                const typeMap = { 'червоний': 0, 'red': 0, 'синій': 1, 'blue': 1, 'чорний': 2, 'black': 2, 'золотий': 3, 'gold': 3, 'фіолетовий': 4, 'purple': 4, 'білий': 5, 'white': 5 };
-                let chosen = args[1];
-                if (chosen && typeMap[chosen] !== undefined) {
+                let chosen = drakeByWord(args[1]);
+                if (chosen && chosen.type === DRAGON_TYPE && !isStreamer(sender)) { refuseDragon(sender, senderColor); return; }
+                if (chosen) {
                     let dragon = getDragon(sender, senderColor); 
-                    dragon.drakeObj = DRAKE_TYPES[typeMap[chosen]];
+                    dragon.drakeObj = chosen;
+                    if (chosen.type === DRAGON_TYPE) makeDragon(dragon);
                     let dbUpdate = getDragonDB();
                     dbUpdate[sender] = dragon;
                     saveDragonDB(dbUpdate);
@@ -1225,8 +1296,8 @@ function drakeSpriteURL(type) {
                     addInfo(msg, 'ok');
                 } else {
                     let msg = currentLang === 'uk' ?
-                        `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, щоб створити Дрейка, напишіть: <b>!дрейк [колір]</b> (червоний, синій, чорний, золотий, фіолетовий, білий).` :
-                        `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, to create a Drake, type: <b>!drake [color]</b> (red, blue, black, gold, purple, white).`;
+                        `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, щоб створити Дрейка, напишіть: <b>!дрейк [колір]</b> (червоний, синій, чорний, золотий, фіолетовий, зелений).` :
+                        `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, to create a Drake, type: <b>!drake [color]</b> (red, blue, black, gold, purple, green).`;
                     addInfo(msg, 'warn');
                 }
                 return;
@@ -1261,13 +1332,17 @@ function drakeSpriteURL(type) {
                     return;
                 }
 
-                const typeMap = { 'червоний': 0, 'red': 0, 'синій': 1, 'blue': 1, 'чорний': 2, 'black': 2, 'золотий': 3, 'gold': 3, 'фіолетовий': 4, 'purple': 4, 'білий': 5, 'white': 5 };
-                let chosen = args[1];
-                if (chosen && typeMap[chosen] !== undefined) {
+                let chosen = drakeByWord(args[1]);
+                if (chosen && chosen.type === DRAGON_TYPE && !isStreamer(sender)) { refuseDragon(sender, senderColor); return; }
+                if (chosen) {
                     let dragon = getDragon(sender, senderColor); 
-                    dragon.drakeObj = DRAKE_TYPES[typeMap[chosen]];
-                    dragon.xp = 0; 
-                    dragon.level = 1;
+                    dragon.drakeObj = chosen;
+                    if (chosen.type === DRAGON_TYPE) makeDragon(dragon);
+                    else {
+                        dragon.xp = 0; 
+                        dragon.level = 1;
+                        if (dragon.title && dragon.title.id === DRAGON_TITLE_ID) dragon.title = getRandomTitle();   // the dragon's title stays with the dragon
+                    }
                     
                     let dbUpdate = getDragonDB();
                     dbUpdate[sender] = dragon;
@@ -1299,6 +1374,13 @@ function drakeSpriteURL(type) {
                 }
 
                 let dragon = getDragonStrict(sender);
+                if (dragon.drakeObj && dragon.drakeObj.type === DRAGON_TYPE) {
+                    let msg = currentLang === 'uk' ?
+                        `🛑 <span style="color: ${senderColor};">@${sender}</span>, Білому Дракону не потрібні смертні титули — він уже 👑 Владика Етеру!` :
+                        `🛑 <span style="color: ${senderColor};">@${sender}</span>, the White Dragon needs no mortal titles — it is already the 👑 Sovereign of the Aether!`;
+                    addInfo(msg, 'warn');
+                    return;
+                }
                 let newTitle = getRandomTitle();
                 dragon.title = newTitle;
                 
@@ -1475,20 +1557,22 @@ function drakeSpriteURL(type) {
         }
 
         function getMaxHP(level, drakeType, title) {
+            if (drakeType === DRAGON_TYPE) return 99999;
             let tier = getTierMultiplier(level);
             let ts = titleStats(title);
             let baseHpPerLevel = 10 + ts.hpPerLevel;
             let titleBonusHP = ts.hp;
             let hp = 150 + titleBonusHP + (level - 1) * baseHpPerLevel;
 
-            if (drakeType === 'white') {
-                let whiteBonusPct = ELEMENT_BASE.whiteHp + (tier.whiteHp || 0);
-                hp = Math.floor(hp * (1.0 + whiteBonusPct / 100));
+            if (drakeType === 'green') {
+                let greenBonusPct = ELEMENT_BASE.greenHp + (tier.greenHp || 0);
+                hp = Math.floor(hp * (1.0 + greenBonusPct / 100));
             }
             return hp;
         }
 
         function getModifiedDefenses(baseLevel, drakeType, title, buffs = [], effects = []) {
+            if (drakeType === DRAGON_TYPE) return { physDef: 100, magDef: 100 };
             let tier = getTierMultiplier(baseLevel);
             let titleBonusDef = titleStats(title).def;
 
@@ -1518,6 +1602,7 @@ function drakeSpriteURL(type) {
         }
 
         function getCritStats(baseLevel, drakeType, title, buffs = []) {
+            if (drakeType === DRAGON_TYPE) return { critChance: 100, critPower: 100.0 };
             let tier = getTierMultiplier(baseLevel);
             let ts = titleStats(title);
             let titleBonusCrit = ts.crit;
@@ -1547,6 +1632,7 @@ function drakeSpriteURL(type) {
             let tier = getTierMultiplier(prog.level);
             let extraEffectChance = titleStats(dragon.title).effect;
             let castChanceVal = 30 + extraEffectChance + (drakeType === 'black' ? (ELEMENT_BASE.blackChance + tier.blackChance) : (drakeType === 'purple' ? (ELEMENT_BASE.purpleChance + tier.purpleChance) : 0));
+            if (drakeType === DRAGON_TYPE) castChanceVal = 100;
 
             drawFighterSprite(prefix, dragon.drakeObj ? dragon.drakeObj.type : 'red');
             let nameEl = document.getElementById(`name-${prefix}`);
@@ -1784,6 +1870,11 @@ function drakeSpriteURL(type) {
                         else baseDmg *= 1 + MECH.sleepBonus;
                     }
 
+                    if (attacker.drakeObj.type === DRAGON_TYPE) {
+                        baseDmg = 999999;
+                        logExtra += `<span style="color: #9fe3ff; font-weight: bold;">${currentLang === 'uk' ? '[КАРА ВЛАДИКИ ЕТЕРУ!]' : '[WRATH OF THE AETHER SOVEREIGN!]'}</span> `;
+                    }
+
                     let critData = getCritStats(attackerProg.level, attacker.drakeObj.type, attacker.title, activeBuffs[attacker.name]);
                     let isCrit = Math.random() * 100 < critData.critChance;
                     if (isCrit) {
@@ -1801,7 +1892,16 @@ function drakeSpriteURL(type) {
                     let ultraBlockChance = 10 + matrixBonus + (defender.drakeObj.type === 'black' ? (ELEMENT_BASE.blackBlock + defenderTier.blackBlock) : 0);
                     let ultraBlock = Math.random() * 100 < ultraBlockChance;
 
-                    if (ultraBlock && defender.drakeObj.type === 'black') {
+                    let blockText = "";
+                    if (defender.drakeObj.type === DRAGON_TYPE) {
+                        ultraBlock = true;
+                        addLog(currentLang === 'uk'
+                            ? `<span style="color: #9fe3ff; font-weight: bold;">👑 Владика Етеру!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> навіть не дивиться на атаку — вона просто розсіюється!`
+                            : `<span style="color: #9fe3ff; font-weight: bold;">👑 Sovereign of the Aether!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> doesn't even look at the attack — it simply dissolves!`);
+                    } else if (attacker.drakeObj.type === DRAGON_TYPE) {
+                        ultraBlock = false;
+                        blockText = currentLang === 'uk' ? `👑 Абсолютне пробиття! ` : `👑 Absolute breach! `;
+                    } else if (ultraBlock && defender.drakeObj.type === 'black') {
                         let msg = currentLang === 'uk' ?
                             `<span style="color: #a335ee; font-weight: bold;">⬛ Чорний Дрейк ультраблок!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> поглинає атаку темною аурою!` :
                             `<span style="color: #a335ee; font-weight: bold;">⬛ Black Drake ultra block!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> absorbs attack with dark aura!`;
@@ -1814,11 +1914,12 @@ function drakeSpriteURL(type) {
                     }
 
                     let finalDmg = baseDmg;
-                    let blockText = "";
 
                     if (ultraBlock) {
                         finalDmg = 0; 
                         blockText = currentLang === 'uk' ? `🛡️ Ультраблок (0 шкоди)!` : `🛡️ Ultra Block (0 damage)!`;
+                    } else if (attacker.drakeObj.type === DRAGON_TYPE) {
+                        finalDmg = baseDmg;
                     } else if (subType === 'sneaky' || attackType === 'vampire') {
                         blockText = subType === 'sneaky' ? (currentLang === 'uk' ? `⚡ Пробиття броні!` : `⚡ Armor Piercing!`) : (currentLang === 'uk' ? `🧛 Вампіризм (Броня ігнорується)!` : `🧛 Vampire (Armor ignored)!`);
                     } else {
@@ -1837,7 +1938,7 @@ function drakeSpriteURL(type) {
                     finalDmg = Math.round(finalDmg);
                     let blueReflectText = "";
                     let blueReflectChance = ELEMENT_BASE.blueReflect + defenderTier.blueReflect;
-                    if (defender.drakeObj.type === 'blue' && finalDmg > 0 && Math.random() * 100 < blueReflectChance) {
+                    if (defender.drakeObj.type === 'blue' && attacker.drakeObj.type !== DRAGON_TYPE && finalDmg > 0 && Math.random() * 100 < blueReflectChance) {
                         let reflectedDmg = Math.round(finalDmg * 0.5);
                         finalDmg -= reflectedDmg;
                         let attackerCurrentHP = turn % 2 !== 0 ? p1HP : p2HP;
@@ -1852,7 +1953,7 @@ function drakeSpriteURL(type) {
 
                     let goldOneHpText = "";
                     let goldOneHpChance = ELEMENT_BASE.goldOneHp + attackerTier.goldOneHp;
-                    if (attacker.drakeObj.type === 'gold' && finalDmg > 0) {
+                    if (attacker.drakeObj.type === 'gold' && finalDmg > 0 && defender.drakeObj.type !== DRAGON_TYPE) {
                         let targetHPBefore = turn % 2 !== 0 ? p2HP : p1HP;
                         if (targetHPBefore > 1 && finalDmg < targetHPBefore) {
                             if (Math.random() * 100 < goldOneHpChance) {
@@ -1879,7 +1980,7 @@ function drakeSpriteURL(type) {
                         logExtra += currentLang === 'uk' ? `🩸 +${heal} HP лікування! ` : `🩸 +${heal} HP healing! `;
                     }
 
-                    if (finalDmg > 0 && titleMechanic(defender) === 'thorns') {
+                    if (finalDmg > 0 && titleMechanic(defender) === 'thorns' && attacker.drakeObj.type !== DRAGON_TYPE) {
                         const thorn = Math.max(1, Math.round(finalDmg * MECH.thorns));
                         if (turn % 2 !== 0) p1HP = Math.max(0, p1HP - thorn); else p2HP = Math.max(0, p2HP - thorn);
                         logExtra += currentLang === 'uk' ? `🌵 Шипи: -${thorn} HP атакуючому! ` : `🌵 Thorns: -${thorn} HP to the attacker! `;
@@ -1925,6 +2026,8 @@ function drakeSpriteURL(type) {
 
                     let extraEffectChance = titleStats(attacker.title).effect;
                     let castChance = 30 + extraEffectChance + (attacker.drakeObj.type === 'black' ? (ELEMENT_BASE.blackChance + attackerTier.blackChance) : 0) + (attacker.drakeObj.type === 'purple' ? (ELEMENT_BASE.purpleChance + attackerTier.purpleChance) : 0);
+
+                    if (attacker.drakeObj.type === DRAGON_TYPE) castChance = 100;
 
                     if (Math.random() * 100 < castChance && finalDmg > 0) triggerEffect(attacker, defender, activeBuffs, activeEffects, false, attackerProg.level);
 
@@ -1972,7 +2075,7 @@ function drakeSpriteURL(type) {
             const fxDescMap = currentLang === 'uk' ? fxDescriptionsUk : fxDescriptionsEn;
 
             if (['burn', 'poison', 'weakness', 'armorbreak'].includes(fx)) {
-                if (titleMechanic(defender) === 'debuff_immunity') {
+                if (titleMechanic(defender) === 'debuff_immunity' || titleMechanic(defender) === 'streamer_god') {
                     let msg = currentLang === 'uk' ?
                         `<span style="color: #f1c40f; font-weight: bold;">🐉 Імунітет:</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> ігнорує дебаф!` :
                         `<span style="color: #f1c40f; font-weight: bold;">🐉 Immunity:</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> ignores debuff!`;
@@ -2147,11 +2250,21 @@ function drakeSpriteURL(type) {
                 : ['!drake red', '!queue', '!stats', '!battle @viewer2', '!accept', '!title', '!reroll blue'];
             const box = document.getElementById('sim-chips');
             if (!box) return;
+            // With a streamer set, one chip types as the streamer so the White Dragon can be tried out
+            const streamerChip = STREAMER_USER
+                ? `<span class="sim-chip" data-user="${STREAMER_USER}" data-msg="${currentLang === 'uk' ? '!дрейк білий' : '!drake white'}" onclick="simChip(this)">${translations[currentLang].sim_streamer}</span>` : '';
             box.innerHTML = `<span class="sim-chip demo" onclick="simDemo()">${translations[currentLang].sim_demo}</span>` +
-                chips.map(c => `<span class="sim-chip" onclick="simChip(this)">${c}</span>`).join('');
+                chips.map(c => `<span class="sim-chip" onclick="simChip(this)">${c}</span>`).join('') + streamerChip;
         }
         function simChip(el) {
             const msgEl = document.getElementById('sim-msg');
+            if (el.dataset.user) {
+                document.getElementById('sim-user').value = el.dataset.user;
+                msgEl.value = el.dataset.msg;
+                document.getElementById('sim-points').checked = false;
+                msgEl.focus();
+                return;
+            }
             msgEl.value = el.innerText;
             // !title and !reroll are channel-point rewards on stream
             document.getElementById('sim-points').checked = /^!(title|reroll|титул|рерол)/.test(el.innerText);
@@ -2166,15 +2279,21 @@ function drakeSpriteURL(type) {
             ['status-p1', 'status-p2'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
         }
 
-        // Brings saves from older showcase versions up to date (runs once on load, only touches the showcase keys)
-        (function migrateOldSaves() {
+        // Brings saves from older showcase versions up to date (runs on every load and when the streamer setting changes,
+        // only touches the showcase keys). Every step is idempotent: a second run finds nothing to change.
+        function migrateOldSaves() {
             let db = getDragonDB();
             let changed = false;
             Object.keys(db).forEach(u => {
                 let d = db[u];
-                // Element: refresh by type; unknown types (e.g. removed ones) get a random element
+                // 'white' used to be the viewers' White Drake; now it's the streamer's dragon. Everyone else's old
+                // White Drake becomes the Green Drake, which has the same stats (greenHp), so nobody loses anything.
+                if (d.drakeObj && d.drakeObj.type === DRAGON_TYPE && !isStreamer(u)) { d.drakeObj = { ...d.drakeObj, type: 'green' }; changed = true; }
+                // The dragon's title belongs to the dragon only
+                if (d.title && d.title.id === DRAGON_TITLE_ID && (!d.drakeObj || d.drakeObj.type !== DRAGON_TYPE)) { d.title = getRandomTitle(); changed = true; }
+                // Element: refresh by type; unknown types (e.g. removed ones) get a random viewer element
                 let freshDrake = d.drakeObj && DRAKE_TYPES.find(t => t.type === d.drakeObj.type);
-                if (!freshDrake) { d.drakeObj = DRAKE_TYPES[Math.floor(Math.random() * DRAKE_TYPES.length)]; changed = true; }
+                if (!freshDrake) { d.drakeObj = randomViewerDrake(); changed = true; }
                 else if (JSON.stringify(d.drakeObj) !== JSON.stringify(freshDrake)) { d.drakeObj = freshDrake; changed = true; }
                 // Title: ids 1-100 kept their meaning, so refresh by id (new names, rarity and bonuses); unknown ids re-roll
                 let freshTitle = d.title && TITLES_DB.find(t => t.id === d.title.id);
@@ -2184,7 +2303,8 @@ function drakeSpriteURL(type) {
                 if ('gachaBuffs' in d || 'gachaWins' in d) { delete d.gachaBuffs; delete d.gachaWins; changed = true; }
             });
             if (changed) saveDragonDB(db);
-        })();
+        }
+        migrateOldSaves();
 
         function initPage() {
             const params = new URLSearchParams(location.search);
@@ -2212,6 +2332,7 @@ function drakeSpriteURL(type) {
             let tier = getTierMultiplier(level);
             let extraEffectChance = titleStats(title).effect;
             let castChanceVal = 30 + extraEffectChance + (drakeType === 'black' ? (ELEMENT_BASE.blackChance + tier.blackChance) : (drakeType === 'purple' ? (ELEMENT_BASE.purpleChance + tier.purpleChance) : 0));
+            if (drakeType === DRAGON_TYPE) castChanceVal = 100;
 
             let critText = currentLang === 'uk' ? 'Крит' : 'Crit';
             let powerText = currentLang === 'uk' ? 'Сила' : 'Power';

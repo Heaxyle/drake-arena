@@ -7,7 +7,9 @@
 //
 // Checks: no JS page errors, every drake type registers and its sprite renders,
 // a full fight finishes, !стата / !титул / !шанси answer, HP bars never move
-// vertically, the info feed never overflows its column.
+// vertically, the info feed never overflows its column. The White Dragon is streamer-only: it's refused while no
+// streamer is set and for every other viewer (!дрейк / !drake / !рерол), and works for the streamer set in Test Settings.
+// A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent.
 // Screenshots go to tests/screenshots/. Game timers run on a fake clock, so fights take seconds.
 const fs = require('fs');
 const path = require('path');
@@ -22,14 +24,30 @@ const FIGHT_LIMIT_MS = 5 * 60000; // 30s countdown + 30 turns x 4.5s fits easily
 const VERSIONS = {
     showcase: {
         file: 'showcase/index.html',
+        // 6 viewer elements + the White Dragon, which only the streamer (set in Test Settings) can pick
         drakes: [['ruby', 'червоний', 'red'], ['sapphire', 'синій', 'blue'], ['onyx', 'чорний', 'black'], ['topaz', 'золотий', 'gold'],
-                 ['amethyst', 'фіолетовий', 'purple'], ['pearl', 'білий', 'white']],
+                 ['amethyst', 'фіолетовий', 'purple'], ['jade', 'зелений', 'green'], ['teststreamer', 'білий', 'white']],
         // First pair fights ranked via !черга; the rest are friendly duels so every sprite gets drawn
-        duels: [['onyx', 'topaz'], ['amethyst', 'pearl']],
+        duels: [['onyx', 'topaz'], ['amethyst', 'jade'], ['teststreamer', 'ruby']],
+        dragon: { streamer: 'teststreamer', type: 'white', titleId: 999, storageKey: 'drake_arena_showcase_streamer' },
         hasInfoFeed: true,
         hasOdds: true,
     },
 };
+
+// Showcase saves from before the Green Drake existed: 'white' was an ordinary viewer element. Keys are Twitch usernames.
+// Expected after migrateOldSaves (streamer = teststreamer): the streamer's dragon stays 'white', every other 'white' → 'green'
+// with XP kept, title 999 only on the dragon, everything else untouched.
+const OLD_SHOWCASE_SAVE = {
+    teststreamer: { name: 'teststreamer', color: '#9fe3ff', drakeObj: { name: { uk: 'Білий Дракон 🐉', en: 'White Dragon 🐉' }, type: 'white' }, xp: 1000000, level: 20, title: { id: 999 } },
+    snowfan:   { name: 'snowfan', color: '#8ab4f8', drakeObj: { name: { uk: 'Білий Дрейк ⬜', en: 'White Drake ⬜' }, type: 'white' }, xp: 5000, level: 8, title: { id: 1 } },
+    oldwhite:  { name: 'oldwhite', color: '#8ab4f8', drakeObj: { name: 'Білий Дрейк ⬜', type: 'white' }, xp: 300, level: 2, title: { id: 2 } },
+    redfan:    { name: 'redfan', color: '#8ab4f8', drakeObj: { name: { uk: 'Червоний Дрейк 🟥', en: 'Red Drake 🟥' }, type: 'red' }, xp: 1200, level: 4, title: { id: 3 } },
+    goldfan:   { name: 'goldfan', color: '#8ab4f8', drakeObj: { name: { uk: 'Золотий Дрейк 🟨', en: 'Gold Drake 🟨' }, type: 'gold' }, xp: 40, level: 1, title: { id: 5 } },
+    // Test-panel fighter that was set up as the dragon: not the streamer, so it becomes Green and loses title 999
+    'QA-Tester-Omega': { name: 'QA-Tester-Omega', color: '#00ff7f', drakeObj: { name: { uk: 'Білий Дракон 🐉', en: 'White Dragon 🐉' }, type: 'white' }, xp: 1000000, level: 20, title: { id: 999 } },
+};
+const MIGRATION_EXPECT = { teststreamer: 'white', snowfan: 'green', oldwhite: 'green', redfan: 'red', goldfan: 'gold', 'QA-Tester-Omega': 'green' };
 
 // Stands in for tmi.js: keeps the page's message handler and lets the test "type" into chat
 const FAKE_TMI = `
@@ -130,6 +148,26 @@ async function testVersion(browser, key) {
         else pass(`${label} answered`);
     };
 
+    console.log(`\n=== ${key} (${cfg.file}) ===`);
+
+    // 0. The White Dragon with no streamer set: nobody can take it
+    const dragonCfg = cfg.dragon;
+    if (dragonCfg) {
+        await expectReply('!дрейк білий with no streamer set is refused', () => chat(dragonCfg.streamer, '!дрейк білий'));
+        if ((await page.evaluate('getDragonDB()'))[dragonCfg.streamer]) fail(`@${dragonCfg.streamer} got a save while STREAMER_USER was empty`);
+        else pass('with STREAMER_USER empty nobody gets the White Dragon');
+        // Set the streamer the way a user would: ⚙️ Test Settings → Streamer field (saved on change), then close the panel
+        await page.click('button[data-i18n="btn_settings"]');
+        await page.fill('#debug-streamer', '@' + dragonCfg.streamer.toUpperCase());   // "@" and case are ignored
+        await page.press('#debug-streamer', 'Tab');
+        await page.click('button[data-i18n="btn_settings"]');
+        const stored = await page.evaluate(k => [localStorage.getItem(k), STREAMER_USER], dragonCfg.storageKey);
+        if (stored[0] !== dragonCfg.streamer || stored[1] !== dragonCfg.streamer) fail(`Test Settings should save the streamer as "${dragonCfg.streamer}", got ${JSON.stringify(stored)}`);
+        else pass(`Test Settings saved streamer "${stored[0]}"`);
+        if (!await page.locator(`#sim-chips [data-user="${dragonCfg.streamer}"]`).count()) fail('chat simulator has no streamer chip after setting the streamer');
+        else pass('chat simulator shows a streamer chip');
+    }
+
     const barBaseline = await page.evaluate(measureBars);
     const barMoves = new Set();
     const spritesSeen = {};
@@ -163,8 +201,6 @@ async function testVersion(browser, key) {
         else pass(`${label} finished after ${(elapsed / 1000).toFixed(1)}s of game time`);
     };
 
-    console.log(`\n=== ${key} (${cfg.file}) ===`);
-
     // 1. Register every drake type
     for (const [user, color] of cfg.drakes) {
         await expectReply(`!дрейк ${color} (@${user})`, () => chat(user, `!дрейк ${color}`));
@@ -173,6 +209,21 @@ async function testVersion(browser, key) {
     for (const [user, , type] of cfg.drakes) {
         const got = db[user] && db[user].drakeObj && db[user].drakeObj.type;
         if (got !== type) fail(`@${user} should have a ${type} drake, save has ${got || 'nothing'}`);
+    }
+    if (dragonCfg) {
+        const me = db[dragonCfg.streamer];
+        if (!me || !me.title || me.title.id !== dragonCfg.titleId) fail(`@${dragonCfg.streamer}'s dragon should have title ${dragonCfg.titleId}, has ${me && me.title && me.title.id}`);
+        else pass(`@${dragonCfg.streamer}'s White Dragon has title ${dragonCfg.titleId}`);
+        // Other viewers can't take the streamer's dragon, in either language or by reroll
+        for (const cmd of ['!дрейк білий', '!drake white']) {
+            await expectReply(`${cmd} by a viewer is refused`, () => chat('sneaky', cmd));
+            if ((await page.evaluate('getDragonDB()')).sneaky) fail(`@sneaky got a save after ${cmd}: the dragon should be streamer-only`);
+            else pass(`@sneaky could not take the White Dragon with ${cmd}`);
+        }
+        await expectReply('!рерол білий by a viewer is refused', () => chat('ruby', '!рерол білий', { 'custom-reward-id': 'ui-test-reward' }));
+        const rubyType = (await page.evaluate('getDragonDB()')).ruby.drakeObj.type;
+        if (rubyType !== 'red') fail(`@ruby rerolled into ${rubyType}: viewers must not reroll into the dragon`);
+        else pass('@ruby could not reroll into the White Dragon');
     }
     await checkFeed('after registering');
     await shot('01-registered');
@@ -227,6 +278,58 @@ async function testVersion(browser, key) {
     return failures;
 }
 
+// Loads the page on top of OLD_SHOWCASE_SAVE, checks the White → Green swap, then reloads to prove it's idempotent
+async function testMigration(browser, key) {
+    const failures = [];
+    const fail = msg => { failures.push(msg); console.log(`    ✗ ${msg}`); };
+    const pass = msg => console.log(`    ✓ ${msg}`);
+    const cfg = VERSIONS[key];
+    console.log(`\n=== ${key}: old-save migration ===`);
+
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const pageErrors = [];
+    page.on('pageerror', e => pageErrors.push(e.message));
+    await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
+    // Seed the old save once per tab (sessionStorage survives the reload, so the second load sees migrated data)
+    await page.addInitScript(([save, streamerKey, streamer]) => {
+        if (!sessionStorage.getItem('__seeded')) {
+            localStorage.setItem('drake_arena_showcase_db', save);
+            localStorage.setItem(streamerKey, streamer);
+            sessionStorage.setItem('__seeded', '1');
+        }
+    }, [JSON.stringify(OLD_SHOWCASE_SAVE), cfg.dragon.storageKey, cfg.dragon.streamer]);
+    await page.goto('file:///' + path.join(ROOT, cfg.file).replace(/\\/g, '/'));
+    const raw1 = await page.evaluate(() => localStorage.getItem('drake_arena_showcase_db'));
+    const db = JSON.parse(raw1);
+    const drakeNames = await page.evaluate(() => Object.fromEntries(DRAKE_TYPES.map(d => [d.type, d.name])));
+
+    for (const [user, type] of Object.entries(MIGRATION_EXPECT)) {
+        const d = db[user];
+        const got = d && d.drakeObj && d.drakeObj.type;
+        if (got !== type) fail(`@${user}: expected ${type}, save has ${got || 'nothing'}`);
+        else if (JSON.stringify(d.drakeObj.name) !== JSON.stringify(drakeNames[type])) fail(`@${user}: type ${type} but name is ${JSON.stringify(d.drakeObj.name)}`);
+        else if (d.xp !== OLD_SHOWCASE_SAVE[user].xp) fail(`@${user}: xp changed ${OLD_SHOWCASE_SAVE[user].xp} → ${d.xp}`);
+        else pass(`@${user}: ${OLD_SHOWCASE_SAVE[user].drakeObj.type} → ${type} (${d.drakeObj.name.en}), xp kept`);
+    }
+    const titleOf = u => db[u] && db[u].title && db[u].title.id;
+    if (titleOf('QA-Tester-Omega') === cfg.dragon.titleId) fail('@QA-Tester-Omega is no longer the dragon but kept title 999');
+    else pass(`@QA-Tester-Omega (not the streamer) lost title 999 → ${db['QA-Tester-Omega'].title.name.en}`);
+    const st = db[cfg.dragon.streamer] && db[cfg.dragon.streamer].title;
+    if (titleOf(cfg.dragon.streamer) !== cfg.dragon.titleId || !st.name) fail(`streamer should keep a full title 999, got ${JSON.stringify(st)}`);
+    else pass(`streamer keeps title 999 (${st.name.en})`);
+
+    await page.reload();
+    const raw2 = await page.evaluate(() => localStorage.getItem('drake_arena_showcase_db'));
+    if (raw2 !== raw1) fail('second load changed the save again: migration is not idempotent');
+    else pass('second load left the save byte-for-byte identical (idempotent)');
+
+    if (pageErrors.length) [...new Set(pageErrors)].forEach(e => fail(`JS error: ${e}`));
+    else pass('no JS errors');
+    await context.close();
+    return failures;
+}
+
 (async () => {
     const only = process.argv[2];
     if (only && !VERSIONS[only]) { console.error(`Unknown version "${only}". Use: ${Object.keys(VERSIONS).join(' | ')}`); process.exit(1); }
@@ -234,7 +337,10 @@ async function testVersion(browser, key) {
     const browser = await chromium.launch();
     let total = 0;
     try {
-        for (const key of only ? [only] : Object.keys(VERSIONS)) total += (await testVersion(browser, key)).length;
+        for (const key of only ? [only] : Object.keys(VERSIONS)) {
+            total += (await testVersion(browser, key)).length;
+            if (VERSIONS[key].dragon) total += (await testMigration(browser, key)).length;
+        }
     } finally {
         await browser.close();
     }
