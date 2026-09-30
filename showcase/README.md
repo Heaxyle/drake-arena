@@ -9,6 +9,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 ## Features
 
 - **6 elements**, each with its own passive, scaling at levels 5 / 10 / 15 / 20
+- **White Dragon:** a bigger, unbeatable dragon that only the streamer can pick (see [below](#white-dragon-streamer-only))
 - **194 titles** in seven rarities, from Common stat boosts to Legendary, Mythic and Meme titles with unique abilities
 - **Chat-request window:** replies to viewers (`!stats` cards, title rolls, warnings) appear in their own panel, separate from the battle log
 - **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 10 buffs/debuffs and a sudden-death phase
@@ -29,7 +30,12 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
    `file:///C:/DrakeArena/index.html?obs&lang=en`
 
    `?obs` makes the background transparent and hides the simulator, test panel and buttons. `lang` can be `en` or `uk`.
-3. *(Optional)* Create two channel-point rewards that require text. Paste their IDs into `REWARD_ID_TITLE` and `REWARD_ID_REROLL`. Until you do, any text reward is accepted.
+3. *(Optional)* Set the streamer who owns the White Dragon. Either set it in the script:
+   ```js
+   let STREAMER_USER = "yourname";
+   ```
+   or type the name into **⚙️ Test Settings → Streamer**, which saves it in that browser and overrides the script value. Empty (the default) means nobody can pick the White Dragon.
+4. *(Optional)* Create two channel-point rewards that require text. Paste their IDs into `REWARD_ID_TITLE` and `REWARD_ID_REROLL`. Until you do, any text reward is accepted.
 
 Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The overlay never posts to chat. If tmi.js can't load, the page still works offline through the simulator.
 
@@ -37,7 +43,7 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The 
 
 | English | Українська | What it does |
 |---|---|---|
-| `!drake <color>` | `!дрейк <колір>` | Create your drake: red, blue, black, gold, purple, white |
+| `!drake <color>` | `!дрейк <колір>` | Create your drake: red, blue, black, gold, purple, green (`white` is the streamer's White Dragon) |
 | `!queue` | `!черга` | Join the ranked queue |
 | `!battle @name` | `!бій @нік` | Challenge someone to a friendly duel (30 s to answer) |
 | `!accept` / `!decline` | `!прийняти` / `!відхилити` | Answer a challenge |
@@ -59,9 +65,20 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The 
 | ⬛ Black | +3–10% ultra-block; +18–25% effect chance |
 | 🟨 Gold | +50–90% XP; 4–6% chance for a hit to leave the enemy at exactly 1 HP |
 | 🟪 Purple | Buffs and debuffs 25–40% stronger; +20–35% effect chance |
-| ⬜ White | +15–35% max HP |
+| 🟩 Green | +15–35% max HP |
 
 All element numbers live in `ELEMENT_BASE` (the level-1 value) and `ELEMENT_TIERS` (the bonus at levels 5 / 10 / 15 / 20). They were tuned with a balance simulator so every element matchup stays within roughly 45–57%.
+
+### White Dragon (streamer only)
+
+`!drake white` / `!дрейк білий` works only for the user in `STREAMER_USER`; anyone else gets a refusal in the chat-request window, and `!reroll white` is refused the same way. The White Dragon uses a bigger 40×28 sprite with a frost palette and is deliberately a one-sided spectacle, not a balanced element:
+
+- Starts at level 20 with the special title 👑 **Sovereign of the Aether** / **Владика Етеру** (Divine rarity, never rolled by `!title`, and `!title` is refused for the dragon)
+- 99,999 HP, 100% defense, 100% crit at ×100, 100% effect chance
+- Every hit it deals ignores ultra-blocks and armor; every hit it takes is dissolved to 0
+- Ignores Blue reflect, Gold's 1-HP hit and Thorns, and is immune to debuffs
+
+When the streamer setting changes, the White Dragon stays with the streamer only (see saves below). The Test Panel can also put the White Dragon on a test fighter.
 
 **Each turn** (every 4.5 s, attackers alternate after a coin flip for who goes first):
 
@@ -129,7 +146,8 @@ This project went through a QA pass. Each fix was verified by simulating all 36 
 
 Everything is in `index.html`:
 
-- `TITLES_DB`, `DRAKE_TYPES`: game data
+- `TITLES_DB`, `DRAKE_TYPES`: game data. `DRAGON_TYPE` (`'white'`) is the streamer-only dragon; `VIEWER_DRAKE_TYPES` is everything else, used for random picks
+- `STREAMER_USER`, `isStreamer`, `setStreamerUser`: who owns the White Dragon
 - `RARITIES` (drop chances), `ELEMENT_BASE` / `ELEMENT_TIERS` (element passives), `MECH` (title abilities): balance numbers — tune these, not the fight code
 - `titleStats`, `getMaxHP`, `getModifiedDefenses`, `getCritStats`, `getEffectMult`, `getTierMultiplier`: stat calculations
 - `handleChatMessage`: command parsing, shared by Twitch and the simulator
@@ -138,7 +156,7 @@ Everything is in `index.html`:
 - `renderLeaderboard`, `updateFighterCard`, `updateStatusUI`: UI rendering
 - `migrateOldSaves`, the chat simulator and page init are at the end of the script
 
-Save data lives in the browser's `localStorage` under the keys `drake_arena_showcase_db` and `drake_arena_showcase_stats`. To reset, clear site data. Saves from older versions are upgraded automatically on load: titles keep their ID and pick up the new names and bonuses.
+Save data lives in the browser's `localStorage` under the keys `drake_arena_showcase_db` and `drake_arena_showcase_stats` (plus `drake_arena_showcase_streamer` for the Test Settings streamer). To reset, clear site data. Saves from older versions are upgraded automatically on load: titles keep their ID and pick up the new names and bonuses. `'white'` used to be the viewers' White Drake, so any White Drake that doesn't belong to the streamer becomes a Green Drake with the same stats and XP, and title 999 is re-rolled on anything that isn't the dragon. The upgrade is idempotent: running it again changes nothing.
 
 ## Credits
 

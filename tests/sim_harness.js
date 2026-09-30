@@ -1,7 +1,8 @@
 
 // ---- appended to the game script ----
 const __xpFor = lvl => { let x = 0; for (let l = 1; l < lvl; l++) x += getRequiredXP(l); return x; };
-const __TYPES = ['red', 'blue', 'black', 'gold', 'purple', 'white'];
+// Viewer elements only: the streamer's White Dragon (DRAGON_TYPE) is a one-shot god mode and is never balanced against.
+const __TYPES = VIEWER_DRAKE_TYPES.map(d => d.type);
 const __NEUTRAL = { id: 0, name: 'neutral', icon: '', color: '#fff', rarity: 'none', bonus: { type: 'none', value: 0 } };
 const __stripe = s => s.replace(/<[^>]+>/g, '');
 
@@ -151,4 +152,23 @@ if (scenario === 'sweep') {
         }
         console.log(JSON.stringify(bonus).padEnd(52), __pct(w / N));
     }
+}
+
+// The streamer's White Dragon is deliberately unbeatable: it must win every fight against every viewer element,
+// whatever title and level the viewer has. Fails (non-zero exit) if it ever loses, draws or a fight crashes.
+if (scenario === 'dragon') {
+    const N = +(process.argv[4] || 100);
+    const dragonTitle = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
+    const titles = TITLES_DB.filter(t => t.id !== DRAGON_TITLE_ID);
+    const bad = [];
+    for (const x of __TYPES) {
+        let w = 0;
+        for (let i = 0; i < N; i++) {
+            const r = __fight({ type: DRAGON_TYPE, level: 20, title: dragonTitle }, { type: x, level: __rand([1, 10, 20]), title: __rand(titles) });
+            if (r.winner === 'A') w++;
+        }
+        if (w < N) bad.push(`${x}: dragon won ${w}/${N}`);
+        console.log(`White Dragon vs ${x}: ${__pct(w / N)}`);
+    }
+    if (bad.length) { console.error('White Dragon should win every fight: ' + bad.join(', ')); process.exit(1); }
 }

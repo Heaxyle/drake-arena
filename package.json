@@ -4,7 +4,7 @@
   "private": true,
   "description": "Twitch chat drake battle game that runs as an OBS browser source",
   "scripts": {
-    "test": "node tests/balance.js matrix 300 20 && node tests/balance.js tiers 600 && node tests/balance.js levels 400",
+    "test": "node tests/balance.js matrix 300 20 && node tests/balance.js tiers 600 && node tests/balance.js levels 400 && node tests/balance.js dragon 100",
     "balance": "node tests/balance.js elements 200",
     "balance:showcase": "node tests/balance.js elements 200 --file showcase/index.html",
     "test:ui": "node tests/ui.js",
