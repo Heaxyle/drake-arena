@@ -162,20 +162,19 @@
         .fighter-info { font-size: 11px; color: #ccc; margin-bottom: 4px; height: 14px; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         [id^="badge-container-"] { height: 18px; overflow: hidden; }
         .fighter-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        /* Піксельний дрейк у куті картки бійця */
+        /* Піксельний дрейк у куті картки бійця: рівно 2x (дрейк 48×36 → 96×72, Дракон 60×42 → 120×84), обидва дивляться ліворуч */
         .fighter-card { position: relative; }
-        .fighter-card > .fighter-name, .fighter-card > [id^="badge-container-"], .fighter-card > .fighter-info { padding-right: 78px; }
-        .sprite-wrap { position: absolute; top: 6px; right: 8px; width: 72px; height: 54px; pointer-events: none; }
-        #card-p2 .sprite-wrap { transform: scaleX(-1); }
-        .sprite-wrap.dragon { width: 90px; height: 63px; top: -6px; z-index: 2; }   /* Дракон більший за дрейків і трохи виходить за рамку */
-        .fighter-card.has-dragon > .fighter-name, .fighter-card.has-dragon > [id^="badge-container-"], .fighter-card.has-dragon > .fighter-info { padding-right: 100px; }   /* правий боєць дивиться ліворуч, на суперника */
+        .fighter-card > .fighter-name, .fighter-card > [id^="badge-container-"], .fighter-card > .fighter-info { padding-right: 104px; }
+        .sprite-wrap { position: absolute; top: 6px; right: 8px; width: 96px; height: 72px; pointer-events: none; }
+        .sprite-wrap.dragon { width: 120px; height: 84px; top: -6px; z-index: 2; }   /* Дракон більший за дрейків і трохи виходить за рамку */
+        .fighter-card.has-dragon > .fighter-name, .fighter-card.has-dragon > [id^="badge-container-"], .fighter-card.has-dragon > .fighter-info { padding-right: 126px; }
         .drake-sprite { width: 100%; height: 100%; object-fit: contain; object-position: bottom right; image-rendering: pixelated; image-rendering: crisp-edges; animation: drakeBob 1.8s ease-in-out infinite; }
         #card-p2 .drake-sprite { animation-delay: -0.9s; }
         .drake-sprite.hit { animation: drakeHit 0.35s ease-out; }
         @keyframes drakeBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
         @keyframes drakeHit { 0% { transform: translateX(0); filter: brightness(2.2) saturate(0.3); } 30% { transform: translateX(-4px); } 60% { transform: translateX(3px); filter: none; } 100% { transform: translateX(0); } }
         .ic-sprite { width: 40px; height: 30px; image-rendering: pixelated; vertical-align: middle; margin-left: 4px; }
-        .fighter-stats-sub { font-size: 10px; color: #ffd700; background: rgba(0, 0, 0, 0.4); padding: 3px 6px; border-radius: 4px; margin-bottom: 5px; border: 1px dashed rgba(255, 215, 0, 0.3); line-height: 13px; height: 26px; overflow: hidden; }
+        .fighter-stats-sub { font-size: 10px; color: #ffd700; background: rgba(0, 0, 0, 0.4); padding: 3px 6px; border-radius: 4px; margin-top: 18px; margin-bottom: 5px; border: 1px dashed rgba(255, 215, 0, 0.3); line-height: 13px; height: 26px; overflow: hidden; }   /* margin-top: місце для спрайта 2x над цим блоком */
         
         .status-column { background: rgba(15, 15, 25, 0.8); border: 1px dashed #666; border-radius: 5px; padding: 4px; margin-bottom: 6px; font-size: 9px; }
         .status-list { display: flex; flex-wrap: nowrap; gap: 3px; height: 15px; align-items: center; overflow: hidden; }
@@ -285,7 +284,7 @@
 
             <div class="fighters-box">
                 <div class="fighter-card" id="card-p1">
-                    <div class="sprite-wrap"><canvas class="drake-sprite" id="sprite-p1" width="32" height="24"></canvas></div>
+                    <div class="sprite-wrap"><canvas class="drake-sprite" id="sprite-p1" width="48" height="36"></canvas></div>
                     <div class="fighter-name" id="name-p1" data-i18n="waiting">Очікування...</div>
                     <div id="badge-container-p1"></div>
                     <div class="fighter-info" id="info-p1">— | Рівень: 1 (0/100 XP)</div>
@@ -301,7 +300,7 @@
                 </div>
 
                 <div class="fighter-card" id="card-p2">
-                    <div class="sprite-wrap"><canvas class="drake-sprite" id="sprite-p2" width="32" height="24"></canvas></div>
+                    <div class="sprite-wrap"><canvas class="drake-sprite" id="sprite-p2" width="48" height="36"></canvas></div>
                     <div class="fighter-name" id="name-p2" data-i18n="waiting">Очікування...</div>
                     <div id="badge-container-p2"></div>
                     <div class="fighter-info" id="info-p2">— | Рівень: 1 (0/100 XP)</div>
@@ -485,161 +484,343 @@
             queueContainer.innerHTML = html;
         }
 
-// ===== ПІКСЕЛЬНІ ДРЕЙКИ =====
-// Спільне тіло (32×24, дивиться праворуч) + палітра стихії + предмети, що показують її здібність.
-// Символи: . прозоро | O контур | B тіло | S тінь | L черево | W крило | w тінь крила | E око | H ріг | T зуби/кігті
-const DRAKE_BODY = [
-    "................................",
-    "....OO.............OO...........",
-    "....OHO...........OHO...........",
-    "...OWwO..........OHOOOO.........",
-    "..OWWwwO........OBBBBBBOO.......",
-    ".OWWWWwwO......OBBBBBBBBBO......",
-    ".OWWwWWwwO.....OBBBBOEBBBBO.....",
-    "OWWWwWWWwwO....OBBBBOOBBBBBO....",
-    "OWWwWWWwWwwO..OOBBBBBBBBSSSSO...",
-    "OWWwWWwWWWwwO.OSBBBBBLLLLLLO....",
-    ".OwOWWwWWWWwwO.OSBBBBOOOOOO.....",
-    "..O.OwOWWWWWww.OSBBBBO..........",
-    "......OOwWWWWwOSBBBBO...........",
-    "........OOOOOOSBBBBBO...........",
-    "..........OBBBBBBBBBO...........",
-    ".........OBBBBBBBBBLLO..........",
-    "..OO....OBBSBBBBBBBLLO..........",
-    ".OBBO..OBBSBBBBBBBLLLLO.........",
-    ".OBO..OBBSBBBBBBBBLLLLO.........",
-    "..OBOOBBSBBBBBBBBBLLLO..........",
-    "...OBBBBBSBBOOOOBBBLO...........",
-    "....OOOBBBO....OBBBO............",
-    "......OTTTO....OTTTO............",
-    "................................"
-];
-
-// Білий — справжній Дракон стрімера: класичний західний, на чотирьох лапах, рогата голова, складене крило, 40×28
-// Додаткові символи: G світлий блік, D дальні лапи, l луска черева, K кістки крила й шипи, h тінь рогу, P зіниця, t дальні кігті
-const DRAGON_BODY = [
-    "...........................OHOOhO.......",
-    ".................O..........OHHOhO......",
-    "................OHO..........OhHOOO.....",
-    "...............OOOHO.........OhhGGGO....",
-    "..............OWWKKO........OGBhBSSSOO..",
-    ".............OWwwwKO........OBBBBBEPGGO.",
-    "...........OOWwwwwKKO.......OBBBBBBBBBOO",
-    "..........OWWwwwWwWKO......OOSBOOOOOOOOO",
-    ".........OWWwWWwWwWKKO.....OBOOLSSSSSSLO",
-    ".O......OWWwWWwWWwWWKO....OOBBOOLLLLLLO.",
-    "OGO....OWWwWWWwWwWWWKO.OOOGGBBLLOOOOOO..",
-    "OBGO...OWwWWWwWWwWWWWKOGGGBBBBLLO.......",
-    "GBBGO..OWOOWwOWWwWWWWKOBBBBBBLLO........",
-    "SBBSO...OOOOOOOWwOOWWWKOBBBBBLLO........",
-    "OBBO....OOOGGGOOOBBOOOOBOOOBBLO.........",
-    "OBBO...OGOGBBBGOBBBBBBBOGGGOLO..........",
-    "OBBO..OGOGBBBBBGOBBBBBBOBBBOO...........",
-    "OSBGOOGBOBBBBBBBOLlLLlLOBBBGO...........",
-    ".OBBGGBBOSBBBBBSOLlLLlLOSBBBO...........",
-    ".OSBBBBBBOBBBBSOLLlLLlLLOBBBO...........",
-    "..OSSSSSSOBBBSOOLLlLOOOOOBBBO...........",
-    "...OOOOOOGBBSOODOOOOODDOOBBBO...........",
-    "........OSBBO.ODDO..ODDOOBBBO...........",
-    ".........OBBGOODDDO.ODDOOBBBO...........",
-    ".........OBBBGGODDO.ODDOGBBBGO..........",
-    ".........OTSTSTOtDtOtDtOTSTSTO..........",
-    "..........OOOOOOOOO.OOOOOOOOO...........",
-    "........................................"
-];
-
-// Палітри: O контур, B тіло, S тінь, L черево, W крило, w тінь крила, E око, H ріг, T зуби/кігті
-const DRAKE_PALETTES = {
-    red:    { O: '#2a0808', B: '#d7263d', S: '#8f1526', L: '#ffb26b', W: '#b31f33', w: '#6e1020', E: '#ffe45c', H: '#f1e3c8', T: '#ffffff' },
-    blue:   { O: '#08162e', B: '#2f7fe0', S: '#1b4e96', L: '#bfe6ff', W: '#2766b8', w: '#163f78', E: '#ffffff', H: '#dff4ff', T: '#ffffff' },
-    black:  { O: '#000000', B: '#2c2c3a', S: '#17171f', L: '#4a4560', W: '#3b3450', w: '#1f1a2c', E: '#c86bff', H: '#6d6680', T: '#d9d0ff' },
-    gold:   { O: '#2e1f02', B: '#f2b705', S: '#b07f00', L: '#fff1a8', W: '#d99a00', w: '#8f6400', E: '#8a2be2', H: '#fff8dc', T: '#ffffff' },
-    purple: { O: '#1a0628', B: '#8e44ad', S: '#5b2475', L: '#e6b8ff', W: '#7a3bb0', w: '#4b1f70', E: '#6bfff0', H: '#f0dcff', T: '#ffffff' },
-    green:  { O: '#0b2a12', B: '#3fae4f', S: '#23793a', L: '#e2f5b0', W: '#2e8b57', w: '#1a5c38', E: '#ffcf3a', H: '#e8dcb0', T: '#ffffff' },
-    // Дракон (40×28) має ще: G блік, D дальні лапи, l луска черева, K кістки крила, h тінь рогу, P зіниця, t дальні кігті
-    white:  { O: '#2a3b52', B: '#e8f2fb', S: '#a9c3dc', G: '#ffffff', D: '#7f9dbd', L: '#cfe9ff', l: '#9fc6e8', W: '#bfe3f7', w: '#6f9cc4', K: '#3d5a7a', H: '#8fd8ff', h: '#4ea6d9', E: '#2fb8ff', P: '#08213a', T: '#ffffff', t: '#b9cde0' }
-};
-
-// Предмети здібностей: [x, y, колір] поверх тіла (координати в тій самій сітці)
-const px = (pts, c) => pts.map(([x, y]) => [x, y, c]);
-const DRAKE_PROPS = {
-    // Червоний — вогняний подих (сильні крити)
-    red: [
-        ...px([[28, 8], [29, 8], [30, 7], [29, 9], [30, 9], [31, 9], [29, 10], [30, 11]], '#ff7b00'),
-        ...px([[28, 9], [28, 10], [30, 8], [30, 10]], '#ffe45c'),
-        ...px([[31, 7], [31, 11], [31, 10]], '#d7263d')
-    ],
-    // Синій — щит-дзеркало, що відбиває шкоду
-    blue: [
-        ...px([[23, 13], [24, 13], [25, 13], [22, 14], [26, 14], [22, 15], [26, 15], [22, 16], [26, 16], [23, 17], [25, 17], [24, 18]], '#dff4ff'),
-        ...px([[23, 14], [24, 14], [25, 14], [23, 15], [25, 15], [23, 16], [24, 16], [25, 16], [24, 17]], '#5fb3ff'),
-        ...px([[24, 15]], '#ffffff'),
-        ...px([[28, 13], [29, 12], [28, 17], [29, 18]], '#9fd8ff')
-    ],
-    // Чорний — тіньова аура (ультраблок)
-    black: [
-        ...px([[2, 3], [1, 6], [2, 9], [25, 2], [27, 4], [28, 12], [26, 16], [24, 20], [1, 21], [0, 14]], '#7a3bff'),
-        ...px([[3, 2], [0, 7], [24, 1], [28, 5], [29, 13], [27, 17], [2, 22]], '#3b1a70'),
-        ...px([[21, 6]], '#e0b0ff')
-    ],
-    // Золотий — монети й сяйво (бонусний досвід і фортуна)
-    gold: [
-        ...px([[24, 17], [25, 17], [23, 18], [26, 18], [23, 19], [26, 19], [24, 20], [25, 20]], '#b07f00'),
-        ...px([[24, 18], [25, 18], [24, 19], [25, 19]], '#ffe45c'),
-        ...px([[27, 21], [28, 21], [27, 22], [28, 22]], '#f2b705'),
-        ...px([[2, 3], [1, 4], [3, 4], [2, 5], [28, 3], [26, 1], [29, 15]], '#fff8a0')
-    ],
-    // Фіолетовий — руни, що кружляють (сильніші бафи/дебафи)
-    purple: [
-        ...px([[27, 3], [26, 4], [28, 4], [27, 5]], '#6bfff0'),
-        ...px([[1, 4], [2, 4], [1, 5], [2, 5]], '#e6b8ff'),
-        ...px([[26, 15], [27, 16], [26, 17], [25, 16]], '#e6b8ff'),
-        ...px([[0, 15], [1, 14]], '#6bfff0'),
-        ...px([[27, 4], [26, 16]], '#ffffff')
-    ],
-    // Зелений — паросток на голові, лоза з листям по шиї, квітка на хвості й трава під лапами (більше HP, живучий як ліс)
-    green: [
-        ...px([[23, 3], [23, 2]], '#3c8d2f'),
-        ...px([[22, 2], [21, 1], [22, 1], [24, 2], [24, 1], [25, 1]], '#7ee04a'),
-        ...px([[23, 1]], '#ff7eb6'), ...px([[23, 0]], '#ffd1e6'),
-        ...px([[16, 5], [16, 6], [15, 7], [15, 8], [15, 9], [15, 10], [15, 11], [14, 12]], '#2f6b1f'),
-        ...px([[14, 6], [13, 6], [14, 9], [13, 9], [13, 12], [12, 12]], '#7ee04a'),
-        ...px([[14, 7], [13, 10], [12, 13]], '#4caf50'),
-        ...px([[1, 14], [3, 14], [2, 13], [2, 15]], '#ff7eb6'), ...px([[2, 14]], '#fff36b'),
-        ...px([[4, 23], [5, 22], [6, 23], [12, 22], [13, 23], [14, 22], [21, 22], [22, 23], [23, 22]], '#4caf50'),
-        ...px([[5, 23], [13, 22], [22, 22]], '#7ee04a')
-    ],
-    // Білий Дракон — сам спрайт уже крижаний; довкола лише сніжинки (сітка 40×28)
-    white: [
-        ...px([[4, 2], [3, 3], [5, 3], [4, 4], [35, 16], [34, 17], [36, 17], [35, 18], [36, 11], [35, 12], [37, 12], [36, 13]], '#9fe3ff'),
-        ...px([[4, 3], [35, 17], [36, 12], [1, 6], [37, 21], [8, 0]], '#ffffff')
-    ]
+// ===== SPRITES START =====
+// Pixel sprites for every drake type. All are drawn facing LEFT (both fighters look left on the battle
+// screen, nothing is mirrored). Shown at an exact 2x scale: drakes are 48x36 (96x72 box),
+// the White Dragon is a 60x42 wyvern (120x84 box).
+// Each sprite = a palette + rows of palette letters ('.' = transparent pixel).
+const DRAKE_SPRITES = {
+    // Red Drake: fire. Flame tail, flame-tipped crest, horn
+    red: {
+        pal: ["#4a2e1e", "#fff7e6", "#24140e", "#5a1022", "#3a0816", "#f0dcb4", "#c9a57c", "#f2643f", "#b02838", "#4a0e24", "#1a040b", "#d8352f", "#22050d", "#b3202f", "#4a0f24", "#7d1530", "#8f1c32", "#6c142c", "#ffe45c", "#ffb000", "#7a1608", "#ff9f1c", "#5a0c06", "#3a0f10", "#f0521a", "#dc6a3a", "#a8200e", "#6a2416", "#2c0819", "#b8452a", "#8a2a22", "#f4944e", "#1a040a", "#961f30", "#3d0a18", "#79162c", "#330a1c", "#551026", "#8a6444"],
+        rows: [
+            '...................a............................',
+            '..................abc........d.ee...............',
+            '..........dddd..aafgc.......dheijk..............',
+            '........ddhhlmmaffgc.......dhnohhjkdd...........',
+            '.......dhhhhmffffgc.......dhnonhinhhhmddd.......',
+            '......dhhhhmmfffgc........dlpohiiiiiinnhhm......',
+            '....ddhhmmmpmggmmm.......dhnoqhniiiiiiirk.......',
+            '...dhhhmmstdnmmoom.......dlpoqrhiiiiiirk........',
+            '..dhhmllnnpopoooomuu....dhnoqqqhiiiihrk.........',
+            '.dllnnnpppooommopuvsw...dlpoqqqrniiiihmd........',
+            '.dnnpoooooommllmomvw...dhlpoqqqqhiiiiinhm.......',
+            '..mommmmmmmomlnnmom.uu.dhnoqqqqqhniiirjk........',
+            '...mnpnnnplnpmmmpmmusswdlnoqqqqqrhiijkk....u....',
+            '....mppppppppxnnmpowvwdllpoqqqqqqhijk.....uyw...',
+            '.....mmmmmmmmzlnnppmw.dllpoqqqqqqrnm......uAyw..',
+            '............BzznnnppmddlnpoqqrjCCCnm.......wvAw.',
+            '............BzznnnnnplolnpoCCkkkkdlvw......uvyw.',
+            '............BDzznnnnlnolnpoplllnmmpvw.uu...uvvyw',
+            '.............xzzznnllnopoonhllllnnmmduvsw..uvvyw',
+            '.............BDzznnlnpoooohhllllnnnpmlpm..uyvvvA',
+            '..............xDzzxmmmoooollllmmmmmpomm...uyvsvy',
+            '..............BEDxhhlnmooolllmhhllnmom....uvssvy',
+            '..............BFExhhlnomoolnmhhhllnpmomd..uvssvy',
+            '..............Bzxnllnpomoonmhhhllnnpomnpmduyvvvy',
+            '..............BDxllnpoomoopmllllnnpoomnnnndhvyom',
+            '...............xxllnpoomoppmlllmmmpoomnnnnnhlpm.',
+            '................xllnpooxoEExnnmhhnmoompnnnnnnom.',
+            '................dllnooxEEEExpmlhlnomomppppppoom.',
+            '................dlnpooGEEEEExmllnpommoooooooom..',
+            '...............dhlnpomHGGGGxxmmnnpomGGGooooom...',
+            '...............dhlpooIHJKKG...dnnpoIHJLGGmmm....',
+            '.............dddlnoomHHLKG..ddhhlpoGHJKKG.......',
+            '............dhhlloooGHHKKG.dhhllnooGJLKG........',
+            '............dpppooomLKKKG.dpppppooGKKKG.........',
+            '.............fmfofm.MGMG...mfofofmMGMG..........',
+            '...............mm............mmmm...............'
+        ]
+    },
+    // Blue Drake: defence + reflect. Fin crest, teal wing with mirror glints, crystal mirror tail tip
+    blue: {
+        pal: ["#1a4c86", "#0c3446", "#86d2f6", "#0a2a56", "#1a3a86", "#1f8298", "#051620", "#8ac6ff", "#3aa8ba", "#0f4458", "#4a92ee", "#2c6ad2", "#132a66", "#1f4aa2", "#d2f4ff", "#08143a", "#156078", "#ffd23c", "#ff9f1c", "#0c2244", "#a6d8f8", "#0a2a3c", "#ffffff", "#2a5e92", "#76b6e6", "#3f95d4", "#1c5a96", "#4a88c6", "#2c5e9c", "#060f2c", "#316cc6", "#2352aa", "#0e2050", "#4a88d8", "#183a82", "#dde8f6", "#6e80a0"],
+        rows: [
+            '................a...............................',
+            '.............bbacd...........e.bb...............',
+            '..........eebfffffga........ehbijg..............',
+            '........eehhkkfffffcd......ehlmhhjgee...........',
+            '.......ehhhhkklnfocfg.....ehkmlhilhhhpeee.......',
+            '......ehhhhppllnoqqqg.....ehnmhiiiiiillhhp......',
+            '....eehhpppnklnnmqqqod...ehlmfhliiiiiiiqg.......',
+            '...ehhhpprsennnmmoqqg....ehnmfqhiiiiiiqg........',
+            '..ehhpkkklnmnnmmmqqg....ehkmfffhiiiihqg.........',
+            '.ehkklllnnmmmppmnpg.....ehlmfffqliiiihpe........',
+            '.ellnnmmmmmppkkpnp.....ehknmffffhiiiiilhp.......',
+            '..pmpppppppmpkllpmp....ehkmfffffhliiiqjg........',
+            '...pllllllkklpppnpp....ehlmfffffqhiijgg.........',
+            '....pnnlnnnnntklpnmp..ehklmffffffhijg...........',
+            '.....ppppppptukkllnp..ehknmffffffqlp........a...',
+            '............tuuklllnpeehknmffqjvvvlp.......awd..',
+            '............xyukkllllknhknmvvgggawwcd......awcd.',
+            '............xyuukkkkklmklnmlhkkklddzd.a....awod.',
+            '.............tyukkkkklmlnmlhhhkkkllddawd..awwocd',
+            '.............xyyykkkllnmmmhhhkkppllnawcAd.aowoAd',
+            '..............tyyytppppmmmmhkpphkppnndzAd..dwcd.',
+            '..............xBythhhknpmmmkphhhhklpmmdd...aoAd.',
+            '..............xuBthhklnpmmmphhhhhklnpmlp...acpp.',
+            '..............xytkkklnmpmmmphhhhkllnmpllpe.eplmp',
+            '..............xytkkklnmpmmlphhhkklnnmpllllehklmp',
+            '..............xBthklnmmpmmnpkkkpppnmmpllllkhknmp',
+            '...............tthklnmmtmCCtllphhkpmmplllllklnmp',
+            '................ehklnmtCCCCtlphhklnpmpnnnllnnmp.',
+            '...............ehhklmmDCCCCCtpkkllnppmmmnnmmmmp.',
+            '...............ehklnmmDDDDCCCtnlllnmDDmmmmmmpp..',
+            '...............ehklmmDEFGGDtttelllnmDDDDDppp....',
+            '.............eeeklnmpEEFGD.eeehhllmmDFGGD.......',
+            '............ehhhknmmDHEGGDehhhhklnmDFGGD........',
+            '............elnnnmmDIIGGD.ellnnnmmDGGGGD........',
+            '.............JpJmJpDKDKD...pJmJmJpKDKDD.........',
+            '...............pp............pppp...............'
+        ]
+    },
+    // Black Drake: shadow block. Swept-back horns, torn wing, blade tail, violet glow outline
+    black: {
+        pal: ["#5a3a9a", "#6a3cc0", "#d9d0ff", "#2a1850", "#22123e", "#2a1650", "#ffffff", "#07050c", "#433a6c", "#7a4ad0", "#a8a0c0", "#1c1830", "#2c2548", "#3c2472", "#655a9a", "#0d0b16", "#48287e", "#321a5a", "#6d6680", "#c86bff", "#e0b0ff", "#7a3ad0", "#3a3350", "#150c28", "#3f2f62", "#564482", "#0a0614", "#2c2046", "#1c1430", "#302854", "#211c3a", "#0a0812", "#4a2e8a", "#15122a", "#453a70"],
+        rows: [
+            '............................a..b................',
+            '......................aa...acdbef...............',
+            '...............aaaaaaaggd..acchiefjj............',
+            '.........jjjaaacccccckdd...jhhlilmminjjj........',
+            '........joohcccccckddd....jompmliqqqllmin.......',
+            '.......jooohhckkdddaaa....jipriqlqqqqqqqqf......',
+            '....jjjohhhihkhhnakkksd..jomprelqqqqqqqqf.......',
+            '...jooohtguvmhlppkssdd...jilrrrmqqqqqqff........',
+            '..joohiimmlppppppnbhf...jomprrrilqqqqqqf......a.',
+            '.joiimmlllppppppphqf....jilprrremqqqqqmn.....agd',
+            '.jmmlpppppphppppphn..b.joilrrrrriqqqqqqmn...agwd',
+            '..nhhhhhhhhpppmmlnjjbqfjomprrrrrelqqqrrxln.awgd.',
+            '...nllliiimmlphmlphiln.jomprrrrrrmqqefffn..agcd.',
+            '....npppppppphimmlhlnjjjilprrrrrreqxxf.....agcd.',
+            '.....nnnnnnnnyimmllnjiliilprrrreeemnf......agcd.',
+            '............jyzimmlphlpiilrrrrAffAin......aggcd.',
+            '............jyzimmmmlhnimleexAf..fn.......aggcd.',
+            '.............nyymmmmimpimlnfffjjj..........dgcd.',
+            '.............jyyymmiimpmlpmoiiiimnj........agwd.',
+            '.............jByymmimlpppmoooiiiimmnj......aghn.',
+            '..............nByyyhhhppppooiihhhhhlln.....jhln.',
+            '..............jzByhoimhpppiiihoooimhln.....jiln.',
+            '..............jzzhooimphppiihoooiimlhpnj...jiln.',
+            '..............jyyhiimlphppmhooooimmlhpmmnjjoiln.',
+            '...............nyhimmpphpplhioiimmlpphmmiioompn.',
+            '...............jBhimlpphpllhiiimhllpphmmmiimlpn.',
+            '................niimlphpCCChmmmhohppphllmlllpn..',
+            '................joimpphCCCChllhoimhphpppppppn...',
+            '................joilpphhCCCChphimmphhhpppppn....',
+            '................jimlpnDEhhdnnnhmmmpnDEhhdnn.....',
+            '...............joilppnDEFd....nmmmpGDEFFd.......',
+            '.............jjjimlpnGDHFd..jjjoilphDEFd........',
+            '............joooippnIDDFFd.jooiimpphEHFd........',
+            '............jlllpppnHFFFd.jlllllpphFFFd.........',
+            '.............cncncn.dddd...ncncncndddd..........',
+            '................................................'
+        ]
+    },
+    // Gold Drake: fortune. Curled ram horns, amber wing, lucky coin on the tail tip
+    gold: {
+        pal: ["#6b4a0c", "#4a2808", "#5a4a36", "#fff09a", "#d88a2a", "#6e3c0c", "#241202", "#2e1f02", "#f4ecd8", "#2a2016", "#e0a91c", "#dccfb4", "#a89478", "#f6d04a", "#a8740f", "#b8661a", "#944f12", "#c86bff", "#8a2be2", "#ffffff", "#f2d690", "#fffbe0", "#ffe680", "#f2c030", "#3a2604", "#7a5208", "#c08a14", "#d8ae5c", "#b0823a", "#c89a24", "#a87c14", "#4e360a", "#241802", "#7c560c", "#dcb03a", "#fff6dc"],
+        rows: [
+            '................................................',
+            '.............................a.bb...............',
+            '..........aaccccccc.........adbefg..............',
+            '........aadhiiiiiiij.......adkaddfgaa...........',
+            '.......adddhillllllj......adkakdekdddhaaa.......',
+            '......addddhhmmmmmlmj.....anoadeeeeeekkddh......',
+            '....aaddhhhohhhhhhimj....adkapdkeeeeeeeqg.......',
+            '...adddhhrsakooaaclmj....anoapqdeeeeeeqg........',
+            '..addhnkkkoaoaaahilj....adkapppdeeeedqg.........',
+            '.annkkkoooaaaaaattj.....anoapppqkeeeedha........',
+            '.akkooaaaaahaaaahh.....adnoappppdeeeeekdh.......',
+            '..hahhhhhhhaaaakoah....adkapppppdkeeeqfg........',
+            '...hkokkkonkoohkoah....ankapppppqdeefgg.........',
+            '....hoooooooohkkkoah..annoappppppdefg...........',
+            '.....hhhhhhhhukkkooha.ankoappppppqkh............',
+            '............huukkkoonhankoappqfbbbkh........aaa.',
+            '............auukkkkkknankoabbgggggh........avwxy',
+            '............auuukkkkkkankoaonnnkkha.......avvwxz',
+            '.............huukkkkkkaooakdnnnkkkkh......avvvAz',
+            '.............aBuukkkhooaaadnnnnhhhkoh.....axvvzz',
+            '..............hBuuhhnhhaaannnhhdnkhhah....aAAzzy',
+            '..............aBBhddnkohaaanhdddnnkohah....yzzy.',
+            '..............auhndnnkohaaahddddnkkohaoh...ahhah',
+            '..............auhnnkkoaahakhdddnnkkoahkkha.ankah',
+            '..............aBhnnkoaahaaohnnnnkkoaahkkkkadnkah',
+            '...............hhnnkoaahaahknnkhhhoaahkkkkkkkoah',
+            '...............ahnnkoaahaCChkkhdnkhaahookkkkoah.',
+            '................ankkaahCCCChohddnkahahooooooaah.',
+            '...............annkoaahCCCChahnkkoohhaaaaaaaah..',
+            '...............adnkoaahhhCCChhokkooahhaaaaaah...',
+            '...............adkoaahDEFhGhhhakkoaahhhhGhhh....',
+            '.............aaankoahDDHFG.aaadkkoaahEFFG.......',
+            '............addnnoaahIDFFGadddnkkaahEFFG........',
+            '............aoooaaahHFFFG.aoooooaahFFFFG........',
+            '.............JhJaJhGmGmG...hJaJaJhmGmGG.........',
+            '...............hh............hhhh...............'
+        ]
+    },
+    // Purple Drake: arcane. Long swept-back horns, glowing arcane orb on the tail tip
+    purple: {
+        pal: ["#3a2c52", "#3e1860", "#26104a", "#e6dcf6", "#b8a6d8", "#7e6aa0", "#1a1026", "#d09af0", "#8a40c4", "#321256", "#0c0418", "#14061f", "#7a3aa6", "#2e1245", "#a45fd0", "#4e1f70", "#6628a0", "#4a1c7c", "#e4fcff", "#3fd0e0", "#e8cff6", "#c89ee0", "#1c0a30", "#1a5a78", "#ffffff", "#7ae6f6", "#0a2c40", "#d4fbff", "#2fb4d0", "#1a6a8a", "#9c6cb8", "#6e4288", "#7a44a4", "#5a2a80", "#0e0416", "#2e1248", "#220d34", "#3a1756", "#9a62c2"],
+        rows: [
+            '................................................',
+            '..................aaaaa......b.cc...............',
+            '..........bbbbaaaaddeefg....bhcijk..............',
+            '........bbhhllddeeefggg....bhmnhhjkbb...........',
+            '.......bhhhldeeeffggaaaa..bhonmhimhhhlbbb.......',
+            '......bhhhhllffllgeeeeefg.bhpnhiiiiiimmhhl......',
+            '....bbhhlllpllgeeeffgggg.bhmnqhmiiiiiiirk.......',
+            '...bhhhllstpppffnlgg.....bhpnqrhiiiiiirk........',
+            '..bhhlooompnppnnnl......bhonqqqhiiiihrk.........',
+            '.booommmppnnnnnnpl......bhmnqqqrmiiiihlb........',
+            '.bmmppnnnnnlnnnnpl.....bhopnqqqqhiiiiimhl.......',
+            '..lnlllllllnnnnmpnl....bhmnqqqqqhmiiirjk........',
+            '...lmmmmmmoomplmpnl....bomnqqqqqrhiijkk.........',
+            '....lpppppppplommpl...bhomnqqqqqqhijk...........',
+            '.....lllllllluoomppl..bhopnqqqqqqrml............',
+            '............bvuommpplbbhopnqqrjwwwml........xxx.',
+            '............bvuoommmponoopnwwkkkkkl........xyyzA',
+            '.............lvuoommomnompnmooolbb........xyyBzA',
+            '.............bvvuoooomnppnmhhoooomlb......xyBzCD',
+            '.............bEvvmoompnnnnhhhoooommpl.....xzzCDD',
+            '..............lEvvvlllnnnnhhoolllllpnl....xDDDDA',
+            '..............buEvlhhmlnnnooolhhhomlnl.....Alll.',
+            '..............buFlhhomnlnnoolhhhoomplnlb...bhmnl',
+            '..............bvvloompnlnnmlhhhhommpnlmmlb.bhmnl',
+            '..............bEvloomnnlnnmlhhooompnnlmmmmbhomnl',
+            '...............lloompnnlnEElooomllpnnlmmmmmhopnl',
+            '................lhompnlFFFFlmmmlhmlnnlmmmmmmmnl.',
+            '................bhompnlFFFFlpmlhomnlnlppppppnnl.',
+            '................bhopnnllFFFFlloommnllnnnnnnnnl..',
+            '...............bhompnlGHllIllllmmmnllllnnnnll...',
+            '...............bhomnnJGHKI....lmmmnJGHLlIll.....',
+            '.............bbbompnlGGLKI..bbbhopnlGHKI........',
+            '............bhhhonnlMMGKKI.bhhoomnnlHLKI........',
+            '............bppppnnlLLKKI.bmmpppnnlKKKI.........',
+            '.............dldndl.fIfI...ldndndlfIfI..........',
+            '...............ll............lll................'
+        ]
+    },
+    // Green Drake (viewers): nature, extra HP. Leaf crest, leaf wing, flower on the tail tip
+    green: {
+        pal: ["#1a4a26", "#56b83e", "#9ae05a", "#07170c", "#0e3a1c", "#2e8a34", "#8ee07a", "#48b060", "#144a26", "#051408", "#2f8a3c", "#123a1e", "#f4ffe0", "#4cb456", "#a6d070", "#1f5e2c", "#2c8c44", "#1e6a34", "#ffe45c", "#ffb000", "#e8f2b4", "#0c2e1a", "#7a1c48", "#c8dc84", "#fff0f7", "#ff8ac0", "#3a0a20", "#ffc6e0", "#d44a8a", "#9a2a5a", "#ffffff", "#ffd84a", "#b07a10", "#9ab85a", "#6a8a3a", "#348e42", "#246c32", "#0e2c17", "#050f08", "#184a24", "#52aa58", "#e8e0c0", "#8a7a50"],
+        rows: [
+            '...............aaaaaa...........................',
+            '..............abbbbcbd.......a.ee...............',
+            '..........aaaabbccffd.......agehij..............',
+            '........aaggdbccffdd.......agklmmijaa...........',
+            '.......agggdbcfdddaaa.....agnlomhommmdaaa.......',
+            '......aggggddddbbbbbbda...agplmhhhhhhoommd......',
+            '....aaggdddpdbbccccccfbd.agklqmohhhhhhhrj.......',
+            '...agggddstpdfffffffddd..agplqrmhhhhhhrj........',
+            '..aggdnnnkplpddddddd....agnlqqqmhhhhmrj.........',
+            '.annnkkkpplldfcbbbda....agklqqqrohhhhmda........',
+            '.akkppllllldldfffccbd..agnplqqqqmhhhhhomd.......',
+            '..dldddddddllldddfffbd.agklqqqqqmohhhrij........',
+            '...dkkkkkknnkpdkkdddd..anklqqqqqrmhhijj.........',
+            '....dppppppppdnkkpld..agnklqqqqqqmhij...........',
+            '.....ddddddddunkkkpdaaagnplqqqqqqrod............',
+            '............duunkkkpnnagnplqqrivvvod........ww..',
+            '............axunnkkkkkpnnplvvjjjjjd.......wwyzAw',
+            '............axxunnnnnklnkplkgnnnkda......wyBCDyz',
+            '.............dxxnnnnnklpplkggnnnnkkd.....wzCEFzD',
+            '.............axxxnnndkplllgggnndddkpd.....wyGGBA',
+            '..............dxxxddnddllllnnddgnnddpd...wBBCBzD',
+            '..............aHxdgggkpdlllndggggnkpdld...ADDDDA',
+            '..............audgggnkpdllldggggnnkpldkd...Ankd.',
+            '..............axdnnnkplldlldgggnnkkpldkkda.ankld',
+            '..............axdnnkkpldlldnggnnkkppldkkkkagnkld',
+            '..............aHdnnkplldlldnnnndddplldkkkkkgnpld',
+            '...............ddgnkplldlIIdkkdggkdlldpkkkkkkld.',
+            '................annkplldIIIdkdggnkpdldpppppplld.',
+            '...............agnkplldIIIIdpdnnkkpddlllllllld..',
+            '...............agnkplldddIIIddpkkkplddlllllld...',
+            '...............agnklldJKLdMdddakkkplddddMddd....',
+            '.............aannkplldJNLLMaaaggnplldKLLM.......',
+            '............agggnplldONLLMaggggnklldKLLM........',
+            '............apppllldNLLLM.akkpppllldLLLM........',
+            '.............PdPlPdMQMQM...dPlPlPdQMQMM.........',
+            '...............dd............dddd...............'
+        ]
+    },
+    // White Dragon (streamer only): wyvern, wings folded, walks on its wing-hands. Gold crown horns, gold spikes, green aether flame
+    white: {
+        pal: ["#5a360c", "#5f9fd6", "#ffd466", "#fff3c2", "#2e1a05", "#ffffff", "#1a2044", "#d09a30", "#2c3666", "#1d3468", "#6fa6e2", "#2a6aa6", "#7ff6ff", "#3c4a7a", "#d8e4f4", "#4a86d0", "#0c1530", "#95a8d2", "#4b5b8f", "#d4ecfa", "#f6fdff", "#2c5aa4", "#1e3a74", "#9cc0de", "#1c7a4a", "#127a4a", "#0a3e26", "#27b865", "#58e888", "#b4fbc8", "#6c7eab", "#a4b5d6", "#3a4674", "#12173a"],
+        rows: [
+            '..............aaa....aa.....................................',
+            '..........bbaaccde.aadde....................................',
+            '........bbfgceeeeaacche............a........................',
+            '.......bffgceccccccche............ade.......................',
+            '......bffffieccccchee.............ade.a.....................',
+            '.....bbfiiifghhhhee..............jkhkade....................',
+            '...bbffilfmnoggggg.a.............ackkckpqa..................',
+            '..bffgffforrrrrrrgade............ackkcpppde.................',
+            '.bffffooorrrrrrrgahe...........bjqcpchppppq.................',
+            '.booorrrrrrgrrrrahe...........bfforpcpppppq.................',
+            '..gggggggggrrrrsece.aa.......bffforehpcpppq.................',
+            '...grrrrrrrssgsree.ahce......bfforsepccpppq.................',
+            '...brrrrrrrrgoorgaahce..a...bfforssqpcppppq.................',
+            '....ggggggggfoorrehce.aade..bfforsqppppppppq................',
+            '.........ntuffoooreceahce..bfforsqpppppppppq................',
+            '..........gttfooooogehee..bfffrssqppppppppvq................',
+            '..........nttooooofffeffgbffforsqppppppvvvvvq...............',
+            '...........gttooffffffforffffrsrwppppvvvvvvvq...............',
+            '...........nxttooffffffosffforsqpppvvvvvvvvvq...............',
+            '............gxttooofffoosfffrsqppvvvvvvvvvvq..........y.....',
+            '.............gxxtoooooorgfforsqvvvvvvvvvvvvq.........yzA....',
+            '..............gxxxxroorrgffrsqvvvvvvvvvvvvq..........yBA....',
+            '...............gxxxxxrrrgforsqvvvvvvvvvvvvq..........yBBA...',
+            '................ggxxxxrgffrsqvvvvvvvvvvvvvq..........yzCzA..',
+            '.................nttxxxgforsqvvvvvvvvvvvvvq..........yzCBA..',
+            '.................nxxxxgffosqvvvvvvvvgggwwq...........yBCCzA.',
+            '..................gxxxgffrsqvvvvvvvgrggggg...........yBDCBA.',
+            '...................gfxgforsqvvvvvvgrrrgooog..........yBDDBA.',
+            '...................bogffosqvvvvvgggrrrgoooogb........yCDDCA.',
+            '...................bogffrsqvvvwggggrrrgoooooog......yBCDDCA.',
+            '....................ggfosqvvwgggffogrrgooooooogb....yCDDDCBA',
+            '.....................bfosqwwgggffforggrroooooooogb..yCDDDCA.',
+            '....................bffrsqwggrgffoorggrrrroooooooogbyCCDDCA.',
+            '....................bforqwqggggoooorrgggrrrrooooooffffCCCA..',
+            '...................bbfosqwq...ggooorrggEgrrrrrooooofoorgA...',
+            '.................bbffgrsqq.....bfforrgFEGHgrrrrrrrrrrrrg....',
+            '................bfooogrqq....bbfforrgFEGH..gggrrrrrrrgg.....',
+            '................brgggrrrg..bbffforrrgEGGH.....ggggggg.......',
+            '.................grrrrrrg.bfffforrrgFFEH....................',
+            '..................dgdrdg...grrrrrrgGGGGH....................',
+            '....................gg.....dgdgdggHHHHH.....................',
+            '............................................................'
+        ]
+    }
 };
 
 const __spriteCache = {};
-// Малює дрейка (32×24) або Дракона (40×28) і повертає canvas (або null, якщо canvas недоступний)
+// Draws a sprite into a canvas (cached). Returns null when there's no canvas (e.g. in the Node test harness).
 function makeDrakeCanvas(type) {
     if (__spriteCache[type]) return __spriteCache[type];
     if (typeof document === 'undefined' || !document.createElement) return null;
+    const spr = DRAKE_SPRITES[type] || DRAKE_SPRITES.red;
     const c = document.createElement('canvas');
-    if (!c.getContext) return null;
-    const body = type === DRAGON_TYPE ? DRAGON_BODY : DRAKE_BODY;
-    c.width = body[0].length; c.height = body.length;
+    if (!c || !c.getContext) return null;
+    c.width = spr.rows[0].length;
+    c.height = spr.rows.length;
     const g = c.getContext('2d');
-    const pal = DRAKE_PALETTES[type] || DRAKE_PALETTES.red;
-    body.forEach((row, y) => [...row].forEach((ch, x) => {
-        if (ch !== '.' && pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); }
-    }));
-    (DRAKE_PROPS[type] || []).forEach(([x, y, col]) => { g.fillStyle = col; g.fillRect(x, y, 1, 1); });
+    if (!g) return null;
+    const KEY = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    spr.rows.forEach((row, y) => {
+        for (let x = 0; x < row.length; x++) {
+            const i = KEY.indexOf(row[x]);
+            if (i >= 0) { g.fillStyle = spr.pal[i]; g.fillRect(x, y, 1, 1); }
+        }
+    });
     __spriteCache[type] = c;
     return c;
 }
 
-// Картинка дрейка як data URL (для <img>), або '' якщо малювати нема чим
+// Sprite as a data URL (for <img>), or '' when there's nothing to draw with
 function drakeSpriteURL(type) {
     const c = makeDrakeCanvas(type);
     try { return c ? c.toDataURL() : ''; } catch (e) { return ''; }
 }
+// ===== SPRITES END =====
 
         // Малює дрейка стихії в canvas картки бійця
         function drawFighterSprite(prefix, type) {
