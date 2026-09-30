@@ -9,8 +9,8 @@ The root `index.html` only redirects to `showcase/index.html` (for GitHub Pages)
 - Titles: `TITLES_DB` (~194). Add titles there; use `bonus: {type:'stats', stats:{...}}` or a `mechanic`.
 - Chat commands: `handleChatMessage` / the `client.on('message')` handler.
 - Fight loop: `runBattle`, `triggerEffect`, `finishBattle`, `checkQueue`.
-- Sprites: `DRAKE_BODY`, `DRAGON_BODY`, `DRAKE_PALETTES`, `DRAKE_PROPS`.
-- Streamer-only White Dragon: type `'white'` (`DRAGON_TYPE`, drawn with `DRAGON_BODY`, title 999). Only `STREAMER_USER` (empty by default, editable in Test Settings) can pick it. Viewers' old White Drake is now the Green Drake (`greenHp`). Random picks and balance sims use `VIEWER_DRAKE_TYPES`.
+- Sprites: `DRAKE_SPRITES` (palette + pixel rows per type), between the `// ===== SPRITES START/END =====` markers; `makeDrakeCanvas` draws them, `drawFighterSprite` puts them on the fighter cards. Drakes are 48x36, the dragon 60x42; all face left (nothing is mirrored) and display at exactly 2x (`.sprite-wrap` 96x72, dragon 120x84). The space above `.fighter-stats-sub` (its `margin-top`) keeps the stats box clear of the sprite; don't shrink it.
+- Streamer-only White Dragon: type `'white'` (`DRAGON_TYPE`, its own 60x42 wyvern in `DRAKE_SPRITES`, title 999). Only `STREAMER_USER` (empty by default, editable in Test Settings) can pick it. Viewers' old White Drake is now the Green Drake (`greenHp`). Random picks and balance sims use `VIEWER_DRAKE_TYPES`.
 - Saves: `migrateOldSaves` runs on load (and when the streamer setting changes) — extend it when the data format changes, and keep every step idempotent. Players' saves live in `localStorage`; never break save compatibility.
 
 ## Rules

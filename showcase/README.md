@@ -71,7 +71,7 @@ All element numbers live in `ELEMENT_BASE` (the level-1 value) and `ELEMENT_TIER
 
 ### White Dragon (streamer only)
 
-`!drake white` / `!дрейк білий` works only for the user in `STREAMER_USER`; anyone else gets a refusal in the chat-request window, and `!reroll white` is refused the same way. The White Dragon uses a bigger 40×28 sprite with a frost palette and is deliberately a one-sided spectacle, not a balanced element:
+`!drake white` / `!дрейк білий` works only for the user in `STREAMER_USER`; anyone else gets a refusal in the chat-request window, and `!reroll white` is refused the same way. The White Dragon uses a bigger 60×42 wyvern sprite (drakes are 48×36; all sprites face left and are shown at 2×) and is deliberately a one-sided spectacle, not a balanced element:
 
 - Starts at level 20 with the special title 👑 **Sovereign of the Aether** / **Владика Етеру** (Divine rarity, never rolled by `!title`, and `!title` is refused for the dragon)
 - 99,999 HP, 100% defense, 100% crit at ×100, 100% effect chance
