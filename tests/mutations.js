@@ -39,6 +39,12 @@ const MUTATIONS = [
         "if (shield) hitDmg *= 1 - fxNum(shield, 'cut') / 100;", "if (shield && subType !== 'sneaky' && attackType !== 'vampire') hitDmg *= 1 - fxNum(shield, 'cut') / 100;"],
     ["Poison doesn't cut healing", 'healing while poisoned is not reduced',
         'if (!poison) return amount;', 'return amount;'],
+    ['effect name typed outside EFFECTS', 'the frozen-turn log line spells out "❄️ Frost" instead of using fxName()',
+        "is frozen: ${fxName('frost')} — the attack is skipped!", 'is frozen: ❄️ Frost — the attack is skipped!'],
+    ['0-damage hits cast', 'a hit that dealt no damage (ultra-blocked) can still cast an effect',
+        'if (Math.random() * 100 < castChance && finalDmg > 0)', 'if (Math.random() * 100 < castChance)'],
+    ['title effect-chance ignored', "the title's +effect chance bonus is left out of the cast chance",
+        'let chance = EFFECT_CAST.castBase + titleStats(title).effect;', 'let chance = EFFECT_CAST.castBase;'],
     ['effect power stretches counts', 'a stronger caster makes the effect last longer',
         'list.push({ id, left: e.count, power });', 'list.push({ id, left: Math.round(e.count * power), power });'],
 ];

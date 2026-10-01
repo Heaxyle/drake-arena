@@ -14,6 +14,8 @@
 //   - casting an active effect refreshes it; a third buff/debuff replaces the one closest to ending; both are logged
 //   - debuff immunity (title and White Dragon) still stops every debuff, Dispel included
 //   - card chips say what's left in words, in both languages; effect power scales percentages, never counts
+//   - no effect name or icon anywhere in the game file outside EFFECTS (comments excepted; unrelated uses allowlisted)
+//   - cast chance with fixed dice: 30% + element + title bonus, only after a hit that dealt damage
 //   - what each effect does: scripted turns of the real fight with fixed dice, with vs without the effect, against the
 //     EFFECTS numbers, at power ×1 and ×1.8 (Shield on every kind of hit, Poison cutting healing included)
 //   - casts pick the caster's own element pair about 70% + 30%/6 of the time; the White Dragon picks from all 12
@@ -36,7 +38,7 @@ eval(gameScript(FILE) + `
 ;globalThis.__game = {
     EFFECTS, EFFECT_IDS, BUFF_IDS, DEBUFF_IDS, EFFECT_CAST, TITLES_DB, DRAKE_TYPES, VIEWER_DRAKE_TYPES, DRAGON_TYPE, DRAGON_TITLE_ID,
     applyEffect: (...a) => applyEffect(...a), pickEffect, countDownEffects, newFxState, describeEffect, effectLeftText, effectChipText,
-    fxNum, getEffectMult, getRequiredXP, getDragonDB, saveDragonDB,
+    fxNum, getEffectMult, ELEMENT_BASE, getTierMultiplier, getRequiredXP, getDragonDB, saveDragonDB,
     runBattle: (...a) => runBattle(...a),
     get battleFx() { return battleFx; },
     setLang: l => { currentLang = l; },
@@ -113,6 +115,60 @@ for (const id of EFFECT_IDS) {
     const missing = EFFECT_IDS.filter(id => !readme.includes(G.describeEffect(id, 'en')));
     check(!missing.length, "the README effect table matches the game's descriptions (same numbers)",
         `README is out of date for: ${missing.map(id => `${id} ("${G.describeEffect(id, 'en')}")`).join(' | ')}`);
+}
+
+// Effect names and icons only live in EFFECTS: scan the whole file (HTML, CSS, script) outside the EFFECTS block,
+// with comments stripped. A line that uses one of the icons or words for something unrelated must be listed here,
+// with the reason. An allowlist entry that no longer matches any line fails too, so the list can't go stale.
+const EFFECT_TEXT_ALLOWLIST = [
+    { line: 'id="stats-sub-p1">', terms: ['🛡'], why: 'fighter card defence label (🛡️ Захист), HTML default' },
+    { line: 'id="stats-sub-p2">', terms: ['🛡'], why: 'fighter card defence label (🛡️ Захист), HTML default' },
+    { line: "let defText = currentLang === 'uk' ? '🛡️ Захист", terms: ['🛡'], why: 'fighter card defence label (two copies: card and status update)' },
+    { line: '· 🛡️ ${defs.physDef}%', terms: ['🛡'], why: '!stats card defence figure' },
+    { line: '`🛡️ Ультраблок (0 шкоди)!`', terms: ['🛡'], why: 'Ultra Block label in the attack log' },
+    { line: '${loseXpText} 🛡️`', terms: ['🛡'], why: "loser's line in the fight result" },
+    { line: 'id: 128, rarity:', terms: ['🎯'], why: 'title icon: Missed the Button' },
+    { line: 'id: 76, rarity:', terms: ['🛡'], why: 'title icon: Chat Patrol' },
+    { line: 'id: 151, rarity:', terms: ['🛡', 'Щит', 'Shield'], why: 'title: Щит від спойлерів / Spoiler Shield' },
+    { line: 'id: 152, rarity:', terms: ['🔥'], why: 'title icon: Hot Take' },
+    { line: 'id: 160, rarity:', terms: ['🍀'], why: 'title icon: Four-Leaf Clover' },
+    { line: 'id: 176, rarity:', terms: ['🛡'], why: 'title icon: Unbreakable Moderator' },
+    { line: "legendary: '🌟 ", terms: ['🌟', '🔥'], why: 'title-roll rarity banners (legendary 🌟, mythic 🔥), both languages' },
+    { line: 'ПЕРЕРОДИВСЯ!', terms: ['🔥'], why: '!reroll announcement (uk)' },
+    { line: 'REBORN!', terms: ['🔥'], why: '!reroll announcement (en)' },
+    { line: 'активує Щит надії', terms: ['Щит'], why: "Guardian Angel title ability: Щит надії (not the Shield effect)" },
+    { line: 'activates Shield of Hope', terms: ['Shield'], why: 'Guardian Angel title ability: Shield of Hope (not the Shield effect)' },
+];
+console.log('\nEffect names and icons only in EFFECTS');
+{
+    const lines = html.split(/\r?\n/);
+    const start = lines.findIndex(l => l.includes('const EFFECTS = {'));
+    const end = lines.findIndex((l, i) => i > start && l.trim() === '};');
+    const bare = s => s.replace(/️/g, '');                       // 🛡️ and 🛡 are the same icon
+    const terms = [...new Set(EFFECT_IDS.flatMap(id => [EFFECTS[id].name.uk, EFFECTS[id].name.en, bare(EFFECTS[id].icon)]))];
+    const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Whole words only (so "blockedByShadow" or "Розвіювання" inside another word don't count); icons anywhere
+    const words = terms.filter(t => /\p{L}/u.test(t));
+    const wordRe = new RegExp(`(?<![\\p{L}\\p{N}_])(${words.map(esc).join('|')})(?![\\p{L}\\p{N}_])`, 'gu');
+    const iconTerms = terms.filter(t => !/\p{L}/u.test(t));
+    const used = new Set(), bad = [];
+    let hits = 0;
+    lines.forEach((raw, i) => {
+        if (start !== -1 && i >= start && i <= end) return;
+        const l = bare(raw.replace(/<!--.*?-->/g, '').replace(/\/\*.*?\*\//g, '').replace(/(^|[\s;{}),])\/\/.*$/, '$1'));
+        const found = [...new Set([...(l.match(wordRe) || []), ...iconTerms.filter(t => l.includes(t))])];
+        if (!found.length) return;
+        hits++;
+        const entry = EFFECT_TEXT_ALLOWLIST.find(e => raw.includes(e.line));
+        const unlisted = found.filter(t => !entry || !entry.terms.map(bare).includes(t));
+        if (entry) used.add(entry);
+        if (unlisted.length) bad.push(`line ${i + 1}: ${unlisted.join(', ')} in "${raw.trim().slice(0, 110)}"`);
+    });
+    const stale = EFFECT_TEXT_ALLOWLIST.filter(e => !used.has(e));
+    check(start !== -1 && !bad.length, `no effect name or icon outside EFFECTS (${hits} unrelated uses, all on the allowlist with a reason)`,
+        `effect name/icon outside EFFECTS — use fxName()/EFFECTS, or allowlist the line with a reason: ${bad.slice(0, 5).join(' | ')}`);
+    check(!stale.length, `every allowlist entry still matches a line (${EFFECT_TEXT_ALLOWLIST.length} entries)`,
+        `allowlist entries that match nothing any more (remove them): ${stale.map(e => e.line).join(' | ')}`);
 }
 
 // ---------------------------------------------------------------- 2. Words on the cards
@@ -266,9 +322,9 @@ const castOn = (on, id, powerCaster) => {
     return inst ? { ...inst } : null;
 };
 // Runs a fight for `turns.length` turns with fixed dice; setup() runs after the fight is set up, before turn 1
-function scripted(setup, turns) {
+function scripted(setup, turns, who = {}) {   // who: { A: {...}, B: {...} } overrides for the fighters
     G.setLang('en');
-    const db = G.getDragonDB(); db.A = plainDrake('A'); db.B = plainDrake('B'); G.saveDragonDB(db);
+    const db = G.getDragonDB(); db.A = { ...plainDrake('A'), ...(who.A || {}) }; db.B = { ...plainDrake('B'), ...(who.B || {}) }; G.saveDragonDB(db);
     let tick = null, queue = [0.9];                    // 0.9: the coin flip keeps A as fighter 1 (attacks first)
     const realInterval = global.setInterval, realRandom = Math.random;
     global.setInterval = f => { tick = f; return { on: true }; };
@@ -396,6 +452,31 @@ for (const [pLabel, pCaster] of POWERS) {
             `expected -${want}, Regeneration ≈${(regenBase * keep).toFixed(1)}, vampire ≈${(vampBase * keep).toFixed(1)}`);
     }
 }
+// Cast chance, with fixed dice. The line is worked out here from the rule (30% + element bonus + title bonus), not
+// read from the game: a hit that deals no damage never casts; a damaging hit casts when the roll is under the line
+// and not when it's at or just over it. Checked for a plain drake, a Purple drake and a drake with an effect-chance title.
+{
+    let castProbe = null;
+    G.wrapApplyEffect((r, a) => { if (castProbe) castProbe.push(a[2]); });
+    const effectTitle = G.TITLES_DB.find(t => t.bonus && t.bonus.stats && t.bonus.stats.effect && !t.bonus.mechanic && !t.bonus.stats.buffEff);
+    const purpleBonus = G.ELEMENT_BASE.purpleChance + G.getTierMultiplier(20).purpleChance;
+    const cases = [
+        ['plain drake', {}, G.EFFECT_CAST.castBase],
+        ['Purple drake (level 20)', { drakeObj: DRAKE_TYPES_BY.purple }, G.EFFECT_CAST.castBase + purpleBonus],
+        [`plain drake with "${effectTitle.name.en}" (+${effectTitle.bonus.stats.effect}% effect chance)`, { title: effectTitle }, G.EFFECT_CAST.castBase + effectTitle.bonus.stats.effect],
+    ];
+    const casts = (who, d) => { castProbe = []; const r = scripted(null, [dice(d)], { A: who }); const n = castProbe.length; castProbe = null; return { n, dmg: r.turns[0].dmg }; };
+    for (const [label, who, line] of cases) {
+        const under = casts(who, { cast: (line - 0.5) / 100 });
+        const at = casts(who, { cast: line / 100 });
+        const over = casts(who, { cast: (line + 0.5) / 100 });
+        const blocked = casts(who, { block: 0.05, cast: 0 });            // ultra-blocked: 0 damage, cast roll 0 (the luckiest roll)
+        behaviour(`cast chance, ${label}: line ${line}% — roll ${line - 0.5} casts (${under.n}), ${line} and ${line + 0.5} don't (${at.n}, ${over.n}); a 0-damage hit with roll 0 doesn't (${blocked.n})`,
+            under.dmg > 0 && under.n === 1 && at.n === 0 && over.n === 0 && blocked.dmg === 0 && blocked.n === 0,
+            `expected a cast only under ${line}%: under ${under.n} (dmg ${under.dmg}), at ${at.n}, over ${over.n}, blocked ${blocked.n} (dmg ${blocked.dmg})`);
+    }
+}
+
 // Effects without numbers (power can't change them)
 {
     // ❄️ Frost: the target skips its next attack, then attacks normally

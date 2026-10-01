@@ -40,6 +40,8 @@ flowchart TD
 | **Real fights** (300 per language, all elements, ability titles, the White Dragon): before every `[Turn N]` log line, every active effect's count is compared with the state after the previous turn or cast. Own-attack effects must drop by 1 when their owner attacks, hits-taken effects when their owner is attacked (blocked or not), turn effects when their owner's turn starts. On a frozen turn only the owner's turn effects and Frost itself go down. An effect may only disappear when its count reaches 0 | A count going down on the wrong event, by 2, or not at all; Frost eating other buffs; effects vanishing early |
 | No internal effect id (`rage`, `mark`, ..., or the old `stoneskin`) appears in any battle-log line, in either language, and all 12 effect names show up | Log text built from the id instead of the table |
 | An immune fighter never carries a debuff during a real fight | Immunity bypassed by a title mechanic (chaos, cat) |
+| No effect name (uk or en, whole word) or icon appears anywhere in `showcase/index.html` outside the `EFFECTS` block, comments excepted. Lines that use an icon or word for something unrelated (🛡️ on Ultra Block and the defence label, title icons like 🎯 Missed the Button, the Guardian title's "Щит надії / Shield of Hope", ...) are listed in `EFFECT_TEXT_ALLOWLIST` in `effects.js`, each with its reason. An allowlist entry that no longer matches a line also fails | An effect name or icon typed into the code instead of read from `EFFECTS`, which would go out of date on the next rename |
+| **Cast chance** with fixed dice, for a plain drake (30%), a Purple level-20 drake (30 + 20 + 15 = 65%) and a plain drake with a +15% effect-chance title (45%). The line comes from the rule, not from the game. A damaging hit casts on a roll 0.5 under the line, not on the line or 0.5 over it; an ultra-blocked hit (0 damage) never casts, even on a roll of 0 | A wrong cast chance, a missing element or title bonus, an off-by-one at the line, casts on hits that did no damage |
 | **What each effect does** (one test per effect, below) | An effect that has the right name and count but the wrong effect on the fight |
 
 **What each effect does.** These tests script single turns of the real fight loop. Two plain level-20 drakes (no element, no title, 340 HP) fight with fixed dice, so a turn's damage is exact. Each test casts the effect with the game's own `applyEffect`, runs the same turns with and without it, and checks the difference against the numbers in `EFFECTS` (rounding tolerance: the two sides come from the same float). Every effect with numbers runs twice: at power ×1, and cast by a Purple level-20 drake with an effect-strength title (power ×1.8). The numbers must scale with power; the count must stay the same.
@@ -66,7 +68,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in eleven specific ways and checks that `effects.js` fails on each one. An unchanged copy runs first and must pass, so a broken test setup can't pass as "everything caught". The first six are the breakages from the effects rework. 7–8 cover the Dispel and description rules, and 9–11 the effect-behaviour rules (Shield on every hit, Poison's healing cut, power never changing counts):
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in fourteen specific ways and checks that `effects.js` fails on each one. An unchanged copy runs first and must pass, so a broken test setup can't pass as "everything caught". The first six are the breakages from the effects rework. 7–8 cover the Dispel and description rules, 9–11 the effect-behaviour rules (Shield on every hit, Poison's healing cut, power never changing counts), and 12–14 the name/icon scan and the cast chance:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -81,6 +83,9 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 9 | Shield only cuts hits that go through armour (skips armour-piercing and vampire) | Shield behaviour test (both powers) | `🛡️ Shield (power ×1): magic 29 → 20, armour-piercing 41 → 41, vampire 41 → 41` |
 | 10 | Poison doesn't cut healing | Poison behaviour test (both powers) | `☠️ Poison (power ×1): ... healing ×0.50: Regeneration +22 → +22, vampire +21 → +21` |
 | 11 | Effect power stretches counts (`left = count × power`) | Power checks (11 failures) | `power scaling wrong: power 1.8, left 4, dmg 72` |
+| 12 | An effect name typed into the code: the frozen-turn log line says `❄️ Frost` instead of `${fxName('frost')}` | Name/icon scan | `effect name/icon outside EFFECTS ...: line 2120: Frost, ❄ in "[Turn ${turn}] ${tag(attacker)} is froz..."` |
+| 13 | A hit that dealt no damage can still cast (`&& finalDmg > 0` dropped) | Cast-chance tests (all 3 drakes) | `cast chance, plain drake: ... a 0-damage hit with roll 0 doesn't (1)` |
+| 14 | The title's effect-chance bonus is left out of the cast chance | Cast-chance test with the title | `cast chance, plain drake with "Remote Hunter (Between Cushions)" (+15% effect chance): line 45% — roll 44.5 casts (0)` |
 
 Output of the last run:
 
@@ -96,8 +101,11 @@ Output of the last run:
 ✓ caught: number typed into a description
 ✓ caught: Shield skips armour-piercing and vampire hits
 ✓ caught: Poison doesn't cut healing
+✓ caught: effect name typed outside EFFECTS
+✓ caught: 0-damage hits cast
+✓ caught: title effect-chance ignored
 ✓ caught: effect power stretches counts
-All 11 mutations caught.
+All 14 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -232,7 +240,7 @@ npx playwright install chromium        # once; CI adds --with-deps for Linux sys
 
 npm test                               # effect rules, then balance: element matrix, title tiers, level gaps
 npm run test:effects                   # just the effect rules (~1 s)
-npm run test:mutations                 # break the game 11 ways, check effects.js catches each (~15 s)
+npm run test:mutations                 # break the game 14 ways, check effects.js catches each (~20 s)
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~1.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)
