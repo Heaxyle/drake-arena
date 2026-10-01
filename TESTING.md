@@ -82,13 +82,14 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 🌸 **Bloom:** own debuffs removed first, then +`heal`% of max HP (not halved by ☠️ Poison, since it's gone), no buff gained, no attack | A heal cut by Poison, debuffs left, Regeneration creeping back |
 | **90% cap:** at effect power ×25, Shield, Weakness and Poison's healing cut are all 90%; in a fight Shield and Weakness leave ×0.1 of a hit and Poison leaves ×0.1 of a heal (never 0) | An effect that makes a hit or a heal disappear |
 | **White Dragon:** 60 fights, it never has a meter point or an ultimate; its card's meter row stays empty | The streamer's dragon getting a meter |
+| **Interaction choices** (one test each): an attacking ultimate counts down own-attack and hit effects and rolls the usual cast; Ice Mirror and Bloom make no attack (only "turns" effects count down); Dispel and Shadow Theft can't take Ice Mirror; a blocked hit still uses an Ice Mirror hit; the White Dragon goes straight through Ice Mirror; a stolen 💢 Rage counts for Shadow Theft's own hit; Theft merges a buff the thief already has (the longer one stays, with its power); immunity stops the theft but doesn't force the crit; a Jackpot miss counts down effects and never casts; Detonation removes its debuffs on a blocked hit; the below-half bonus is used up even with a full meter | A later change quietly flipping one of the rules listed under "How ultimates fit with the rest" in the README |
 | **Real fights** (480, both languages): every ultimate fires, and no internal ultimate id (`firestorm`, `mirror`, ...) appears in the log | Log text built from ids, an ultimate that never triggers |
 
 `effects.js` covers the rest: its name/icon scan also checks `CLASS_ULTIMATES` (ultimate names and icons appear only in that table, with the same allowlist for unrelated uses), and its real-fight countdown check knows ultimate turns (Ice Mirror and Bloom make no attack; Shadow Theft moves buffs; Detonation and Bloom remove effects).
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 38 specific ways and checks that `effects.js` or `ultimates.js` fails on each one (both run on every copy, in parallel). An unchanged copy runs first and both files must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, and 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 49 specific ways and checks that `effects.js` or `ultimates.js` fails on each one (both run on every copy, in parallel). An unchanged copy runs first and both files must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -130,6 +131,17 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 36 | Bloom heals nothing | Bloom test | the HP didn't go up by the heal |
 | 37 | No 90% cap (capped at 100%) | Cap tests (2 failures) | `at power ×25: shield:cut 100%, weakness:cut 100%, poison:healCut 100%` |
 | 38 | An ultimate icon typed into the code: the meter row spells out 💠 | Name/icon scan (`effects.js`) | `effect/ultimate name or icon outside EFFECTS / CLASS_ULTIMATES ...: 💠 in "..."` |
+| 39 | An attacking ultimate doesn't count down own-attack effects | Interaction test, and the real-fight countdown check | `turn 11 (attacker @A): @A's divine (attacks) went 1 → 1, expected gone` |
+| 40 | Ice Mirror / Bloom count down own-attack effects | Interaction test, and the countdown check | `@B's weakness (attacks) went 1 → gone, expected 1` |
+| 41 | Dispel clears Ice Mirror | Interaction test | `Dispel leaves it (0 hits left)` |
+| 42 | Shadow Theft takes Ice Mirror | Interaction test | the thief ended with a mirror |
+| 43 | A blocked hit doesn't use an Ice Mirror hit | Interaction test | `an ultra-blocked hit still uses one of its hits (2 → 2)` |
+| 44 | Ice Mirror stops the White Dragon | Interaction test | the mirror used a hit on the dragon's attack and sent damage back |
+| 45 | Theft never lets a longer stolen buff replace the thief's | Merge test | the thief's 1-left Shield stayed |
+| 46 | Immunity forces Theft's crit | Immune-target test | a crit on the immune target's hit |
+| 47 | A Jackpot miss counts down nothing | Interaction test, and the countdown check | `@B's weakness (attacks) went 2 → 2, expected 1` |
+| 48 | Detonation keeps the debuffs when its hit is blocked | Interaction test | `dmg 0, debuffs [...]` (still there) |
+| 49 | The below-half bonus waits until the meter has room | Interaction test | the bonus wasn't spent while the meter was full |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -172,8 +184,19 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: Bloom heals nothing
 ✓ caught: no 90% cap
 ✓ caught: ultimate icon typed outside the table
+✓ caught: attacking ultimate is not an attack
+✓ caught: Ice Mirror / Bloom count as attacks
+✓ caught: Dispel clears Ice Mirror
+✓ caught: Shadow Theft takes Ice Mirror
+✓ caught: blocked hits spare Ice Mirror
+✓ caught: Ice Mirror stops the White Dragon
+✓ caught: Shadow Theft never merges up
+✓ caught: immunity forces the crit
+✓ caught: Jackpot miss counts nothing
+✓ caught: Detonation keeps debuffs on a block
+✓ caught: below-half bonus waits for room
 ✓ caught: effect power stretches counts
-All 38 mutations caught.
+All 49 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -211,11 +234,19 @@ Some pairings sit just outside 45–57% because of how the two kits meet, not be
 | Level | Pairing | Why |
 |---|---|---|
 | 10, 20 | Blue vs Green | Blue deals the least damage, so the fight runs long and 🌸 Bloom's heal outlasts it |
-| 10 | Black vs Red | ☄️ Firestorm can't be blocked, and blocking is Black's main defence |
+| 10, 20 | Black vs Red | ☄️ Firestorm can't be blocked, and blocking is Black's main defence |
 | 20 | Purple vs Blue | 💠 Ice Mirror blunts Purple's burst hits (🌟 Divine Might, ✴️ Arcane Detonation) |
 | 20 | Green vs Gold | Gold's 1-HP proc takes a share of Green's large HP pool |
 
-On fresh seeds (1, 2, 3) Black vs Red at **level 20** also lands just outside (44.4%; 45.7% on the tuning seeds). It's the same Firestorm-vs-Black counter as at level 10 but isn't listed at level 20, so the check reports it there.
+Which seeds were used for what (so a "fresh" check really is fresh):
+
+| Seeds | Used for |
+|---|---|
+| 12345, 42, 777 | Tuning (the default for `balance:check`) |
+| 1, 2, 3 | First fresh check, then used to fix the level-1 title ladder, so no longer clean |
+| 4, 5, 6 | Final check, never used for anything else |
+
+The final check on 4, 5, 6 found nothing below 43% or above 58% outside the known counters, but it does report two misses: Green vs Purple at level 1 (44.7%; 46.2% on the tuning seeds), and Epic only 0.8 points over Rare at level 1 (3.0 on the tuning seeds). Level 1 of the title ladder moves more between seed sets than the 2-point margin allows for. Pick new seeds for the next fresh check.
 
 Last run on the tuning seeds (current numbers; `~` = known counter within 2 points):
 
@@ -314,6 +345,7 @@ First it checks the White Dragon is streamer-only: with no streamer set, `!др�
 | Each viewer's save has the right drake type | Color words mapped to the wrong element; saves not written |
 | `!титул` gives the viewer a title | The channel-point reward path not reaching the title roll |
 | Every fight finishes within 5 minutes of game time and logs no "Critical simulation error" | Fights that hang (a timer never fires, the queue never ends the battle) or crash partway through |
+| The page language is switched before each duel, so the card checks below run in **both languages** (each must show chips and a full meter at least once in each); then the longest chips and the longest meter row ("СИЛА ●●●●● ✦ ГОТОВО 💠 ще 2 удари") are put on a real card in each language and must fit | Ukrainian text, which runs longer, getting cut off or overflowing |
 | The Element Power meter row on each card sits inside its gap (no overlap with the info line, the stats box or the sprite), never cut off; during a fight it shows 5 pips with as many lit as the meter, the label in the page language ("СИЛА" / "POWER"), and "✦ ГОТОВО" / "✦ READY" exactly when it's full; the White Dragon's row stays empty | The meter pushing the card layout around, pips out of step with the fight, READY shown at the wrong time |
 | Every buff/debuff chip seen during the fights reads "name · what's left" (`🔥 Burn · 3 turns left`, `💢 Лють · ще 2 атаки`) and isn't cut off by its ellipsis | Chips back to `(3t)` shorthand, or text too long for the card |
 | HP bars never move vertically (sampled every 500 ms, tolerance 0.5 px) | Buff/debuff icons, long names or title badges pushing the card layout around (every card block has a fixed height to prevent this) |
@@ -336,7 +368,7 @@ npx playwright install chromium        # once; CI adds --with-deps for Linux sys
 npm test                               # effect rules, then balance: element matrix, title tiers, level gaps
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
-npm run test:mutations                 # break the game 38 ways, check effects.js / ultimates.js catch each (~25 s)
+npm run test:mutations                 # break the game 49 ways, check effects.js / ultimates.js catch each (~25 s)
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)

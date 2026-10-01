@@ -310,6 +310,103 @@ const full = fx => { fx.A.meter = METER.max; };
         `text "${t3.text.slice(0, 160)}", HP ${t2.hpA} → ${t3.hpA} (tick ${tick}), debuffs ${JSON.stringify(t3.fx.A.debuff)}, buffs ${JSON.stringify(t3.fx.A.buff)}, missing ${missing}`);
 }
 
+// ---------------------------------------------------------------- 3b. Interaction choices
+// Every "where the rules don't say" choice listed in the PR, pinned down so a later change can't flip one silently.
+console.log('\nInteraction choices');
+const left = (t, who, kind, id) => { const x = t.fx[who][kind].find(e => e.id === id); return x ? x.left : null; };
+const castLine = t => /receives (buff|debuff)|refreshed|replaces|loses every buff|Immunity/.test(t.text);
+{
+    // Attacking ultimates are attacks: they count down own "attacks" and the target's "hits" effects, and roll the usual cast
+    const setup = fx => { full(fx); castOn(fx, 'A', 'rage'); castOn(fx, 'B', 'shield'); };
+    const cast = scripted({ A: drake('A', 'red'), setup, turns: [dice({ cast: 0 })] }).turns[0];
+    const noCast = scripted({ A: drake('A', 'red'), setup, turns: [dice({ cast: 0.99 })] }).turns[0];
+    check(isUltLine(cast, 'firestorm') && left(cast, 'A', 'buff', 'rage') === 1 && left(cast, 'B', 'buff', 'shield') === 1 && castLine(cast) && !noCast.lines.some(l => /receives (buff|debuff)/.test(l) && !l.includes(EFFECTS.burn.name.en)),
+        `an attacking ultimate counts as an attack: 💢 Rage 2 → ${left(cast, 'A', 'buff', 'rage')}, the target's 🛡️ Shield 2 → ${left(cast, 'B', 'buff', 'shield')}, and a low cast roll casts an effect`,
+        `rage ${left(cast, 'A', 'buff', 'rage')}, shield ${left(cast, 'B', 'buff', 'shield')}, cast line ${castLine(cast)}: "${cast.text.slice(0, 200)}"`);
+}
+for (const [id, type] of [['mirror', 'blue'], ['bloom', 'green']]) {
+    // Ice Mirror and Bloom replace the attack: only the owner's "turns" effects count down
+    const t = scripted({ A: drake('A', type), setup: fx => { full(fx); castOn(fx, 'A', 'rage'); castOn(fx, 'A', 'regen'); castOn(fx, 'B', 'shield'); }, turns: [dice()] }).turns[0];
+    check(isUltLine(t, id) && left(t, 'A', 'buff', 'rage') === 2 && left(t, 'A', 'buff', 'regen') === 2 && left(t, 'B', 'buff', 'shield') === 2,
+        `${U[id].icon} ${U[id].name.en} makes no attack: 💢 Rage stays at 2, the target's 🛡️ Shield stays at 2, only 💚 Regeneration (turns) goes 3 → 2`,
+        `rage ${left(t, 'A', 'buff', 'rage')}, regen ${left(t, 'A', 'buff', 'regen')}, shield ${left(t, 'B', 'buff', 'shield')}`);
+}
+{
+    // Ice Mirror is not a buff: Dispel and Shadow Theft can't take it
+    const d = scripted({ A: drake('A', 'blue'), setup: fx => {
+        fx.A.mirror = U.mirror.nums.hits;
+        G.applyEffect(drake('B'), drake('A', 'blue'), 'dispel', 20, fx);
+        return fx.A.mirror;
+    }, turns: [] });
+    const th = scripted({ A: drake('A', 'black'), setup: fx => { full(fx); fx.B.mirror = U.mirror.nums.hits; castOn(fx, 'B', 'regen'); }, turns: [dice()] }).turns[0];
+    check(d.setup === U.mirror.nums.hits && th.fx.A.mirror === 0 && th.fx.B.mirror === U.mirror.nums.hits - 1 && th.fx.B.buff.length === 0,
+        `💠 Ice Mirror is not a buff: 💨 Dispel leaves it (${d.setup} hits left); 🦇 Shadow Theft takes the buff but not the mirror (the thief has ${th.fx.A.mirror}; its own hit used one, ${th.fx.B.mirror} left)`,
+        `after Dispel ${d.setup}, after Theft target ${th.fx.B.mirror} / thief ${th.fx.A.mirror}, target buffs ${JSON.stringify(th.fx.B.buff)}`);
+}
+{
+    // A blocked hit still uses up one of Ice Mirror's hits, like any "hits taken" count
+    const t = scripted({ setup: fx => { fx.B.mirror = U.mirror.nums.hits; }, turns: [dice({ block: 0.05 })] }).turns[0];
+    check(t.dmg === 0 && t.fx.B.mirror === U.mirror.nums.hits - 1,
+        `💠 Ice Mirror: an ultra-blocked hit still uses one of its hits (${U.mirror.nums.hits} → ${t.fx.B.mirror})`, `dmg ${t.dmg}, mirror ${t.fx.B.mirror}`);
+}
+{
+    // The White Dragon's hits go straight through Ice Mirror (and it takes nothing back)
+    const dragonTitle = G.TITLES_DB.find(x => x.id === G.DRAGON_TITLE_ID);
+    const t = scripted({ A: { ...drake('A', G.DRAGON_TYPE, 20, dragonTitle) }, B: drake('B', 'blue'), setup: fx => { fx.B.mirror = U.mirror.nums.hits; }, turns: [dice()] }).turns[0];
+    check(t.hpB === 0 && t.fx.B.mirror === U.mirror.nums.hits && t.hpA === 99999,
+        `💠 Ice Mirror doesn't stop the White Dragon: the Blue drake falls in one hit, the mirror is untouched and nothing goes back`,
+        `blue HP ${t.hpB}, mirror ${t.fx.B.mirror}, dragon HP ${t.hpA}`);
+}
+{
+    // Shadow Theft moves buffs before its attack: a stolen 💢 Rage counts for that hit (and uses up one of its attacks)
+    const base = scripted({ A: drake('A', 'black'), turns: [dice({ crit: 0.99 })] }).turns[0].dmg;
+    const t = scripted({ A: drake('A', 'black'), setup: fx => { full(fx); castOn(fx, 'B', 'rage'); }, turns: [dice({ crit: 0.99 })] }).turns[0];
+    const m = U.theft.nums.dmgMult * (1 + EFFECTS.rage.nums.dmg / 100);
+    check(near(t.dmg, base * m, m) && left(t, 'A', 'buff', 'rage') === 1 && !/CRIT/.test(t.text),
+        `🦇 Shadow Theft: the stolen 💢 Rage counts for its own hit — ${base} → ${t.dmg} (×${U.theft.nums.dmgMult} × ${1 + EFFECTS.rage.nums.dmg / 100}), Rage 2 → 1; no forced crit (the target had a buff)`,
+        `expected ${(base * m).toFixed(1)}, rage ${left(t, 'A', 'buff', 'rage')}`);
+}
+{
+    // Shadow Theft merges a buff the thief already has: the one with more left stays (with its power)
+    const shieldOf = (t, who) => t.fx[who].buff.find(e => e.id === 'shield');
+    const longerStolen = scripted({ A: drake('A', 'black'), setup: fx => { full(fx); castOn(fx, 'A', 'shield', 1); fx.A.buff[0].left = 1; castOn(fx, 'B', 'shield', 1.4); }, turns: [dice()] }).turns[0];
+    const longerOwn = scripted({ A: drake('A', 'black'), setup: fx => { full(fx); castOn(fx, 'A', 'shield', 1); castOn(fx, 'B', 'shield', 1.4); fx.B.buff[0].left = 1; }, turns: [dice()] }).turns[0];
+    const a = shieldOf(longerStolen, 'A'), b = shieldOf(longerOwn, 'A');
+    check(longerStolen.fx.A.buff.length === 1 && a.left === 2 && a.power === 1.4 && longerOwn.fx.A.buff.length === 1 && b.left === 2 && b.power === 1,
+        `🦇 Shadow Theft merges a buff the thief already has into one: the stolen 🛡️ Shield (2 left) replaces the thief's (1 left); the thief's (2 left) beats a stolen one with 1 left`,
+        `stolen longer: ${JSON.stringify(longerStolen.fx.A.buff)}; own longer: ${JSON.stringify(longerOwn.fx.A.buff)}`);
+}
+{
+    // The forced crit depends on whether the target had buffs, even when immunity stops the theft
+    const t = scripted({ A: drake('A', 'black'), B: drake('B', 'plain', 20, IMMUNE_TITLE), setup: fx => { full(fx); castOn(fx, 'B', 'regen'); }, turns: [dice({ crit: 0.99 })] }).turns[0];
+    check(!/CRIT/.test(t.text) && t.fx.B.buff.length === 1,
+        '🦇 Shadow Theft vs an immune target with a buff: no theft and no forced crit (the target had buffs)', `text "${t.text.slice(0, 160)}"`);
+}
+{
+    // A Jackpot miss is an attack that deals 0: it counts down attack and hit effects, and never casts
+    const t = scripted({ A: drake('A', 'gold'), setup: fx => { full(fx); castOn(fx, 'A', 'rage'); castOn(fx, 'B', 'shield'); },
+        turns: [[reelRoll('💀'), reelRoll('💀'), reelRoll('💎'), ...dice({ cast: 0 })]] }).turns[0];
+    check(t.dmg === 0 && /Miss!/.test(t.text) && left(t, 'A', 'buff', 'rage') === 1 && left(t, 'B', 'buff', 'shield') === 1 && !castLine(t),
+        `🎰 Jackpot miss (💀💀💎): 0 damage, 💢 Rage 2 → 1 and the target's 🛡️ Shield 2 → 1, and no cast even on a cast roll of 0`,
+        `dmg ${t.dmg}, rage ${left(t, 'A', 'buff', 'rage')}, shield ${left(t, 'B', 'buff', 'shield')}, cast ${castLine(t)}`);
+}
+{
+    // Arcane Detonation removes the debuffs it counted even when its hit is blocked
+    const t = scripted({ A: drake('A', 'purple'), setup: fx => { full(fx); castOn(fx, 'B', 'burn'); castOn(fx, 'B', 'poison'); }, turns: [dice({ block: 0.05 })] }).turns[0];
+    check(isUltLine(t, 'detonation') && t.dmg === 0 && t.fx.B.debuff.length === 0,
+        '✴️ Arcane Detonation on an ultra-blocked hit: 0 damage, but the 2 debuffs it counted are still removed', `dmg ${t.dmg}, debuffs ${JSON.stringify(t.fx.B.debuff)}`);
+}
+{
+    // The below-half bonus is used up even when the meter is already full (it doesn't carry over to after the ultimate).
+    // A level-1 Red with a full meter is frozen on turn 1; B's big hit on turn 2 takes it under half; turn 3 is its ultimate.
+    const r = scripted({ A: drake('A', 'red', 1), setup: fx => { full(fx); castOn(fx, 'A', 'frost'); castOn(fx, 'B', 'rage', 2); fx.B.buff[0].left = 99; },
+        turns: [dice(), dice({ crit: 0 }), dice()] });
+    const [, t2, t3] = r.turns;
+    check(t2.hpA < 75 && t2.hpA > 0 && t2.fx.A.halfDone && t2.meterA === METER.max && isUltLine(t3, 'firestorm') && t3.meterA === 0,
+        `the below-half bonus is used even with a full meter: A drops to ${t2.hpA}/150 with the meter at ${t2.meterA} (bonus spent), and after its ultimate the meter is ${t3.meterA}`,
+        `A HP ${t2.hpA}, halfDone ${t2.fx.A.halfDone}, meter ${t2.meterA} → ${t3.meterA}, ult ${isUltLine(t3, 'firestorm')}`);
+}
+
 // ---------------------------------------------------------------- 4. The 90% cap
 console.log('\n90% cap on every effect reduction');
 {

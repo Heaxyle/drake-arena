@@ -196,6 +196,7 @@ async function testVersion(browser, key) {
     const chipsSeen = new Map();   // buff/debuff chip text → cut off by its ellipsis?
     const meterIssues = new Set(), meterTexts = new Set();
     let meterFullSeen = 0;
+    const chipLangs = new Map(), meterLangs = {}, meterFullLangs = {};   // which page language each chip / meter state was seen in
 
     // Plays one fight from start to finish, sampling the layout every STEP_MS of game time
     const runFight = async (label, start, midShot) => {
@@ -210,13 +211,18 @@ async function testVersion(browser, key) {
                 const dy = Math.max(Math.abs(b.top - base.top), Math.abs(b.containerTop - base.containerTop));
                 if (dy > 0.5) barMoves.add(`${label}: #${b.id} moved ${dy.toFixed(1)}px (top ${base.top.toFixed(1)} → ${b.top.toFixed(1)}) at ${(elapsed / 1000).toFixed(1)}s`);
             });
-            for (const [text, cut] of await page.evaluate(effectChips)) chipsSeen.set(text, chipsSeen.get(text) || cut);
             const lang = await page.evaluate('currentLang');
+            for (const [text, cut] of await page.evaluate(effectChips)) {
+                chipsSeen.set(text, chipsSeen.get(text) || cut);
+                chipLangs.set(text, lang);
+            }
             for (const m of await page.evaluate(powerMeters)) {
                 if (m.overlapsInfo || m.overlapsStats || m.overlapsSprite) meterIssues.add(`${label}: #power-${m.p} overlaps ${[m.overlapsInfo && 'the info line', m.overlapsStats && 'the stats box', m.overlapsSprite && 'the sprite'].filter(Boolean).join(' and ')}`);
                 if (m.cut) meterIssues.add(`${label}: #power-${m.p} text cut off ("${m.text}")`);
                 if (m.meter === null || m.pips === 0) continue;   // White Dragon (no meter) or no fight state yet
                 meterTexts.add(m.text);
+                meterLangs[lang] = (meterLangs[lang] || 0) + 1;
+                if (m.meter === 5) meterFullLangs[lang] = (meterFullLangs[lang] || 0) + 1;
                 const short = lang === 'uk' ? 'СИЛА' : 'POWER', ready = lang === 'uk' ? '✦ ГОТОВО' : '✦ READY';
                 if (m.pips !== 5 || m.on !== m.meter || !m.text.startsWith(short)) meterIssues.add(`${label}: #power-${m.p} shows ${m.on}/${m.pips} pips "${m.text}" for meter ${m.meter}`);
                 if (m.meter === 5) { meterFullSeen++; if (!m.text.includes(ready)) meterIssues.add(`${label}: full meter without "${ready}": "${m.text}"`); }
@@ -289,7 +295,10 @@ async function testVersion(browser, key) {
     await shot('06-fight-over');
     for (const [challenger, target] of cfg.duels) {
         await page.clock.runFor(6000);   // let the post-fight queue check pass
-        await runFight(`duel @${challenger} vs @${target}`, async () => {
+        // Switch the page language before each duel, so the card checks (chips, meter row) run in both languages:
+        // the Ukrainian text is longer in places
+        await page.click('#lang-toggle-btn');
+        await runFight(`duel @${challenger} vs @${target} (${await page.evaluate('currentLang')})`, async () => {
             await chat(challenger, `!бій @${target}`);
             await chat(target, '!прийняти');
         });
@@ -354,13 +363,47 @@ async function testVersion(browser, key) {
         if (!forcedVamp) fail('forced-vampire duel: the dragon never made a vampire attack, so the heal cap was not exercised');
     }
 
+    // 3c. Worst case on a real card, in both languages: the longest buff and debuff chips, and a full meter with Ice
+    // Mirror's hits left (the longest the meter row gets). Nothing may be cut off or overlap.
+    for (const lang of ['uk', 'en']) {
+        const worst = await page.evaluate(lang => {
+            currentLang = lang;
+            const len = id => effectChipText({ id, left: EFFECTS[id].count }, lang).length;
+            const longest = ids => [...ids].filter(id => EFFECTS[id].lasts !== 'instant').sort((a, b) => len(b) - len(a)).slice(0, EFFECT_CAST.maxPerKind);
+            const fx = { buff: longest(BUFF_IDS).map(id => ({ id, left: EFFECTS[id].count, power: 1 })),
+                         debuff: longest(DEBUFF_IDS).map(id => ({ id, left: EFFECTS[id].count, power: 1 })),
+                         meter: METER.max, halfDone: true, mirror: CLASS_ULTIMATES.mirror.nums.hits };
+            const db = getDragonDB();
+            db.__worst = { name: '__worst', color: '#fff', drakeObj: DRAKE_TYPES.find(d => d.type === 'blue'), title: TITLES_DB.find(t => t.name.uk.length > 25) || TITLES_DB[0], xp: 0 };
+            updateFighterCard('p1', db.__worst, fx);
+            updateStatusUI('__worst', 1, 'blue', db.__worst.title, fx);
+            const chips = [...document.querySelectorAll('#status-p1 .status-item')].map(c => ({ text: c.innerText, cut: c.scrollWidth > c.clientWidth + 1 }));
+            const row = document.getElementById('power-p1');
+            return { chips, meter: row.innerText.replace(/\s+/g, ' ').trim(), meterCut: row.scrollWidth > row.clientWidth + 1 };
+        }, lang);
+        const meterIssue = (await page.evaluate(powerMeters))[0];
+        const bad = worst.chips.filter(c => c.cut).map(c => c.text);
+        if (worst.chips.length !== 4 || bad.length || worst.meterCut || meterIssue.overlapsInfo || meterIssue.overlapsStats || meterIssue.overlapsSprite)
+            fail(`[${lang}] worst-case card text: ${bad.length ? `chips cut off: ${bad.join(' | ')}` : ''} ${worst.meterCut ? `meter row cut off: "${worst.meter}"` : ''} ${worst.chips.length !== 4 ? `${worst.chips.length} chips shown` : ''}`);
+        else pass(`[${lang}] worst-case card text fits: ${worst.chips.map(c => `"${c.text}"`).join(', ')}; meter "${worst.meter}"`);
+    }
+    await page.evaluate(lang => { currentLang = lang; }, await page.evaluate('document.documentElement.lang || currentLang'));
+
     await shot('07-all-fights-done');
     await checkFeed('after all fights');
 
     // 4. Verdicts
     // Chips say what's left in words, e.g. "💢 Лють · ще 2 атаки" / "💢 Rage · 2 attacks left", and fit on the card
-    const CHIP_RE = /^\S+ .+ · (ще \d+ (атака|атаки|атак|удар|удари|ударів|хід|ходи|ходів)|\d+ (attack|hit|turn)s? left)$/;
-    const badChips = [...chipsSeen.keys()].filter(t => !CHIP_RE.test(t));
+    const CHIP_RE = { uk: /^\S+ .+ · ще \d+ (атака|атаки|атак|удар|удари|ударів|хід|ходи|ходів)$/, en: /^\S+ .+ · \d+ (attack|hit|turn)s? left$/ };
+    const badChips = [...chipsSeen.keys()].filter(t => !CHIP_RE[chipLangs.get(t)].test(t));
+    // Both languages must actually have been on screen, for chips and for the meter row (including a full one)
+    for (const l of ['uk', 'en']) {
+        const chips = [...chipLangs.values()].filter(x => x === l).length;
+        if (!chips) fail(`no buff/debuff chip was seen with the page in ${l}`);
+        if (!meterLangs[l]) fail(`no Element Power meter row was seen with the page in ${l}`);
+        else if (!meterFullLangs[l]) fail(`no full meter ("✦ ...") was seen with the page in ${l}`);
+        else pass(`[${l}] ${chips} different chips and ${meterLangs[l]} meter-row samples (${meterFullLangs[l]} full) checked in this language`);
+    }
     const cutChips = [...chipsSeen].filter(([, cut]) => cut).map(([t]) => t);
     if (!chipsSeen.size) fail('no buff/debuff chip appeared on a fighter card in any fight');
     else if (badChips.length) fail(`buff/debuff chips not in the "name · what's left" form: ${badChips.slice(0, 5).join(' | ')}`);

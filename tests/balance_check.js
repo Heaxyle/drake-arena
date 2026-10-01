@@ -31,6 +31,7 @@ const KNOWN_COUNTERS = [
     [10, 'blue', 'green'],   // Bloom's heal outlasts Blue, the lowest-damage element
     [20, 'blue', 'green'],
     [10, 'black', 'red'],    // Firestorm can't be blocked, which is Black's main defence
+    [20, 'black', 'red'],
     [20, 'purple', 'blue'],  // Ice Mirror blunts Purple's burst hits (Divine Might, Arcane Detonation)
     [20, 'green', 'gold'],   // Gold's 1-HP proc takes a share of Green's large HP pool
 ];
