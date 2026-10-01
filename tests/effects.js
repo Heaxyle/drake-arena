@@ -14,6 +14,8 @@
 //   - casting an active effect refreshes it; a third buff/debuff replaces the one closest to ending; both are logged
 //   - debuff immunity (title and White Dragon) still stops every debuff, Dispel included
 //   - card chips say what's left in words, in both languages; effect power scales percentages, never counts
+//   - what each effect does: scripted turns of the real fight with fixed dice, with vs without the effect, against the
+//     EFFECTS numbers, at power ×1 and ×1.8 (Shield on every kind of hit, Poison cutting healing included)
 //   - casts pick the caster's own element pair about 70% + 30%/6 of the time; the White Dragon picks from all 12
 // Exits non-zero if any check fails.
 const fs = require('fs');
@@ -240,7 +242,191 @@ for (const lang of ['uk', 'en']) {
     check(dr.every(x => Math.abs(x - 1 / 12) < 0.012), 'the White Dragon picks evenly from all 12', `White Dragon pick rates: ${dr.map(x => x.toFixed(3)).join(' ')}`);
 }
 
-// ---------------------------------------------------------------- 4. Real fights
+// ---------------------------------------------------------------- 4. What each effect does
+// Scripted turns of the real fight loop: two plain level-20 drakes (no element, no title), fixed dice, A attacks on odd
+// turns. Each test runs the same turns with and without the effect (cast with the game's own applyEffect) and checks
+// the difference against the numbers in EFFECTS. Every numeric effect is checked at power ×1 and again cast by a
+// Purple drake with an effect-strength title (power ×1.8): the numbers must scale, the count must not.
+console.log('\nWhat each effect does (scripted turns, numbers from EFFECTS)');
+const plainDrake = name => ({ name, color: '#fff', drakeObj: { name: { uk: 'Простий', en: 'Plain' }, type: 'plain' }, title: null, xp: xpFor(20) });
+const POWER_TITLE = G.TITLES_DB.find(t => t.bonus && t.bonus.stats && t.bonus.stats.buffEff);
+const POWERS = [['power ×1', null], [`power ×${G.getEffectMult('purple', POWER_TITLE, 20).toFixed(2)}`, { drakeObj: { type: 'purple' }, title: POWER_TITLE, xp: xpFor(20) }]];
+// Dice for one attack, in the order the fight rolls them: attack type, sub-type, damage, crit, ultra-block, cast
+const dice = (o = {}) => [o.attack ?? 0.5, o.sub ?? 0.5, o.dmg ?? 0.5, o.crit ?? 0.99, o.block ?? 0.99, o.cast ?? 0.99];
+const VAMPIRE = { attack: 0.95, sub: 0.3 }, SNEAKY = { attack: 0.3, sub: 0.9 }, MAGIC = {};
+// Puts effect `id` on fighter `on` ('A' or 'B') of the running fight, cast with the given power profile.
+// Returns { id, left, power } as cast (a copy: the live effect counts down during the turns), or null for Dispel.
+// A buff's caster is its owner; a debuff's caster is the other fighter.
+const castOn = (on, id, powerCaster) => {
+    const other = on === 'A' ? 'B' : 'A', kind = EFFECTS[id].kind;
+    const casterName = kind === 'buff' ? on : other;
+    const caster = { ...plainDrake(casterName), ...(powerCaster || {}) };
+    G.applyEffect(caster, plainDrake(kind === 'buff' ? other : on), id, 20, G.battleFx);
+    const inst = G.battleFx[on][kind].find(x => x.id === id);
+    return inst ? { ...inst } : null;
+};
+// Runs a fight for `turns.length` turns with fixed dice; setup() runs after the fight is set up, before turn 1
+function scripted(setup, turns) {
+    G.setLang('en');
+    const db = G.getDragonDB(); db.A = plainDrake('A'); db.B = plainDrake('B'); G.saveDragonDB(db);
+    let tick = null, queue = [0.9];                    // 0.9: the coin flip keeps A as fighter 1 (attacks first)
+    const realInterval = global.setInterval, realRandom = Math.random;
+    global.setInterval = f => { tick = f; return { on: true }; };
+    Math.random = () => queue.length ? queue.shift() : 0.99;
+    const lines = []; capture = lines;
+    let res = null;
+    try {
+        G.setRunning(true);
+        G.runBattle('A', '#fff', 'B', '#fff', false);
+        global.setInterval = realInterval;
+        res = setup ? setup() : null;
+        const hp = id => Number(document.getElementById(id).innerText.split(' / ')[0]);
+        const out = turns.map(d => { queue = [...d]; const from = lines.length; tick(); const l = lines.slice(from);
+            const dm = l.join('\n').match(/Damage: (\d+) damage/);
+            return { lines: l, dmg: dm ? Number(dm[1]) : null, hpA: hp('hp-text-p1'), hpB: hp('hp-text-p2') }; });
+        return { turns: out, setup: res };
+    } finally {
+        global.setInterval = realInterval; Math.random = realRandom; capture = null; G.setRunning(false);
+    }
+}
+const MAXHP = 150 + 19 * 10;                           // plain level-20 drake
+const near = (got, want, m = 1) => Math.abs(got - want) <= 0.5 + 0.5 * m + 1e-9;   // both sides come from the same rounded float
+const pct = (inst, k) => G.fxNum(inst, k);
+const behaviour = (label, ok, detail) => check(ok, label, `${label} — ${detail}`);
+
+for (const [pLabel, pCaster] of POWERS) {
+    // 💢 Rage: own attacks ×(1 + dmg%), damage taken ×(1 + taken%)
+    {
+        const base = scripted(null, [dice(MAGIC)]).turns[0].dmg;
+        const r = scripted(() => castOn('A', 'rage', pCaster), [dice(MAGIC)]);
+        const m = 1 + pct(r.setup, 'dmg') / 100;
+        const t = scripted(() => castOn('B', 'rage', pCaster), [dice(MAGIC)]);
+        const mt = 1 + pct(t.setup, 'taken') / 100;
+        behaviour(`💢 Rage (${pLabel}): attack ${base} → ${r.turns[0].dmg} (×${m.toFixed(2)}), raging target takes ${base} → ${t.turns[0].dmg} (×${mt.toFixed(2)}), count ${r.setup.left}`,
+            near(r.turns[0].dmg, base * m, m) && near(t.turns[0].dmg, base * mt, mt) && r.setup.left === EFFECTS.rage.count,
+            `expected ${(base * m).toFixed(1)} and ${(base * mt).toFixed(1)}, count ${EFFECTS.rage.count}`);
+    }
+    // 🔥 Burn: hp% of max HP at the start of each of the target's turns
+    {
+        const r = scripted(() => castOn('B', 'burn', pCaster), [dice(), dice()]);
+        const want = Math.max(1, Math.round(MAXHP * pct(r.setup, 'hp') / 100));
+        const got = Number((r.turns[1].lines.join('\n').match(/Burn \(-(\d+) HP\)/) || [])[1]);
+        behaviour(`🔥 Burn (${pLabel}): -${got} HP at the start of the target's turn (${+pct(r.setup, 'hp').toFixed(2)}% of ${MAXHP}), count ${r.setup.left}`,
+            got === want && r.setup.left === EFFECTS.burn.count && r.turns[0].lines.every(l => !/Burn \(-/.test(l)),
+            `expected -${want} on the target's own turn only, count ${EFFECTS.burn.count}`);
+    }
+    // 🛡️ Shield: −cut% on every hit taken, armour-piercing (sneaky) and vampire included
+    {
+        const parts = [];
+        let ok = true, count = null;
+        for (const [kind, d] of [['magic', MAGIC], ['armour-piercing', SNEAKY], ['vampire', VAMPIRE]]) {
+            const base = scripted(null, [dice(d)]).turns[0].dmg;
+            const r = scripted(() => castOn('B', 'shield', pCaster), [dice(d)]);
+            const m = 1 - pct(r.setup, 'cut') / 100;
+            count = r.setup.left;
+            ok = ok && near(r.turns[0].dmg, base * m, 1);
+            parts.push(`${kind} ${base} → ${r.turns[0].dmg}`);
+        }
+        behaviour(`🛡️ Shield (${pLabel}): ${parts.join(', ')} (×${(1 - pct({ id: 'shield', power: pCaster ? G.getEffectMult('purple', POWER_TITLE, 20) : 1 }, 'cut') / 100).toFixed(2)}), count ${count}`,
+            ok && count === EFFECTS.shield.count, `every kind of hit should be cut by the same factor, count ${EFFECTS.shield.count}`);
+    }
+    // 🌑 Shadow: +block% ultra-block chance (a roll between 10% and 10% + block% is blocked only with Shadow)
+    {
+        const roll = (10 + Math.min(pct({ id: 'shadow', power: pCaster ? G.getEffectMult('purple', POWER_TITLE, 20) : 1 }, 'block'), 80) / 2) / 100;
+        const base = scripted(null, [dice({ block: roll })]).turns[0].dmg;
+        const r = scripted(() => castOn('B', 'shadow', pCaster), [dice({ block: roll })]);
+        const edge = scripted(() => castOn('B', 'shadow', pCaster), [dice({ block: (10 + pct(r.setup, 'block') + 1) / 100 })]).turns[0].dmg;
+        behaviour(`🌑 Shadow (${pLabel}): block roll ${(roll * 100).toFixed(1)} → ${base} without, ${r.turns[0].dmg} with; just past ${10 + pct(r.setup, 'block')}% still hits (${edge}), count ${r.setup.left}`,
+            base > 0 && r.turns[0].dmg === 0 && edge > 0 && r.setup.left === EFFECTS.shadow.count, `blocked only inside the extra ${pct(r.setup, 'block')}%`);
+    }
+    // 🥀 Weakness: the target's attacks ×(1 − cut%)
+    {
+        const base = scripted(null, [dice(MAGIC)]).turns[0].dmg;
+        const r = scripted(() => castOn('A', 'weakness', pCaster), [dice(MAGIC)]);
+        const m = 1 - pct(r.setup, 'cut') / 100;
+        behaviour(`🥀 Weakness (${pLabel}): attack ${base} → ${r.turns[0].dmg} (×${m.toFixed(2)}), count ${r.setup.left}`,
+            near(r.turns[0].dmg, base * m, 1) && r.setup.left === EFFECTS.weakness.count, `expected ${(base * m).toFixed(1)}`);
+    }
+    // 🍀 Blessing: +crit% crit chance (a crit roll just above the plain chance crits only with Blessing)
+    {
+        const plainCrit = 15 + 19;
+        const r0 = scripted(() => castOn('A', 'blessing', pCaster), []);
+        const bonus = Math.min(pct(r0.setup, 'crit'), 100 - plainCrit);
+        const roll = (plainCrit + bonus / 2) / 100;
+        const base = scripted(null, [dice({ crit: roll })]).turns[0];
+        const r = scripted(() => castOn('A', 'blessing', pCaster), [dice({ crit: roll })]);
+        behaviour(`🍀 Blessing (${pLabel}): crit chance ${plainCrit}% → ${Math.min(100, plainCrit + Math.round(pct(r.setup, 'crit')))}%; roll ${(roll * 100).toFixed(0)}: ${base.dmg} (no crit) → ${r.turns[0].dmg} (crit ×1.5), count ${r.setup.left}`,
+            !base.lines.some(l => /CRIT/.test(l)) && r.turns[0].lines.some(l => /CRIT/.test(l)) && near(r.turns[0].dmg, base.dmg * 1.5, 1.5) && r.setup.left === EFFECTS.blessing.count,
+            'the crit should happen only with Blessing');
+    }
+    // 🌟 Divine Might: ×(1 + dmg%), and a hit that would be ultra-blocked isn't
+    {
+        const base = scripted(null, [dice(MAGIC)]).turns[0].dmg;
+        const r = scripted(() => castOn('A', 'divine', pCaster), [dice(MAGIC)]);
+        const m = 1 + pct(r.setup, 'dmg') / 100;
+        const blockedBase = scripted(null, [dice({ block: 0.05 })]).turns[0].dmg;
+        const unblock = scripted(() => castOn('A', 'divine', pCaster), [dice({ block: 0.05 })]).turns[0].dmg;
+        behaviour(`🌟 Divine Might (${pLabel}): attack ${base} → ${r.turns[0].dmg} (×${m.toFixed(2)}); a blocked hit (${blockedBase}) goes through (${unblock}), count ${r.setup.left}`,
+            near(r.turns[0].dmg, base * m, m) && blockedBase === 0 && near(unblock, base * m, m) && r.setup.left === EFFECTS.divine.count, `expected ${(base * m).toFixed(1)} both times`);
+    }
+    // 💚 Regeneration: heals hp% of max HP at the start of the owner's turn
+    {
+        const r = scripted(() => castOn('B', 'regen', pCaster), [dice({ crit: 0 }), dice()]);   // a crit first, so the heal isn't capped at max HP
+        const want = Math.max(1, Math.round(MAXHP * pct(r.setup, 'hp') / 100));
+        const got = Number((r.turns[1].lines.join('\n').match(/Regeneration \(\+(\d+) HP\)/) || [])[1]);
+        behaviour(`💚 Regeneration (${pLabel}): +${got} HP at the start of the owner's turn (${+pct(r.setup, 'hp').toFixed(2)}% of ${MAXHP}), count ${r.setup.left}`,
+            got === want && r.setup.left === EFFECTS.regen.count, `expected +${want}`);
+    }
+    // ☠️ Poison: hp% of max HP per turn, and the target's healing (Regeneration, vampire hits) cut by healCut%
+    {
+        const r = scripted(() => castOn('B', 'poison', pCaster), [dice(), dice()]);
+        const want = Math.max(1, Math.round(MAXHP * pct(r.setup, 'hp') / 100));
+        const got = Number((r.turns[1].lines.join('\n').match(/Poison \(-(\d+) HP\)/) || [])[1]);
+        const keep = 1 - pct(r.setup, 'healCut') / 100;
+        // Regeneration while poisoned
+        const regen = n => Number((n.turns[1].lines.join('\n').match(/Regeneration \(\+(\d+) HP\)/) || [])[1]);
+        const regenBase = regen(scripted(() => castOn('B', 'regen', null), [dice(), dice()]));
+        const regenPois = regen(scripted(() => { castOn('B', 'regen', null); return castOn('B', 'poison', pCaster); }, [dice(), dice()]));
+        // A vampire hit while poisoned (B hits A first so A has HP to heal)
+        const vamp = n => Number((n.turns[2].lines.join('\n').match(/🩸 \+(\d+) HP/) || [])[1]);
+        const vampBase = vamp(scripted(null, [dice(), dice(), dice(VAMPIRE)]));
+        const vampPois = vamp(scripted(() => castOn('A', 'poison', pCaster), [dice(), dice(), dice(VAMPIRE)]));
+        behaviour(`☠️ Poison (${pLabel}): -${got} HP per turn; healing ×${keep.toFixed(2)}: Regeneration +${regenBase} → +${regenPois}, vampire +${vampBase} → +${vampPois}, count ${r.setup.left}`,
+            got === want && near(regenPois, regenBase * keep, 1) && near(vampPois, vampBase * keep, 1) && r.setup.left === EFFECTS.poison.count,
+            `expected -${want}, Regeneration ≈${(regenBase * keep).toFixed(1)}, vampire ≈${(vampBase * keep).toFixed(1)}`);
+    }
+}
+// Effects without numbers (power can't change them)
+{
+    // ❄️ Frost: the target skips its next attack, then attacks normally
+    const r = scripted(() => castOn('A', 'frost', null), [dice(), dice(), dice()]);
+    const [t1, t2, t3] = r.turns;
+    behaviour(`❄️ Frost: turn 1 skipped (B stays at ${t1.hpB}/${MAXHP}), B attacks on turn 2, A attacks again on turn 3 (${t3.dmg} damage)`,
+        t1.dmg === null && t1.hpB === MAXHP && t1.lines.some(l => /is frozen/.test(l)) && t2.dmg > 0 && t3.dmg > 0, 'the frozen attack should be skipped once');
+    // 🎯 Mark: the next hit on the target is a guaranteed crit (even on a roll that never crits), then it's gone
+    const m = scripted(() => castOn('B', 'mark', null), [dice({ crit: 0.99 }), dice(), dice({ crit: 0.99 })]);
+    const base = scripted(null, [dice({ crit: 0.99 })]).turns[0].dmg;
+    behaviour(`🎯 Mark: hit on a no-crit roll ${base} → ${m.turns[0].dmg} (crit ×1.5); the next hit is normal again (${m.turns[2].dmg})`,
+        m.turns[0].lines.some(l => /CRIT/.test(l)) && near(m.turns[0].dmg, base * 1.5, 1.5) && !m.turns[2].lines.some(l => /CRIT/.test(l)), 'one guaranteed crit, then none');
+    // 💨 Dispel: removes all the target's buffs at once
+    const d = scripted(() => { castOn('B', 'shield', null); castOn('B', 'regen', null);
+        const before = G.battleFx.B.buff.map(x => x.id).join(', ');
+        castOn('B', 'dispel', null); return before; }, []);
+    behaviour(`💨 Dispel: the target's buffs (${d.setup}) are all removed at once`, G.battleFx.B.buff.length === 0, `left: ${G.battleFx.B.buff.map(x => x.id)}`);
+}
+// Effect power changes numbers, never counts: every effect, cast at ×1 and at the highest power
+{
+    const bad = [];
+    for (const id of EFFECT_IDS.filter(i => EFFECTS[i].lasts !== 'instant')) {
+        for (const [, pc] of POWERS) {
+            const r = scripted(() => castOn(EFFECTS[id].kind === 'buff' ? 'A' : 'B', id, pc), []);
+            if (r.setup.left !== EFFECTS[id].count) bad.push(`${id} at power ${r.setup.power}: ${r.setup.left} left, expected ${EFFECTS[id].count}`);
+        }
+    }
+    behaviour(`effect power never changes a count (all ${EFFECT_IDS.length - 1} lasting effects at ×1 and ×${G.getEffectMult('purple', POWER_TITLE, 20).toFixed(2)})`, !bad.length, bad.join('; '));
+}
+
+// ---------------------------------------------------------------- 5. Real fights
 // Before every "[Хід N]" / "[Turn N]" line the state is compared with the state after the previous line (or the last
 // cast). Between the two, the only things allowed to change counts are: the attacker's turn starting ('turns' −1),
 // the attacker attacking ('attacks' −1), the defender being attacked ('hits' −1) — or, on a frozen turn, only the

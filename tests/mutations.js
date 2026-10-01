@@ -35,6 +35,12 @@ const MUTATIONS = [
         "if (e.lasts === 'instant' && !st.buff.length) {", 'if (false) {'],
     ['number typed into a description', "Shield's description has -30% typed in instead of taking it from the table",
         "Наступні {count} отримані удари −{cut}% шкоди", 'Наступні {count} отримані удари −30% шкоди'],
+    ['Shield skips armour-piercing and vampire hits', 'Shield only cuts hits that go through armour',
+        "if (shield) hitDmg *= 1 - fxNum(shield, 'cut') / 100;", "if (shield && subType !== 'sneaky' && attackType !== 'vampire') hitDmg *= 1 - fxNum(shield, 'cut') / 100;"],
+    ["Poison doesn't cut healing", 'healing while poisoned is not reduced',
+        'if (!poison) return amount;', 'return amount;'],
+    ['effect power stretches counts', 'a stronger caster makes the effect last longer',
+        'list.push({ id, left: e.count, power });', 'list.push({ id, left: Math.round(e.count * power), power });'],
 ];
 
 const runEffects = html => {
