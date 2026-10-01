@@ -136,6 +136,11 @@ function layoutProblems() {
         if (!visible(meter) || !meter.querySelector('.pm-pips')) out.push(`#card-${p}: no СИЛА row`);
         else if (!(r(chips).bottom <= r(meter).top + 0.5 && r(meter).bottom <= r(hp).top + 0.5)) out.push(`#card-${p}: the СИЛА row isn't between the chips and the HP bar`);
     }
+    // 6. The chips on one card shrink together: all the same font size
+    for (const p of ['p1', 'p2']) {
+        const sizes = [...document.querySelectorAll(`#status-${p} .status-item`)].map(el => getComputedStyle(el).fontSize);
+        if (new Set(sizes).size > 1) out.push(`#status-${p}: chips at different sizes (${sizes.join(', ')})`);
+    }
     return out;
 }
 
@@ -176,6 +181,57 @@ function nameContrasts() {
         const ratio = (Math.max(lum(fg), lum(bg)) + 0.05) / (Math.min(lum(fg), lum(bg)) + 0.05);
         return { text: el.innerText.trim().slice(0, 30), where: el.closest('[id]') ? el.closest('[id]').id : '', ratio: Math.round(ratio * 100) / 100 };
     });
+}
+
+// Runs in the page: does each card's HP number match its bar? "h/max" needs the bar at h/max of its track (±1%) in
+// the colour for that share (green above 50%, yellow from 25%, red below); a waiting card shows "—" and an empty bar
+function hpAgreement() {
+    return ['p1', 'p2'].map(p => {
+        const text = document.getElementById(`hp-text-${p}`).innerText.trim(), bar = document.getElementById(`bar-${p}`);
+        const share = 100 * bar.getBoundingClientRect().width / bar.parentElement.clientWidth / (document.getElementById('stage').getBoundingClientRect().width / 1920);
+        const colour = getComputedStyle(bar).backgroundColor;
+        if (text === '—') return { p, problem: share > 0.5 ? `"—" but the bar is ${share.toFixed(1)}% full` : '' };
+        const m = /^(\d+)\/(\d+)$/.exec(text);
+        if (!m) return { p, problem: `unreadable HP text "${text}"` };
+        const pct = 100 * m[1] / m[2];
+        const want = pct > 50 ? 'rgb(61, 220, 132)' : pct >= 25 ? 'rgb(255, 197, 61)' : 'rgb(255, 93, 82)';
+        const problems = [];
+        if (Math.abs(share - pct) > 1) problems.push(`"${text}" (${pct.toFixed(1)}%) but the bar is ${share.toFixed(1)}% full`);
+        if (pct > 0 && colour !== want) problems.push(`"${text}" but the bar is ${colour}, expected ${want}`);
+        return { p, problem: problems.join('; ') };
+    });
+}
+
+// Colour helpers for the frame checks: CIEDE2000 colour difference, HSL, WCAG contrast
+const rgbOf = h => { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+function hslOf(hex) {
+    const [r, g, b] = rgbOf(hex).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+    if (!d) return { h: 0, s: 0, l };
+    const x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return { h: Math.round((x * 60 + 360) % 360), s: Math.round(100 * d / (1 - Math.abs(2 * l - 1))) / 100, l: Math.round(100 * l) / 100 };
+}
+const linear = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+const luminance = hex => { const [r, g, b] = rgbOf(hex).map(linear); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + 0.05) / (Math.min(luminance(a), luminance(b)) + 0.05);
+function labOf(hex) {
+    const [r, g, b] = rgbOf(hex).map(linear);
+    const f = t => t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116;
+    const x = f((r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047), y = f(r * 0.2126 + g * 0.7152 + b * 0.0722), z = f((r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883);
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+function de2000(c1, c2) {
+    const [L1, a1, b1] = labOf(c1), [L2, a2, b2] = labOf(c2), rad = Math.PI / 180;
+    const Cb = (Math.hypot(a1, b1) + Math.hypot(a2, b2)) / 2, G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)));
+    const a1p = a1 * (1 + G), a2p = a2 * (1 + G), C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2);
+    const hp = (b, a) => { if (!b && !a) return 0; const h = Math.atan2(b, a) / rad; return h < 0 ? h + 360 : h; };
+    const h1p = hp(b1, a1p), h2p = hp(b2, a2p);
+    let dh = 0; if (C1p * C2p) { dh = h2p - h1p; if (dh > 180) dh -= 360; else if (dh < -180) dh += 360; }
+    const dL = L2 - L1, dC = C2p - C1p, dH = 2 * Math.sqrt(C1p * C2p) * Math.sin(dh / 2 * rad), Lb = (L1 + L2) / 2, Cbp = (C1p + C2p) / 2;
+    let hb = h1p + h2p; if (C1p * C2p) { if (Math.abs(h1p - h2p) > 180) hb += h1p + h2p < 360 ? 360 : -360; hb /= 2; }
+    const T = 1 - 0.17 * Math.cos((hb - 30) * rad) + 0.24 * Math.cos(2 * hb * rad) + 0.32 * Math.cos((3 * hb + 6) * rad) - 0.2 * Math.cos((4 * hb - 63) * rad);
+    const dTh = 30 * Math.exp(-(((hb - 275) / 25) ** 2)), Rc = 2 * Math.sqrt(Cbp ** 7 / (Cbp ** 7 + 25 ** 7));
+    const Sl = 1 + 0.015 * (Lb - 50) ** 2 / Math.sqrt(20 + (Lb - 50) ** 2), Sc = 1 + 0.045 * Cbp, Sh = 1 + 0.015 * Cbp * T, Rt = -Math.sin(2 * dTh * rad) * Rc;
+    return Math.sqrt((dL / Sl) ** 2 + (dC / Sc) ** 2 + (dH / Sh) ** 2 + Rt * (dC / Sc) * (dH / Sh));
 }
 
 async function layoutChecks(browser, lang, blockFonts) {
@@ -450,24 +506,72 @@ async function layoutChecks(browser, lang, blockFonts) {
                 const read = cls => { card.className = 'fighter-card ' + cls; const s = getComputedStyle(card); return { hi: s.getPropertyValue('--hi').trim(), lo: s.getPropertyValue('--lo').trim() }; };
                 for (const t of ['red', 'green', 'blue', 'black', 'gold', 'purple', 'white']) out[t] = read('el-' + t);
                 out.winner = read('el-gold is-winner');
+                out.loser = read('el-red is-loser');
                 const a = getComputedStyle(document.getElementById('arena'));
                 out.arena = { hi: a.getPropertyValue('--gold-hi').trim(), lo: a.getPropertyValue('--gold-lo').trim() };
                 card.className = 'fighter-card';
                 return out;
             });
-            const rgb = h => { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
-            const hue = h => { const [r, g, b] = rgb(h).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
-                if (!d) return 0; const x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (x * 60 + 360) % 360; };
-            const lum = h => { const l = rgb(h).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]; };
-            const ratio = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
             const PANEL = '#0d0e15';
-            const goldGap = Math.min(...['hi', 'lo'].flatMap(k => [Math.abs(hue(frames.gold[k]) - hue(frames.winner[k])), Math.abs(hue(frames.gold[k]) - hue(frames.arena[k]))]));
-            check(frames.gold.hi !== frames.winner.hi && frames.gold.lo !== frames.arena.lo && goldGap >= 10,
-                `the Gold drake's frame (${frames.gold.hi} / ${frames.gold.lo}) differs in hue by ≥ 10° from the winner (${frames.winner.hi} / ${frames.winner.lo}) and arena (${frames.arena.hi} / ${frames.arena.lo}) frames (smallest gap ${Math.round(goldGap)}°)`, JSON.stringify(frames));
-            const weak = Object.entries(frames).filter(([t]) => t !== 'arena' && t !== 'winner').filter(([, f]) => ratio(f.hi, PANEL) < 3);
-            const blackLo = ratio(frames.black.lo, PANEL);
-            check(!weak.length && blackLo >= 3, `every element frame's light edge is ≥ 3:1 against the dark panel, and the Black drake's dark edge too (${blackLo.toFixed(2)}:1)`,
-                weak.map(([t, f]) => `${t} ${f.hi}: ${ratio(f.hi, PANEL).toFixed(2)}:1`).join(' | ') || `black dark edge ${blackLo.toFixed(2)}:1`);
+            // Every pair of light edges (six elements, the White Dragon, the winner — the same gold as the arena frame — and the loser)
+            const names = ['red', 'green', 'blue', 'black', 'gold', 'purple', 'white', 'winner', 'loser'];
+            const pairs = [];
+            for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) pairs.push([names[i], names[j], de2000(frames[names[i]].hi, frames[names[j]].hi)]);
+            pairs.sort((a, b) => a[2] - b[2]);
+            const close = pairs.filter(p => p[2] < 20);
+            check(!close.length && frames.winner.hi === frames.arena.hi, `every pair of frame light edges is ≥ 20 apart (CIEDE2000), ${pairs.length} pairs; closest: ${pairs.slice(0, 3).map(([a, b, d]) => `${a}/${b} ${d.toFixed(1)}`).join(', ')}`,
+                close.map(([a, b, d]) => `${a} ${frames[a].hi} / ${b} ${frames[b].hi}: ${d.toFixed(1)}`).join(' | ') || 'the winner frame is not the arena gold');
+            // Each frame still reads as its element: hue family for the colours, near-neutral for black and the loser, near-white for the White Dragon
+            const FAMILY = {
+                red: c => (c.h >= 345 || c.h <= 15) && c.s >= 0.5, gold: c => c.h >= 38 && c.h <= 55 && c.s >= 0.5, green: c => c.h >= 100 && c.h <= 160 && c.s >= 0.5,
+                blue: c => c.h >= 200 && c.h <= 230 && c.s >= 0.5, purple: c => c.h >= 255 && c.h <= 290 && c.s >= 0.5, black: c => c.s <= 0.15 && c.l >= 0.45 && c.l <= 0.75,
+                white: c => c.l >= 0.9, winner: c => c.h >= 38 && c.h <= 55 && c.s >= 0.5, loser: c => c.s <= 0.15 && c.l <= 0.5,
+            };
+            const off = names.filter(n => !FAMILY[n](hslOf(frames[n].hi)) || (n !== 'white' && n !== 'black' && n !== 'loser' && !FAMILY[n](hslOf(frames[n].lo))));
+            check(!off.length, 'each frame reads as its element (red, gold, green, blue and purple hues on both edges; neutral steel for Black; near-white for the White Dragon; grey for the loser)',
+                off.map(n => `${n} ${frames[n].hi} / ${frames[n].lo}: ${JSON.stringify(hslOf(frames[n].hi))}`).join(' | '));
+            const weak = names.filter(n => n !== 'loser' && contrast(frames[n].hi, PANEL) < 3);
+            const blackLo = contrast(frames.black.lo, PANEL);
+            check(!weak.length && blackLo >= 3, `every frame's light edge is ≥ 3:1 against the dark panel, and the Black drake's dark edge too (${blackLo.toFixed(2)}:1)`,
+                weak.map(n => `${n} ${frames[n].hi}: ${contrast(frames[n].hi, PANEL).toFixed(2)}:1`).join(' | ') || `black dark edge ${blackLo.toFixed(2)}:1`);
+            await context.close();
+        }
+
+        console.log('\nHP number and bar agree');
+        for (const lang of ['uk', 'en']) {
+            const { page, context, errors } = await open(browser, { lang });
+            const seen = [], bad = [];
+            const sample = async state => {
+                await settle(page);   // width and colour transitions run on real time
+                for (const r of await page.evaluate(hpAgreement)) { seen.push(state); if (r.problem) bad.push(`${state} ${r.p}: ${r.problem}`); }
+            };
+            await sample('waiting');
+            const states = new Set(['waiting']);
+            await page.evaluate(uk => {
+                const say = (u, m) => handleChatMessage('#test', { username: u, color: '#ff7f50' }, m, false);
+                say('alpha', uk ? '!дрейк червоний' : '!drake red'); say('omega', uk ? '!дрейк синій' : '!drake blue');
+                say('alpha', uk ? '!черга' : '!queue'); say('omega', uk ? '!черга' : '!queue');
+            }, lang === 'uk');
+            await page.clock.runFor(1000);
+            await sample('countdown'); states.add('countdown');
+            for (let i = 0; i < 80 && await page.evaluate('isBattleRunning'); i++) {
+                await page.clock.runFor(2250);
+                if (i % 3 === 0) { await sample('fighting'); states.add('fighting'); }
+            }
+            await page.clock.runFor(300);
+            await sample('result'); states.add('result');
+            await page.click('#lang-toggle-btn');
+            await sample('result, language switched');
+            await page.click('#lang-toggle-btn');
+            await page.clock.runFor(6000);
+            await page.evaluate(() => testBattle());
+            await page.clock.runFor(1000);
+            await sample('test battle');
+            for (let i = 0; i < 80 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(4500);
+            await page.clock.runFor(300);
+            await sample('test battle result');
+            check(!bad.length && states.size === 4, `[${lang}] HP text and bar agree (width ±1%, colour, "—" with an empty bar when waiting) in ${seen.length} samples: ${[...new Set(seen)].join(', ')}`, bad.slice(0, 6).join(' | '));
+            if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
 

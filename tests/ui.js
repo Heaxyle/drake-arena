@@ -304,6 +304,18 @@ async function testVersion(browser, key) {
             await chat(target, '!прийняти');
         });
     }
+    // Fights are random: a language that hasn't shown a full meter yet gets extra duels (at most 8) until it does
+    for (const l of ['uk', 'en']) {
+        const [challenger, target] = cfg.duels[0];
+        for (let extra = 0; extra < 8 && !meterFullLangs[l]; extra++) {
+            await page.clock.runFor(3 * 60 * 1000 + 1000);   // fighters have a 3-minute cooldown (COOLDOWN_MINUTES)
+            if (await page.evaluate('currentLang') !== l) await page.click('#lang-toggle-btn');
+            await runFight(`extra duel @${challenger} vs @${target} (${l}, waiting for a full meter)`, async () => {
+                await chat(challenger, `!бій @${target}`);
+                await chat(target, '!прийняти');
+            });
+        }
+    }
     // 3b. Heals logged in a fight with the streamer's dragon must be what was actually restored (≤ that fighter's max HP)
     if (dragonCfg) {
         const dragonDuelCfg = cfg.duels.find(d => d.includes(dragonCfg.streamer));
