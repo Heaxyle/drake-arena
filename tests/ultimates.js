@@ -120,7 +120,7 @@ for (const id of ULTIMATE_IDS) {
         const text = G.describeUltimate(id, l);
         if (/[{}]|undefined|NaN/.test(text)) bad.push(`${l} text not filled in: "${text}"`);
         if (/\d/.test(u.desc[l].replace(/\{[^}]*\}/g, ''))) bad.push(`${l} text has a number typed in instead of a {placeholder}`);
-        for (const k of Object.keys(u.nums)) if (!u.desc[l].includes(`{${k}}`)) bad.push(`${l} text never shows nums.${k}`);
+        for (const k of Object.keys(u.nums)) if (!new RegExp(`\\{(\\w+:)?${k}\\}`).test(u.desc[l])) bad.push(`${l} text never shows nums.${k}`);
         const saved = { ...u.nums };
         for (const k of Object.keys(u.nums)) u.nums[k] = u.nums[k] + 7;
         const after = G.describeUltimate(id, l);
@@ -203,16 +203,31 @@ const full = fx => { fx.A.meter = METER.max; };
         `☄️ Firestorm's 🔥 Burn uses the caster's effect power (×${pb && pb.power.toFixed(2)}); an immune target ignores the Burn but still takes the ×${m} hit (${imBase} → ${im.dmg})`,
         `burn power ${pb && pb.power}, immune debuffs ${JSON.stringify(im.fx.B.debuff)}, damage ${im.dmg}`);
 }
-// 💠 Ice Mirror
+// 💠 Ice Mirror: each of the next `hits` hits is absorbed up to cap% of Blue's max HP, the rest goes through, and back%
+// of what was absorbed goes to the attacker. Checked with ordinary hits (under the cap) and with big ones (a 💢 Rage at
+// power ×5 on the attacker), against the same hits without the mirror.
 {
-    const ctl = scripted({ A: drake('A', 'blue'), turns: [dice({ block: 0.05 }), dice(), dice({ block: 0.05 }), dice(), dice({ block: 0.05 }), dice()] });
-    const r = scripted({ A: drake('A', 'blue'), setup: full, turns: [dice(), dice(), dice({ block: 0.05 }), dice(), dice({ block: 0.05 }), dice()] });
-    const back = U.mirror.nums.back / 100;
-    const hits = [1, 3, 5].map(i => [ctl.turns[i].dmg, r.turns[i].dmg, r.turns[i - 1].hpB - r.turns[i].hpB]);   // [would, dealt, B lost]
-    const firstN = hits.slice(0, U.mirror.nums.hits), after = hits[U.mirror.nums.hits];
-    check(isUltLine(r.turns[0], 'mirror') && r.turns[0].dmg === null && firstN.every(([w, d, lost]) => d === 0 && lost === Math.round(w * back)) && after[1] === after[0] && after[2] === 0,
-        `💠 Ice Mirror: no attack on its turn; the next ${U.mirror.nums.hits} hits deal 0 and send ${U.mirror.nums.back}% back (${firstN.map(([w, , l]) => `${w} → 0, -${l} back`).join('; ')}); the 3rd hit is normal (${after[1]})`,
-        `hits [would, dealt, attacker lost]: ${JSON.stringify(hits)}`);
+    const capHP = Math.round(G.getMaxHP(20, 'blue', null) * U.mirror.nums.cap / 100), back = U.mirror.nums.back / 100;
+    const turns = [dice({ block: 0.05 }), dice(), dice({ block: 0.05 }), dice(), dice({ block: 0.05 }), dice()];
+    const rows = [], bad = [];
+    for (const [label, bigHits] of [['ordinary hits', false], ['big hits', true]]) {
+        const rage = fx => { if (bigHits) { castOn(fx, 'B', 'rage', 5); fx.B.buff[0].left = 99; } };
+        const ctl = scripted({ A: drake('A', 'blue'), setup: rage, turns });
+        const r = scripted({ A: drake('A', 'blue'), setup: fx => { full(fx); rage(fx); }, turns: [dice(), ...turns.slice(1)] });
+        const hits = [1, 3, 5].map(i => ({ would: ctl.turns[i].dmg, dealt: r.turns[i].dmg, lost: r.turns[i - 1].hpB - r.turns[i].hpB }));
+        hits.slice(0, U.mirror.nums.hits).forEach(h => {
+            const absorbed = Math.min(h.would, capHP);
+            if (h.dealt !== h.would - absorbed || h.lost !== Math.round(absorbed * back)) bad.push(`${label}: ${JSON.stringify(h)}, expected dealt ${h.would - absorbed}, back ${Math.round(absorbed * back)}`);
+        });
+        const after = hits[U.mirror.nums.hits];
+        if (after.dealt !== after.would || after.lost !== 0) bad.push(`${label}: hit after the mirror ${JSON.stringify(after)}`);
+        if (!isUltLine(r.turns[0], 'mirror') || r.turns[0].dmg !== null) bad.push(`${label}: turn 1 wasn't a no-attack Ice Mirror turn`);
+        if (bigHits && !hits.slice(0, U.mirror.nums.hits).every(h => h.would > capHP)) bad.push('big hits were not over the cap, so the cap was not exercised');
+        if (!bigHits && !hits.slice(0, U.mirror.nums.hits).every(h => h.would <= capHP)) bad.push('ordinary hits were over the cap');
+        rows.push(`${label}: ${hits.slice(0, U.mirror.nums.hits).map(h => `${h.would} → ${h.dealt}, -${h.lost} back`).join('; ')}`);
+    }
+    check(!bad.length, `💠 Ice Mirror: no attack on its turn; the next ${U.mirror.nums.hits} hits absorb up to ${U.mirror.nums.cap}% of max HP (${capHP}) and send ${U.mirror.nums.back}% of that back — ${rows.join(' | ')}; the 3rd hit is normal`,
+        bad.slice(0, 3).join(' | '));
 }
 // 🦇 Shadow Theft
 {
@@ -281,15 +296,18 @@ const full = fx => { fx.A.meter = METER.max; };
 }
 // 🌸 Bloom: a level-1 Green; turn 1 fills the meter, B crits on turn 2, turn 3 is Bloom
 {
+    // B's hit on turn 2 is a crit boosted by a 💢 Rage at power ×3, so A is missing more than Bloom heals (no max-HP cap)
     const A = drake('A', 'green', 1), maxA = G.getMaxHP(1, 'green', null);
-    const r = scripted({ A, setup: fx => { fx.A.meter = METER.max - 1; castOn(fx, 'A', 'poison'); }, turns: [dice(), dice({ crit: 0 }), dice(), dice()] });
+    const r = scripted({ A, setup: fx => { fx.A.meter = METER.max - 1; castOn(fx, 'A', 'poison'); castOn(fx, 'B', 'rage', 3); fx.B.buff[0].left = 99; },
+        turns: [dice(), dice({ crit: 0 }), dice(), dice()] });
     const [, t2, t3] = r.turns;
     const want = Math.round(maxA * U.bloom.nums.heal / 100);
-    const healed = t3.hpA - t2.hpA + Math.max(1, Math.round(maxA * EFFECTS.poison.nums.hp / 100));   // turn 3 starts with a Poison tick
-    const regen = t3.fx.A.buff.find(x => x.id === U.bloom.applies);
-    check(isUltLine(t3, 'bloom') && t3.dmg === null && t3.text.includes(`+${want} HP`) && t3.fx.A.debuff.length === 0 && regen && regen.left === EFFECTS.regen.count && maxA - t2.hpA > want,
-        `🌸 Bloom: +${want} HP (${U.bloom.nums.heal}% of ${maxA}, not halved: ☠️ Poison is removed first), own debuffs cleared, 💚 Regeneration gained (${regen && regen.left} turns), no attack`,
-        `text "${t3.text.slice(0, 160)}", healed ${healed}, debuffs ${JSON.stringify(t3.fx.A.debuff)}, regen ${JSON.stringify(regen)}, missing before ${maxA - t2.hpA}`);
+    const tick = Math.max(1, Math.round(maxA * EFFECTS.poison.nums.hp / 100));     // turn 3 starts with a Poison tick
+    const missing = maxA - (t2.hpA - tick);
+    const gained = t3.fx.A.buff.length;
+    check(isUltLine(t3, 'bloom') && t3.dmg === null && t3.text.includes(`+${want} HP`) && t3.hpA === t2.hpA - tick + want && t3.fx.A.debuff.length === 0 && gained === 0 && missing > want,
+        `🌸 Bloom: +${want} HP (${U.bloom.nums.heal}% of ${maxA}, not halved: ☠️ Poison is removed first), own debuffs cleared, no buff gained, no attack (A was ${missing} HP down)`,
+        `text "${t3.text.slice(0, 160)}", HP ${t2.hpA} → ${t3.hpA} (tick ${tick}), debuffs ${JSON.stringify(t3.fx.A.debuff)}, buffs ${JSON.stringify(t3.fx.A.buff)}, missing ${missing}`);
 }
 
 // ---------------------------------------------------------------- 4. The 90% cap

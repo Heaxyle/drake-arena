@@ -60,14 +60,14 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The 
 
 | Element | Passive (grows with level tier) |
 |---|---|
-| 🟥 Red | +13–18% crit, crit damage 1.85–2.05× |
-| 🟦 Blue | +5–14 defense; 8–18% chance to reflect half the damage back |
+| 🟥 Red | +13–14% crit, crit damage 1.85–2.05× |
+| 🟦 Blue | +8–14 defense; 11–18% chance to reflect half the damage back |
 | ⬛ Black | +3–10% ultra-block; +18–27% effect chance |
 | 🟨 Gold | +50–90% XP; 7–9% chance for a hit to leave the enemy at exactly 1 HP |
 | 🟪 Purple | Buffs and debuffs 25–40% stronger; +20–35% effect chance |
-| 🟩 Green | +15–35% max HP |
+| 🟩 Green | +22–34% max HP |
 
-All element numbers live in `ELEMENT_BASE` (the level-1 value) and `ELEMENT_TIERS` (the bonus at levels 5 / 10 / 15 / 20). They were tuned with a balance simulator so every element matchup stays within roughly 45–57%.
+All element numbers live in `ELEMENT_BASE` (the level-1 value) and `ELEMENT_TIERS` (the bonus at levels 5 / 10 / 15 / 20). They were tuned with a balance simulator (with the class ultimates in play) so every element matchup at levels 1, 10 and 20 stays within 45–57%, apart from a few known counters that sit within 2 points of that range (see [TESTING.md](../TESTING.md#known-counters)).
 
 ### White Dragon (streamer only)
 
@@ -123,26 +123,27 @@ The fighter card shows the meter as 5 pips labelled "СИЛА" / "POWER", with "
 
 | Element | Ultimate | What it does |
 |---|---|---|
-| 🟥 Red | ☄️ **Firestorm** (Вогняний шторм) | An attack for ×1.8 damage that can't be blocked; applies 🔥 Burn |
-| 🟦 Blue | 💠 **Ice Mirror** (Крижане дзеркало) | The next 2 hits taken deal no damage, and 60% of what they would have dealt goes back to the attacker |
-| ⬛ Black | 🦇 **Shadow Theft** (Крадіжка тіні) | Takes the opponent's buffs with their remaining counts (up to its 2-buff limit, extras are removed), then attacks; a guaranteed crit if the opponent had no buffs |
+| 🟥 Red | ☄️ **Firestorm** (Вогняний шторм) | An attack for ×1.5 damage that can't be blocked; applies 🔥 Burn |
+| 🟦 Blue | 💠 **Ice Mirror** (Крижане дзеркало) | Hits taken (2 hits left) are each absorbed up to 10% of max HP (the rest goes through), and 60% of what was absorbed goes back to the attacker |
+| ⬛ Black | 🦇 **Shadow Theft** (Крадіжка тіні) | Takes the opponent's buffs with their remaining counts (up to its 2-buff limit, extras are removed), then attacks for ×1.4 damage; a guaranteed crit if the opponent had no buffs |
 | 🟨 Gold | 🎰 **Jackpot** (Джекпот) | Three reels (💎 50%, 🪙 35%, 💀 15%): damage ×(1 + 1 per 💎); 2 or more 💀 is a miss |
-| 🟪 Purple | ✴️ **Arcane Detonation** (Арканна детонація) | An attack for ×1.2 damage plus 40% per debuff on the opponent, then those debuffs are removed |
-| 🟩 Green | 🌸 **Bloom** (Цвітіння) | Heals 25% max HP, removes its own debuffs and gains 💚 Regeneration |
+| 🟪 Purple | ✴️ **Arcane Detonation** (Арканна детонація) | An attack for ×2.2 damage plus 50% per debuff on the opponent, then those debuffs are removed |
+| 🟩 Green | 🌸 **Bloom** (Цвітіння) | Removes its own debuffs and instantly heals 25% max HP |
 
 The descriptions are the ones the game shows (the meter's tooltip), filled in from the `CLASS_ULTIMATES` numbers; `npm test` fails if this table falls out of step with them. The White Dragon has no meter and no ultimate.
 
 How ultimates fit with the rest:
 
-- **Effect power** (Purple, effect-strength titles) never scales an ultimate's own numbers. Effects an ultimate applies (Firestorm's 🔥 Burn, Bloom's 💚 Regeneration) follow the usual effect rules: the caster's effect power, the 2-per-kind limit, refresh and replacement.
+- **Effect power** (Purple, effect-strength titles) never scales an ultimate's own numbers. The effect an ultimate applies (Firestorm's 🔥 Burn) follows the usual effect rules: the caster's effect power, the 2-per-kind limit, refresh and replacement.
 - **Debuff immunity** blocks the debuff parts of an ultimate (Firestorm's Burn, Shadow Theft's theft) but never its damage.
 - **No effect cuts damage or healing by more than 90%**, whatever its power.
 - **Ultimates that attack** (Firestorm, Shadow Theft, Jackpot, Arcane Detonation) are rolled and resolved like any attack, with their extras on top: the attacker's and defender's effects, crits, armor, title abilities, sudden death, element procs and the usual cast roll all apply, and they count down "own attacks" and "hits taken" effects. **Ice Mirror and Bloom replace the attack**: no attack is made that turn, so (as on a frozen turn) only "turns" effects count down.
-- **Ice Mirror** is not a buff: Dispel and Shadow Theft can't take it. Every attack the Blue drake takes uses one of its hits, blocked or not, like any "hits taken" count. The White Dragon's hits go straight through it.
+- **Ice Mirror** absorbs each hit only up to a share of the Blue drake's max HP; the rest goes through, and what goes back to the attacker is a share of what was absorbed. It blunts a burst rather than swallowing it. It is not a buff: Dispel and Shadow Theft can't take it. Every attack the Blue drake takes uses one of its hits, blocked or not, like any "hits taken" count. The White Dragon's hits go straight through it.
 - **Shadow Theft** moves buffs before its attack, so a stolen buff (e.g. 💢 Rage) already counts for that attack. A stolen buff the thief already has merges with it (the one with more left stays). Stolen buffs fill free slots in order; any that don't fit are removed. The guaranteed crit depends on whether the target had buffs, even when immunity stops the theft.
 - **Jackpot**'s miss is an attack that deals 0 (it still counts down attack and hit effects, and never casts).
 - **Arcane Detonation** removes the debuffs it counted whether or not its hit lands.
-- **Bloom** removes its own debuffs first, then heals, so ☠️ Poison never cuts Bloom's heal.
+- **Bloom** removes its own debuffs first, then heals instantly, so ☠️ Poison never cuts Bloom's heal. It gives no 💚 Regeneration.
+- **Shadow Theft and Firestorm** each have a damage multiplier in `CLASS_ULTIMATES` (`dmgMult`).
 
 **XP:** win +40, loss +10, draw +10 each. XP only counts in ranked fights. Reaching the next level takes `100 × level^1.4` XP, up to level 20.
 
@@ -204,7 +205,8 @@ Everything is in `index.html`:
 - `titleStats`, `getMaxHP`, `getModifiedDefenses`, `getCritStats`, `getEffectMult`, `getTierMultiplier`: stat calculations
 - `handleChatMessage`: command parsing, shared by Twitch and the simulator
 - `EFFECTS`, `EFFECT_CAST`: the 12 buffs/debuffs (icon, names, description, what counts them down, numbers) and the cast rules; `getCastChance` is the cast chance
-- `checkQueue`, `runBattle`, `pickEffect`, `applyEffect`, `finishBattle`: matchmaking and the combat loop (`applyEffect` handles refresh, replacement, Dispel and immunity)
+- `CLASS_ULTIMATES`, `METER`: the six class ultimates (icon, names, numbers, description) and the Element Power meter; `ultimateFor`, `describeUltimate`, `renderPowerMeter` (the meter row on the fighter cards)
+- `checkQueue`, `runBattle`, `pickEffect`, `applyEffect`, `finishBattle`: matchmaking and the combat loop (`applyEffect` handles refresh, replacement, Dispel and immunity; `runBattle` fills the meter and plays the ultimates)
 - `addInfo`, `showStatsCard`, `showTitleRoll`, `showOddsCard`: the chat-request window
 - `renderLeaderboard`, `updateFighterCard`, `updateStatusUI`: UI rendering
 - `migrateOldSaves`, the chat simulator and page init are at the end of the script

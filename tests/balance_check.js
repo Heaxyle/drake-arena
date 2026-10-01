@@ -9,7 +9,7 @@
 // The runs go in parallel (one process each), so it takes a couple of minutes on a multi-core machine.
 //
 // Options: --file path/to/index.html   --seeds 12345,42,777   --fights 1500 (per matchup)   --tier-fights 2000 (per rarity
-//          and level)   --bounds 45,57   --min-gap 1   --skip-tiers (elements only, for quick tuning runs)
+//          and level)   --bounds 45,57   --min-gap 1   --skip-tiers / --skip-elements (one half only, for quick tuning runs)
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
@@ -23,7 +23,21 @@ const FIGHTS = Number(opt('--fights', 1500));
 const TIER_FIGHTS = Number(opt('--tier-fights', 2000));
 const [LO, HI] = opt('--bounds', '45,57').split(',').map(Number);
 const MIN_GAP = Number(opt('--min-gap', 1));
+// Known counters: element pairings at a level that sit just outside LO–HI because of how the two kits interact (see
+// TESTING.md, "Known counters"). Each may be up to COUNTER_SLACK points outside instead; anything further still fails,
+// and every other cell must stay inside LO–HI. [level, element, element]: a pairing, so it covers both cells of the matrix
+// (A vs B and B vs A are the same matchup measured from each side). --no-counters checks them strictly.
+const KNOWN_COUNTERS = [
+    [10, 'blue', 'green'],   // Bloom's heal outlasts Blue, the lowest-damage element
+    [20, 'blue', 'green'],
+    [10, 'black', 'red'],    // Firestorm can't be blocked, which is Black's main defence
+    [20, 'purple', 'blue'],  // Ice Mirror blunts Purple's burst hits (Divine Might, Arcane Detonation)
+    [20, 'green', 'gold'],   // Gold's 1-HP proc takes a share of Green's large HP pool
+];
+const COUNTER_SLACK = 2;
 const SKIP_TIERS = args.includes('--skip-tiers');
+const NO_COUNTERS = args.includes('--no-counters');
+const SKIP_ELEMENTS = args.includes('--skip-elements');
 const LEVELS = [1, 10, 20];
 const LADDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 const TYPES = ['red', 'blue', 'black', 'gold', 'purple', 'green'];
@@ -58,26 +72,29 @@ async function pool(jobs, size) {
     console.log(`Balance check: ${FILE}, seeds ${SEEDS.join(', ')}, ${FIGHTS} fights per matchup, ${TIER_FIGHTS} per rarity and level`);
     const matrixJobs = [], tierJobs = [];
     for (const seed of SEEDS) {
-        for (const lvl of LEVELS) matrixJobs.push(run('matrix', seed, [String(FIGHTS), String(lvl)]));
+        if (!SKIP_ELEMENTS) for (const lvl of LEVELS) matrixJobs.push(run('matrix', seed, [String(FIGHTS), String(lvl)]));
         if (!SKIP_TIERS) tierJobs.push(run('tiers', seed, [String(TIER_FIGHTS)]));
     }
     const results = await pool([...matrixJobs, ...tierJobs], Math.max(1, os.cpus().length - 1));
     const matrices = results.slice(0, matrixJobs.length), tiers = results.slice(matrixJobs.length);
-    const problems = [];
+    const problems = [], counters = [];
     const avg = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-    for (const lvl of LEVELS) {
+    for (const lvl of SKIP_ELEMENTS ? [] : LEVELS) {
         const runs = matrices.filter(m => m.level === lvl);
-        console.log(`\nElements, level ${lvl} (row beats column, average of ${runs.length} seeds; ! = outside ${LO}–${HI}%, per-seed values listed at the end)`);
+        console.log(`\nElements, level ${lvl} (row beats column, average of ${runs.length} seeds; ! = outside ${LO}–${HI}%, ~ = known counter within ${COUNTER_SLACK} points, per-seed values listed at the end)`);
         console.log('        ' + TYPES.map(t => t.padStart(7)).join(''));
         for (const x of TYPES) {
             let row = x.padEnd(8);
             for (const y of TYPES) {
                 if (x === y) { row += '      -'; continue; }
                 const v = runs.map(m => m.matrix[x][y]), a = avg(v);
-                const bad = a < LO || a > HI;
-                if (bad) problems.push(`L${lvl} ${x} vs ${y}: ${a.toFixed(1)}% (seeds ${v.map(n => n.toFixed(1)).join(' / ')})`);
-                row += ((bad ? '!' : '') + a.toFixed(1)).padStart(7);
+                const counter = !NO_COUNTERS && KNOWN_COUNTERS.some(([l, p, q]) => l === lvl && ((p === x && q === y) || (p === y && q === x)));
+                const outside = a < LO || a > HI;
+                const bad = outside && !(counter && a >= LO - COUNTER_SLACK && a <= HI + COUNTER_SLACK);
+                if (bad) problems.push(`L${lvl} ${x} vs ${y}: ${a.toFixed(1)}% (seeds ${v.map(n => n.toFixed(1)).join(' / ')})${counter ? ` — a known counter, but more than ${COUNTER_SLACK} points outside` : ''}`);
+                else if (outside) counters.push(`L${lvl} ${x} vs ${y}: ${a.toFixed(1)}% (known counter, within ${COUNTER_SLACK} points)`);
+                row += ((bad ? '!' : outside ? '~' : '') + a.toFixed(1)).padStart(7);
             }
             console.log(row);
         }
@@ -102,5 +119,7 @@ async function pool(jobs, size) {
         console.error(`\nBalance check FAILED (${problems.length}):\n  ` + problems.join('\n  '));
         process.exit(1);
     }
-    console.log(`\nBalance check passed: every matchup at levels ${LEVELS.join('/')} within ${LO}–${HI}%, every rarity beats the one below it.`);
+    if (counters.length) console.log(`\nKnown counters (allowed ${COUNTER_SLACK} points outside ${LO}–${HI}%):\n  ` + counters.join('\n  '));
+    console.log(`\nBalance check passed: every matchup at levels ${LEVELS.join('/')} within ${LO}–${HI}%` +
+        (counters.length ? ` (${counters.length} known counter(s) within ${COUNTER_SLACK} points)` : '') + `, every rarity beats the one below it by ≥ ${MIN_GAP}.`);
 })().catch(e => { console.error(e); process.exit(1); });

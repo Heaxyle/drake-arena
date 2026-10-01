@@ -67,6 +67,8 @@ const MUTATIONS = [
         'ultMult = ult.nums.dmgMult || 1;', 'ultMult = 1;'],
     ['Ice Mirror sends nothing back', 'Ice Mirror stops the hit but the attacker takes nothing',
         'if (back > 0) setHP(attacker, Math.max(0, hpOf(attacker) - back));', ''],
+    ['Ice Mirror ignores its cap', 'Ice Mirror absorbs the whole hit instead of at most cap% of max HP',
+        'const absorbed = Math.min(would, Math.round(maxHPOf(defender) * m.cap / 100));', 'const absorbed = would;'],
     ['Ice Mirror never runs out', "Ice Mirror's hits-left count doesn't go down",
         'defFx.mirror--;', ''],
     ['Shadow Theft ignores the buff limit', 'stolen buffs are added past the 2-buff limit',
