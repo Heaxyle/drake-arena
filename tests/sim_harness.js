@@ -7,6 +7,7 @@ const __NEUTRAL = { id: 0, name: 'neutral', icon: '', color: '#fff', rarity: 'no
 const __stripe = s => s.replace(/<[^>]+>/g, '');
 // Per-effect numbers: the game adds to effectTally (lands, damage added, damage prevented, HP healed, buffs removed)
 effectTally = {};
+ultimateTally = {};
 let __fights = 0;
 
 // How often each effect lands per fight and what it does, averaged over every fight played so far
@@ -22,7 +23,20 @@ function __effectReport() {
         console.log(`${e.icon} ${e.name.en}`.padEnd(25) + e.kind.padEnd(8) + n(t.lands) + n(t.dmg) + n(t.prevented) + n(t.healed) + '      ' +
             per(t.dmg, t.lands).slice(1) + per(t.prevented, t.lands) + per(t.healed, t.lands) + '  ' + note);
     }
+    // Ultimates: per fight = per fighter of that element (a red-vs-red fight counts twice); per use = per firing
+    console.log(`\nUltimates: fires = per fight with a drake of that element; per use: +dmg = damage it dealt (Ice Mirror: what it sent back),`);
+    console.log('prevent = damage it stopped, healed = HP restored; final blow = share of uses that killed the opponent.');
+    console.log('ultimate'.padEnd(26) + 'fires'.padStart(8) + '  per use:' + '+dmg'.padStart(7) + 'prevent'.padStart(8) + 'healed'.padStart(8) + 'final blow'.padStart(12));
+    for (const id of ULTIMATE_IDS) {
+        const u = CLASS_ULTIMATES[id], t = ultimateTally[id] || { fires: 0, dmg: 0, prevented: 0, healed: 0, kills: 0 };
+        const fights = __elementFights[u.element] || 0;
+        console.log(`${u.icon} ${u.name.en}`.padEnd(25) + (fights ? t.fires / fights : 0).toFixed(2).padStart(8) + '          ' +
+            per(t.dmg, t.fires).slice(1) + per(t.prevented, t.fires) + per(t.healed, t.fires) + ((t.fires ? 100 * t.kills / t.fires : 0).toFixed(1) + '%').padStart(12));
+    }
+    console.log(`Average fight length: ${(__turnsTotal / Math.max(1, __fights)).toFixed(1)} turns`);
 }
+const __elementFights = {};
+let __turnsTotal = 0;
 
 function __fight(a, b) {
     const db = getDragonDB();
@@ -34,11 +48,13 @@ function __fight(a, b) {
     runBattle('A', '#fff', 'B', '#fff', false);
     __drain();
     __fights++;
+    for (const t of [a.type, b.type]) __elementFights[t] = (__elementFights[t] || 0) + 1;
     const lines = __LOG.slice(start).map(__stripe);
     if (__LOG.length > 20000) __LOG.length = 0;
     const err = lines.find(l => /помилка симуляції|simulation error/i.test(l));
     if (err) throw new Error('battle error: ' + err);
     const turns = lines.filter(l => l.startsWith('[Хід') || l.startsWith('[Turn')).length;
+    __turnsTotal += turns;
     const end = lines.find(l => /Переміг|Переможець|нічиєю|Winner|Draw between/.test(l)) || '';
     const winner = /(Переміг|Переможець|Winner):? @A\b/.test(end) ? 'A' : /(Переміг|Переможець|Winner):? @B\b/.test(end) ? 'B' : 'draw';
     return { winner, turns, timeout: lines.some(l => /Час вийшов|Time out/.test(l)) };

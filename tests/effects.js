@@ -36,7 +36,7 @@ const _warn = console.warn; console.warn = () => {};
 // applyEffect get wrapped below; runBattle calls them by name)
 eval(gameScript(FILE) + `
 ;globalThis.__game = {
-    EFFECTS, EFFECT_IDS, BUFF_IDS, DEBUFF_IDS, EFFECT_CAST, TITLES_DB, DRAKE_TYPES, VIEWER_DRAKE_TYPES, DRAGON_TYPE, DRAGON_TITLE_ID,
+    EFFECTS, EFFECT_IDS, BUFF_IDS, DEBUFF_IDS, EFFECT_CAST, CLASS_ULTIMATES, ULTIMATE_IDS, ultLabel, TITLES_DB, DRAKE_TYPES, VIEWER_DRAKE_TYPES, DRAGON_TYPE, DRAGON_TITLE_ID,
     applyEffect: (...a) => applyEffect(...a), pickEffect, countDownEffects, newFxState, describeEffect, effectLeftText, effectChipText,
     fxNum, getEffectMult, ELEMENT_BASE, getTierMultiplier, getRequiredXP, getDragonDB, saveDragonDB,
     runBattle: (...a) => runBattle(...a),
@@ -133,19 +133,23 @@ const EFFECT_TEXT_ALLOWLIST = [
     { line: 'id: 152, rarity:', terms: ['🔥'], why: 'title icon: Hot Take' },
     { line: 'id: 160, rarity:', terms: ['🍀'], why: 'title icon: Four-Leaf Clover' },
     { line: 'id: 176, rarity:', terms: ['🛡'], why: 'title icon: Unbreakable Moderator' },
+    { line: 'id: 153, rarity:', terms: ['🎰'], why: 'title icon: Roulette Lucky Charm (not the Jackpot ultimate)' },
+    { line: 'id: 175, rarity:', terms: ['🦇'], why: 'title icon: Stream Night Vampire (not the Shadow Theft ultimate)' },
+    { line: "'🎰 Шанси рулетки титулів'", terms: ['🎰'], why: '!odds card heading (title roulette), both languages' },
     { line: "legendary: '🌟 ", terms: ['🌟', '🔥'], why: 'title-roll rarity banners (legendary 🌟, mythic 🔥), both languages' },
     { line: 'ПЕРЕРОДИВСЯ!', terms: ['🔥'], why: '!reroll announcement (uk)' },
     { line: 'REBORN!', terms: ['🔥'], why: '!reroll announcement (en)' },
     { line: 'активує Щит надії', terms: ['Щит'], why: "Guardian Angel title ability: Щит надії (not the Shield effect)" },
     { line: 'activates Shield of Hope', terms: ['Shield'], why: 'Guardian Angel title ability: Shield of Hope (not the Shield effect)' },
 ];
-console.log('\nEffect names and icons only in EFFECTS');
+console.log('\nEffect and ultimate names and icons only in their tables (EFFECTS, CLASS_ULTIMATES)');
 {
     const lines = html.split(/\r?\n/);
-    const start = lines.findIndex(l => l.includes('const EFFECTS = {'));
-    const end = lines.findIndex((l, i) => i > start && l.trim() === '};');
+    const tableLines = name => { const s = lines.findIndex(l => l.includes(`const ${name} = {`)); return [s, lines.findIndex((l, i) => i > s && l.trim() === '};')]; };
+    const [start, end] = tableLines('EFFECTS'), [uStart, uEnd] = tableLines('CLASS_ULTIMATES');
     const bare = s => s.replace(/️/g, '');                       // 🛡️ and 🛡 are the same icon
-    const terms = [...new Set(EFFECT_IDS.flatMap(id => [EFFECTS[id].name.uk, EFFECTS[id].name.en, bare(EFFECTS[id].icon)]))];
+    const terms = [...new Set([...EFFECT_IDS.map(id => EFFECTS[id]), ...G.ULTIMATE_IDS.map(id => G.CLASS_ULTIMATES[id])]
+        .flatMap(x => [x.name.uk, x.name.en, bare(x.icon)]))];
     const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     // Whole words only (so "blockedByShadow" or "Розвіювання" inside another word don't count); icons anywhere
     const words = terms.filter(t => /\p{L}/u.test(t));
@@ -154,7 +158,7 @@ console.log('\nEffect names and icons only in EFFECTS');
     const used = new Set(), bad = [];
     let hits = 0;
     lines.forEach((raw, i) => {
-        if (start !== -1 && i >= start && i <= end) return;
+        if ((start !== -1 && i >= start && i <= end) || (uStart !== -1 && i >= uStart && i <= uEnd)) return;
         const l = bare(raw.replace(/<!--.*?-->/g, '').replace(/\/\*.*?\*\//g, '').replace(/(^|[\s;{}),])\/\/.*$/, '$1'));
         const found = [...new Set([...(l.match(wordRe) || []), ...iconTerms.filter(t => l.includes(t))])];
         if (!found.length) return;
@@ -165,8 +169,8 @@ console.log('\nEffect names and icons only in EFFECTS');
         if (unlisted.length) bad.push(`line ${i + 1}: ${unlisted.join(', ')} in "${raw.trim().slice(0, 110)}"`);
     });
     const stale = EFFECT_TEXT_ALLOWLIST.filter(e => !used.has(e));
-    check(start !== -1 && !bad.length, `no effect name or icon outside EFFECTS (${hits} unrelated uses, all on the allowlist with a reason)`,
-        `effect name/icon outside EFFECTS — use fxName()/EFFECTS, or allowlist the line with a reason: ${bad.slice(0, 5).join(' | ')}`);
+    check(start !== -1 && uStart !== -1 && !bad.length, `no effect or ultimate name or icon outside their tables (${hits} unrelated uses, all on the allowlist with a reason)`,
+        `effect/ultimate name or icon outside EFFECTS / CLASS_ULTIMATES — use fxName()/ultName(), or allowlist the line with a reason: ${bad.slice(0, 5).join(' | ')}`);
     check(!stale.length, `every allowlist entry still matches a line (${EFFECT_TEXT_ALLOWLIST.length} entries)`,
         `allowlist entries that match nothing any more (remove them): ${stale.map(e => e.line).join(' | ')}`);
 }
@@ -513,7 +517,7 @@ for (const [pLabel, pCaster] of POWERS) {
 // the attacker attacking ('attacks' −1), the defender being attacked ('hits' −1) — or, on a frozen turn, only the
 // attacker's 'turns' effects and Frost itself. An effect may only vanish when its count reached 0.
 console.log(`\nReal fights (${FIGHTS} per language, all elements, ability titles, the White Dragon)`);
-const ID_RE = new RegExp(`\\b(${EFFECT_IDS.join('|')}|stoneskin|armorbreak|divinepower)\\b`);
+const ID_RE = new RegExp(`\\b(${[...EFFECT_IDS, ...G.ULTIMATE_IDS].join('|')}|stoneskin|armorbreak|divinepower)\\b`);
 const types = G.VIEWER_DRAKE_TYPES.map(d => d.type);
 const mechTitles = ['opening_buff', 'chaotic_charge', 'cat_keyboard', 'debuff_immunity', 'thorns', 'lifesteal'].map(titleWith).filter(Boolean);
 const effectTitle = G.TITLES_DB.find(t => t.bonus && t.bonus.stats && t.bonus.stats.buffEff);
@@ -530,7 +534,7 @@ G.wrapApplyEffect((r, a, targetBuffs) => {
     else if (!targetBuffs) { if (r === 'dispelled') dispel.wasted++; else dispel.recast++; }
 });
 
-const stats = { turns: 0, checked: 0, frozen: 0, wrong: [], idLeaks: [], seen: new Set(), immuneHad: [], unitsSeen: { attacks: 0, hits: 0, turns: 0 } };
+const stats = { turns: 0, checked: 0, frozen: 0, wrong: [], idLeaks: [], seen: new Set(), ultimates: new Set(), immuneHad: [], unitsSeen: { attacks: 0, hits: 0, turns: 0 } };
 let current = null;      // { A, B, immune: Set(names) }
 G.wrapAddLog(raw => {
     if (!current) return;
@@ -544,14 +548,22 @@ G.wrapAddLog(raw => {
     const attacker = m[2];
     const frozen = line.includes(EFFECTS.frost.name.uk + ' —') || line.includes(EFFECTS.frost.name.en + ' —');
     if (frozen) stats.frozen++;
+    // Ultimate turns: Ice Mirror and Bloom make no attack (only the owner's turn effects go down, as on a frozen turn);
+    // Shadow Theft moves buffs between fighters, Arcane Detonation removes the defender's debuffs, Bloom the owner's
+    const ult = G.ULTIMATE_IDS.find(id => line.includes(G.ultLabel(id, 'uk')) || line.includes(G.ultLabel(id, 'en')));
+    if (ult) stats.ultimates.add(ult);
+    const noAttack = frozen || (ult && !G.CLASS_ULTIMATES[ult].attacks);
     const now = snap();
     for (const [inst, before] of baseline) {
         const e = EFFECTS[before.id];
         const own = before.owner === attacker;
-        const d = frozen ? (own && (e.lasts === 'turns' || before.id === 'frost') ? 1 : 0)
-                         : (own ? (e.lasts === 'turns' || e.lasts === 'attacks' ? 1 : 0) : (e.lasts === 'hits' ? 1 : 0));
+        if (ult === 'theft' && e.kind === 'buff') continue;
+        const mayVanish = (ult === 'detonation' && !own && e.kind === 'debuff') || (ult === 'bloom' && own && e.kind === 'debuff');
+        const d = noAttack ? (own && (e.lasts === 'turns' || (frozen && before.id === 'frost')) ? 1 : 0)
+                           : (own ? (e.lasts === 'turns' || e.lasts === 'attacks' ? 1 : 0) : (e.lasts === 'hits' ? 1 : 0));
         const want = before.left - d;
         const after = now.get(inst);
+        if (mayVanish && after === undefined) continue;
         stats.checked++;
         if (d) stats.unitsSeen[e.lasts]++;
         if (after === undefined ? want > 0 : after.left !== want)
