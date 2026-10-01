@@ -3,7 +3,7 @@
 Drake Arena is a single HTML file with no build step, so the tests work on that file as it is. The testing has two layers:
 
 1. **Effect rules, ultimates and balance simulation** (`tests/effects.js`, `tests/ultimates.js`, `tests/balance.js` + `tests/sim_harness.js`) run the real game code in Node. The effect and ultimate tests check the buff/debuff, meter and ultimate rules; the balance sim plays thousands of fights. Together they answer: *do the rules work as written, is the game fair, and does combat ever crash?*
-2. **UI smoke test** (`tests/ui.js`) opens the page in headless Chromium, plays it through fake chat and checks the layout rules. It answers: *does it work and look right on stream?*
+2. **UI smoke test and layout test** (`tests/ui.js`, `tests/layout.js`) open the page in headless Chromium, play it through fake chat and check the layout rules. They answer: *does it work and look right on stream?*
 
 Both run in CI on every push and pull request (`.github/workflows/ci.yml`).
 
@@ -19,7 +19,9 @@ flowchart TD
     G -->|a matchup outside 40–60%| X
     G -->|all matchups within 40–60%| E["Layer 2: UI smoke test<br/>npm run test:ui showcase"]
     E -->|a check failed| X
-    E -->|all checks passed| P[CI passes]
+    E -->|all checks passed| L["Layer 2: layout test<br/>npm run test:layout"]
+    L -->|a check failed| X
+    L -->|all checks passed| P[CI passes]
     E -.->|always| S[Upload tests/screenshots<br/>as a build artifact]
     X -.-> S
 ```
@@ -346,7 +348,7 @@ First it checks the White Dragon is streamer-only: with no streamer set, `!др�
 | `!титул` gives the viewer a title | The channel-point reward path not reaching the title roll |
 | Every fight finishes within 5 minutes of game time and logs no "Critical simulation error" | Fights that hang (a timer never fires, the queue never ends the battle) or crash partway through |
 | The page language is switched before each duel, so the card checks below run in **both languages** (each must show chips and a full meter at least once in each); then the longest chips and the longest meter row ("СИЛА ●●●●● ✦ ГОТОВО 💠 ще 2 удари") are put on a real card in each language and must fit | Ukrainian text, which runs longer, getting cut off or overflowing |
-| The Element Power meter row on each card sits inside its gap (no overlap with the info line, the stats box or the sprite), never cut off; during a fight it shows 5 pips with as many lit as the meter, the label in the page language ("СИЛА" / "POWER"), and "✦ ГОТОВО" / "✦ READY" exactly when it's full; the White Dragon's row stays empty | The meter pushing the card layout around, pips out of step with the fight, READY shown at the wrong time |
+| The Element Power meter row on each card sits between the effect chips and the HP row (no overlap with either, or with the sprite), never cut off; during a fight it shows 5 pips with as many lit as the meter, the label in the page language ("СИЛА" / "POWER"), and "✦ ГОТОВО" / "✦ READY" exactly when it's full; the White Dragon's row stays empty | The meter pushing the card layout around, pips out of step with the fight, READY shown at the wrong time |
 | Every buff/debuff chip seen during the fights reads "name · what's left" (`🔥 Burn · 3 turns left`, `💢 Лють · ще 2 атаки`) and isn't cut off by its ellipsis | Chips back to `(3t)` shorthand, or text too long for the card |
 | HP bars never move vertically (sampled every 500 ms, tolerance 0.5 px) | Buff/debuff icons, long names or title badges pushing the card layout around (every card block has a fixed height to prevent this) |
 | Every drake type's sprite painted pixels on its fighter-card canvas | Broken sprite data, a missing palette, a hidden canvas |
@@ -356,6 +358,27 @@ First it checks the White Dragon is streamer-only: with no streamer set, `!др�
 | Old-save migration: a second page loads a save from before the Green Drake, then reloads | Viewers' `'white'` not becoming `'green'` (with XP kept), the streamer's dragon being converted, title 999 left on a non-dragon, or a second load changing the save again (not idempotent) |
 
 It also saves screenshots at each stage to `tests/screenshots/` (`showcase-01-registered.png` … `showcase-07-all-fights-done.png`). CI uploads them as the `ui-screenshots` artifact even when the run fails, so you can see what the overlay looked like. Some layout bugs are easier to spot by eye than to assert, and the screenshots are how those get found.
+
+## Layer 2: layout test
+
+`layout.js` checks the overlay against the redesign (`design/redesign-reference.html`) at 1920×1080, in **both languages**. Like `ui.js` it uses a fake clock; it waits about 450 ms of real time before measuring, because CSS transitions (the HP bar, a chat card fading in) run on real time.
+
+| Check | What it catches |
+|---|---|
+| **Worst case fits**: both cards get the longest name (25 wide letters, Twitch's maximum), the longest title and drake name in that language, the four longest chips, a full СИЛА meter with Ice Mirror's hits, 9999/9999 HP; the leaderboard is full and a stats card is in the chat panel. Then nothing overlaps its siblings (arena blocks, cards, card rows, header, queue, side panels, leaderboard rows, chat cards), no text box is cut off (wider or taller than its box), and nothing sticks out of its panel. The arena must be at 500,150 (920 wide) and the side column at 1452,150 (428 wide) | Long text overflowing, card rows colliding, the layout drifting from the reference |
+| The СИЛА row on every card sits between the chips and the HP bar; the White Dragon's card has none, and its 3× sprite still fits | The meter in the wrong place, or on the dragon |
+| **Fonts blocked**: the same checks with `fonts.googleapis.com` / `fonts.gstatic.com` blocked (and Rubik confirmed not loaded) | The fallback font being wider than Rubik and breaking the fit |
+| **`?obs`**: html, body and stage are transparent, and no visible element is in the camera column (x < 476) or the notification strip above the arena (y < 118) | Something drawn over the streamer's camera or alerts |
+| **Without `?obs`**: the language button, test menu (opened) and chat simulator sit inside the camera column; the 🎬 Demo chip registers four drakes and starts a fight; typing a command and pressing Send registers a drake; the test menu opens and "Run test battle" starts a fight; the language button switches to English; the camera column never overlaps the arena or side column | Demo controls broken, or covering the overlay |
+| At 1366×768 and 1280×720 the whole stage is on screen | `fitStage` not scaling the stage down |
+| **"Як грати" / "How to play"** is the only card on an empty chat panel, disappears while a reply is shown and comes back once the last reply fades; every command on it, sent through the chat handler, gets a reply or changes the game | The card missing, staying under replies, or listing a command the game doesn't know |
+| **Name contrast**: viewers with very dark Twitch colours (#000000, #0000ff, …) and a streamer play through; every player name on screen (cards, queue, leaderboard, streamer card, chat, log, header) is at least 4.5:1 against its blended background | Dark names unreadable on the dark overlay |
+| **Result**: after a fight the winner's card has the gold frame and "ПЕРЕМОЖЕЦЬ" / "WINNER", the loser's is greyed with "НОКАУТ" / "KNOCKED OUT", the status plate names the winner; a draw marks neither card | Wrong or untranslated labels, the wrong card marked |
+| No page errors | Exceptions from the new rendering code |
+
+Screenshots: `layout-worst-{uk,en}[-nofonts].png`, `layout-obs-{uk,en}.png` (transparent), `layout-1366x768.png`, `layout-result-{uk,en}.png`.
+
+Text that is still too wide at its smallest allowed size is squeezed sideways (`fitText` wraps it in a `.squeeze` span with `scaleX`). `scrollWidth` ignores transforms, so the test measures squeezed text as drawn.
 
 ## Running locally
 
@@ -373,6 +396,7 @@ npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)
 npm run test:ui showcase               # UI smoke test + screenshots in tests/screenshots/
+npm run test:layout                    # 1920×1080 layout test, both languages (~1 min)
 
 node tests/balance.js matrix 300 20 --seed 42    # rerun with another seed
 node tests/balance.js bonuses 600                # every title bonus vs Common

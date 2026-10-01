@@ -78,7 +78,7 @@ function measureBars() {
 function infoFeedProblems() {
     const out = [];
     const feed = document.getElementById('info-feed');
-    const col = feed.closest('.leaderboard-container');
+    const col = feed.closest('.panel');
     const f = feed.getBoundingClientRect(), c = col.getBoundingClientRect();
     if (feed.scrollHeight > feed.clientHeight + 1) out.push(['cards clipped at the bottom', `content ${feed.scrollHeight}px tall, only ${feed.clientHeight}px fit`]);
     if (feed.scrollWidth > feed.clientWidth + 1) out.push(['content too wide', `content ${feed.scrollWidth}px wide, only ${feed.clientWidth}px fit`]);
@@ -97,18 +97,19 @@ function effectChips() {
     return [...document.querySelectorAll('#status-p1 .status-item, #status-p2 .status-item')].map(c => [c.innerText.trim(), c.scrollWidth > c.clientWidth + 1]);
 }
 
-// Runs in the page: the Element Power meter rows — where they sit relative to their neighbours and the sprite, their
+// Runs in the page: the Element Power meter rows — where they sit relative to their neighbours (the chips above, the HP
+// row below) and the sprite, their
 // text, whether it's cut off, and the meter value (from the fight state)
 function powerMeters() {
     return ['p1', 'p2'].map(p => {
         const row = document.getElementById(`power-${p}`), r = row.getBoundingClientRect();
-        const info = document.getElementById(`info-${p}`).getBoundingClientRect(), stats = document.getElementById(`stats-sub-${p}`).getBoundingClientRect();
+        const chips = document.getElementById(`status-${p}`).getBoundingClientRect(), hp = row.parentElement.querySelector('.fc-hp').getBoundingClientRect();
         const sprite = row.parentElement.querySelector('.sprite-wrap').getBoundingClientRect();
         const content = [...row.children].reduce((m, c) => Math.max(m, c.getBoundingClientRect().right), r.left);
         const name = document.getElementById(`name-${p}`).innerText.replace('@', '').trim();
         const st = isBattleRunning && typeof battleFx !== 'undefined' && battleFx && battleFx[name];   // between fights the cards are idle
         return { p, text: row.innerText.replace(/\s+/g, ' ').trim(), pips: row.querySelectorAll('.pm-pip').length, on: row.querySelectorAll('.pm-pip.on').length,
-                 meter: st ? st.meter : null, overlapsInfo: r.top < info.bottom - 0.5, overlapsStats: r.bottom > stats.top + 0.5,
+                 meter: st ? st.meter : null, overlapsChips: r.height > 0 && r.top < chips.bottom - 0.5, overlapsHp: r.height > 0 && r.bottom > hp.top + 0.5,
                  overlapsSprite: content > sprite.left + 0.5 && r.bottom > sprite.top && r.top < sprite.bottom, cut: row.scrollWidth > row.clientWidth + 1 };
     });
 }
@@ -217,7 +218,7 @@ async function testVersion(browser, key) {
                 chipLangs.set(text, lang);
             }
             for (const m of await page.evaluate(powerMeters)) {
-                if (m.overlapsInfo || m.overlapsStats || m.overlapsSprite) meterIssues.add(`${label}: #power-${m.p} overlaps ${[m.overlapsInfo && 'the info line', m.overlapsStats && 'the stats box', m.overlapsSprite && 'the sprite'].filter(Boolean).join(' and ')}`);
+                if (m.overlapsChips || m.overlapsHp || m.overlapsSprite) meterIssues.add(`${label}: #power-${m.p} overlaps ${[m.overlapsChips && 'the effect chips', m.overlapsHp && 'the HP row', m.overlapsSprite && 'the sprite'].filter(Boolean).join(' and ')}`);
                 if (m.cut) meterIssues.add(`${label}: #power-${m.p} text cut off ("${m.text}")`);
                 if (m.meter === null || m.pips === 0) continue;   // White Dragon (no meter) or no fight state yet
                 meterTexts.add(m.text);
@@ -383,7 +384,7 @@ async function testVersion(browser, key) {
         }, lang);
         const meterIssue = (await page.evaluate(powerMeters))[0];
         const bad = worst.chips.filter(c => c.cut).map(c => c.text);
-        if (worst.chips.length !== 4 || bad.length || worst.meterCut || meterIssue.overlapsInfo || meterIssue.overlapsStats || meterIssue.overlapsSprite)
+        if (worst.chips.length !== 4 || bad.length || worst.meterCut || meterIssue.overlapsChips || meterIssue.overlapsHp || meterIssue.overlapsSprite)
             fail(`[${lang}] worst-case card text: ${bad.length ? `chips cut off: ${bad.join(' | ')}` : ''} ${worst.meterCut ? `meter row cut off: "${worst.meter}"` : ''} ${worst.chips.length !== 4 ? `${worst.chips.length} chips shown` : ''}`);
         else pass(`[${lang}] worst-case card text fits: ${worst.chips.map(c => `"${c.text}"`).join(', ')}; meter "${worst.meter}"`);
     }

@@ -2,7 +2,7 @@
 
 A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a drake, pick an element, queue up and watch turn-based auto-battles play out on stream. It's a single HTML file with no build step and no backend.
 
-**Try it without Twitch:** open `index.html` in a browser and use the **Chat Simulator** under the arena. Type commands as any viewer name, or press **🎬 Demo** to have four viewers join and fight.
+**Try it without Twitch:** open `index.html` in a browser and use the **Chat Simulator** in the left column. Type commands as any viewer name, or press **🎬 Demo** to have four viewers join and fight.
 
 ![Drake Arena screenshot](screenshot.png)
 
@@ -16,6 +16,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 - **Ranked queue** with level-based matchmaking, plus friendly duels that give no XP
 - **Progression:** XP, levels 1–20 and a win/loss leaderboard, saved in `localStorage`
 - **Channel-point rewards** for title rolls and element rerolls
+- **1920×1080 overlay** with pixel-art gold frames: the arena and a side column (streamer card, top drakes, chat replies) on the right, the camera column and the strip above the arena left free. Outside OBS the demo controls sit in the camera column and the whole stage scales down to fit the window
 - **Ukrainian / English** interface and commands
 - **Test panel:** set up any two drakes at any level with any title and run a fight
 - **Chat simulator** that feeds the same handler as real Twitch messages
@@ -29,7 +30,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 2. **OBS:** add a Browser Source pointing to the file with `?obs` on the end. For example:
    `file:///C:/DrakeArena/index.html?obs&lang=en`
 
-   `?obs` makes the background transparent and hides the simulator, test panel and buttons. `lang` can be `en` or `uk`.
+   `?obs` makes the background transparent and hides the simulator, test panel and buttons (the left column stays empty for your camera, and the strip above the arena for alerts). `lang` can be `en` or `uk`.
 3. *(Optional)* Set the streamer who owns the White Dragon. Either set it in the script:
    ```js
    let STREAMER_USER = "yourname";
@@ -71,7 +72,7 @@ All element numbers live in `ELEMENT_BASE` (the level-1 value) and `ELEMENT_TIER
 
 ### White Dragon (streamer only)
 
-`!drake white` / `!дрейк білий` works only for the user in `STREAMER_USER`; anyone else gets a refusal in the chat-request window, and `!reroll white` is refused the same way. The White Dragon uses a bigger 60×42 wyvern sprite (drakes are 48×36; all sprites face left and are shown at 2×) and is deliberately a one-sided spectacle, not a balanced element:
+`!drake white` / `!дрейк білий` works only for the user in `STREAMER_USER`; anyone else gets a refusal in the chat-request window, and `!reroll white` is refused the same way. The White Dragon uses a bigger 60×42 wyvern sprite (drakes are 48×36; all sprites face left and are shown at 3× on the fighter cards) and is deliberately a one-sided spectacle, not a balanced element:
 
 - Starts at level 20 with the special title 👑 **Sovereign of the Aether** / **Владика Етеру** (Divine rarity, never rolled by `!title`, and `!title` is refused for the dragon)
 - 99,999 HP, 100% defense, 100% crit at ×100, 100% effect chance
@@ -208,7 +209,7 @@ Everything is in `index.html`:
 - `CLASS_ULTIMATES`, `METER`: the six class ultimates (icon, names, numbers, description) and the Element Power meter; `ultimateFor`, `describeUltimate`, `renderPowerMeter` (the meter row on the fighter cards)
 - `checkQueue`, `runBattle`, `pickEffect`, `applyEffect`, `finishBattle`: matchmaking and the combat loop (`applyEffect` handles refresh, replacement, Dispel and immunity; `runBattle` fills the meter and plays the ultimates)
 - `addInfo`, `showStatsCard`, `showTitleRoll`, `showOddsCard`: the chat-request window
-- `renderLeaderboard`, `updateFighterCard`, `updateStatusUI`: UI rendering
+- `renderLeaderboard`, `updateFighterCard`, `updateStatusUI`: UI rendering; `renderStreamerCard`, `renderHowTo`, `setArenaState` (the header), `renderResultTags` (winner/loser cards); `nameColor` (minimum name brightness), `fitText` (shrinks long text), `fitStage` (scales the stage outside OBS)
 - `migrateOldSaves`, the chat simulator and page init are at the end of the script
 
 Save data lives in the browser's `localStorage` under the keys `drake_arena_showcase_db` and `drake_arena_showcase_stats` (plus `drake_arena_showcase_streamer` for the Test Settings streamer). To reset, clear site data. Saves from older versions are upgraded automatically on load: titles keep their ID and pick up the new names and bonuses. `'white'` used to be the viewers' White Drake, so any White Drake that doesn't belong to the streamer becomes a Green Drake with the same stats and XP, and title 999 is re-rolled on anything that isn't the dragon. The upgrade is idempotent: running it again changes nothing.
