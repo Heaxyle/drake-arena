@@ -374,9 +374,13 @@ It also saves screenshots at each stage to `tests/screenshots/` (`showcase-01-re
 | **"Як грати" / "How to play"** is the only card on an empty chat panel, disappears while a reply is shown and comes back once the last reply fades; every command on it, sent through the chat handler, gets a reply or changes the game | The card missing, staying under replies, or listing a command the game doesn't know |
 | **Name contrast**: viewers with very dark Twitch colours (#000000, #0000ff, …) and a streamer play through; every player name on screen (cards, queue, leaderboard, streamer card, chat, log, header) is at least 4.5:1 against its blended background | Dark names unreadable on the dark overlay |
 | **Result**: after a fight the winner's card has the gold frame and "ПЕРЕМОЖЕЦЬ" / "WINNER", the loser's is greyed with "НОКАУТ" / "KNOCKED OUT", the status plate names the winner; a draw marks neither card | Wrong or untranslated labels, the wrong card marked |
+| **HP bar colour** on both cards, either side of each threshold: green at 100% and 50.1%, yellow at 50%, 25.1% and 25%, red at 24.9%, 0.1% and 0% | A threshold off by one, or one card coloured differently |
+| **Fight type** in the header, in both languages: idle, then a ranked fight (`!черга`), a friendly duel (`!бій` / `!прийняти`) and a test battle (button) each show the right name during the fight and "name · N turns" after; the turn-count word is right for 1, 2, 4, 5, 11, 12, 14, 21, 22, 25 and 30 (хід / ходи / ходів) | Wrong or untranslated fight names, Ukrainian plural forms |
+| **Frame colours**: the Gold drake's frame differs in hue by at least 10° from the gold winner and arena frames; every element frame's light edge, and the Black drake's dark edge, is at least 3:1 against the dark panel | A drake frame that reads as "winner", or vanishes on the dark overlay |
+| **Review sheet** (`layout-review-cards.png`): the fighter card for every element and the White Dragon, plus a winner (Gold drake) and a loser (Black drake), in both languages, on the arena panel inside the arena frame | Nothing by itself: it's for checking by eye |
 | No page errors | Exceptions from the new rendering code |
 
-Screenshots: `layout-worst-{uk,en}[-nofonts].png`, `layout-obs-{uk,en}.png` (transparent), `layout-1366x768.png`, `layout-result-{uk,en}.png`.
+Screenshots: `layout-worst-{uk,en}[-nofonts].png`, `layout-obs-{uk,en}.png` (transparent), `layout-1366x768.png`, `layout-result-{uk,en}.png`, `layout-review-cards.png`.
 
 Text that is still too wide at its smallest allowed size is squeezed sideways (`fitText` wraps it in a `.squeeze` span with `scaleX`). `scrollWidth` ignores transforms, so the test measures squeezed text as drawn.
 

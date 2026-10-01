@@ -372,6 +372,171 @@ async function layoutChecks(browser, lang, blockFonts) {
             check(draw.every(c => !/is-winner|is-loser/.test(c)), `[${lang}] a draw marks neither card`, draw.join(' | '));
             await context.close();
         }
+        console.log('\nHP bar colour at the thresholds');
+        {
+            const { page, context } = await open(browser, { lang: 'uk' });
+            // Green above 50%, yellow from 25% up to 50%, red below 25%: both sides of each threshold, on both cards
+            const cases = [[1000, 'green'], [501, 'green'], [500, 'yellow'], [251, 'yellow'], [250, 'yellow'], [249, 'red'], [1, 'red'], [0, 'red']];
+            const RGB = { green: 'rgb(61, 220, 132)', yellow: 'rgb(255, 197, 61)', red: 'rgb(255, 93, 82)' };
+            const wrong = [];
+            for (let i = 0; i < cases.length; i++) {
+                const [hp1, want1] = cases[i], [hp2, want2] = cases[cases.length - 1 - i];
+                await page.evaluate(([a, b]) => updateUIHP(a, 1000, b, 1000), [hp1, hp2]);
+                await settle(page);   // the colour fades over 0.3 s of real time
+                const got = await page.evaluate(() => ['p1', 'p2'].map(p => getComputedStyle(document.getElementById(`bar-${p}`)).backgroundColor));
+                if (got[0] !== RGB[want1]) wrong.push(`p1 at ${hp1 / 10}%: ${got[0]}, expected ${want1}`);
+                if (got[1] !== RGB[want2]) wrong.push(`p2 at ${hp2 / 10}%: ${got[1]}, expected ${want2}`);
+            }
+            check(!wrong.length, `HP bars on both cards: green at 100% and 50.1%, yellow at 50%, 25.1% and 25%, red at 24.9%, 0.1% and 0%`, wrong.join(' | '));
+            await context.close();
+        }
+
+        console.log('\nFight type in the header');
+        const wordEn = n => n === 1 ? 'turn' : 'turns';
+        const wordUk = n => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'хід' : (a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'ходи' : 'ходів'); };
+        const FIGHT = {
+            uk: { idle: 'Арена чекає на бійців', ranked: '🏆 Рейтинговий бій', friendly: '🤝 Товариська дуель', word: wordUk },
+            en: { idle: 'The arena awaits fighters', ranked: '🏆 Ranked battle', friendly: '🤝 Friendly duel', word: wordEn },
+        };
+        for (const lang of ['uk', 'en']) {
+            const { page, context } = await open(browser, { lang });
+            const W = FIGHT[lang], uk = lang === 'uk';
+            const header = () => page.evaluate(() => ({ type: document.getElementById('fight-type').textContent, shown: document.getElementById('fight-type').innerText,
+                plate: document.getElementById('status-plate').textContent }));
+            const idle = await header();
+            check(idle.type === W.idle && idle.shown === W.idle.toUpperCase(), `[${lang}] idle: "${idle.shown}"`, JSON.stringify(idle));
+            await page.evaluate(uk => {
+                const say = (u, m) => handleChatMessage('#test', { username: u, color: '#ff7f50' }, m, false);
+                ['alpha', 'omega', 'gamma', 'delta'].forEach((u, i) => say(u, (uk ? '!дрейк ' : '!drake ') + (uk ? ['червоний', 'синій', 'зелений', 'золотий'] : ['red', 'blue', 'green', 'gold'])[i]));
+            }, uk);
+            // Plays a fight started by start(), returning the header seen during it and at the end
+            const play = async start => {
+                await page.evaluate(start, uk);
+                let during = null;
+                for (let i = 0; i < 120; i++) {
+                    await page.clock.runFor(1500);
+                    const h = await header();
+                    if (!during && /\d+ \/ 30/.test(h.plate)) during = h;
+                    if (during && !(await page.evaluate('isBattleRunning'))) break;
+                }
+                await page.clock.runFor(300);
+                return { during, after: await header() };
+            };
+            const kinds = [
+                ['ranked (!черга / !queue)', W.ranked, uk => { handleChatMessage('#test', { username: 'alpha', color: '#ff7f50' }, uk ? '!черга' : '!queue', false); handleChatMessage('#test', { username: 'omega', color: '#ff7f50' }, uk ? '!черга' : '!queue', false); }],
+                ['friendly duel (!бій / !battle)', W.friendly, uk => { handleChatMessage('#test', { username: 'gamma', color: '#ff7f50' }, uk ? '!бій @delta' : '!battle @delta', false); handleChatMessage('#test', { username: 'delta', color: '#ff7f50' }, uk ? '!прийняти' : '!accept', false); }],
+                ['test battle (button)', W.friendly, () => testBattle()],
+            ];
+            for (const [label, want, start] of kinds) {
+                const { during, after } = await play(start);
+                const turns = after && /· (\d+) /.exec(after.type);
+                const n = turns ? +turns[1] : NaN;
+                const wantAfter = `${want} · ${n} ${W.word(n)}`;
+                check(during && during.type === want && during.shown === want.toUpperCase() && after.type === wantAfter && n >= 1 && n <= 30,
+                    `[${lang}] ${label}: "${during && during.shown}" during the fight, "${after.shown}" after`, JSON.stringify({ during, after, wantAfter }));
+            }
+            // Every turn-count word form, straight through the header
+            const forms = await page.evaluate(() => [1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 30].map(n => { setArenaState({ kind: 'result', ranked: true, winner: null, turns: n }); return [n, document.getElementById('fight-type').textContent]; }));
+            const badForms = forms.filter(([n, t]) => t !== `${W.ranked} · ${n} ${W.word(n)}`);
+            check(!badForms.length, `[${lang}] turn counts read right: ${forms.map(([, t]) => t.split(' · ')[1]).join(', ')}`, JSON.stringify(badForms));
+            await context.close();
+        }
+
+        console.log('\nFrame colours');
+        {
+            const { page, context } = await open(browser, { lang: 'uk' });
+            const frames = await page.evaluate(() => {
+                const card = document.getElementById('card-p1'), out = {};
+                const read = cls => { card.className = 'fighter-card ' + cls; const s = getComputedStyle(card); return { hi: s.getPropertyValue('--hi').trim(), lo: s.getPropertyValue('--lo').trim() }; };
+                for (const t of ['red', 'green', 'blue', 'black', 'gold', 'purple', 'white']) out[t] = read('el-' + t);
+                out.winner = read('el-gold is-winner');
+                const a = getComputedStyle(document.getElementById('arena'));
+                out.arena = { hi: a.getPropertyValue('--gold-hi').trim(), lo: a.getPropertyValue('--gold-lo').trim() };
+                card.className = 'fighter-card';
+                return out;
+            });
+            const rgb = h => { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+            const hue = h => { const [r, g, b] = rgb(h).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+                if (!d) return 0; const x = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (x * 60 + 360) % 360; };
+            const lum = h => { const l = rgb(h).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]; };
+            const ratio = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+            const PANEL = '#0d0e15';
+            const goldGap = Math.min(...['hi', 'lo'].flatMap(k => [Math.abs(hue(frames.gold[k]) - hue(frames.winner[k])), Math.abs(hue(frames.gold[k]) - hue(frames.arena[k]))]));
+            check(frames.gold.hi !== frames.winner.hi && frames.gold.lo !== frames.arena.lo && goldGap >= 10,
+                `the Gold drake's frame (${frames.gold.hi} / ${frames.gold.lo}) differs in hue by ≥ 10° from the winner (${frames.winner.hi} / ${frames.winner.lo}) and arena (${frames.arena.hi} / ${frames.arena.lo}) frames (smallest gap ${Math.round(goldGap)}°)`, JSON.stringify(frames));
+            const weak = Object.entries(frames).filter(([t]) => t !== 'arena' && t !== 'winner').filter(([, f]) => ratio(f.hi, PANEL) < 3);
+            const blackLo = ratio(frames.black.lo, PANEL);
+            check(!weak.length && blackLo >= 3, `every element frame's light edge is ≥ 3:1 against the dark panel, and the Black drake's dark edge too (${blackLo.toFixed(2)}:1)`,
+                weak.map(([t, f]) => `${t} ${f.hi}: ${ratio(f.hi, PANEL).toFixed(2)}:1`).join(' | ') || `black dark edge ${blackLo.toFixed(2)}:1`);
+            await context.close();
+        }
+
+        console.log('\nReview sheet');
+        {
+            const { page, context } = await open(browser, { lang: 'uk', width: 2320, height: 1600 });
+            await page.evaluate(() => {
+                const sheet = document.createElement('div');
+                sheet.id = 'review-sheet';
+                sheet.style.cssText = 'position:absolute;left:0;top:0;width:2320px;box-sizing:border-box;padding:40px;background:#15171e;z-index:99;font-family:var(--ui);color:#d9dde8;';
+                document.body.appendChild(sheet);
+                const db = getDragonDB();
+                let xp = 0; for (let l = 1; l < 12; l++) xp += getRequiredXP(l);
+                const fx = (meter) => ({ buff: [{ id: BUFF_IDS[1], left: EFFECTS[BUFF_IDS[1]].count, power: 1 }], debuff: [{ id: DEBUFF_IDS[0], left: EFFECTS[DEBUFF_IDS[0]].count, power: 1 }], meter, halfDone: false, mirror: 0 });
+                const snap = (title) => {
+                    const card = document.getElementById('card-p1').cloneNode(true);
+                    card.removeAttribute('id'); card.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+                    const src = document.getElementById('sprite-p1'), dst = card.querySelector('canvas');
+                    dst.width = src.width; dst.height = src.height; dst.getContext('2d').drawImage(src, 0, 0);
+                    card.style.height = '318px'; card.style.animation = 'none';
+                    const cell = document.createElement('div');
+                    cell.style.cssText = 'display:flex;flex-direction:column;gap:14px;';
+                    cell.innerHTML = `<div style="font:700 15px var(--ui);color:#b99a5a;letter-spacing:1px">${title}</div>`;
+                    cell.appendChild(card);
+                    return cell;
+                };
+                for (const lang of ['uk', 'en']) {
+                    currentLang = lang;
+                    const head = document.createElement('div');
+                    head.style.cssText = 'font:16px var(--pixel);color:#f2c14e;margin:10px 0 30px;';
+                    head.textContent = lang === 'uk' ? 'УКРАЇНСЬКА' : 'ENGLISH';
+                    // The cards sit on the arena's panel inside the gold arena frame, as on stream
+                    const panel = document.createElement('div');
+                    panel.className = 'frame-big';
+                    panel.style.cssText = 'position:relative;background:var(--panel);padding:30px;margin:0 8px 60px;width:max-content;display:grid;grid-template-columns:repeat(5,404px);gap:34px 24px;';
+                    sheet.append(head, panel);
+                    const types = [...DRAKE_TYPES.filter(d => d.type !== DRAGON_TYPE), DRAKE_TYPES.find(d => d.type === DRAGON_TYPE)];
+                    const hpPct = [1, 0.62, 0.4, 0.2, 0.75, 0.5, 0.9];
+                    types.forEach((d, i) => {
+                        const name = d.type === DRAGON_TYPE ? 'streamer' : 'viewer_' + d.type;
+                        const title = d.type === DRAGON_TYPE ? TITLES_DB.find(t => t.id === DRAGON_TITLE_ID) : TITLES_DB[(i * 29) % TITLES_DB.length];
+                        const dr = { name, color: ['#ff7f50', '#5fd4ff', '#c792ea', '#000000', '#ffd166', '#7cfc00', '#ffffff'][i], drakeObj: d, title, xp };
+                        setArenaState({ kind: 'fight', ranked: true, turn: 7 });
+                        updateFighterCard('p1', dr, d.type === DRAGON_TYPE ? null : fx(i % 6));
+                        updateStatusUI(name, 12, d.type, title, d.type === DRAGON_TYPE ? { buff: [], debuff: [] } : fx(i % 6));
+                        updateUIHP(Math.round(200 * hpPct[i]), 200, 1, 200);
+                        panel.appendChild(snap(drakeLabel(d)));
+                    });
+                    // Winner (a Gold drake, to compare with the Gold drake's own frame) and loser (a Black drake)
+                    const gold = { name: 'winner_gold', color: '#ffd166', drakeObj: DRAKE_TYPES.find(d => d.type === 'gold'), title: TITLES_DB[3], xp };
+                    const black = { name: 'loser_black', color: '#000000', drakeObj: DRAKE_TYPES.find(d => d.type === 'black'), title: TITLES_DB[8], xp };
+                    for (const [dr, won] of [[gold, true], [black, false]]) {
+                        updateFighterCard('p1', dr, fx(won ? 5 : 2));
+                        updateStatusUI(dr.name, 12, dr.drakeObj.type, dr.title, { buff: [], debuff: [] });
+                        updateUIHP(won ? 64 : 0, 200, 1, 200);
+                        setArenaState({ kind: 'result', ranked: true, winner: gold, turns: 14 });
+                        panel.appendChild(snap((lang === 'uk' ? (won ? 'Переможець' : 'Нокаут') : (won ? 'Winner' : 'Knocked out')) + ' · ' + drakeLabel(dr.drakeObj)));
+                    }
+                    setArenaState({ kind: 'idle' });
+                }
+                document.getElementById('stage').style.display = 'none';
+            });
+            await settle(page);
+            await page.locator('#review-sheet').screenshot({ path: path.join(SHOTS, 'layout-review-cards.png') });
+            const n = await page.evaluate(() => document.querySelectorAll('#review-sheet .fighter-card').length);
+            const tags = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .result-tag')].filter(t => getComputedStyle(t).display !== 'none').map(t => t.innerText));
+            check(n === 18 && tags.join() === 'ПЕРЕМОЖЕЦЬ,НОКАУТ,WINNER,KNOCKED OUT', `review sheet: ${n} cards (7 types + winner + loser, both languages) in tests/screenshots/layout-review-cards.png`, `${n} cards, tags ${tags.join()}`);
+            await context.close();
+        }
     } finally {
         await browser.close();
     }
