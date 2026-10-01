@@ -5,6 +5,24 @@ const __xpFor = lvl => { let x = 0; for (let l = 1; l < lvl; l++) x += getRequir
 const __TYPES = VIEWER_DRAKE_TYPES.map(d => d.type);
 const __NEUTRAL = { id: 0, name: 'neutral', icon: '', color: '#fff', rarity: 'none', bonus: { type: 'none', value: 0 } };
 const __stripe = s => s.replace(/<[^>]+>/g, '');
+// Per-effect numbers: the game adds to effectTally (lands, damage added, damage prevented, HP healed, buffs removed)
+effectTally = {};
+let __fights = 0;
+
+// How often each effect lands per fight and what it does, averaged over every fight played so far
+function __effectReport() {
+    const f = Math.max(1, __fights), n = x => (x / f).toFixed(1).padStart(8), per = (x, l) => (l ? x / l : 0).toFixed(1).padStart(8);
+    console.log(`\nEffects, per fight (${__fights} fights): lands = casts that took hold (refreshes count, immunity doesn't);`);
+    console.log('+dmg = extra damage dealt, prevented = damage avoided, healed = HP restored; "each" = per landing.');
+    console.log('effect'.padEnd(26) + 'kind'.padEnd(8) + 'lands'.padStart(8) + '+dmg'.padStart(8) + 'prevent'.padStart(8) + 'healed'.padStart(8) + '  each:' + '+dmg'.padStart(7) + 'prevent'.padStart(8) + 'healed'.padStart(8) + '  note');
+    for (const id of EFFECT_IDS) {
+        const e = EFFECTS[id], t = effectTally[id] || { lands: 0, dmg: 0, prevented: 0, healed: 0, removed: 0 };
+        const note = { rage: 'prevent < 0: extra damage the raging drake takes', frost: 'prevent: estimated from the frozen drake\'s average hit',
+            poison: 'prevent: healing it blocked', dispel: `${per(t.removed, t.lands).trim()} buffs removed each` }[id] || '';
+        console.log(`${e.icon} ${e.name.en}`.padEnd(25) + e.kind.padEnd(8) + n(t.lands) + n(t.dmg) + n(t.prevented) + n(t.healed) + '      ' +
+            per(t.dmg, t.lands).slice(1) + per(t.prevented, t.lands) + per(t.healed, t.lands) + '  ' + note);
+    }
+}
 
 function __fight(a, b) {
     const db = getDragonDB();
@@ -15,6 +33,7 @@ function __fight(a, b) {
     isBattleRunning = true;
     runBattle('A', '#fff', 'B', '#fff', false);
     __drain();
+    __fights++;
     const lines = __LOG.slice(start).map(__stripe);
     if (__LOG.length > 20000) __LOG.length = 0;
     const err = lines.find(l => /помилка симуляції|simulation error/i.test(l));
@@ -46,6 +65,7 @@ if (scenario === 'elements') {
             } }
         console.log(`Level ${lvl}: ` + __TYPES.map(t => `${t} ${__pct(wins[t][0] / wins[t][1])}`).join(' | ') + ` | avg turns ${(turns / fights).toFixed(1)} | timeouts ${__pct(timeouts / fights)}`);
     }
+    __effectReport();
 }
 
 if (scenario === 'tiers') {
@@ -123,6 +143,7 @@ if (scenario === 'matrix') {
         }
         console.log(row);
     }
+    __effectReport();
     if (global.__BOUNDS) {
         if (outOfBounds.length) {
             console.error(`\n${outOfBounds.length} matchup(s) outside ${__BOUNDS[0]}–${__BOUNDS[1]}%:\n  ` + outOfBounds.join('\n  '));
