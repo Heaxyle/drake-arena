@@ -45,6 +45,12 @@ async function open(browser, { lang = 'uk', obs = false, width = 1920, height = 
     return { page, context, errors };
 }
 const settle = page => page.waitForTimeout(450);   // CSS transitions and the info-card fade-in run on real time
+// The HP bars' width and colour transitions run on real time, and the fake clock keeps running between steps, so a
+// fight turn can start a new fade during any fixed wait: wait until every transition on both bars has actually finished
+const settleBars = async page => {
+    await settle(page);
+    await page.evaluate(() => Promise.all(['bar-p1', 'bar-p2'].flatMap(id => document.getElementById(id).getAnimations()).map(a => a.finished.catch(() => null))));
+};
 
 // Fills the overlay with its worst case for the current language: the longest everything, on both cards, plus a full
 // leaderboard, a streamer with a long name and a tall chat card
@@ -184,8 +190,10 @@ function nameContrasts() {
 }
 
 // Runs in the page: does each card's HP number match its bar? "h/max" needs the bar at h/max of its track (±1%) in
-// the colour for that share (green above 50%, yellow from 25%, red below); a waiting card shows "—" and an empty bar
+// the colour for that share (green above 50%, yellow from 25%, red below); a waiting card shows "—" and an empty bar.
+// Returns null while either bar is still fading (a turn landed just before the read): the caller waits and asks again.
 function hpAgreement() {
+    if (['bar-p1', 'bar-p2'].some(id => document.getElementById(id).getAnimations().length)) return null;
     return ['p1', 'p2'].map(p => {
         const text = document.getElementById(`hp-text-${p}`).innerText.trim(), bar = document.getElementById(`bar-${p}`);
         const share = 100 * bar.getBoundingClientRect().width / bar.parentElement.clientWidth / (document.getElementById('stage').getBoundingClientRect().width / 1920);
@@ -438,7 +446,7 @@ async function layoutChecks(browser, lang, blockFonts) {
             for (let i = 0; i < cases.length; i++) {
                 const [hp1, want1] = cases[i], [hp2, want2] = cases[cases.length - 1 - i];
                 await page.evaluate(([a, b]) => updateUIHP(a, 1000, b, 1000), [hp1, hp2]);
-                await settle(page);   // the colour fades over 0.3 s of real time
+                await settleBars(page);   // the colour fades over 0.3 s of real time
                 const got = await page.evaluate(() => ['p1', 'p2'].map(p => getComputedStyle(document.getElementById(`bar-${p}`)).backgroundColor));
                 if (got[0] !== RGB[want1]) wrong.push(`p1 at ${hp1 / 10}%: ${got[0]}, expected ${want1}`);
                 if (got[1] !== RGB[want2]) wrong.push(`p2 at ${hp2 / 10}%: ${got[1]}, expected ${want2}`);
@@ -541,9 +549,16 @@ async function layoutChecks(browser, lang, blockFonts) {
         for (const lang of ['uk', 'en']) {
             const { page, context, errors } = await open(browser, { lang });
             const seen = [], bad = [];
+            let retried = 0;
             const sample = async state => {
-                await settle(page);   // width and colour transitions run on real time
-                for (const r of await page.evaluate(hpAgreement)) { seen.push(state); if (r.problem) bad.push(`${state} ${r.p}: ${r.problem}`); }
+                let rows = null;
+                for (let tries = 0; tries < 20 && !rows; tries++) {
+                    await settleBars(page);   // width and colour transitions run on real time
+                    rows = await page.evaluate(hpAgreement);
+                    if (!rows) retried++;
+                }
+                if (!rows) { bad.push(`${state}: the HP bars never stopped fading`); return; }
+                for (const r of rows) { seen.push(state); if (r.problem) bad.push(`${state} ${r.p}: ${r.problem}`); }
             };
             await sample('waiting');
             const states = new Set(['waiting']);
@@ -570,7 +585,7 @@ async function layoutChecks(browser, lang, blockFonts) {
             for (let i = 0; i < 80 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(4500);
             await page.clock.runFor(300);
             await sample('test battle result');
-            check(!bad.length && states.size === 4, `[${lang}] HP text and bar agree (width ±1%, colour, "—" with an empty bar when waiting) in ${seen.length} samples: ${[...new Set(seen)].join(', ')}`, bad.slice(0, 6).join(' | '));
+            check(!bad.length && states.size === 4, `[${lang}] HP text and bar agree (width ±1%, colour, "—" with an empty bar when waiting) in ${seen.length} samples: ${[...new Set(seen)].join(', ')}${retried ? ` (${retried} read(s) retried: a turn started a new fade just before)` : ''}`, bad.slice(0, 6).join(' | '));
             if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
