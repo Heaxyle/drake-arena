@@ -164,10 +164,17 @@
         .fighter-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         /* Піксельний дрейк у куті картки бійця: рівно 2x (дрейк 48×36 → 96×72, Дракон 60×42 → 120×84), обидва дивляться ліворуч */
         .fighter-card { position: relative; }
-        .fighter-card > .fighter-name, .fighter-card > [id^="badge-container-"], .fighter-card > .fighter-info { padding-right: 104px; }
+        .fighter-card > .fighter-name, .fighter-card > [id^="badge-container-"], .fighter-card > .fighter-info, .fighter-card > .power-meter { padding-right: 104px; }
         .sprite-wrap { position: absolute; top: 6px; right: 8px; width: 96px; height: 72px; pointer-events: none; }
         .sprite-wrap.dragon { width: 120px; height: 84px; top: -6px; z-index: 2; }   /* Дракон більший за дрейків і трохи виходить за рамку */
-        .fighter-card.has-dragon > .fighter-name, .fighter-card.has-dragon > [id^="badge-container-"], .fighter-card.has-dragon > .fighter-info { padding-right: 126px; }
+        .fighter-card.has-dragon > .fighter-name, .fighter-card.has-dragon > [id^="badge-container-"], .fighter-card.has-dragon > .fighter-info, .fighter-card.has-dragon > .power-meter { padding-right: 126px; }
+        /* Element Power meter: sits inside the gap above .fighter-stats-sub (height 18px, margin-bottom -18px), so nothing below it moves */
+        .power-meter { height: 18px; margin-bottom: -18px; line-height: 18px; font-size: 8px; font-weight: bold; color: #ffd700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; z-index: 1; }
+        .pm-label { letter-spacing: 0.5px; margin-right: 4px; color: #c9a800; }
+        .pm-pip { display: inline-block; width: 6px; height: 6px; border-radius: 50%; border: 1px solid #ffd700; margin-right: 2px; vertical-align: middle; }
+        .pm-pip.on { background: #ffd700; box-shadow: 0 0 3px #ffd700; }
+        .pm-ready { color: #fff36b; text-shadow: 0 0 4px #ffd700; margin-left: 3px; }
+        .pm-mirror { color: #7fdcff; margin-left: 5px; }
         .drake-sprite { width: 100%; height: 100%; object-fit: contain; object-position: bottom right; image-rendering: pixelated; image-rendering: crisp-edges; animation: drakeBob 1.8s ease-in-out infinite; }
         #card-p2 .drake-sprite { animation-delay: -0.9s; }
         .drake-sprite.hit { animation: drakeHit 0.35s ease-out; }
@@ -288,6 +295,7 @@
                     <div class="fighter-name" id="name-p1" data-i18n="waiting">Очікування...</div>
                     <div id="badge-container-p1"></div>
                     <div class="fighter-info" id="info-p1">— | Рівень: 1 (0/100 XP)</div>
+                    <div class="power-meter" id="power-p1"></div>
                     <div class="fighter-stats-sub" id="stats-sub-p1">Крит: 15% (Сила: 1.5x) | Шанс накласти Баф|Дебаф: 30%<br>🛡️ Захист (Зниження шкоди): 0%</div>
                     <div class="status-column" id="status-p1">
                         <div class="status-category"><div class="status-title"><span>✨ Buffs</span> <span>0/2</span></div><div class="status-list"><span class="status-empty">No buffs</span></div></div>
@@ -304,6 +312,7 @@
                     <div class="fighter-name" id="name-p2" data-i18n="waiting">Очікування...</div>
                     <div id="badge-container-p2"></div>
                     <div class="fighter-info" id="info-p2">— | Рівень: 1 (0/100 XP)</div>
+                    <div class="power-meter" id="power-p2"></div>
                     <div class="fighter-stats-sub" id="stats-sub-p2">Крит: 15% (Сила: 1.5x) | Шанс накласти Баф|Дебаф: 30%<br>🛡️ Захист (Зниження шкоди): 0%</div>
                     <div class="status-column" id="status-p2">
                         <div class="status-category"><div class="status-title"><span>✨ Buffs</span> <span>0/2</span></div><div class="status-list"><span class="status-empty">No buffs</span></div></div>
@@ -432,7 +441,7 @@
             updateUITranslations();
             renderSimChips();
             updateQueueUI();
-            if (!isBattleRunning) renderEmptyStatus();
+            if (!isBattleRunning) { renderEmptyStatus(); renderPowerMeter('p1', null, null); renderPowerMeter('p2', null, null); }
             if(document.getElementById('debug-menu').style.display === 'block') {
                 populateDropdowns();
             }
@@ -1398,8 +1407,8 @@ function drakeSpriteURL(type) {
         // Casting: after a hit that dealt damage, castBase% (+ element and title bonuses) to cast something.
         // ownElement% of casts pick one of the caster's own two element effects (50/50 buff or debuff), the rest any of the 12.
         const EFFECT_CAST = { castBase: 30, ownElement: 70, maxPerKind: 2 };
-        // Hard caps after effect power scaling, so a strong caster can't make a hit free or a heal impossible
-        const EFFECT_CAPS = { cut: 90, healCut: 100 };
+        // Hard caps after effect power scaling: no effect cuts damage or healing by more than 90%, whatever its power
+        const EFFECT_CAPS = { cut: 90, healCut: 90 };
 
         // Chance to cast an effect after a damaging hit (the White Dragon always casts)
         function getCastChance(drakeType, title, level) {
@@ -1430,8 +1439,9 @@ function drakeSpriteURL(type) {
             hits:    { uk: ['удар', 'удари', 'ударів'], en: ['hit', 'hits'] },
             turns:   { uk: ['хід', 'ходи', 'ходів'], en: ['turn', 'turns'] },
         };
-        function effectLeftText(id, left, lang = currentLang) {
-            const forms = EFFECT_UNITS[EFFECTS[id].lasts][lang];
+        const effectLeftText = (id, left, lang = currentLang) => unitLeftText(EFFECTS[id].lasts, left, lang);
+        function unitLeftText(unit, left, lang = currentLang) {
+            const forms = EFFECT_UNITS[unit][lang];
             if (lang === 'uk') {
                 const n10 = left % 10, n100 = left % 100;
                 const form = n10 === 1 && n100 !== 11 ? forms[0] : (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14) ? forms[1] : forms[2]);
@@ -1441,8 +1451,9 @@ function drakeSpriteURL(type) {
         }
         const effectChipText = (inst, lang = currentLang) => `${EFFECTS[inst.id].icon} ${EFFECTS[inst.id].name[lang]} · ${effectLeftText(inst.id, inst.left, lang)}`;
 
-        // One fighter's active effects during a fight: { buff: [...], debuff: [...] }, each entry { id, left, power }
-        const newFxState = () => ({ buff: [], debuff: [] });
+        // One fighter's state during a fight: active effects { buff: [...], debuff: [...] } (each entry { id, left, power }),
+        // plus the ultimate meter (0..METER.max), whether its below-half bonus has been used, and Ice Mirror hits left
+        const newFxState = () => ({ buff: [], debuff: [], meter: 0, halfDone: false, mirror: 0 });
         const hasFx = (st, id) => !!(st && st[EFFECTS[id].kind].find(x => x.id === id));
         const getFx = (st, id) => st && st[EFFECTS[id].kind].find(x => x.id === id);
         // Counts down every effect of this fighter that lasts `unit`; drops the ones that reach 0
@@ -1460,6 +1471,74 @@ function drakeSpriteURL(type) {
         function tallyEffect(id, key, amount = 1) {
             if (!effectTally || !amount) return;
             const t = effectTally[id] || (effectTally[id] = { lands: 0, dmg: 0, prevented: 0, healed: 0, removed: 0 });
+            t[key] += amount;
+        }
+
+        // ===== CLASS ULTIMATES =====
+        // The "Element Power" meter: +1 per own attack that deals damage, +1 once per fight the first time HP drops below half.
+        // At `max`, the fighter's next turn (one it actually acts on) is its ultimate instead of a normal attack, and the
+        // meter goes back to 0. The ultimate itself never fills it. The White Dragon has no meter.
+        const METER = { max: 5, name: { uk: 'Сила стихії', en: 'Element Power' }, short: { uk: 'СИЛА', en: 'POWER' },
+                        ready: { uk: '✦ ГОТОВО', en: '✦ READY' }, label: { uk: 'УЛЬТИМЕЙТ', en: 'ULTIMATE' } };
+        // One ultimate per viewer element. Effect power never scales these numbers; effects an ultimate applies (Burn,
+        // Regeneration) follow the usual effect rules. attacks: whether it's an attack (rolled and resolved like any attack,
+        // with these extras) or replaces the attack. desc placeholders: {k} = nums.k, {fx:id} = that effect's icon and name,
+        // {reels} = the Jackpot reels, {maxBuffs} = the buff limit.
+        const CLASS_ULTIMATES = {
+            firestorm:  { element: 'red', icon: '☄️', color: '#ff6a3d', name: { uk: 'Вогняний шторм', en: 'Firestorm' },
+                          attacks: true, nums: { dmgMult: 1.8 }, unblockable: true, applies: 'burn',
+                          desc: { uk: 'Атака ×{dmgMult} шкоди, яку не можна заблокувати; накладає {fx:burn}',
+                                  en: 'An attack for ×{dmgMult} damage that can\'t be blocked; applies {fx:burn}' } },
+            mirror:     { element: 'blue', icon: '💠', color: '#7fdcff', name: { uk: 'Крижане дзеркало', en: 'Ice Mirror' },
+                          attacks: false, nums: { hits: 2, back: 60 },
+                          desc: { uk: 'Наступні {hits} отримані удари не завдають шкоди, а {back}% того, що вони завдали б, повертається атакуючому',
+                                  en: 'The next {hits} hits taken deal no damage, and {back}% of what they would have dealt goes back to the attacker' } },
+            theft:      { element: 'black', icon: '🦇', color: '#b27cff', name: { uk: 'Крадіжка тіні', en: 'Shadow Theft' },
+                          attacks: true, nums: {},
+                          desc: { uk: 'Забирає бафи суперника собі з їхньою рештою (до ліміту {maxBuffs} бафів, зайві зникають), потім атакує; якщо бафів не було, удар — гарантований крит',
+                                  en: 'Takes the opponent\'s buffs with their remaining counts (up to its {maxBuffs}-buff limit, extras are removed), then attacks; a guaranteed crit if the opponent had no buffs' } },
+            jackpot:    { element: 'gold', icon: '🎰', color: '#ffd700', name: { uk: 'Джекпот', en: 'Jackpot' },
+                          attacks: true, nums: { base: 1, perGem: 1, missAt: 2 },
+                          reels: [{ icon: '💎', chance: 50, gem: true }, { icon: '🪙', chance: 35 }, { icon: '💀', chance: 15, skull: true }],
+                          desc: { uk: 'Три барабани ({reels}): шкода ×({base} + {perGem} за кожен 💎); {missAt} або більше 💀 — промах',
+                                  en: 'Three reels ({reels}): damage ×({base} + {perGem} per 💎); {missAt} or more 💀 is a miss' } },
+            detonation: { element: 'purple', icon: '✴️', color: '#e0a8ff', name: { uk: 'Арканна детонація', en: 'Arcane Detonation' },
+                          attacks: true, nums: { dmgMult: 1.2, perDebuff: 40 },
+                          desc: { uk: 'Атака ×{dmgMult} шкоди плюс {perDebuff}% за кожен дебаф на суперникові, потім ці дебафи знімаються',
+                                  en: 'An attack for ×{dmgMult} damage plus {perDebuff}% per debuff on the opponent, then those debuffs are removed' } },
+            bloom:      { element: 'green', icon: '🌸', color: '#ff9ad5', name: { uk: 'Цвітіння', en: 'Bloom' },
+                          attacks: false, nums: { heal: 25 }, applies: 'regen',
+                          desc: { uk: 'Лікує {heal}% макс. HP, знімає власні дебафи і отримує {fx:regen}',
+                                  en: 'Heals {heal}% max HP, removes its own debuffs and gains {fx:regen}' } },
+        };
+        const ULTIMATE_IDS = Object.keys(CLASS_ULTIMATES);
+        // The ultimate of a fighter's element (none for the White Dragon or anything without one)
+        const ultimateFor = drakeType => drakeType === DRAGON_TYPE ? null : (ULTIMATE_IDS.find(id => CLASS_ULTIMATES[id].element === drakeType) || null);
+        const ultName = (id, lang = currentLang) => `${CLASS_ULTIMATES[id].icon} ${CLASS_ULTIMATES[id].name[lang]}`;
+        // "☄️ УЛЬТИМЕЙТ · Вогняний шторм" / "☄️ ULTIMATE · Firestorm"
+        const ultLabel = (id, lang = currentLang) => `${CLASS_ULTIMATES[id].icon} ${METER.label[lang]} · ${CLASS_ULTIMATES[id].name[lang]}`;
+        function describeUltimate(id, lang = currentLang) {
+            const u = CLASS_ULTIMATES[id];
+            return u.desc[lang].replace(/\{(fx:)?(\w+)\}/g, (_, fx, k) => {
+                if (fx) return `${EFFECTS[k].icon} ${EFFECTS[k].name[lang]}`;
+                if (k === 'reels') return u.reels.map(r => `${r.icon} ${r.chance}%`).join(', ');
+                if (k === 'maxBuffs') return String(EFFECT_CAST.maxPerKind);
+                return String(u.nums[k]);
+            });
+        }
+        // Jackpot: one reel from a roll in [0, 1)
+        function spinReel(roll) {
+            const reels = CLASS_ULTIMATES.jackpot.reels;
+            let acc = 0;
+            for (const r of reels) { acc += r.chance; if (roll * 100 < acc) return r; }
+            return reels[reels.length - 1];
+        }
+
+        // Balance-sim hook for ultimates: fires, damage dealt, damage prevented, HP healed, final blows. Null in the game.
+        let ultimateTally = null;
+        function tallyUltimate(id, key, amount = 1) {
+            if (!ultimateTally || !amount) return;
+            const t = ultimateTally[id] || (ultimateTally[id] = { fires: 0, dmg: 0, prevented: 0, healed: 0, kills: 0 });
             t[key] += amount;
         }
 
@@ -1915,6 +1994,22 @@ function drakeSpriteURL(type) {
             return { critChance: Math.min(100, baseCrit), critPower: Math.round(critPower * 100) / 100 };
         }
 
+        // Element Power meter on a fighter card: "СИЛА ●●●○○", "✦ ГОТОВО" when full, and Ice Mirror hits left.
+        // drakeType null = no fighter yet (empty meter); the White Dragon has no meter (the row stays, empty).
+        function renderPowerMeter(prefix, drakeType, st) {
+            const el = document.getElementById(`power-${prefix}`);
+            if (!el) return;
+            const ultId = drakeType ? ultimateFor(drakeType) : null;
+            if (drakeType && !ultId) { el.innerHTML = ''; el.title = ''; return; }
+            const lang = currentLang, v = st ? st.meter : 0;
+            let html = `<span class="pm-label">${METER.short[lang]}</span>`;
+            for (let i = 0; i < METER.max; i++) html += `<span class="pm-pip${i < v ? ' on' : ''}"></span>`;
+            if (v >= METER.max) html += `<span class="pm-ready">${METER.ready[lang]}</span>`;
+            if (st && st.mirror) html += `<span class="pm-mirror">${CLASS_ULTIMATES.mirror.icon} ${unitLeftText('hits', st.mirror, lang)}</span>`;
+            el.innerHTML = html;
+            el.title = `${METER.name[lang]}: ${v}/${METER.max}` + (ultId ? ` — ${ultName(ultId, lang)}: ${describeUltimate(ultId, lang)}` : '');
+        }
+
         // fx: the fighter's active effects during a fight ({ buff, debuff }), or null outside a fight
         function updateFighterCard(prefix, dragon, fx = null) {
             if (!dragon) return;
@@ -1925,6 +2020,7 @@ function drakeSpriteURL(type) {
             let castChanceVal = getCastChance(drakeType, dragon.title, prog.level);
 
             drawFighterSprite(prefix, dragon.drakeObj ? dragon.drakeObj.type : 'red');
+            renderPowerMeter(prefix, drakeType, fx);
             let nameEl = document.getElementById(`name-${prefix}`);
             nameEl.removeAttribute('data-i18n'); // stop the language switch from resetting it to "Waiting..."
             nameEl.innerText = `@${dragon.name}`;
@@ -1977,7 +2073,12 @@ function drakeSpriteURL(type) {
             let p1MaxHP = p1HP;
             let p2MaxHP = p2HP;
             const hpOf = f => f === p1 ? p1HP : p2HP;
-            const setHP = (f, v) => { if (f === p1) p1HP = v; else p2HP = v; };
+            // Every HP change goes through here. Element Power: +1, once per fight, the first time HP drops below half
+            const setHP = (f, v) => {
+                if (f === p1) p1HP = v; else p2HP = v;
+                const st = fx[f.name];
+                if (!st.halfDone && v < maxHPOf(f) / 2 && ultimateFor(f.drakeObj.type)) { st.halfDone = true; st.meter = Math.min(METER.max, st.meter + 1); }
+            };
             const maxHPOf = f => f === p1 ? p1MaxHP : p2MaxHP;
             const levelOf = f => calculateLevelAndProgress(f.xp).level;
             const tag = f => `<span style="color: ${f.color}; font-weight: bold;">@${f.name}</span>`;
@@ -2122,6 +2223,78 @@ function drakeSpriteURL(type) {
                         return;
                     }
 
+                    // Ultimate: a full Element Power meter makes this turn the fighter's ultimate (after a Frost skip it
+                    // simply waited). The meter goes back to 0, and the ultimate itself never fills it.
+                    const ultId = atkFx.meter >= METER.max ? ultimateFor(attacker.drakeObj.type) : null;
+                    const ult = ultId ? CLASS_ULTIMATES[ultId] : null;
+                    let ultTag = '', ultText = '';
+                    if (ult) {
+                        atkFx.meter = 0;
+                        tallyUltimate(ultId, 'fires');
+                        ultTag = `<span style="color: ${ult.color}; font-weight: bold;">${ultLabel(ultId)}</span>`;
+                    }
+                    // Ice Mirror and Bloom replace the attack: no attack is made, so no "own attacks" or "hits taken" counts go down
+                    if (ult && !ult.attacks) {
+                        if (ultId === 'mirror') {
+                            atkFx.mirror = ult.nums.hits;
+                            ultText = describeUltimate(ultId);
+                        } else {   // Bloom: own debuffs off first (so Poison doesn't cut the heal), then heal, then Regeneration
+                            const removed = atkFx.debuff;
+                            atkFx.debuff = [];
+                            const before = hpOf(attacker);
+                            setHP(attacker, Math.min(attackerMaxHP, before + Math.round(attackerMaxHP * ult.nums.heal / 100)));
+                            const healed = hpOf(attacker) - before;
+                            tallyUltimate(ultId, 'healed', healed);
+                            const names = removed.map(x => fxName(x.id)).join(', ');
+                            ultText = currentLang === 'uk'
+                                ? `<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>${removed.length ? `, знімає ${names}` : ''}`
+                                : `<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>${removed.length ? `, removes ${names}` : ''}`;
+                        }
+                        updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
+                        renderCards();
+                        addLog(`[${currentLang === 'uk' ? 'Хід' : 'Turn'} ${turn}] ${tag(attacker)} ${ultTag}: ${ultText}`);
+                        if (ult.applies) applyEffect(attacker, defender, ult.applies, attackerProg.level, fx);
+                        renderCards();
+                        turn++;
+                        return;
+                    }
+                    // Attacking ultimates: set up their extras, then the attack is rolled and resolved like any other
+                    let ultMult = 1, ultForceCrit = false, ultMiss = false, detonated = [];
+                    if (ultId === 'firestorm' || ultId === 'theft') ultMult = ult.nums.dmgMult || 1;
+                    if (ultId === 'jackpot') {
+                        const reels = [0, 1, 2].map(() => spinReel(Math.random()));
+                        const gems = reels.filter(r => r.gem).length, skulls = reels.filter(r => r.skull).length;
+                        ultMiss = skulls >= ult.nums.missAt;
+                        ultMult = ultMiss ? 1 : ult.nums.base + ult.nums.perGem * gems;
+                        ultText = `[${reels.map(r => r.icon).join(' ')}] ` + (ultMiss ? (currentLang === 'uk' ? 'Промах! ' : 'Miss! ') : `×${ultMult} `);
+                    }
+                    if (ultId === 'detonation') {
+                        detonated = defFx.debuff.slice();
+                        ultMult = ult.nums.dmgMult + ult.nums.perDebuff / 100 * detonated.length;
+                        ultText = `×${Math.round(ultMult * 100) / 100}${detonated.length ? ` (${detonated.map(x => fxName(x.id)).join(', ')})` : ''} `;
+                    }
+                    if (ultId === 'theft') {
+                        const had = defFx.buff;
+                        ultForceCrit = had.length === 0;
+                        if (!had.length) ultText = currentLang === 'uk' ? 'бафів немає — гарантований крит! ' : 'no buffs — guaranteed crit! ';
+                        else if (isDebuffImmune(defender)) {
+                            ultText = currentLang === 'uk' ? `🐉 Імунітет: ${tag(defender)} не віддає бафи! ` : `🐉 Immunity: ${tag(defender)} keeps its buffs! `;
+                        } else {
+                            // Each stolen buff keeps its remaining count and power; one the thief already has merges (the
+                            // longer one stays); the rest fill free slots in order, and any that don't fit are removed
+                            const taken = [], lost = [];
+                            had.forEach(inst => {
+                                const same = atkFx.buff.find(x => x.id === inst.id);
+                                if (same) { if (inst.left > same.left) { same.left = inst.left; same.power = inst.power; } taken.push(inst); }
+                                else if (atkFx.buff.length < EFFECT_CAST.maxPerKind) { atkFx.buff.push(inst); taken.push(inst); }
+                                else lost.push(inst);
+                            });
+                            defFx.buff = [];
+                            ultText = (taken.length ? (currentLang === 'uk' ? `забирає ${taken.map(x => fxName(x.id)).join(', ')}` : `takes ${taken.map(x => fxName(x.id)).join(', ')}`) : '')
+                                + (lost.length ? (currentLang === 'uk' ? `${taken.length ? '; ' : ''}зникає ${lost.map(x => fxName(x.id)).join(', ')}` : `${taken.length ? '; ' : ''}removes ${lost.map(x => fxName(x.id)).join(', ')}`) : '') + '! ';
+                        }
+                    }
+
                     let attackRoll = Math.random() * 100;
                     let attackType, subType, subTypeNameUk, baseDmg = 15;
 
@@ -2153,7 +2326,7 @@ function drakeSpriteURL(type) {
                     const weakMult = weakness ? 1 - fxNum(weakness, 'cut') / 100 : 1;
                     const divineMult = divine ? 1 + fxNum(divine, 'dmg') / 100 : 1;
                     const rageTakenMult = defRage ? 1 + fxNum(defRage, 'taken') / 100 : 1;
-                    let damageMultiplier = rageMult * weakMult * divineMult * rageTakenMult;
+                    let damageMultiplier = rageMult * weakMult * divineMult * rageTakenMult * ultMult;
 
                     let suddenDeathMult = 1.0;
                     if (turn >= 16) {
@@ -2188,7 +2361,7 @@ function drakeSpriteURL(type) {
                     let critData = getCritStats(attackerProg.level, attacker.drakeObj.type, attacker.title, atkFx);
                     const plainCritChance = getCritStats(attackerProg.level, attacker.drakeObj.type, attacker.title).critChance;
                     const critRoll = Math.random() * 100;
-                    let isCrit = critRoll < critData.critChance || !!mark;
+                    let isCrit = critRoll < critData.critChance || !!mark || ultForceCrit;
                     const critFrom = !isCrit || critRoll < plainCritChance ? null : (critRoll < critData.critChance ? 'blessing' : 'mark');
                     if (isCrit) {
                         baseDmg *= critData.critPower;
@@ -2218,9 +2391,10 @@ function drakeSpriteURL(type) {
                     } else if (attacker.drakeObj.type === DRAGON_TYPE) {
                         ultraBlock = false;
                         blockText = currentLang === 'uk' ? `👑 Абсолютне пробиття! ` : `👑 Absolute breach! `;
-                    } else if (ultraBlock && divine) {
-                        ultraBlock = false; divineBreak = true;
-                        blockText = currentLang === 'uk' ? `${fxName('divine')}: блок неможливий! ` : `${fxName('divine')}: can't be blocked! `;
+                    } else if (ultraBlock && (divine || (ult && ult.unblockable))) {
+                        ultraBlock = false; divineBreak = !!divine;
+                        const by = divine ? fxName('divine') : ultName(ultId);
+                        blockText = currentLang === 'uk' ? `${by}: блок неможливий! ` : `${by}: can't be blocked! `;
                     } else if (ultraBlock && blockedByShadow) {
                         blockText = `${fxName('shadow')}: `;
                     } else if (ultraBlock && defender.drakeObj.type === 'black') {
@@ -2249,7 +2423,7 @@ function drakeSpriteURL(type) {
 
                     let finalDmg = 0;
                     if (ultraBlock) blockText += currentLang === 'uk' ? `🛡️ Ультраблок (0 шкоди)!` : `🛡️ Ultra Block (0 damage)!`;
-                    else finalDmg = hitDmg;
+                    else if (!ultMiss) finalDmg = hitDmg;
                     finalDmg = Math.round(finalDmg);
 
                     // What each effect did to this hit, for the balance sim's per-effect report
@@ -2270,6 +2444,23 @@ function drakeSpriteURL(type) {
                         .map(x => ` [${fxName(x.id)}]`).join('');
                     countDownEffects(atkFx, 'attacks');
                     countDownEffects(defFx, 'hits');
+
+                    // Ice Mirror on the defender: this hit deals nothing, and back% of what it would have dealt hits the
+                    // attacker. Every attack taken uses one up, blocked or not (like any "hits taken" count). The White
+                    // Dragon's hits go straight through it, as they do through blocks and armour.
+                    let mirrorText = '';
+                    if (defFx.mirror > 0 && attacker.drakeObj.type !== DRAGON_TYPE) {
+                        const would = finalDmg, back = Math.round(would * CLASS_ULTIMATES.mirror.nums.back / 100);
+                        defFx.mirror--;
+                        finalDmg = 0;
+                        if (back > 0) setHP(attacker, Math.max(0, hpOf(attacker) - back));
+                        tallyUltimate('mirror', 'prevented', would);
+                        tallyUltimate('mirror', 'dmg', back);
+                        if (back > 0 && hpOf(attacker) <= 0) tallyUltimate('mirror', 'kills');
+                        mirrorText = currentLang === 'uk'
+                            ? `${ultName('mirror')}: ${would} → 0, -${back} назад${defFx.mirror ? ` · ${unitLeftText('hits', defFx.mirror, 'uk')}` : ''}! `
+                            : `${ultName('mirror')}: ${would} → 0, -${back} back${defFx.mirror ? ` · ${unitLeftText('hits', defFx.mirror, 'en')}` : ''}! `;
+                    }
 
                     let blueReflectText = "";
                     let blueReflectChance = ELEMENT_BASE.blueReflect + defenderTier.blueReflect;
@@ -2303,6 +2494,11 @@ function drakeSpriteURL(type) {
                     if (finalDmg > 0) flashSpriteHit(defender === p1 ? 'p1' : 'p2');
                     setHP(defender, Math.max(0, hpOf(defender) - finalDmg));
                     dealt[attacker.name].sum += finalDmg; dealt[attacker.name].n++;
+                    // Element Power: +1 for an own attack that dealt damage (the ultimate doesn't count)
+                    if (!ult && finalDmg > 0 && ultimateFor(attacker.drakeObj.type)) atkFx.meter = Math.min(METER.max, atkFx.meter + 1);
+                    if (ult) tallyUltimate(ultId, 'dmg', finalDmg);
+                    // Arcane Detonation: the debuffs it counted are gone, whether or not the hit landed
+                    if (detonated.length) defFx.debuff = defFx.debuff.filter(x => !detonated.includes(x));
 
                     if (attackType === 'vampire' && finalDmg > 0) {
                         let heal = Math.round(healAmount(attacker, finalDmg * 0.5));
@@ -2341,9 +2537,12 @@ function drakeSpriteURL(type) {
                     let damageFormatted = `<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">${finalDmg} ${currentLang === 'uk' ? 'шкоди' : 'damage'}</span>`;
 
                     let logText = currentLang === 'uk' ?
-                        `[Хід ${turn}] <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> ➜ <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> (<span style="color: ${attackTypeColor};">${attackTypeUk} / ${subTypeNameUk}</span>): ${sdLabel}${critLabel}${multLabel}${blockText} ${goldOneHpText}${blueReflectText} Шкода: ${damageFormatted}. ${logExtra}` :
-                        `[Turn ${turn}] <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> ➜ <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> (<span style="color: ${attackTypeColor};">${attackTypeUk} / ${subTypeNameUk}</span>): ${sdLabel}${critLabel}${multLabel}${blockText} ${goldOneHpText}${blueReflectText} Damage: ${damageFormatted}. ${logExtra}`;
+                        `[Хід ${turn}] <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> ➜ <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> (<span style="color: ${attackTypeColor};">${attackTypeUk} / ${subTypeNameUk}</span>): ${ultTag ? ultTag + ' ' + ultText : ''}${sdLabel}${critLabel}${multLabel}${blockText} ${mirrorText}${goldOneHpText}${blueReflectText} Шкода: ${damageFormatted}. ${logExtra}` :
+                        `[Turn ${turn}] <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> ➜ <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> (<span style="color: ${attackTypeColor};">${attackTypeUk} / ${subTypeNameUk}</span>): ${ultTag ? ultTag + ' ' + ultText : ''}${sdLabel}${critLabel}${multLabel}${blockText} ${mirrorText}${goldOneHpText}${blueReflectText} Damage: ${damageFormatted}. ${logExtra}`;
                     addLog(logText);
+                    if (ult && hpOf(defender) <= 0) tallyUltimate(ultId, 'kills');
+                    // Firestorm's Burn follows the usual effect rules (immunity, slots, the caster's effect power)
+                    if (ult && ult.applies) applyEffect(attacker, defender, ult.applies, attackerProg.level, fx);
 
                     let castChance = getCastChance(attacker.drakeObj.type, attacker.title, attackerProg.level);
                     if (Math.random() * 100 < castChance && finalDmg > 0) applyEffect(attacker, defender, pickEffect(attacker), attackerProg.level, fx);
@@ -2675,6 +2874,8 @@ function drakeSpriteURL(type) {
             updateUITranslations();
             renderSimChips();
             renderEmptyStatus();
+            renderPowerMeter('p1', null, null);
+            renderPowerMeter('p2', null, null);
             renderLeaderboard();
         }
         document.addEventListener('DOMContentLoaded', initPage);

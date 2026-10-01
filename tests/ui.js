@@ -97,6 +97,22 @@ function effectChips() {
     return [...document.querySelectorAll('#status-p1 .status-item, #status-p2 .status-item')].map(c => [c.innerText.trim(), c.scrollWidth > c.clientWidth + 1]);
 }
 
+// Runs in the page: the Element Power meter rows — where they sit relative to their neighbours and the sprite, their
+// text, whether it's cut off, and the meter value (from the fight state)
+function powerMeters() {
+    return ['p1', 'p2'].map(p => {
+        const row = document.getElementById(`power-${p}`), r = row.getBoundingClientRect();
+        const info = document.getElementById(`info-${p}`).getBoundingClientRect(), stats = document.getElementById(`stats-sub-${p}`).getBoundingClientRect();
+        const sprite = row.parentElement.querySelector('.sprite-wrap').getBoundingClientRect();
+        const content = [...row.children].reduce((m, c) => Math.max(m, c.getBoundingClientRect().right), r.left);
+        const name = document.getElementById(`name-${p}`).innerText.replace('@', '').trim();
+        const st = isBattleRunning && typeof battleFx !== 'undefined' && battleFx && battleFx[name];   // between fights the cards are idle
+        return { p, text: row.innerText.replace(/\s+/g, ' ').trim(), pips: row.querySelectorAll('.pm-pip').length, on: row.querySelectorAll('.pm-pip.on').length,
+                 meter: st ? st.meter : null, overlapsInfo: r.top < info.bottom - 0.5, overlapsStats: r.bottom > stats.top + 0.5,
+                 overlapsSprite: content > sprite.left + 0.5 && r.bottom > sprite.top && r.top < sprite.bottom, cut: row.scrollWidth > row.clientWidth + 1 };
+    });
+}
+
 // Runs in the page: how many pixels each fighter-card sprite actually drew
 function spriteState() {
     return ['p1', 'p2'].map(p => {
@@ -178,6 +194,8 @@ async function testVersion(browser, key) {
     const barMoves = new Set();
     const spritesSeen = {};
     const chipsSeen = new Map();   // buff/debuff chip text → cut off by its ellipsis?
+    const meterIssues = new Set(), meterTexts = new Set();
+    let meterFullSeen = 0;
 
     // Plays one fight from start to finish, sampling the layout every STEP_MS of game time
     const runFight = async (label, start, midShot) => {
@@ -193,6 +211,17 @@ async function testVersion(browser, key) {
                 if (dy > 0.5) barMoves.add(`${label}: #${b.id} moved ${dy.toFixed(1)}px (top ${base.top.toFixed(1)} → ${b.top.toFixed(1)}) at ${(elapsed / 1000).toFixed(1)}s`);
             });
             for (const [text, cut] of await page.evaluate(effectChips)) chipsSeen.set(text, chipsSeen.get(text) || cut);
+            const lang = await page.evaluate('currentLang');
+            for (const m of await page.evaluate(powerMeters)) {
+                if (m.overlapsInfo || m.overlapsStats || m.overlapsSprite) meterIssues.add(`${label}: #power-${m.p} overlaps ${[m.overlapsInfo && 'the info line', m.overlapsStats && 'the stats box', m.overlapsSprite && 'the sprite'].filter(Boolean).join(' and ')}`);
+                if (m.cut) meterIssues.add(`${label}: #power-${m.p} text cut off ("${m.text}")`);
+                if (m.meter === null || m.pips === 0) continue;   // White Dragon (no meter) or no fight state yet
+                meterTexts.add(m.text);
+                const short = lang === 'uk' ? 'СИЛА' : 'POWER', ready = lang === 'uk' ? '✦ ГОТОВО' : '✦ READY';
+                if (m.pips !== 5 || m.on !== m.meter || !m.text.startsWith(short)) meterIssues.add(`${label}: #power-${m.p} shows ${m.on}/${m.pips} pips "${m.text}" for meter ${m.meter}`);
+                if (m.meter === 5) { meterFullSeen++; if (!m.text.includes(ready)) meterIssues.add(`${label}: full meter without "${ready}": "${m.text}"`); }
+                else if (m.text.includes(ready)) meterIssues.add(`${label}: "${ready}" shown at meter ${m.meter}`);
+            }
             for (const s of await page.evaluate(spriteState)) {
                 const t = typeOf[s.name];
                 if (t && s.painted > 20 && s.w > 0 && s.h > 0 && s.visible) spritesSeen[t] = true;
@@ -337,6 +366,11 @@ async function testVersion(browser, key) {
     else if (badChips.length) fail(`buff/debuff chips not in the "name · what's left" form: ${badChips.slice(0, 5).join(' | ')}`);
     else pass(`${chipsSeen.size} different buff/debuff chips, all "name · what's left" (e.g. "${[...chipsSeen.keys()][0]}")`);
     if (cutChips.length) fail(`buff/debuff chips cut off on the card: ${cutChips.slice(0, 5).join(' | ')}`);
+    // Element Power meter row: inside its gap (no overlap with the info line, stats box or sprite), 5 pips matching the
+    // meter, the label in the page language, "✦ READY" only when full, never cut off
+    if (meterIssues.size) [...meterIssues].slice(0, 6).forEach(fail);
+    else if (!meterTexts.size) fail('no Element Power meter row was seen during the fights');
+    else pass(`Element Power meter rows: ${meterTexts.size} different states, pips match the meter, full meter shown ${meterFullSeen} time(s) with READY, never overlapping or cut off`);
     if (barMoves.size) [...barMoves].slice(0, 10).forEach(fail);
     else pass('HP bars stayed at the same vertical position the whole time');
     const missing = cfg.drakes.map(([, , t]) => t).filter(t => !spritesSeen[t]);
