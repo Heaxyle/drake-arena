@@ -1057,12 +1057,12 @@ function drakeSpriteURL(type) {
             { id: 175, rarity: 'epic', icon: '🦇', name: { uk: "Нічний вампір стріму", en: "Stream Night Vampire" }, bonus: { type: 'stats', stats: { crit: 12, power: 0.28 } } },
             { id: 96, rarity: 'legendary', icon: '👼', name: { uk: "Ангел-охоронець стрімера", en: "Streamer Guardian Angel" }, bonus: { type: 'unique', mechanic: 'guardian_shield', stats: { hp: 6 } } },
             { id: 97, rarity: 'legendary', icon: '🧠', name: { uk: "Надмозок всесвіту", en: "Universal Superbrain" }, bonus: { type: 'unique', mechanic: 'armor_piercer', stats: { power: 0.5 } } },
-            { id: 98, rarity: 'legendary', icon: '🐉', name: { uk: "Абсолютний Дрейк", en: "Absolute Drake" }, bonus: { type: 'unique', mechanic: 'debuff_immunity', stats: { hp: 12 } } },
+            { id: 98, rarity: 'legendary', icon: '🐉', name: { uk: "Абсолютний Дрейк", en: "Absolute Drake" }, bonus: { type: 'unique', mechanic: 'debuff_immunity', stats: { hp: 15 } } },
             { id: 99, rarity: 'legendary', icon: '🌀', name: { uk: "Володар матриці", en: "Matrix Lord" }, bonus: { type: 'unique', mechanic: 'quantum_dodge', stats: { hp: 8 } } },
             { id: 100, rarity: 'legendary', icon: '⚡', name: { uk: "Творець хаосу", en: "Chaos Creator" }, bonus: { type: 'unique', mechanic: 'chaotic_charge', stats: { effect: 15 } } },
             { id: 176, rarity: 'legendary', icon: '🛡️', name: { uk: "Незламний модератор", en: "Unbreakable Moderator" }, bonus: { type: 'unique', mechanic: 'guardian_shield', stats: { hp: 6 } } },
             { id: 177, rarity: 'legendary', icon: '📜', name: { uk: "Той, хто прочитав патчноут", en: "Read the Patch Notes" }, bonus: { type: 'unique', mechanic: 'armor_piercer', stats: { power: 0.5 } } },
-            { id: 178, rarity: 'legendary', icon: '🧘', name: { uk: "Дзен при 1 HP", en: "Zen at 1 HP" }, bonus: { type: 'unique', mechanic: 'debuff_immunity', stats: { hp: 12 } } },
+            { id: 178, rarity: 'legendary', icon: '🧘', name: { uk: "Дзен при 1 HP", en: "Zen at 1 HP" }, bonus: { type: 'unique', mechanic: 'debuff_immunity', stats: { hp: 15 } } },
             { id: 179, rarity: 'legendary', icon: '👻', name: { uk: "Привид лагу", en: "Lag Ghost" }, bonus: { type: 'unique', mechanic: 'quantum_dodge', stats: { hp: 8 } } },
             { id: 180, rarity: 'legendary', icon: '🎆', name: { uk: "Феєрверк хаосу", en: "Chaos Fireworks" }, bonus: { type: 'unique', mechanic: 'chaotic_charge', stats: { effect: 15 } } },
             { id: 181, rarity: 'mythic', icon: '🌅', name: { uk: "Прокинувся в ударі", en: "Woke Up Swinging" }, bonus: { type: 'unique', mechanic: 'opening_buff', stats: { hp: 20, effect: 10, hpPerLevel: 0.8 } } },
@@ -1314,19 +1314,19 @@ function drakeSpriteURL(type) {
 
         // ===== ELEMENT BALANCE =====
         // Element base (from level 1) + bonus per level tier: [1-4, 5-9, 10-14, 15-19, 20]
-        const ELEMENT_BASE = { redCrit: 10, redPower: 0.35, blueDef: 5, blueReflect: 10, blackBlock: 3, blackChance: 18, goldXp: 50, goldOneHp: 7, purpleEff: 25, purpleChance: 25, greenHp: 15 };
+        const ELEMENT_BASE = { redCrit: 13, redPower: 0.35, blueDef: 5, blueReflect: 8, blackBlock: 3, blackChance: 18, goldXp: 50, goldOneHp: 7, purpleEff: 25, purpleChance: 20, greenHp: 15 };
         const ELEMENT_TIERS = {
-            redCrit:      [0, 2, 4, 6, 8],
-            redPower:     [0, 0.05, 0.10, 0.15, 0.25],
+            redCrit:      [0, 0, 1, 3, 5],
+            redPower:     [0, 0.05, 0.10, 0.15, 0.20],
             blueDef:      [0, 3, 3, 6, 9],
-            blueReflect:  [0, 2, 4, 6, 8],
+            blueReflect:  [0, 4, 6, 8, 10],
             blackBlock:   [0, 2, 3, 5, 7],
-            blackChance:  [0, 2, 3, 5, 7],
+            blackChance:  [0, 2, 3, 5, 9],
             goldXpBonus:  [0, 5, 15, 25, 40],
             goldOneHp:    [0, 0, 1, 1, 2],
             purpleEff:    [0, 3, 5, 10, 15],
             purpleChance: [0, 3, 5, 10, 15],
-            greenHp:      [0, 5, 10, 15, 20]
+            greenHp:      [0, 5, 8, 15, 20]
         };
         function getTierMultiplier(level) {
             const i = level >= 20 ? 4 : level >= 15 ? 3 : level >= 10 ? 2 : level >= 5 ? 1 : 0;
@@ -1376,9 +1376,9 @@ function drakeSpriteURL(type) {
                         desc: { uk: 'Наступний удар по цілі — гарантований крит',
                                 en: 'The next hit on the target is a guaranteed crit' } },
             divine:   { element: 'purple', kind: 'buff',   icon: '🌟', color: '#e0a8ff', name: { uk: 'Божественна міць', en: 'Divine Might' },
-                        lasts: 'attacks', count: 1, nums: { dmg: 110 },
-                        desc: { uk: 'Наступна власна атака +{dmg}% шкоди, її не можна заблокувати',
-                                en: 'Next own attack deals +{dmg}% damage and can\'t be blocked' } },
+                        lasts: 'attacks', count: 1, nums: { dmg: 55 },
+                        desc: { uk: 'Наступна власна атака завдає ×{x:dmg} шкоди, її не можна заблокувати',
+                                en: 'Next own attack deals ×{x:dmg} damage and can\'t be blocked' } },
             dispel:   { element: 'purple', kind: 'debuff', icon: '💨', color: '#d0d0e0', name: { uk: 'Розвіювання', en: 'Dispel' },
                         lasts: 'instant', count: 0, nums: {},
                         desc: { uk: 'Одразу знімає з цілі всі бафи',
@@ -1417,10 +1417,12 @@ function drakeSpriteURL(type) {
             const v = EFFECTS[inst.id].nums[key] * (inst.power || 1);
             return EFFECT_CAPS[key] !== undefined ? Math.min(EFFECT_CAPS[key], v) : v;
         }
-        // Description with the numbers filled in (power 1 = base numbers)
+        // Description with the numbers filled in from `count` and `nums` (power 1 = base numbers), so it stays right
+        // after any balance change: {count}, {k} = nums.k as is (30 → "30"), {x:k} = nums.k as a damage multiplier (110 → "2.1")
         function describeEffect(id, lang = currentLang, power = 1) {
             const e = EFFECTS[id];
-            return e.desc[lang].replace(/\{(\w+)\}/g, (_, k) => k === 'count' ? e.count : String(Math.round(fxNum({ id, power }, k) * 10) / 10));
+            const round = v => String(Math.round(v * 100) / 100);
+            return e.desc[lang].replace(/\{(x:)?(\w+)\}/g, (_, x, k) => k === 'count' ? e.count : round(x ? 1 + fxNum({ id, power }, k) / 100 : fxNum({ id, power }, k)));
         }
         // "ще 2 атаки" / "2 attacks left"
         const EFFECT_UNITS = {
@@ -2352,7 +2354,7 @@ function drakeSpriteURL(type) {
                                 `<span style="color: #f1c40f; font-weight: bold;">⚡ Хаос:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> створює вибух!` :
                                 `<span style="color: #f1c40f; font-weight: bold;">⚡ Chaos:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> creates an explosion!`;
                             addLog(msg);
-                            applyEffect(attacker, defender, DEBUFF_IDS[Math.floor(Math.random() * DEBUFF_IDS.length)], attackerProg.level, fx);
+                            applyEffect(attacker, defender, DEBUFF_IDS[Math.floor(Math.random() * DEBUFF_IDS.length)], attackerProg.level, fx, { pool: DEBUFF_IDS });
                         }
                     }
 
@@ -2361,8 +2363,8 @@ function drakeSpriteURL(type) {
                             ? `<span style="color: #ff66cc; font-weight: bold;">🐈 Кіт пройшовся по клавіатурі!</span> Хтозна, кому цей ефект...`
                             : `<span style="color: #ff66cc; font-weight: bold;">🐈 The cat walked across the keyboard!</span> Who knows who gets this effect...`);
                         const id = EFFECT_IDS[Math.floor(Math.random() * EFFECT_IDS.length)];
-                        if (Math.random() < 0.5) applyEffect(attacker, defender, id, attackerProg.level, fx);
-                        else applyEffect(defender, attacker, id, defenderProg.level, fx);
+                        if (Math.random() < 0.5) applyEffect(attacker, defender, id, attackerProg.level, fx, { pool: EFFECT_IDS });
+                        else applyEffect(defender, attacker, id, defenderProg.level, fx, { pool: EFFECT_IDS });
                     }
                     renderCards();
 
@@ -2386,16 +2388,21 @@ function drakeSpriteURL(type) {
 
         // What a cast does: usually one of the caster's own element pair (50/50 buff or debuff), otherwise any of the 12.
         // The White Dragon (and anything without an element pair) always picks from all 12.
-        function pickEffect(caster) {
+        // `skip`: effects to leave out (a Dispel that would find no buffs is recast as something else).
+        function pickEffect(caster, skip = []) {
             const type = caster.drakeObj.type;
-            const own = EFFECT_IDS.filter(id => EFFECTS[id].element === type);
+            const all = EFFECT_IDS.filter(id => !skip.includes(id));
+            const own = all.filter(id => EFFECTS[id].element === type);
             if (type !== DRAGON_TYPE && own.length && Math.random() * 100 < EFFECT_CAST.ownElement) return own[Math.floor(Math.random() * own.length)];
-            return EFFECT_IDS[Math.floor(Math.random() * EFFECT_IDS.length)];
+            return all[Math.floor(Math.random() * all.length)];
         }
 
         // Puts effect `id`, cast by `caster`, on the right fighter: a buff on the caster, a debuff on `opponent`.
         // Casting an active effect again refreshes it; with maxPerKind of that kind already, the new one replaces the one
         // closest to ending (the older one on a tie). Debuff immunity stops every debuff, Dispel included.
+        // A Dispel that would find no buffs is cast as a different effect instead: picked like a normal cast, or from
+        // opts.pool when the caller limits the choice (Chaotic charge: debuffs only). Immunity is checked first, so a
+        // Dispel on an immune target still counts as cast and is logged as ignored.
         // Returns 'applied' | 'refreshed' | 'replaced' | 'dispelled' | 'immune'.
         function applyEffect(caster, opponent, id, casterLevel, fx, opts = {}) {
             const e = EFFECTS[id];
@@ -2412,6 +2419,12 @@ function drakeSpriteURL(type) {
                 return 'immune';
             }
             const st = fx[owner.name] || (fx[owner.name] = newFxState());
+            if (e.lasts === 'instant' && !st.buff.length) {
+                const skip = [id];
+                const pool = opts.pool && opts.pool.filter(x => !skip.includes(x));
+                const next = pool ? pool[Math.floor(Math.random() * pool.length)] : pickEffect(caster, skip);
+                return applyEffect(caster, opponent, next, casterLevel, fx, opts);
+            }
             const power = getEffectMult(caster.drakeObj.type, caster.title, casterLevel);
             tallyEffect(id, 'lands');
 
@@ -2420,9 +2433,7 @@ function drakeSpriteURL(type) {
                 st.buff = [];
                 tallyEffect(id, 'removed', gone.length);
                 const list = gone.map(x => fxName(x.id)).join(', ');
-                log(gone.length
-                    ? (uk ? `${fxName(id)}: ${who} втрачає всі бафи (${list})` : `${fxName(id)}: ${who} loses every buff (${list})`)
-                    : (uk ? `${fxName(id)}: у ${who} немає бафів, нічого розвіювати` : `${fxName(id)}: ${who} has no buffs to remove`));
+                log(uk ? `${fxName(id)}: ${who} втрачає всі бафи (${list})` : `${fxName(id)}: ${who} loses every buff (${list})`);
                 return 'dispelled';
             }
 

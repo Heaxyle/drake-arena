@@ -20,7 +20,8 @@ The root `index.html` only redirects to `showcase/index.html` (for GitHub Pages)
 - Never break the transparent OBS layout (1920x1080, arena bottom-right, left side free for a camera).
 
 ## Testing — run after ANY mechanics change
-- `npm test` — effect rules (`tests/effects.js`), then balance sims (element matchups, title tiers, level gaps, and the White Dragon must win every fight). Element matchups should stay within ~45–57%; each rarity tier should beat Common by a bit more than the one below it; higher level should still clearly win.
+- `npm run balance:check` — **before merging any balance change**: element matrix at L1/10/20 + title tiers, 3 seeds averaged; fails if a matchup leaves 45–57% or a rarity doesn't beat the one below it. Not in CI (the CI gate stays at 40–60%, L20, one seed).
+- `npm test` — effect rules (`tests/effects.js`), the mutation check (`tests/mutations.js`), then balance sims (element matchups, title tiers, level gaps, and the White Dragon must win every fight). Element matchups should stay within ~45–57%; each rarity tier should beat Common by a bit more than the one below it; higher level should still clearly win.
 - `npm run balance` (or `npm run balance:showcase`) — quick element check.
 - `npm run test:ui` — headless Chromium smoke test (7 types, streamer-only dragon refusal, idempotent old-save migration) (needs `npx playwright install chromium` once). Screenshots go to `tests/screenshots/`.
 - Node 18+ required. Open the HTML in a browser to check visuals.

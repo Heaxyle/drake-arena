@@ -60,11 +60,11 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The 
 
 | Element | Passive (grows with level tier) |
 |---|---|
-| 🟥 Red | +10–18% crit, crit damage 1.85–2.1× |
-| 🟦 Blue | +5–14 defense; 10–18% chance to reflect half the damage back |
-| ⬛ Black | +3–10% ultra-block; +18–25% effect chance |
+| 🟥 Red | +13–18% crit, crit damage 1.85–2.05× |
+| 🟦 Blue | +5–14 defense; 8–18% chance to reflect half the damage back |
+| ⬛ Black | +3–10% ultra-block; +18–27% effect chance |
 | 🟨 Gold | +50–90% XP; 7–9% chance for a hit to leave the enemy at exactly 1 HP |
-| 🟪 Purple | Buffs and debuffs 25–40% stronger; +25–40% effect chance |
+| 🟪 Purple | Buffs and debuffs 25–40% stronger; +20–35% effect chance |
 | 🟩 Green | +15–35% max HP |
 
 All element numbers live in `ELEMENT_BASE` (the level-1 value) and `ELEMENT_TIERS` (the bonus at levels 5 / 10 / 15 / 20). They were tuned with a balance simulator so every element matchup stays within roughly 45–57%.
@@ -95,20 +95,21 @@ When the streamer setting changes, the White Dragon stays with the streamer only
 
 ### Buffs and debuffs
 
-Each element has one buff (cast on itself) and one debuff (cast on the opponent). When a cast triggers, 70% of the time it's one of the caster's own two (50/50 buff or debuff), 30% of the time any of the 12. The White Dragon always picks from all 12.
+Each element has one buff (cast on itself) and one debuff (cast on the opponent). The descriptions below are the ones the game shows (card tooltips); they are filled in from the `EFFECTS` numbers, and `npm test` fails if this table falls out of step with them. When a cast triggers, 70% of the time it's one of the caster's own two (50/50 buff or debuff), 30% of the time any of the 12. The White Dragon always picks from all 12.
 
 | Element | Buff | Debuff |
 |---|---|---|
-| 🟥 Red | 💢 **Rage**: next 2 own attacks +40% damage, but takes +15% damage until it ends | 🔥 **Burn**: 5% max HP at the start of each of the target's next 3 turns |
-| 🟦 Blue | 🛡️ **Shield**: next 2 hits taken −30% damage (armor-piercing and vampire too) | ❄️ **Frost**: the target skips its next attack |
-| ⬛ Black | 🌑 **Shadow**: +25% ultra-block chance for the next 2 hits taken | 🥀 **Weakness**: the target's next 2 attacks −40% damage |
-| 🟨 Gold | 🍀 **Blessing**: next 2 own attacks +60% crit chance | 🎯 **Mark**: the next hit on the target is a guaranteed crit |
-| 🟪 Purple | 🌟 **Divine Might**: next own attack +110% damage (×2.1) and can't be blocked | 💨 **Dispel**: removes all of the target's buffs at once |
-| 🟩 Green | 💚 **Regeneration**: 6.5% max HP at the start of each of the owner's next 3 turns | ☠️ **Poison**: 3% max HP for 3 turns, and the target's healing is halved |
+| 🟥 Red | 💢 **Rage** (Лють): Next 2 own attacks deal +40% damage, but takes +15% damage until it ends | 🔥 **Burn** (Підпал): 5% max HP damage at the start of each of the target's next 3 turns |
+| 🟦 Blue | 🛡️ **Shield** (Щит): Next 2 hits taken deal −30% damage (armour-piercing and vampire too) | ❄️ **Frost** (Мороз): The target skips its next attack |
+| ⬛ Black | 🌑 **Shadow** (Тінь): +25% ultra-block chance for the next 2 hits taken | 🥀 **Weakness** (Слабкість): The target's next 2 attacks deal −40% damage |
+| 🟨 Gold | 🍀 **Blessing** (Благословіння): Next 2 own attacks get +60% crit chance | 🎯 **Mark** (Мітка): The next hit on the target is a guaranteed crit |
+| 🟪 Purple | 🌟 **Divine Might** (Божественна міць): Next own attack deals ×1.55 damage and can't be blocked | 💨 **Dispel** (Розвіювання): Removes all of the target's buffs at once |
+| 🟩 Green | 💚 **Regeneration** (Регенерація): Heals 6.5% max HP at the start of each of the owner's next 3 turns | ☠️ **Poison** (Отруєння): 3% max HP damage at the start of each of the target's 3 turns, and its healing is −50% |
 
 - **Durations** count what each effect names: the owner's own attacks, the hits it takes (a blocked hit still counts), or the start of its turns. The rules are the same for both fighters. Fighter cards show what's left in words, e.g. "💢 Лють · ще 2 атаки" / "💢 Rage · 2 attacks left".
 - **Limits:** at most 2 buffs and 2 debuffs per drake. Casting an active effect again refreshes it. With 2 already, a new one replaces the one closest to ending (the older one on a tie). Both are logged.
 - **Effect power** (Purple, "effect strength" titles) scales the percentages, never the counts. Shield and Weakness are capped at −90%, Poison's healing cut at 100%.
+- **Dispel never goes to waste:** if the target has no buffs to remove, a different effect is cast instead (picked the usual way; Chaotic charge picks another debuff). On an immune target it still counts as cast and the log shows it was ignored.
 - **Debuff immunity** (the Legendary ability, and the White Dragon) blocks every debuff, Dispel included.
 - Title abilities draw from the same list: Opening buff picks one of the 6 buffs, Chaotic charge one of the 6 debuffs, Cat on the keyboard any of the 12.
 

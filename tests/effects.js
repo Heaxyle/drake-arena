@@ -9,6 +9,8 @@
 //   - EFFECTS: 12 effects, one buff + one debuff per viewer element, each with an icon, both names and a description
 //   - no internal effect id (or a removed effect) ever shows up in the battle log, in either language
 //   - in real fights, every count goes down on the event it names (own attacks, hits taken, the owner's turns), by exactly 1
+//   - descriptions take every number from the table (change a number → the text changes); README lists them as the game does
+//   - a Dispel that would find no buffs is cast as a different effect; on an immune target it still counts (and is logged)
 //   - casting an active effect refreshes it; a third buff/debuff replaces the one closest to ending; both are logged
 //   - debuff immunity (title and White Dragon) still stops every debuff, Dispel included
 //   - card chips say what's left in words, in both languages; effect power scales percentages, never counts
@@ -38,7 +40,9 @@ eval(gameScript(FILE) + `
     setLang: l => { currentLang = l; },
     setRunning: v => { isBattleRunning = v; },
     wrapAddLog: f => { const orig = addLog; addLog = t => { orig(t); f(t); }; },
-    wrapApplyEffect: f => { const orig = applyEffect; applyEffect = (...a) => { const r = orig(...a); f(r, a); return r; }; },
+    wrapApplyEffect: f => { const orig = applyEffect; applyEffect = (...a) => {
+        const st = a[4] && a[1] && a[4][a[1].name], targetBuffs = st ? st.buff.length : 0;
+        const r = orig(...a); f(r, a, targetBuffs); return r; }; },
 };`);
 console.warn = _warn;
 const G = globalThis.__game;
@@ -85,6 +89,29 @@ const html = fs.readFileSync(FILE, 'utf8');
 const removed = ["Кам'яна шкіра", 'Кам’яна шкіра', 'Пролом броні', 'Stoneskin', 'Armor Break', 'stoneskin', 'armorbreak', 'divinepower'];
 const leftovers = removed.filter(w => html.includes(w));
 check(!leftovers.length, 'removed effects (Stoneskin, Armor Break) are gone from the game file', `removed effects still in the game file: ${leftovers.join(', ')}`);
+
+console.log('\nDescriptions come from the table');
+for (const id of EFFECT_IDS) {
+    const e = EFFECTS[id], bad = [];
+    for (const l of ['uk', 'en']) {
+        for (const k of Object.keys(e.nums)) if (!e.desc[l].includes(`{${k}}`) && !e.desc[l].includes(`{x:${k}}`)) bad.push(`${l} text never shows nums.${k}`);
+        if (/\d/.test(e.desc[l].replace(/\{[^}]*\}/g, ''))) bad.push(`${l} text has a number typed in instead of a {placeholder}: "${e.desc[l]}"`);
+        // Change every number in the table: the text must follow
+        const before = G.describeEffect(id, l), saved = { ...e.nums }, savedCount = e.count;
+        for (const k of Object.keys(e.nums)) e.nums[k] = e.nums[k] + 7;
+        if (e.lasts !== 'instant') e.count = e.count + 1;
+        const after = G.describeEffect(id, l);
+        Object.assign(e.nums, saved); e.count = savedCount;
+        if ((Object.keys(e.nums).length || /\{count\}/.test(e.desc[l])) && after === before) bad.push(`${l} text didn't change when the table's numbers did`);
+    }
+    check(!bad.length, `${e.icon} ${e.name.en}: every number comes from EFFECTS`, `${id}: ${bad.join('; ')}`);
+}
+{
+    const readme = fs.readFileSync(path.join(path.dirname(FILE), 'README.md'), 'utf8');
+    const missing = EFFECT_IDS.filter(id => !readme.includes(G.describeEffect(id, 'en')));
+    check(!missing.length, "the README effect table matches the game's descriptions (same numbers)",
+        `README is out of date for: ${missing.map(id => `${id} ("${G.describeEffect(id, 'en')}")`).join(' | ')}`);
+}
 
 // ---------------------------------------------------------------- 2. Words on the cards
 console.log('\nChips and counts');
@@ -161,6 +188,22 @@ for (const lang of ['uk', 'en']) {
         `[${lang}] Dispel removes all the target's buffs at once and names them: "${lines[0]}"`,
         `[${lang}] dispel: ${r}, B buffs ${fx.B.buff.map(x => x.id)}, debuffs ${fx.B.debuff.map(x => x.id)}`);
 
+    // Dispel on a target with no buffs: something else is cast instead (from the pool when one is given)
+    {
+        const fx3 = { A: G.newFxState(), B: G.newFxState() };
+        const outcomes = new Set(); let dispelled = 0, debuffOnly = true;
+        for (let i = 0; i < 200; i++) {
+            fx3.A = G.newFxState(); fx3.B = G.newFxState();
+            const [res] = logged(() => G.applyEffect(A, B, 'dispel', 20, fx3));
+            outcomes.add(res); if (res === 'dispelled') dispelled++;
+            fx3.A = G.newFxState(); fx3.B = G.newFxState();
+            logged(() => G.applyEffect(A, B, 'dispel', 20, fx3, { pool: G.DEBUFF_IDS }));
+            if (fx3.A.buff.length || !fx3.B.debuff.length) debuffOnly = false;
+        }
+        check(dispelled === 0 && outcomes.size > 0, `[${lang}] Dispel with no buffs to remove is cast as a different effect (${[...outcomes].join(', ')})`,
+            `[${lang}] Dispel on a buffless target: ${dispelled} of 200 still "dispelled"`);
+        check(debuffOnly, `[${lang}] ...and from the caller's pool when it has one (Chaotic charge → another debuff)`, `[${lang}] pooled recast produced a non-debuff`);
+    }
     // Immunity: the title and the White Dragon ignore every debuff, Dispel included; buffs still work
     for (const [label, target] of [['debuff-immunity title', fighter('I', 'black', titleWith('debuff_immunity'))],
                                    ['White Dragon', fighter('W', G.DRAGON_TYPE, G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID))]]) {
@@ -171,6 +214,12 @@ for (const lang of ['uk', 'en']) {
         check(results.every(x => x === 'immune') && fx2[target.name].debuff.length === 0 && fx2[target.name].buff.length === 1 && immuneLines.length === G.DEBUFF_IDS.length,
             `[${lang}] ${label}: all ${G.DEBUFF_IDS.length} debuffs (Dispel too) are ignored and logged, its buff stays`,
             `[${lang}] ${label}: results ${results.join(',')}, debuffs ${fx2[target.name].debuff.map(x => x.id)}, buffs ${fx2[target.name].buff.map(x => x.id)}`);
+        // With no buffs at all, a Dispel still counts as cast: immunity is checked first and logged
+        const fx4 = { A: G.newFxState(), [target.name]: G.newFxState() };
+        const [res4, l4] = logged(() => G.applyEffect(A, target, 'dispel', 20, fx4));
+        check(res4 === 'immune' && l4.length === 1 && l4[0].includes(EFFECTS.dispel.name[lang]),
+            `[${lang}] ${label}: a Dispel on it with no buffs still counts as cast and is logged as ignored`,
+            `[${lang}] ${label}: Dispel with no buffs → ${res4}, log ${JSON.stringify(l4)}`);
     }
 }
 
@@ -205,7 +254,14 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 
 let baseline = null;     // Map(inst → {owner, id, left}) after the last [Turn] line or cast
 const snap = () => { const m = new Map(); const fx = G.battleFx; if (!fx) return m; for (const owner of Object.keys(fx)) for (const kind of ['buff', 'debuff']) for (const x of fx[owner][kind]) m.set(x, { owner, id: x.id, left: x.left }); return m; };
-G.wrapApplyEffect(() => { baseline = snap(); });
+const dispel = { cast: 0, recast: 0, wasted: 0, immune: 0 };
+G.wrapApplyEffect((r, a, targetBuffs) => {
+    baseline = snap();
+    if (!current || a[2] !== 'dispel') return;
+    dispel.cast++;
+    if (r === 'immune') dispel.immune++;
+    else if (!targetBuffs) { if (r === 'dispelled') dispel.wasted++; else dispel.recast++; }
+});
 
 const stats = { turns: 0, checked: 0, frozen: 0, wrong: [], idLeaks: [], seen: new Set(), immuneHad: [], unitsSeen: { attacks: 0, hits: 0, turns: 0 } };
 let current = null;      // { A, B, immune: Set(names) }
@@ -268,6 +324,9 @@ check(stats.unitsSeen.attacks > 0 && stats.unitsSeen.hits > 0 && stats.unitsSeen
 check(stats.idLeaks.length === 0, 'no internal effect id appears in the battle log (uk and en)', `effect ids in the log: ${stats.idLeaks.join(' | ')}`);
 const unseen = EFFECT_IDS.filter(id => !stats.seen.has(id));
 check(!unseen.length, `all 12 effects showed up in fight logs by name`, `never seen in a fight log: ${unseen.join(', ')}`);
+check(dispel.wasted === 0 && dispel.recast > 0,
+    `Dispel in fights: ${dispel.cast} cast, ${dispel.recast} recast as another effect (no buffs to remove), ${dispel.immune} stopped by immunity, 0 wasted`,
+    `Dispel landed on a target with no buffs ${dispel.wasted} time(s) (recast ${dispel.recast})`);
 check(!stats.immuneHad.length, 'immune fighters never carried a debuff in a fight', `immune fighter with a debuff: ${stats.immuneHad.slice(0, 3).join(' | ')}`);
 
 console.log(failures ? `\n${failures} effect check(s) failed.` : '\nAll effect checks passed.');

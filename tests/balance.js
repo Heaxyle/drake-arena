@@ -11,6 +11,7 @@
 //   node tests/balance.js dragon [N]          the streamer's White Dragon must win every fight (exits non-zero otherwise)
 // Add --file path/to/index.html to test a different file (default: showcase/index.html).
 // Add --seed N to change the random seed (default 12345). Same seed → identical results.
+// Add --json out.json to also write the matrix / tiers numbers as JSON (full precision).
 // Add --bounds MIN,MAX (matrix only) to exit with an error if any matchup falls outside MIN–MAX %, e.g. --bounds 40,60.
 const fs = require('fs');
 const path = require('path');
@@ -28,6 +29,9 @@ if (si !== -1) {
     if (!Number.isInteger(seed)) { console.error('--seed needs a whole number, e.g. --seed 42'); process.exit(1); }
     args.splice(si, 2);
 }
+// Machine-readable results (matrix, tiers): sim_harness.js writes full-precision numbers to this file. Used by balance_check.js.
+const ji = args.indexOf('--json');
+if (ji !== -1) { global.__JSON_OUT = path.resolve(args[ji + 1]); args.splice(ji, 2); }
 // Balance gate: sim_harness.js reads global.__BOUNDS in the matrix scenario
 const bi = args.indexOf('--bounds');
 if (bi !== -1) {

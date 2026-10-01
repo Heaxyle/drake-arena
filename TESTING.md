@@ -41,7 +41,41 @@ flowchart TD
 | No internal effect id (`rage`, `mark`, ..., or the old `stoneskin`) appears in any battle-log line, in either language, and all 12 effect names show up | Log text built from the id instead of the table |
 | An immune fighter never carries a debuff during a real fight | Immunity bypassed by a title mechanic (chaos, cat) |
 
-The test was checked against deliberately broken copies of the game: hits counted on the wrong fighter, an id in the opening-buff log line, a refresh that doesn't reset, immunity switched off, Frost using up other buffs, and replacing the newest instead of the closest to ending. Each one made it fail.
+It also checks that the effect descriptions come from the table: every number in `nums` appears as a `{placeholder}` (`{cut}` → "30", `{x:dmg}` → "×1.55"), no digit is typed into the text, changing the table's numbers changes the text, and the README's effect table shows exactly the game's English descriptions. After the next balance change, the descriptions update on their own and `npm test` says if the README needs the new numbers.
+
+A Dispel that would find no buffs is cast as a different effect instead (from the caller's pool for Chaotic charge, so it stays a debuff). On an immune target it still counts as cast and is logged as ignored. In the fight run, every Dispel cast is checked: none may land on a target with no buffs.
+
+### Testing the tests: deliberate breakages
+
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in eight specific ways and checks that `effects.js` fails on each one. An unchanged copy runs first and must pass, so a broken test setup can't pass as "everything caught". The first six are the breakages from the effects rework; the last two cover the Dispel and description rules:
+
+| # | Breakage (one code change) | Caught by | First failure it printed |
+|---|---|---|---|
+| 1 | Hits counted on the attacker: `countDownEffects(atkFx, 'hits')` instead of the defender's | Real-fight countdown check | `2283 wrong count change(s), first: turn 1 (attacker @B): @B's shield (hits) went 2 → 1, expected 2` |
+| 2 | Effect id in the log: the opening-buff line prints `${id}` instead of the icon and name | Log id scan | `effect ids in the log: "regen" in: 🌅 Woke Up Swinging: @B starts the fight with regen (3 turns left)!` |
+| 3 | Refresh doesn't reset: recasting leaves the count where it was | Refresh check (and the replacement check after it, 4 failures) | `[uk] Rage refresh: refreshed, [{"id":"rage","left":1,"power":1}]` |
+| 4 | Debuff immunity switched off | Immunity checks for the title and the White Dragon (9 failures) | `[uk] debuff-immunity title: results applied,applied,replaced,replaced,dispelled,replaced` |
+| 5 | Frost uses up other effects: a frozen turn also counts down the drake's other "own attacks" effects | Real-fight countdown check | `55 wrong count change(s), first: turn 5 (attacker @B, frozen): @B's rage (attacks) went 1 → gone, expected 1` |
+| 6 | Replaces the newest effect instead of the one closest to ending | Tie-break check | `[uk] tie: replaced, buffs rage,blessing` |
+| 7 | Dispel cast on a target with no buffs instead of something else | Dispel recast checks (5 failures) | `[uk] Dispel on a buffless target: 200 of 200 still "dispelled"` |
+| 8 | A number typed into a description (Shield's "−30%") instead of `{cut}` | Description check | `shield: uk text never shows nums.cut; uk text has a number typed in instead of a {placeholder}` |
+
+Output of the last run:
+
+```
+✓ unchanged game: effects.js passes
+✓ caught: hits counted on the attacker
+✓ caught: effect id in the log
+✓ caught: refresh doesn't reset
+✓ caught: no debuff immunity
+✓ caught: Frost uses up other effects
+✓ caught: replaces the newest
+✓ caught: Dispel wasted on no buffs
+✓ caught: number typed into a description
+All 8 mutations caught.
+```
+
+If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
 
 ## Layer 1: balance simulation
 
@@ -56,7 +90,55 @@ The test was checked against deliberately broken copies of the game: hits counte
 | `node tests/balance.js dragon 100` | The streamer's White Dragon against every viewer element, any title, levels 1/10/20 | Wins 100%; exits non-zero otherwise |
 | `node tests/balance.js bonuses` / `rolls` | Every title bonus against Common; title roulette drop rates | Checked by hand |
 
-`npm test` runs the effect test, then the first three plus `dragon`.
+`npm test` runs the effect test and the mutation check, then the first three plus `dragon`.
+
+### Before merging a balance change: `npm run balance:check`
+
+**Run this before merging any change that touches balance numbers** (`EFFECTS`, `EFFECT_CAST`, `ELEMENT_BASE`, `ELEMENT_TIERS`, `MECH`, `RARITIES`, title stats). CI doesn't run it (it takes about 1.5 minutes on many cores, longer on few), so it's on the person merging.
+
+`tests/balance_check.js` plays the element matrix at levels **1, 10 and 20** (1,500 fights per matchup) and the title-tier report (2,000 fights per rarity and level), each on **three seeds** (12345, 42, 777), in parallel. It averages the seeds and fails if:
+
+- **any element matchup, at any of the three levels, is outside 45–57%**. Element bonuses grow with level (`ELEMENT_TIERS`), so a matrix that's fine at level 20 can be lopsided at level 1. Averaging three seeds takes out most of the noise of a single run (one cell of 1,500 fights is about ±1.3%; three seeds about ±0.75%);
+- **any rarity doesn't beat the one below it** by at least 1 point of win rate against Common titles, at any of the three levels, along Common < Uncommon < Rare < Epic < Legendary < Mythic. Meme is printed but not part of the ladder: it's the chaotic joke tier (0.2% drop), designed to be swingy, not stronger than Mythic.
+
+Options: `--seeds 1,2,3`, `--fights N`, `--tier-fights N`, `--bounds 45,57`, `--min-gap 1`, `--file other.html`, and `--skip-tiers` for quick element-only runs while tuning. `balance.js` writes the full-precision numbers for it with `--json out.json`.
+
+Last run (current numbers):
+
+```
+Elements, level 1 (row beats column, average of 3 seeds)
+            red   blue  black   gold purple  green
+red           -   48.3   47.9   50.6   49.0   48.8
+blue       52.2      -   49.2   52.0   48.8   48.5
+black      51.5   48.6      -   51.3   46.6   49.5
+gold       48.4   47.1   50.9      -   47.9   51.1
+purple     51.7   48.9   52.5   51.6      -   50.8
+green      51.4   50.9   50.4   49.4   48.4      -
+
+Elements, level 10
+red           -   46.6   47.9   51.2   49.8   46.5
+blue       55.0      -   52.2   50.1   54.0   48.3
+black      50.8   47.9      -   50.7   48.2   50.8
+gold       47.6   50.7   49.6      -   48.6   49.9
+purple     51.2   46.1   52.2   51.3      -   50.6
+green      51.5   50.7   49.6   48.4   50.6      -
+
+Elements, level 20
+red           -   45.6   46.8   53.9   49.0   45.4
+blue       53.9      -   51.3   47.7   54.8   46.0
+black      52.1   49.1      -   51.7   48.5   49.9
+gold       47.1   52.3   47.3      -   47.3   52.4
+purple     51.4   47.6   53.6   51.3      -   49.1
+green      53.3   52.3   49.4   45.6   50.2      -
+
+Title rarities vs Common titles (average of 3 seeds)
+           common  uncommon      rare      epic legendary    mythic      meme
+L1          49.3      54.2      56.2      57.6      61.4      67.1      56.4
+L10         49.6      52.1      57.0      58.3      61.5      66.5      54.7
+L20         49.6      52.9      58.0      59.8      62.4      64.7      52.6
+
+Balance check passed: every matchup at levels 1/10/20 within 45–57%, every rarity beats the one below it.
+```
 
 ### Per-effect report
 
@@ -70,7 +152,7 @@ The test was checked against deliberately broken copies of the game: hits counte
 | healed | HP Regeneration actually restored (after the max-HP cap and Poison) |
 | each | The same three, per landing instead of per fight |
 
-Read it with the matrix: an effect far above the others per landing (Regeneration, Divine Might) or far below (Mark, Dispel, which usually finds nothing to remove) explains a lopsided element. The balance tables only cover the six viewer elements (`VIEWER_DRAKE_TYPES`); the White Dragon is deliberately unbeatable, so the `dragon` check asserts exactly that instead.
+Read it with the matrix: an effect far above the others per landing (Regeneration) or far below (Mark) explains a lopsided element. Dispel only lands when there's something to remove (otherwise a different effect is cast), so its "buffs removed each" is always at least 1. The balance tables only cover the six viewer elements (`VIEWER_DRAKE_TYPES`); the White Dragon is deliberately unbeatable, so the `dragon` check asserts exactly that instead.
 
 ### Why it's seeded
 
@@ -86,7 +168,7 @@ Three things fail the run:
 
 - **A broken effect rule.** Any failed check in `effects.js` exits non-zero before the balance sims start.
 - **A combat crash.** If any simulated fight logs a simulation error, the harness throws and `npm test` exits non-zero. Across the ~24,000 fights `npm test` plays, every element, title ability and buff/debuff comes up many times, so a code path that throws is very likely to be hit.
-- **The balance gate.** `npm run test:balance-gate` runs `matrix 1500 20 --seed 12345 --bounds 40,60`: 1,500 fights for each of the 30 element matchups at level 20. It fails if any matchup falls outside 40–60%, and lists the ones that did. The bound is deliberately wider than the ~45–57% tuning target: it catches a change that clearly breaks an element, not normal tuning. Because the run is seeded, a failure is repeatable, not a flaky run. It takes about 45 seconds. Today every matchup is between 45% (green vs gold) and 55%, so it also meets the tighter 45–57% tuning target on this seed. On other seeds (42, 777, 2024) a few cells land at 43–44% or 57.3%: that's noise (one cell of 1,500 fights is about ±1.3%) plus a real lean of about 45% for Black against Purple, whose Divine Might can't be blocked and whose Dispel strips Shadow. Averaged over three seeds every pairing is between 45% and 54%.
+- **The balance gate.** `npm run test:balance-gate` runs `matrix 1500 20 --seed 12345 --bounds 40,60`: 1,500 fights for each of the 30 element matchups at level 20. It fails if any matchup falls outside 40–60%, and lists the ones that did. The bound is deliberately wider than the ~45–57% tuning target: it catches a change that clearly breaks an element, not normal tuning. Because the run is seeded, a failure is repeatable, not a flaky run. It takes about 45 seconds. Today every matchup is between 45% (green vs gold) and 55%. The gate only looks at level 20 and one seed; the 45–57% tuning target across levels 1, 10 and 20 is what `npm run balance:check` enforces (below), and it isn't run in CI.
 
 Everything else (the tier and level tables, the 45–57% target) is printed for a person to read, not asserted. Balance there is a judgment call.
 
@@ -125,6 +207,8 @@ npx playwright install chromium        # once; CI adds --with-deps for Linux sys
 
 npm test                               # effect rules, then balance: element matrix, title tiers, level gaps
 npm run test:effects                   # just the effect rules (~1 s)
+npm run test:mutations                 # break the game 8 ways, check effects.js catches each (~10 s)
+npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~1.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)
 npm run test:ui showcase               # UI smoke test + screenshots in tests/screenshots/

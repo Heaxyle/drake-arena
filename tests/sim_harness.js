@@ -45,6 +45,8 @@ function __fight(a, b) {
 }
 const __rand = arr => arr[Math.floor(Math.random() * arr.length)];
 const __pct = x => (100 * x).toFixed(1) + '%';
+// --json: write results for tests/balance_check.js
+const __writeJson = obj => { if (global.__JSON_OUT) require('fs').writeFileSync(global.__JSON_OUT, JSON.stringify(obj)); };
 
 function __tierList() {
     const tiers = {};
@@ -72,6 +74,7 @@ if (scenario === 'tiers') {
     const N = +(process.argv[4] || 2000);
     const tiers = __tierList();
     const base = tiers[process.argv[5] || 'common'];
+    const __tierOut = {};
     console.log('tier sizes:', Object.entries(tiers).map(([k, v]) => `${k}:${v.length}`).join(' '));
     for (const lvl of [1, 10, 20]) {
         const row = [];
@@ -82,9 +85,11 @@ if (scenario === 'tiers') {
                 if (r.winner === 'A') w++; else if (r.winner === 'draw') w += 0.5;
             }
             row.push(`${tier} ${__pct(w / N)}`);
+            (__tierOut[lvl] = __tierOut[lvl] || {})[tier] = 100 * w / N;
         }
         console.log(`L${lvl} vs ${process.argv[5] || 'common'}: ` + row.join(' | '));
     }
+    __writeJson({ scenario: 'tiers', fights: N, tiers: __tierOut });
 }
 
 if (scenario === 'bonuses') {
@@ -129,7 +134,7 @@ if (scenario === 'rolls') {
 
 if (scenario === 'matrix') {
     const N = +(process.argv[4] || 400), lvl = +(process.argv[5] || 20);
-    const outOfBounds = [];
+    const outOfBounds = [], __cells = {};
     console.log('row beats column, level ' + lvl);
     console.log('       ' + __TYPES.map(t => t.padStart(7)).join(''));
     for (const x of __TYPES) {
@@ -138,12 +143,14 @@ if (scenario === 'matrix') {
             if (x === y) { row += '     - '; continue; }
             let w = 0; for (let i = 0; i < N; i++) { const r = __fight({ type: x, level: lvl, title: __NEUTRAL }, { type: y, level: lvl, title: __NEUTRAL }); if (r.winner === 'A') w++; else if (r.winner === 'draw') w += .5; }
             const pct = 100 * w / N;
+            (__cells[x] = __cells[x] || {})[y] = pct;
             if (global.__BOUNDS && (pct < __BOUNDS[0] || pct > __BOUNDS[1])) outOfBounds.push(`${x} vs ${y}: ${pct.toFixed(1)}%`);
             row += pct.toFixed(0).padStart(6) + '%';
         }
         console.log(row);
     }
     __effectReport();
+    __writeJson({ scenario: 'matrix', fights: N, level: lvl, matrix: __cells, effects: effectTally, totalFights: __fights });
     if (global.__BOUNDS) {
         if (outOfBounds.length) {
             console.error(`\n${outOfBounds.length} matchup(s) outside ${__BOUNDS[0]}–${__BOUNDS[1]}%:\n  ` + outOfBounds.join('\n  '));
