@@ -5,6 +5,24 @@ const __xpFor = lvl => { let x = 0; for (let l = 1; l < lvl; l++) x += getRequir
 const __TYPES = VIEWER_DRAKE_TYPES.map(d => d.type);
 const __NEUTRAL = { id: 0, name: 'neutral', icon: '', color: '#fff', rarity: 'none', bonus: { type: 'none', value: 0 } };
 const __stripe = s => s.replace(/<[^>]+>/g, '');
+// Per-effect numbers: the game adds to effectTally (lands, damage added, damage prevented, HP healed, buffs removed)
+effectTally = {};
+let __fights = 0;
+
+// How often each effect lands per fight and what it does, averaged over every fight played so far
+function __effectReport() {
+    const f = Math.max(1, __fights), n = x => (x / f).toFixed(1).padStart(8), per = (x, l) => (l ? x / l : 0).toFixed(1).padStart(8);
+    console.log(`\nEffects, per fight (${__fights} fights): lands = casts that took hold (refreshes count, immunity doesn't);`);
+    console.log('+dmg = extra damage dealt, prevented = damage avoided, healed = HP restored; "each" = per landing.');
+    console.log('effect'.padEnd(26) + 'kind'.padEnd(8) + 'lands'.padStart(8) + '+dmg'.padStart(8) + 'prevent'.padStart(8) + 'healed'.padStart(8) + '  each:' + '+dmg'.padStart(7) + 'prevent'.padStart(8) + 'healed'.padStart(8) + '  note');
+    for (const id of EFFECT_IDS) {
+        const e = EFFECTS[id], t = effectTally[id] || { lands: 0, dmg: 0, prevented: 0, healed: 0, removed: 0 };
+        const note = { rage: 'prevent < 0: extra damage the raging drake takes', frost: 'prevent: estimated from the frozen drake\'s average hit',
+            poison: 'prevent: healing it blocked', dispel: `${per(t.removed, t.lands).trim()} buffs removed each` }[id] || '';
+        console.log(`${e.icon} ${e.name.en}`.padEnd(25) + e.kind.padEnd(8) + n(t.lands) + n(t.dmg) + n(t.prevented) + n(t.healed) + '      ' +
+            per(t.dmg, t.lands).slice(1) + per(t.prevented, t.lands) + per(t.healed, t.lands) + '  ' + note);
+    }
+}
 
 function __fight(a, b) {
     const db = getDragonDB();
@@ -15,6 +33,7 @@ function __fight(a, b) {
     isBattleRunning = true;
     runBattle('A', '#fff', 'B', '#fff', false);
     __drain();
+    __fights++;
     const lines = __LOG.slice(start).map(__stripe);
     if (__LOG.length > 20000) __LOG.length = 0;
     const err = lines.find(l => /помилка симуляції|simulation error/i.test(l));
@@ -26,6 +45,8 @@ function __fight(a, b) {
 }
 const __rand = arr => arr[Math.floor(Math.random() * arr.length)];
 const __pct = x => (100 * x).toFixed(1) + '%';
+// --json: write results for tests/balance_check.js
+const __writeJson = obj => { if (global.__JSON_OUT) require('fs').writeFileSync(global.__JSON_OUT, JSON.stringify(obj)); };
 
 function __tierList() {
     const tiers = {};
@@ -46,12 +67,14 @@ if (scenario === 'elements') {
             } }
         console.log(`Level ${lvl}: ` + __TYPES.map(t => `${t} ${__pct(wins[t][0] / wins[t][1])}`).join(' | ') + ` | avg turns ${(turns / fights).toFixed(1)} | timeouts ${__pct(timeouts / fights)}`);
     }
+    __effectReport();
 }
 
 if (scenario === 'tiers') {
     const N = +(process.argv[4] || 2000);
     const tiers = __tierList();
     const base = tiers[process.argv[5] || 'common'];
+    const __tierOut = {};
     console.log('tier sizes:', Object.entries(tiers).map(([k, v]) => `${k}:${v.length}`).join(' '));
     for (const lvl of [1, 10, 20]) {
         const row = [];
@@ -62,9 +85,11 @@ if (scenario === 'tiers') {
                 if (r.winner === 'A') w++; else if (r.winner === 'draw') w += 0.5;
             }
             row.push(`${tier} ${__pct(w / N)}`);
+            (__tierOut[lvl] = __tierOut[lvl] || {})[tier] = 100 * w / N;
         }
         console.log(`L${lvl} vs ${process.argv[5] || 'common'}: ` + row.join(' | '));
     }
+    __writeJson({ scenario: 'tiers', fights: N, tiers: __tierOut });
 }
 
 if (scenario === 'bonuses') {
@@ -109,7 +134,7 @@ if (scenario === 'rolls') {
 
 if (scenario === 'matrix') {
     const N = +(process.argv[4] || 400), lvl = +(process.argv[5] || 20);
-    const outOfBounds = [];
+    const outOfBounds = [], __cells = {};
     console.log('row beats column, level ' + lvl);
     console.log('       ' + __TYPES.map(t => t.padStart(7)).join(''));
     for (const x of __TYPES) {
@@ -118,11 +143,14 @@ if (scenario === 'matrix') {
             if (x === y) { row += '     - '; continue; }
             let w = 0; for (let i = 0; i < N; i++) { const r = __fight({ type: x, level: lvl, title: __NEUTRAL }, { type: y, level: lvl, title: __NEUTRAL }); if (r.winner === 'A') w++; else if (r.winner === 'draw') w += .5; }
             const pct = 100 * w / N;
+            (__cells[x] = __cells[x] || {})[y] = pct;
             if (global.__BOUNDS && (pct < __BOUNDS[0] || pct > __BOUNDS[1])) outOfBounds.push(`${x} vs ${y}: ${pct.toFixed(1)}%`);
             row += pct.toFixed(0).padStart(6) + '%';
         }
         console.log(row);
     }
+    __effectReport();
+    __writeJson({ scenario: 'matrix', fights: N, level: lvl, matrix: __cells, effects: effectTally, totalFights: __fights });
     if (global.__BOUNDS) {
         if (outOfBounds.length) {
             console.error(`\n${outOfBounds.length} matchup(s) outside ${__BOUNDS[0]}–${__BOUNDS[1]}%:\n  ` + outOfBounds.join('\n  '));

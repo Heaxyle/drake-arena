@@ -12,7 +12,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 - **White Dragon:** a bigger, unbeatable dragon that only the streamer can pick (see [below](#white-dragon-streamer-only))
 - **194 titles** in seven rarities, from Common stat boosts to Legendary, Mythic and Meme titles with unique abilities
 - **Chat-request window:** replies to viewers (`!stats` cards, title rolls, warnings) appear in their own panel, separate from the battle log
-- **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 10 buffs/debuffs and a sudden-death phase
+- **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 12 buffs/debuffs (one of each per element) and a sudden-death phase
 - **Ranked queue** with level-based matchmaking, plus friendly duels that give no XP
 - **Progression:** XP, levels 1–20 and a win/loss leaderboard, saved in `localStorage`
 - **Channel-point rewards** for title rolls and element rerolls
@@ -56,14 +56,14 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The 
 
 ## How combat works
 
-**Base stats:** 150 HP + 10 per level. Defense is 5% + 1% per level, capped at 65%. Crit chance is 15% + 1% per level, dealing 1.5× damage. Each hit that deals damage has a 30% chance to apply a buff or debuff. Everyone has a 10% ultra-block chance, which reduces a hit to 0 damage.
+**Base stats:** 150 HP + 10 per level. Defense is 5% + 1% per level, capped at 65%. Crit chance is 15% + 1% per level, dealing 1.5× damage. Each hit that deals damage has a 30% chance (plus element and title bonuses) to cast a buff or debuff (see [Buffs and debuffs](#buffs-and-debuffs)). Everyone has a 10% ultra-block chance, which reduces a hit to 0 damage.
 
 | Element | Passive (grows with level tier) |
 |---|---|
-| 🟥 Red | +10–18% crit, crit damage 1.85–2.1× |
-| 🟦 Blue | +5–14 defense; 10–18% chance to reflect half the damage back |
-| ⬛ Black | +3–10% ultra-block; +18–25% effect chance |
-| 🟨 Gold | +50–90% XP; 4–6% chance for a hit to leave the enemy at exactly 1 HP |
+| 🟥 Red | +13–18% crit, crit damage 1.85–2.05× |
+| 🟦 Blue | +5–14 defense; 8–18% chance to reflect half the damage back |
+| ⬛ Black | +3–10% ultra-block; +18–27% effect chance |
+| 🟨 Gold | +50–90% XP; 7–9% chance for a hit to leave the enemy at exactly 1 HP |
 | 🟪 Purple | Buffs and debuffs 25–40% stronger; +20–35% effect chance |
 | 🟩 Green | +15–35% max HP |
 
@@ -82,15 +82,38 @@ When the streamer setting changes, the White Dragon stays with the streamer only
 
 **Each turn** (every 4.5 s, attackers alternate after a coin flip for who goes first):
 
-1. Damage over time and regeneration apply first. Burn and poison deal 5% of max HP. Regeneration heals 8%.
+1. Effects that last turns act first: Burn, Poison and Regeneration (see below). A frozen drake (❄️ Frost) then skips its attack.
 2. The attack type is rolled:
    - 45% physical, 45% magic. Each can be light, heavy or sneaky. Sneaky ignores armor.
    - 10% vampire. It ignores armor and heals the attacker for half the damage dealt.
-3. Modifiers are applied in order: rage, weakness, divine power, sudden death, crit, ultra-block, shield, then armor.
-4. Element procs are checked: Blue reflect and Gold's 1-HP hit.
-5. A buff or debuff may trigger, lasting 3 rounds. Each drake can hold at most 2 buffs and 2 debuffs.
+3. Modifiers are applied in order: Rage / Weakness / Divine Might (and the defender's Rage penalty), sudden death, title abilities, crit (Blessing, Mark), ultra-block (Shadow; Divine Might can't be blocked), armor, then Shield.
+4. The attack uses up one of the attacker's "attacks" effects and one of the defender's "hits taken" effects.
+5. Element procs are checked: Blue reflect and Gold's 1-HP hit.
+6. If the hit dealt damage, a buff or debuff may be cast.
 
 **Sudden death** starts at turn 16 and adds +30% damage every turn. If both drakes are still alive after turn 29, the one with more HP wins.
+
+### Buffs and debuffs
+
+Each element has one buff (cast on itself) and one debuff (cast on the opponent). The descriptions below are the ones the game shows (card tooltips); they are filled in from the `EFFECTS` numbers, and `npm test` fails if this table falls out of step with them. When a cast triggers, 70% of the time it's one of the caster's own two (50/50 buff or debuff), 30% of the time any of the 12. The White Dragon always picks from all 12.
+
+| Element | Buff | Debuff |
+|---|---|---|
+| 🟥 Red | 💢 **Rage** (Лють): Next 2 own attacks deal +40% damage, but takes +15% damage until it ends | 🔥 **Burn** (Підпал): 5% max HP damage at the start of each of the target's next 3 turns |
+| 🟦 Blue | 🛡️ **Shield** (Щит): Next 2 hits taken deal −30% damage (armour-piercing and vampire too) | ❄️ **Frost** (Мороз): The target skips its next attack |
+| ⬛ Black | 🌑 **Shadow** (Тінь): +25% ultra-block chance for the next 2 hits taken | 🥀 **Weakness** (Слабкість): The target's next 2 attacks deal −40% damage |
+| 🟨 Gold | 🍀 **Blessing** (Благословіння): Next 2 own attacks get +60% crit chance | 🎯 **Mark** (Мітка): The next hit on the target is a guaranteed crit |
+| 🟪 Purple | 🌟 **Divine Might** (Божественна міць): Next own attack deals ×1.55 damage and can't be blocked | 💨 **Dispel** (Розвіювання): Removes all of the target's buffs at once |
+| 🟩 Green | 💚 **Regeneration** (Регенерація): Heals 6.5% max HP at the start of each of the owner's next 3 turns | ☠️ **Poison** (Отруєння): 3% max HP damage at the start of each of the target's 3 turns, and its healing is −50% |
+
+- **Durations** count what each effect names: the owner's own attacks, the hits it takes (a blocked hit still counts), or the start of its turns. The rules are the same for both fighters. Fighter cards show what's left in words, e.g. "💢 Лють · ще 2 атаки" / "💢 Rage · 2 attacks left".
+- **Limits:** at most 2 buffs and 2 debuffs per drake. Casting an active effect again refreshes it. With 2 already, a new one replaces the one closest to ending (the older one on a tie). Both are logged.
+- **Effect power** (Purple, "effect strength" titles) scales the percentages, never the counts. Shield and Weakness are capped at −90%, Poison's healing cut at 100%.
+- **Dispel never goes to waste:** if the target has no buffs to remove, a different effect is cast instead (picked the usual way; Chaotic charge picks another debuff). On an immune target it still counts as cast and the log shows it was ignored.
+- **Debuff immunity** (the Legendary ability, and the White Dragon) blocks every debuff, Dispel included.
+- Title abilities draw from the same list: Opening buff picks one of the 6 buffs, Chaotic charge one of the 6 debuffs, Cat on the keyboard any of the 12.
+
+All of this lives in one table, `EFFECTS` (with `EFFECT_CAST` for the cast split and slot limit); the fight code, fighter cards, battle log and balance sim all read from it. The numbers were tuned with the seeded balance matrix (see [TESTING.md](../TESTING.md)).
 
 **XP:** win +40, loss +10, draw +10 each. XP only counts in ranked fights. Reaching the next level takes `100 × level^1.4` XP, up to level 20.
 
@@ -114,7 +137,7 @@ When the streamer setting changes, the White Dragon stays with the streamer only
 |---|---|---|
 | Legendary | Guardian shield | Heals 25% once when it drops below 15% HP |
 | Legendary | Armor piercer | Ignores 70% of enemy defense |
-| Legendary | Debuff immunity | Immune to debuffs |
+| Legendary | Debuff immunity | Immune to debuffs (Dispel included) |
 | Legendary | Quantum dodge | +10% ultra-block |
 | Legendary | Chaotic charge | 15% chance to apply an extra debuff |
 | Mythic | Opening buff | Starts every fight with a random buff |
@@ -123,7 +146,7 @@ When the streamer setting changes, the White Dragon stays with the streamer only
 | Mythic | Executioner | +50% damage to targets below 35% HP |
 | Meme | Coin flip | Every hit deals ×1.5 or ×0.6 |
 | Meme | Sleepy | 10% chance to sleep through a turn, otherwise +25% damage |
-| Meme | Cat on the keyboard | 25% chance of a random buff or debuff, on either fighter |
+| Meme | Cat on the keyboard | 25% chance of any of the 12 effects, cast by either fighter |
 
 ## Bugs found and fixed
 
@@ -151,7 +174,8 @@ Everything is in `index.html`:
 - `RARITIES` (drop chances), `ELEMENT_BASE` / `ELEMENT_TIERS` (element passives), `MECH` (title abilities): balance numbers — tune these, not the fight code
 - `titleStats`, `getMaxHP`, `getModifiedDefenses`, `getCritStats`, `getEffectMult`, `getTierMultiplier`: stat calculations
 - `handleChatMessage`: command parsing, shared by Twitch and the simulator
-- `checkQueue`, `runBattle`, `triggerEffect`, `finishBattle`: matchmaking and the combat loop
+- `EFFECTS`, `EFFECT_CAST`: the 12 buffs/debuffs (icon, names, description, what counts them down, numbers) and the cast rules; `getCastChance` is the cast chance
+- `checkQueue`, `runBattle`, `pickEffect`, `applyEffect`, `finishBattle`: matchmaking and the combat loop (`applyEffect` handles refresh, replacement, Dispel and immunity)
 - `addInfo`, `showStatsCard`, `showTitleRoll`, `showOddsCard`: the chat-request window
 - `renderLeaderboard`, `updateFighterCard`, `updateStatusUI`: UI rendering
 - `migrateOldSaves`, the chat simulator and page init are at the end of the script

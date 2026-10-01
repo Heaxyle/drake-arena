@@ -1,3 +1,5 @@
 node_modules/
 *.log
 .DS_Store
+# Mid-fight screenshot from npm run test:ui: different every run (random fight), so not tracked
+tests/screenshots/showcase-05-mid-fight.png

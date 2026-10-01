@@ -11,9 +11,11 @@
 //   node tests/balance.js dragon [N]          the streamer's White Dragon must win every fight (exits non-zero otherwise)
 // Add --file path/to/index.html to test a different file (default: showcase/index.html).
 // Add --seed N to change the random seed (default 12345). Same seed → identical results.
+// Add --json out.json to also write the matrix / tiers numbers as JSON (full precision).
 // Add --bounds MIN,MAX (matrix only) to exit with an error if any matchup falls outside MIN–MAX %, e.g. --bounds 40,60.
 const fs = require('fs');
 const path = require('path');
+const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
 const args = process.argv.slice(2);
 let file = 'showcase/index.html';
@@ -27,6 +29,9 @@ if (si !== -1) {
     if (!Number.isInteger(seed)) { console.error('--seed needs a whole number, e.g. --seed 42'); process.exit(1); }
     args.splice(si, 2);
 }
+// Machine-readable results (matrix, tiers): sim_harness.js writes full-precision numbers to this file. Used by balance_check.js.
+const ji = args.indexOf('--json');
+if (ji !== -1) { global.__JSON_OUT = path.resolve(args[ji + 1]); args.splice(ji, 2); }
 // Balance gate: sim_harness.js reads global.__BOUNDS in the matrix scenario
 const bi = args.indexOf('--bounds');
 if (bi !== -1) {
@@ -35,44 +40,14 @@ if (bi !== -1) {
     global.__BOUNDS = b;
     args.splice(bi, 2);
 }
-function mulberry32(a) {
-    return () => {
-        a |= 0; a = (a + 0x6D2B79F5) | 0;
-        let t = Math.imul(a ^ (a >>> 15), 1 | a);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-}
 Math.random = mulberry32(seed);
 console.log(`seed: ${seed}`);
 const [scenario = 'elements', n, extra] = args;
 // sim_harness.js reads process.argv[4] / [5]
 process.argv = [process.argv[0], process.argv[1], file, scenario, n, extra].filter(v => v !== undefined);
 
-const html = fs.readFileSync(path.resolve(file), 'utf8');
-const script = (html.match(/<script>([\s\S]*?)<\/script>/) || [])[1];
-if (!script) { console.error('No inline <script> found in ' + file); process.exit(1); }
-
-const noop = () => {};
-const mkEl = () => ({ style: {}, innerHTML: '', innerText: '', children: [], classList: { add: noop, remove: noop, toggle: noop, contains: () => false },
-    appendChild(c) { this.children.push(c); if (this.children.length > 50) this.children.shift(); global.__LOG.push(c.innerHTML || ''); },
-    prepend(c) { this.children.unshift(c); global.__LOG.push(c.innerHTML || ''); }, removeChild() { this.children.shift(); }, remove: noop,
-    querySelector: () => null, querySelectorAll: () => [], setAttribute: noop, removeAttribute: noop,
-    get firstChild() { return this.children[0]; }, get lastChild() { return this.children[this.children.length - 1]; } });
-const els = {};
-global.__LOG = [];
-global.document = { getElementById: id => els[id] || (els[id] = mkEl()), createElement: () => mkEl(), addEventListener: noop, querySelectorAll: () => [] };
-const store = {};
-global.localStorage = { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = v; } };
-global.window = global;
-global.tmi = undefined;
-global.location = { search: '' };
-let q = [], iv = [];
-global.setTimeout = f => { q.push(f); return 0; };
-global.clearTimeout = noop;
-global.setInterval = f => { const o = { f, on: true }; iv.push(o); return o; };
-global.clearInterval = o => { if (o) o.on = false; };
-global.__drain = () => { for (let i = 0; i < 100000; i++) { if (q.length) q.shift()(); else { const a = iv.find(o => o.on); if (!a) break; a.f(); } } iv = iv.filter(o => o.on); };
+const script = gameScript(file);
+setupEnv();
 const _warn = console.warn; console.warn = () => {};
 
 const harness = fs.readFileSync(path.join(__dirname, 'sim_harness.js'), 'utf8');

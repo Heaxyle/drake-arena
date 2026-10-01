@@ -7,7 +7,7 @@
 //
 // Checks: no JS page errors, every drake type registers and its sprite renders,
 // a full fight finishes, !стата / !титул / !шанси answer, HP bars never move
-// vertically, the info feed never overflows its column. The White Dragon is streamer-only: it's refused while no
+// vertically, the info feed never overflows its column, buff/debuff chips read "name · what's left" and aren't cut off. The White Dragon is streamer-only: it's refused while no
 // streamer is set and for every other viewer (!дрейк / !drake / !рерол), and works for the streamer set in Test Settings.
 // Fights with the dragon (one natural, one with vampire rolls forced) must never log a heal above the healer's max HP.
 // A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent.
@@ -92,6 +92,11 @@ function infoFeedProblems() {
     return out;
 }
 
+// Runs in the page: text of every buff/debuff chip on both cards, and whether its ellipsis cut it off
+function effectChips() {
+    return [...document.querySelectorAll('#status-p1 .status-item, #status-p2 .status-item')].map(c => [c.innerText.trim(), c.scrollWidth > c.clientWidth + 1]);
+}
+
 // Runs in the page: how many pixels each fighter-card sprite actually drew
 function spriteState() {
     return ['p1', 'p2'].map(p => {
@@ -172,6 +177,7 @@ async function testVersion(browser, key) {
     const barBaseline = await page.evaluate(measureBars);
     const barMoves = new Set();
     const spritesSeen = {};
+    const chipsSeen = new Map();   // buff/debuff chip text → cut off by its ellipsis?
 
     // Plays one fight from start to finish, sampling the layout every STEP_MS of game time
     const runFight = async (label, start, midShot) => {
@@ -186,6 +192,7 @@ async function testVersion(browser, key) {
                 const dy = Math.max(Math.abs(b.top - base.top), Math.abs(b.containerTop - base.containerTop));
                 if (dy > 0.5) barMoves.add(`${label}: #${b.id} moved ${dy.toFixed(1)}px (top ${base.top.toFixed(1)} → ${b.top.toFixed(1)}) at ${(elapsed / 1000).toFixed(1)}s`);
             });
+            for (const [text, cut] of await page.evaluate(effectChips)) chipsSeen.set(text, chipsSeen.get(text) || cut);
             for (const s of await page.evaluate(spriteState)) {
                 const t = typeOf[s.name];
                 if (t && s.painted > 20 && s.w > 0 && s.h > 0 && s.visible) spritesSeen[t] = true;
@@ -322,6 +329,14 @@ async function testVersion(browser, key) {
     await checkFeed('after all fights');
 
     // 4. Verdicts
+    // Chips say what's left in words, e.g. "💢 Лють · ще 2 атаки" / "💢 Rage · 2 attacks left", and fit on the card
+    const CHIP_RE = /^\S+ .+ · (ще \d+ (атака|атаки|атак|удар|удари|ударів|хід|ходи|ходів)|\d+ (attack|hit|turn)s? left)$/;
+    const badChips = [...chipsSeen.keys()].filter(t => !CHIP_RE.test(t));
+    const cutChips = [...chipsSeen].filter(([, cut]) => cut).map(([t]) => t);
+    if (!chipsSeen.size) fail('no buff/debuff chip appeared on a fighter card in any fight');
+    else if (badChips.length) fail(`buff/debuff chips not in the "name · what's left" form: ${badChips.slice(0, 5).join(' | ')}`);
+    else pass(`${chipsSeen.size} different buff/debuff chips, all "name · what's left" (e.g. "${[...chipsSeen.keys()][0]}")`);
+    if (cutChips.length) fail(`buff/debuff chips cut off on the card: ${cutChips.slice(0, 5).join(' | ')}`);
     if (barMoves.size) [...barMoves].slice(0, 10).forEach(fail);
     else pass('HP bars stayed at the same vertical position the whole time');
     const missing = cfg.drakes.map(([, , t]) => t).filter(t => !spritesSeen[t]);
