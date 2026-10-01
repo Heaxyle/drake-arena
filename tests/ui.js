@@ -12,14 +12,36 @@
 // Fights with the dragon (one natural, one with vampire rolls forced) must never log a heal above the healer's max HP.
 // A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent.
 // Screenshots go to tests/screenshots/. Game timers run on a fake clock, so fights take seconds.
+// Fights are seeded: Math.random is replaced with a seeded generator before the page loads, so every run plays the same
+// fights (UI_SEED=n picks another seed). The run prints a fingerprint of the whole battle log to compare runs.
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { chromium } = require('playwright');
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
 const STEP_MS = 500;              // fake-clock step between layout samples during a fight
 const FIGHT_LIMIT_MS = 5 * 60000; // 30s countdown + 30 turns x 4.5s fits easily
+// The default seed is one where both languages show a full Element Power meter during the fights
+const SEED = Number(process.env.UI_SEED || 3);
+
+// Runs in the page before its own script: seeded Math.random (mulberry32), and every battle-log line recorded
+function seedAndRecord(seed) {
+    let a = seed >>> 0;
+    Math.random = () => {
+        a = (a + 0x6D2B79F5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    window.__fightLog = [];
+    document.addEventListener('DOMContentLoaded', () => {
+        const log = document.getElementById('battle-log');
+        if (log) new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => window.__fightLog.push(n.textContent)))).observe(log, { childList: true });
+    });
+}
 
 // Per-version setup: [username, color word, element type] for each drake type, and the duels to run.
 const VERSIONS = {
@@ -142,7 +164,9 @@ async function testVersion(browser, key) {
     page.on('console', m => { if (m.type() === 'error') pageErrors.push('console.error: ' + m.text()); });
     await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
     await page.clock.install({ time: new Date('2026-01-01T12:00:00') });
+    await page.addInitScript(seedAndRecord, SEED);
     await page.goto('file:///' + path.join(ROOT, cfg.file).replace(/\\/g, '/'));
+    console.log(`    (fights seeded with UI_SEED=${SEED})`);
     // The overlay is transparent for OBS; paint a dark backdrop so screenshots are readable (layout unchanged)
     await page.addStyleTag({ content: 'html { background: #1e1f26; }' });
 
@@ -304,18 +328,6 @@ async function testVersion(browser, key) {
             await chat(target, '!прийняти');
         });
     }
-    // Fights are random: a language that hasn't shown a full meter yet gets extra duels (at most 8) until it does
-    for (const l of ['uk', 'en']) {
-        const [challenger, target] = cfg.duels[0];
-        for (let extra = 0; extra < 8 && !meterFullLangs[l]; extra++) {
-            await page.clock.runFor(3 * 60 * 1000 + 1000);   // fighters have a 3-minute cooldown (COOLDOWN_MINUTES)
-            if (await page.evaluate('currentLang') !== l) await page.click('#lang-toggle-btn');
-            await runFight(`extra duel @${challenger} vs @${target} (${l}, waiting for a full meter)`, async () => {
-                await chat(challenger, `!бій @${target}`);
-                await chat(target, '!прийняти');
-            });
-        }
-    }
     // 3b. Heals logged in a fight with the streamer's dragon must be what was actually restored (≤ that fighter's max HP)
     if (dragonCfg) {
         const dragonDuelCfg = cfg.duels.find(d => d.includes(dragonCfg.streamer));
@@ -439,6 +451,10 @@ async function testVersion(browser, key) {
     if (pageErrors.length) [...new Set(pageErrors)].forEach(e => fail(`JS error: ${e}`));
     else pass('no JS errors');
     skipped.forEach(s => console.log(`    – skipped: ${s}`));
+    // Same seed, same fights: this fingerprint of every battle-log line must match between runs
+    const fightLog = await page.evaluate(() => window.__fightLog);
+    const fingerprint = crypto.createHash('sha256').update(fightLog.join('\n')).digest('hex').slice(0, 16);
+    console.log(`    fight log fingerprint (UI_SEED=${SEED}): ${fingerprint} (${fightLog.length} lines)`);
 
     await context.close();
     return failures;
