@@ -14,7 +14,8 @@ const { spawn } = require('child_process');
 const args = process.argv.slice(2);
 const fi = args.indexOf('--file');
 const FILE = fi === -1 ? 'showcase/index.html' : args[fi + 1];
-const src = fs.readFileSync(FILE, 'utf8');
+// Line endings normalised to \n, so the multi-line patterns below match on Windows (CRLF checkout) and in CI (LF)
+const src = fs.readFileSync(FILE, 'utf8').replace(/\r\n/g, '\n');
 const readme = fs.readFileSync(path.join(path.dirname(FILE), 'README.md'), 'utf8');
 
 // [name, what the bug is, code to find, what to put instead]
@@ -51,7 +52,7 @@ const MUTATIONS = [
     ['below-half bonus every time', 'the below-half bonus is given on every hit under half HP, not once per fight',
         'if (!st.halfDone && v < maxHPOf(f) / 2', 'if (v < maxHPOf(f) / 2'],
     ['meter not reset', 'the meter stays full after the ultimate',
-        "atkFx.meter = 0;\r\n                        tallyUltimate(ultId, 'fires');", "tallyUltimate(ultId, 'fires');"],
+        "atkFx.meter = 0;\n                        tallyUltimate(ultId, 'fires');", "tallyUltimate(ultId, 'fires');"],
     ['ultimate fills the meter', 'the ultimate hit itself adds a meter point',
         'if (!ult && finalDmg > 0 && ultimateFor', 'if (finalDmg > 0 && ultimateFor'],
     ['Frost wipes the meter', 'a frozen turn empties a full meter instead of letting the ultimate wait',
@@ -88,7 +89,7 @@ const MUTATIONS = [
     ['effect power scales an ultimate', "Arcane Detonation's multiplier is scaled by the caster's effect power",
         'ultMult = ult.nums.dmgMult + ult.nums.perDebuff / 100 * detonated.length;', 'ultMult = (ult.nums.dmgMult + ult.nums.perDebuff / 100 * detonated.length) * getEffectMult(attacker.drakeObj.type, attacker.title, attackerProg.level);'],
     ['Bloom keeps the debuffs', "Bloom doesn't remove its own debuffs",
-        'const removed = atkFx.debuff;\r\n                            atkFx.debuff = [];', 'const removed = [];'],
+        'const removed = atkFx.debuff;\n                            atkFx.debuff = [];', 'const removed = [];'],
     ['Bloom heals nothing', "Bloom's heal from the table isn't applied",
         'before + Math.round(attackerMaxHP * ult.nums.heal / 100)', 'before'],
     ['no 90% cap', 'effect reductions are capped at 100% instead of 90%',
