@@ -40,6 +40,10 @@ jobs:
       - name: Fight view test
         run: npm run test:fightview
 
+      # The test menu's picker and drop-downs, and the language switch during a fight
+      - name: Controls test
+        run: npm run test:controls
+
       # Upload even when a test fails: the screenshots are how you see what went wrong
       - name: Upload screenshots
         if: always()

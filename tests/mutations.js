@@ -122,10 +122,49 @@ const MUTATIONS = [
         'if (!st.halfDone && v < maxHPOf(f) / 2 && ultimateFor(f.drakeObj.type)) {', 'if (!st.halfDone && st.meter < METER.max && v < maxHPOf(f) / 2 && ultimateFor(f.drakeObj.type)) {'],
     ['effect power stretches counts', 'a stronger caster makes the effect last longer',
         'list.push({ id, left: e.count, power });', 'list.push({ id, left: Math.round(e.count * power), power });'],
+    // Review fixes and rule changes (caught by rules.js)
+    ['fractional max HP', 'max HP keeps the decimals some titles give per level',
+        'return Math.floor(hp);   // always whole', 'return hp;   // always whole'],
+    ['single-space command words', 'commands split on one space, so "!drake  red" shows the help card',
+        'const args = msg.split(/\\s+/);', "const args = msg.split(' ');"],
+    ['pick survives into the next fight', 'a "next hit casts" pick made before a fight is kept when the fight starts',
+        'if (!opts.betting) clearForcedCast();', ''],
+    ['pick survives the end of its fight', "a pick still armed when the fight ends isn't cleared",
+        'clearForcedCast();   // a pick that never fired', '// a pick that never fired'],
+    ['White Dragon reroll says level 1', 'rerolling into the White Dragon says "Level reset to 1!"',
+        "chosen.type === DRAGON_TYPE ? `Level ${calculateLevelAndProgress(dragon.xp).level}!` : 'Level reset to 1!'", "'Level reset to 1!'"],
+    ['turn 30 not played', 'the time-out comes before turn 30 (fights stop after turn 29)',
+        'if (turn > MAX_TURNS) {', 'if (turn >= MAX_TURNS) {'],
+    ['ranked draw counts as a loss', 'a ranked draw adds a loss to both records',
+        '                // A draw is neither a win nor a loss: the record stays as it was', '                recordStats(p1.name, false); recordStats(p2.name, false);'],
+    ['a challenge costs the cooldown', 'sending a challenge puts the challenger on the cooldown',
+        'pendingChallenges[targetUser] = sender;   // a challenge on its own costs nothing', 'pendingChallenges[targetUser] = sender; cooldowns[sender] = Date.now();   // a challenge on its own costs nothing'],
+    ['many open challenges', 'a viewer can send a second challenge while the first is open',
+        'if (Object.values(pendingChallenges).includes(sender)) {', 'if (false) {'],
+    ['duel fight charges one player', "a duel starts without putting the challenger on the cooldown",
+        '            cooldowns[challenger] = Date.now();\n            cooldowns[accepter] = Date.now();', '            cooldowns[accepter] = Date.now();'],
+    ['waiting duel goes last', 'after a fight the ranked queue goes before the waiting duel',
+        'if (waitingDuel) { const d = waitingDuel; waitingDuel = null;', 'if (false) { const d = waitingDuel; waitingDuel = null;'],
+    ['accept ignores a resting player', 'a duel can be accepted while a player is still on the cooldown',
+        'const resting = [challenger, sender].filter(', 'const resting = [].filter('],
+    ['busy duellists can queue', 'players whose duel is waiting can still !queue, !battle and !accept',
+        "].includes(command) && inWaitingDuel(sender)) {", "].includes(command) && false) {"],
+    ['silent !battle', '"!battle" with no name gets no explanation',
+        "if ((command === '!бій' || command === '!battle') && !args[1]) {", 'if (false) {'],
+    ['two icons in the opening banner', 'the opening banner template adds its own 🌅 before the title icon',
+        "opening: '{title}: {who} starts with {fx}'", "opening: '🌅 {title}: {who} starts with {fx}'"],
+    ['refused accept leaves the challenge open', 'an !accept refused because a player is resting keeps the challenge, so "did not answer" follows 30 s later',
+        "dropChallenge();   // answered, so no", "// answered, so no"],
+    ['challenging a resting viewer', '!battle opens a challenge to a viewer who is still resting',
+        'if (targetUser !== channelName && getCooldownRemaining(targetUser) > 0) {', 'if (false) {'],
+    ['challenging a waiting duellist', '!battle opens a challenge to a viewer whose duel is waiting',
+        'if (inWaitingDuel(targetUser)) {', 'if (false) {'],
+    ['double full stop', 'the accept refusal ends "min.." / "хв.."',
+        'is resting for another ${getCooldownRemaining(u)} min`', 'is resting for another ${getCooldownRemaining(u)} min.`'],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported
-const TESTS = ['effects.js', 'ultimates.js'];
+const TESTS = ['effects.js', 'ultimates.js', 'rules.js'];
 const runOne = (file, html) => new Promise(resolve => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'drake-mutation-'));
     fs.writeFileSync(path.join(dir, 'index.html'), html);

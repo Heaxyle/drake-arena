@@ -21,7 +21,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 - **Turn animation** inside the 4.5 s turn: the attacker lights up with an "⚔ АТАКУЄ" tab (or its ultimate's name), then the target flashes and recoils, its damage number pops, and the HP bar keeps a grey chunk for the lost HP before it drains. Only transform and opacity are animated, so OBS doesn't drop frames
 - **Countdown and result:** a big timer before the first turn ("БІЙ ПОЧИНАЄТЬСЯ"), and a knockout card after the fight with damage, biggest hit, crits and XP for both fighters; level-ups are announced in the chat panel
 - **Ukrainian / English** interface and commands
-- **Test panel:** set up any two drakes at any level with any title and run a fight; make the next damaging hit cast a chosen effect; fill either fighter's СИЛА meter to see its ultimate
+- **Test panel:** set up any two drakes at any level with any title and run a fight; make the next damaging hit cast a chosen effect (the pick lasts only for the fight it was made in, countdown included, and the picker goes back to "— random —" once it fires); fill either fighter's СИЛА meter to see its ultimate
 - **Chat simulator** that feeds the same handler as real Twitch messages
 
 ## Setup
@@ -50,14 +50,16 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The 
 |---|---|---|
 | `!drake <color>` | `!дрейк <колір>` | Create your drake: red, blue, black, gold, purple, green (`white` is the streamer's White Dragon) |
 | `!queue` | `!черга` | Join the ranked queue |
-| `!battle @name` | `!бій @нік` | Challenge someone to a friendly duel (30 s to answer) |
-| `!accept` / `!decline` | `!прийняти` / `!відхилити` | Answer a challenge |
+| `!battle @name` | `!бій @нік` | Challenge someone to a friendly duel (30 s to answer). One open challenge at a time; `!battle` with no name says how to use it |
+| `!accept` / `!decline` | `!прийняти` / `!відхилити` | Answer a challenge. Accepted during a fight, the duel waits and starts after it |
 | `!stats` / `!profile` | `!стата` / `!профіль` | Level, progress, HP/crit/defense, wins/losses, title and its bonus |
 | `!title` | `!титул` | Roll a random title *(channel points)* |
 | `!odds` / `!chances` | `!шанси` | Show the title roulette drop chances |
 | `!reroll <color>` | `!рерол <колір>` | Change element and reset to level 1 *(channel points)* |
 
-`!queue` and `!battle` have a 3-minute cooldown. The broadcaster is exempt.
+**Cooldown:** when a fight starts (ranked or duel), both fighters rest for 3 minutes: no `!queue`, `!battle` or `!accept` until it's over. A challenge on its own costs nothing, so a declined or expired one leaves the challenger free. The broadcaster is exempt.
+
+**Duels during a fight:** `!accept` while the arena is busy doesn't cancel the duel: it waits, and starts about 5 s after the current fight's result, before the ranked queue carries on. Accepting takes both players out of the ranked queue, and until their duel starts both get a short "busy" reply to `!queue`, `!battle` and `!accept`. Only one duel can wait at a time; another `!accept` meanwhile is told to challenge again after the next fight. Accepting needs both players free (not resting, not in a waiting duel); if they aren't, they get a reply saying who is resting, the challenge closes (it was answered), and nothing is charged. A `!battle` to a viewer who is resting or whose duel is waiting is answered straight away ("⏳ @x is resting for another N min. Challenge them later." / "⏳ @x is waiting for a duel. Challenge them after the next fight.") and opens no challenge.
 
 ## How combat works
 
@@ -96,7 +98,7 @@ When the streamer setting changes, the White Dragon stays with the streamer only
 5. Element procs are checked: Blue reflect and Gold's 1-HP hit.
 6. If the hit dealt damage, a buff or debuff may be cast.
 
-**Sudden death** starts at turn 16 and adds +30% damage every turn. If both drakes are still alive after turn 29, the one with more HP wins.
+**Sudden death** starts at turn 16 and adds +30% damage every turn. Turn 30 is the last: if both drakes are still alive after it, the fight times out and the one with more HP wins (equal HP is a draw).
 
 ### Buffs and debuffs
 
@@ -150,7 +152,7 @@ How ultimates fit with the rest:
 - **Bloom** removes its own debuffs first, then heals instantly, so ☠️ Poison never cuts Bloom's heal. It gives no 💚 Regeneration.
 - **Shadow Theft and Firestorm** each have a damage multiplier in `CLASS_ULTIMATES` (`dmgMult`).
 
-**XP:** win +40, loss +10, draw +10 each. XP only counts in ranked fights. Reaching the next level takes `100 × level^1.4` XP, up to level 20.
+**XP:** win +40, loss +10, draw +10 each (Gold gets its XP bonus on top). A draw is neither a win nor a loss: both records stay as they were. XP only counts in ranked fights. Reaching the next level takes `100 × level^1.4` XP, up to level 20.
 
 ## Titles
 
@@ -199,6 +201,13 @@ This project went through a QA pass. Each fix was verified by simulating all 36 
 | 8 | The leaderboard showed the word "Drake" instead of the element icon | Cosmetic | Take the last word of the name |
 | 9 | Switching language reset fighter names to "Waiting…" and left the queue text untranslated | Cosmetic | Re-render only the static labels |
 | 10 | If tmi.js failed to load, the whole script stopped | Page dead when offline | Twitch connection is optional |
+| 11 | Titles with fractional HP per level gave fractional max HP | "❤️ 186.3 HP" in `!stats`, "+10.300000000000011 HP" on a level-up card | Max HP is rounded down to a whole number |
+| 12 | Commands split on single spaces | "!drake  red" (two spaces) showed the help card | Split on any run of whitespace |
+| 13 | The test menu's "next hit casts" picker kept showing a pick that had already fired, and a pick could carry over to the next fight | Picking the same effect again armed nothing; a ranked fight's first hit cast a leftover ❄️ Frost | The picker always shows what's armed; a pick is cleared when it fires, when its fight ends and when a new fight starts |
+| 14 | The Test Settings drop-downs only changed language while the panel was open | Old-language drake and title names after a switch | They follow the language whether the panel is open or not, keeping the picks |
+| 15 | Fighter cards switched language only at the next turn | Up to 4.5 s of mixed languages | Both cards are redrawn at once, with their current effects; nothing moves |
+| 16 | Rerolling into the White Dragon said "Level reset to 1!" | Wrong level in the message | It says "Level 20!" |
+| 17 | The opening-buff banner added its own 🌅 before the title's icon | "🌅 🌅 Woke Up Swinging: …" | One icon: the title's |
 
 ## Project structure
 

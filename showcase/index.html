@@ -590,14 +590,14 @@
             renderSimChips();
             updateQueueUI();
             if (!isBattleRunning) { renderEmptyStatus(); renderPowerMeter('p1', null, null); renderPowerMeter('p2', null, null); }
-            if(document.getElementById('debug-menu').style.display === 'block') {
-                populateDropdowns();
-            }
+            // Test Settings: once filled, its drop-downs follow the language even while the panel is closed
+            if (document.getElementById('debug-menu').classList.contains('initialized')) populateDropdowns();
             renderLeaderboard();
             renderArenaHeader();
             renderHowTo();
             // Cards keep the last fighters between fights: redraw them in the new language
-            if (!isBattleRunning) ['p1', 'p2'].forEach(p => { const d = getDragonStrict((document.getElementById(`name-${p}`).textContent || '').replace('@', '')); if (d) { updateFighterCard(p, d); updateStatusUI(d.name, calculateLevelAndProgress(d.xp).level, d.drakeObj.type, d.title); } });
+            if (isBattleRunning) fvRedrawCards();
+            else ['p1', 'p2'].forEach(p => { const d = getDragonStrict((document.getElementById(`name-${p}`).textContent || '').replace('@', '')); if (d) { updateFighterCard(p, d); updateStatusUI(d.name, calculateLevelAndProgress(d.xp).level, d.drakeObj.type, d.title); } });
             renderResultTags();
             fvRepaintAll();
         }
@@ -622,6 +622,9 @@
 
         let pendingChallenges = {}; 
         let challengeTimeouts = {};
+        // A duel accepted while the arena is busy: it starts after the current fight (before the ranked queue carries on)
+        let waitingDuel = null;
+        const inWaitingDuel = u => !!waitingDuel && (waitingDuel.challenger === u || waitingDuel.accepter === u);
 
         function getCooldownRemaining(username) {
             if (!cooldowns[username]) return 0;
@@ -748,7 +751,7 @@
                 plate.textContent = fvT(s.betting ? 'plateBets' : 'plateStart');
             } else if (s.kind === 'fight') {
                 type.textContent = fightName;
-                plate.textContent = uk ? `⚔️ Хід ${s.turn} / 30` : `⚔️ Turn ${s.turn} / 30`;
+                plate.textContent = uk ? `⚔️ Хід ${s.turn} / ${MAX_TURNS}` : `⚔️ Turn ${s.turn} / ${MAX_TURNS}`;
             } else {
                 type.textContent = `${fightName} · ${s.turns} ${uk ? turnsWordUk(s.turns) : (s.turns === 1 ? 'turn' : 'turns')}`;
                 plate.innerHTML = s.winner
@@ -788,6 +791,7 @@
         const BETTING_WINDOW_DEFAULT = false;  // a build with the betting window on by default only changes this
         const BETTING_KEY = 'drake_arena_showcase_betting';
         const SUDDEN_DEATH = { from: 16, perTurn: 0.3 };   // from this turn every hit gets ×(1 + perTurn per turn since)
+        const MAX_TURNS = 30;                  // the last turn played; the time-out comes after it
         const levelAttackBonus = level => Math.floor(level * 0.8);   // flat damage every attack gets from the level
         let forcedCast = null;   // test menu only: the next hit that deals damage also casts this effect
 
@@ -800,7 +804,7 @@
                   guardian: '👼 ангел-охоронець', chaos: '⚡ хаос', cat: '🐈 кіт', forced: 'гарантований крит', noBuffs: 'бафів немає',
                   sdBanner: '💀 РАПТОВА СМЕРТЬ з {n}-го ходу · шкода зростає щоходу', timeout: '⏳ ЧАС ВИЙШОВ · ліміт {n} ходів',
                   error: '❌ Помилка симуляції — бій перервано', vs: 'проти', fightStart: '🔔 Бій почався{bets} · 🎲 першим б’є {a}', betsClosed: ' · ставки закрито',
-                  opening: '🌅 {title}: {who} починає бій з {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
+                  opening: '{title}: {who} починає бій з {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
                   draw: '🤝 НІЧИЯ · {n} {turns}', dmg: 'шкода', biggest: 'найсильніший удар', crits: 'крити', xp: 'досвід', noXp: 'без досвіду', maxLvl: 'макс. рівень',
                   cdLabel: 'Старт через', cdBets: 'Ставки відкрито — хто переможе?', cdStart: 'Бій починається!', cdFlip: '🎲 хто б’є першим, вирішить жереб на старті',
                   cdFirst: '🎲 першим б’є {a}', plateBets: '⏳ Ставки відкрито', plateStart: '⏳ Бій починається', levelUp: '⬆️ Новий рівень',
@@ -814,7 +818,7 @@
                   guardian: '👼 guardian angel', chaos: '⚡ chaos', cat: '🐈 cat', forced: 'guaranteed crit', noBuffs: 'no buffs',
                   sdBanner: '💀 SUDDEN DEATH from turn {n} · damage grows every turn', timeout: '⏳ TIME OUT · {n}-turn limit',
                   error: '❌ Simulation error — the fight was stopped', vs: 'vs', fightStart: '🔔 The fight is on{bets} · 🎲 {a} strikes first', betsClosed: ' · bets closed',
-                  opening: '🌅 {title}: {who} starts with {fx}', knockout: '🏆 KNOCKOUT · {w} wins in {n} {turns}', timeoutWin: '⏳ TIME OUT · {w} wins on HP',
+                  opening: '{title}: {who} starts with {fx}', knockout: '🏆 KNOCKOUT · {w} wins in {n} {turns}', timeoutWin: '⏳ TIME OUT · {w} wins on HP',
                   draw: '🤝 DRAW · {n} {turns}', dmg: 'damage', biggest: 'biggest hit', crits: 'crits', xp: 'XP', noXp: 'no XP', maxLvl: 'max level',
                   cdLabel: 'Starts in', cdBets: 'Bets are open — who will win?', cdStart: 'The fight is starting!', cdFlip: '🎲 a coin flip at the start decides who strikes first',
                   cdFirst: '🎲 {a} strikes first', plateBets: '⏳ Bets open', plateStart: '⏳ Fight starting', levelUp: '⬆️ Level up',
@@ -991,7 +995,7 @@
                 case 'start': return fvT('fightStart', { bets: fv.betting ? fvT('betsClosed') : '', a: fvWho(fv.p1) });
                 case 'opening': return fvT('opening', { title: `${d.f.title.icon} ${d.f.title.name[currentLang]}`, who: fvWho(d.f), fx: fxName(d.id) });
                 case 'sd': return fvT('sdBanner', { n: SUDDEN_DEATH.from });
-                case 'timeout': return fvT('timeout', { n: 30 });
+                case 'timeout': return fvT('timeout', { n: MAX_TURNS });
                 case 'error': return fvT('error');
             }
             return '';
@@ -1175,6 +1179,7 @@
 
         // Pre-fight betting window: both fighters on their cards, "СТАВКИ ВІДКРИТО", the timer from 30 s
         function startFight(p1Name, p1Color, p2Name, p2Color, isRanked) {
+            clearForcedCast();
             if (!FV_LIVE || !bettingWindowOn()) return runBattle(p1Name, p1Color, p2Name, p2Color, isRanked);
             const show = (n, c) => { const d = getDragonStrict(n) || getDragon(n, c); return { ...d, color: nameColor(d.color) }; };
             const a = show(p1Name, p1Color), b = show(p2Name, p2Color);
@@ -1308,6 +1313,19 @@
             fighters.forEach(f => { const d = getDragonStrict(f.name); if (d) out[f.name] = calculateLevelAndProgress(d.xp).level; });
             return out;
         }
+        // The language switch during a fight: redraw both fighter cards now, with their current effects (no waiting for
+        // the next turn). HP and the meter are drawn from the same state, so nothing changes but the language.
+        function fvRedrawCards() {
+            if (!FV_LIVE || !fv.p1 || !fv.p2) return;
+            const held = fv.hold;
+            fv.hold = null;   // straight away, even while a hit is in the air
+            [['p1', fv.p1], ['p2', fv.p2]].forEach(([p, f]) => {
+                const st = fv.on && battleFx ? battleFx[f.name] || null : null;
+                updateFighterCard(p, f, st);
+                updateStatusUI(f.name, calculateLevelAndProgress(f.xp).level, f.drakeObj.type, f.title, st);
+            });
+            fv.hold = held;
+        }
         // Something went wrong mid-turn: show what was held back and say so in the log
         function fvAbort() {
             if (!fv.on) return;
@@ -1325,7 +1343,15 @@
         }
 
         // Test menu: make the next damaging hit cast a chosen effect; fill either fighter's СИЛА meter
-        function setForcedCast(id) { forcedCast = id && EFFECTS[id] ? id : null; }
+        // A pick lasts only for the fight it was made in (countdown included): it is cleared when it fires, when the fight
+        // ends and when a new fight starts, and the select always shows what's armed
+        function setForcedCast(id) { forcedCast = id && EFFECTS[id] ? id : null; fvSyncForcedCast(); }
+        function clearForcedCast() { forcedCast = null; fvSyncForcedCast(); }
+        function fvSyncForcedCast() {
+            if (!FV_LIVE) return;
+            const sel = fvEl('debug-force-cast');
+            if (sel) sel.value = forcedCast || '';
+        }
         function fillMeter(prefix) {
             if (!isBattleRunning || !battleFx || !fv.on) return;
             const f = prefix === 'p1' ? fv.p1 : fv.p2;
@@ -2097,13 +2123,13 @@ function drakeSpriteURL(type) {
             // keep the current picks when the language changes
             const ids = ['debug-p1-drake', 'debug-p1-title', 'debug-p2-drake', 'debug-p2-title'];
             const saved = ids.map(id => document.getElementById(id).value);
-            setTimeout(() => ids.forEach((id, i) => { if (saved[i]) document.getElementById(id).value = saved[i]; }), 0);
             let drakeOptions = DRAKE_TYPES.map((d, i) => `<option value="${i}">${d.name[currentLang]}</option>`).join('');
             let titleOptions = TITLES_DB.filter(t => t.rarity !== 'divine').map(t => `<option value="${t.id}" style="color:${t.color}">${t.icon} ${t.name[currentLang]} (${t.rarityName[currentLang]})</option>`).join('');
             document.getElementById('debug-p1-drake').innerHTML = drakeOptions;
             document.getElementById('debug-p1-title').innerHTML = titleOptions;
             document.getElementById('debug-p2-drake').innerHTML = drakeOptions;
             document.getElementById('debug-p2-title').innerHTML = titleOptions;
+            ids.forEach((id, i) => { if (saved[i]) document.getElementById(id).value = saved[i]; });
             document.getElementById('label-fighter1').innerText = currentLang === 'uk' ? 'Тестер 1:' : 'Tester 1:';
             document.getElementById('label-fighter2').innerText = currentLang === 'uk' ? 'Тестер 2:' : 'Tester 2:';
         }
@@ -2562,7 +2588,7 @@ function drakeSpriteURL(type) {
 
         function handleChatMessage(target, context, message, self) {
             const msg = message.trim().toLowerCase();
-            const args = msg.split(' ');
+            const args = msg.split(/\s+/);   // "!drake  red" (two spaces) works too
             const command = args[0];
             const sender = context.username;
             const senderColor = nameColor(context.color || '#00ffff');   // lifted to a readable brightness
@@ -2571,6 +2597,14 @@ function drakeSpriteURL(type) {
             const rewardId = context['custom-reward-id'];
 
             let db = getDragonDB();
+
+            // "!battle" with no name: say how to challenge, before any other check
+            if ((command === '!бій' || command === '!battle') && !args[1]) {
+                addInfo(currentLang === 'uk'
+                    ? `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, щоб кинути виклик, напишіть <b>!бій @нік</b>.`
+                    : `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, to challenge someone type <b>!battle @name</b>.`, 'warn');
+                return;
+            }
 
             if (command === '!дрейк' || command === '!drake') {
                 if (db[sender]) {
@@ -2651,8 +2685,8 @@ function drakeSpriteURL(type) {
                     
                     renderLeaderboard();
                     let msg = currentLang === 'uk' ?
-                        `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> ПЕРЕРОДИВСЯ! Нова стихія: <b>${dragon.drakeObj.name[currentLang]}</b>. Рівень скинуто до 1!` :
-                        `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> REBORN! New element: <b>${dragon.drakeObj.name[currentLang]}</b>. Level reset to 1!`;
+                        `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> ПЕРЕРОДИВСЯ! Нова стихія: <b>${dragon.drakeObj.name[currentLang]}</b>. ${chosen.type === DRAGON_TYPE ? `Рівень ${calculateLevelAndProgress(dragon.xp).level}!` : 'Рівень скинуто до 1!'}` :
+                        `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> REBORN! New element: <b>${dragon.drakeObj.name[currentLang]}</b>. ${chosen.type === DRAGON_TYPE ? `Level ${calculateLevelAndProgress(dragon.xp).level}!` : 'Level reset to 1!'}`;
                     addInfo(msg, 'ok');
                 } else {
                     let msg = currentLang === 'uk' ?
@@ -2694,29 +2728,52 @@ function drakeSpriteURL(type) {
                 return;
             }
 
+            // While their accepted duel waits for the arena, both players are busy
+            if (['!черга', '!queue', '!бій', '!battle', '!прийняти', '!accept'].includes(command) && inWaitingDuel(sender)) {
+                addInfo(currentLang === 'uk'
+                    ? `⏳ <span style="color: ${senderColor};">@${sender}</span>, ваша дуель чекає на арену: вона почнеться після поточного бою.`
+                    : `⏳ <span style="color: ${senderColor};">@${sender}</span>, your duel is waiting for the arena: it starts after the current fight.`, 'warn');
+                return;
+            }
+
             if (command === '!прийняти' || command === '!accept') {
                 let challenger = pendingChallenges[sender];
                 if (!challenger) return;
-                
-                clearTimeout(challengeTimeouts[sender]);
-                delete pendingChallenges[sender];
-                
-                if (isBattleRunning) {
-                    let msg = currentLang === 'uk' ?
-                        `⚠️ Арена вже зайнята! Дуель між @${challenger} та @${sender} відкладено (відмінено).` :
-                        `⚠️ Arena is busy! Duel between @${challenger} and @${sender} postponed (canceled).`;
-                    addInfo(msg, 'warn');
+                const dropChallenge = () => { clearTimeout(challengeTimeouts[sender]); delete pendingChallenges[sender]; };
+
+                // Only one duel can wait at a time
+                if (waitingDuel) {
+                    dropChallenge();
+                    addInfo(currentLang === 'uk'
+                        ? `⏳ <span style="color: ${senderColor};">@${sender}</span>, на арену вже чекає інша дуель. Киньте виклик знову після наступного бою.`
+                        : `⏳ <span style="color: ${senderColor};">@${sender}</span>, another duel is already waiting for the arena. Challenge again after the next fight.`, 'warn');
                     return;
                 }
-                
+                // Both players must be free (not resting after a fight). If not, the challenge was still answered: it closes
+                // (with its timer), and nothing is charged
+                const channel = target.replace('#', '');
+                const resting = [challenger, sender].filter(u => u !== channel && getCooldownRemaining(u) > 0);
+                if (resting.length) {
+                    dropChallenge();   // answered, so no "did not answer" 30 s later
+                    addInfo(currentLang === 'uk'
+                        ? `⏳ Дуель не почалася: ${resting.map(u => `<b>@${u}</b> відпочиває ще ${getCooldownRemaining(u)} хв`).join(', ')}.`
+                        : `⏳ The duel can't start: ${resting.map(u => `<b>@${u}</b> is resting for another ${getCooldownRemaining(u)} min`).join(', ')}.`, 'warn');
+                    return;
+                }
+
+                dropChallenge();
                 let cColor = db[challenger] ? db[challenger].color : '#cccccc';
-                
-                isBattleRunning = true;
-                cooldowns[sender] = Date.now();
                 matchmakingQueue = matchmakingQueue.filter(u => u !== sender && u !== challenger);
                 updateQueueUI();
-                fightRecordReset();
-                startFight(challenger, cColor, sender, senderColor, false);
+                // The arena is busy: the duel waits and starts after the current fight
+                if (isBattleRunning) {
+                    waitingDuel = { challenger, cColor, accepter: sender, aColor: senderColor };
+                    addInfo(currentLang === 'uk'
+                        ? `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> приймає виклик <b>@${challenger}</b>! Дуель почнеться після поточного бою.`
+                        : `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> accepts <b>@${challenger}</b>'s challenge! The duel starts after the current fight.`, 'ok');
+                    return;
+                }
+                startDuel(challenger, cColor, sender, senderColor);
                 return;
             }
 
@@ -2782,6 +2839,30 @@ function drakeSpriteURL(type) {
                     return;
                 }
 
+                // The target must be free: not resting after a fight, not in a waiting duel
+                const channelName = target.replace('#', '');
+                if (targetUser !== channelName && getCooldownRemaining(targetUser) > 0) {
+                    const mins = getCooldownRemaining(targetUser);
+                    addInfo(currentLang === 'uk'
+                        ? `⏳ <b>@${targetUser}</b> відпочиває ще ${mins} хв. Киньте виклик пізніше.`
+                        : `⏳ <b>@${targetUser}</b> is resting for another ${mins} min. Challenge them later.`, 'warn');
+                    return;
+                }
+                if (inWaitingDuel(targetUser)) {
+                    addInfo(currentLang === 'uk'
+                        ? `⏳ <b>@${targetUser}</b> чекає на дуель. Киньте виклик після наступного бою.`
+                        : `⏳ <b>@${targetUser}</b> is waiting for a duel. Challenge them after the next fight.`, 'warn');
+                    return;
+                }
+
+                // One open challenge per viewer
+                if (Object.values(pendingChallenges).includes(sender)) {
+                    addInfo(currentLang === 'uk'
+                        ? `⚠️ <span style="color: ${senderColor};">@${sender}</span>, у вас уже є відкритий виклик. Зачекайте на відповідь.`
+                        : `⚠️ <span style="color: ${senderColor};">@${sender}</span>, you already have an open challenge. Wait for the answer.`, 'warn');
+                    return;
+                }
+
                 if (pendingChallenges[targetUser]) {
                     let msg = currentLang === 'uk' ?
                         `⚠️ <span style="color: ${senderColor};">@${sender}</span>, гравця @${targetUser} вже викликали на дуель! Зачекайте.` :
@@ -2790,8 +2871,7 @@ function drakeSpriteURL(type) {
                     return;
                 }
 
-                pendingChallenges[targetUser] = sender;
-                cooldowns[sender] = Date.now(); 
+                pendingChallenges[targetUser] = sender;   // a challenge on its own costs nothing: the cooldown starts with the fight
                 
                 let msg = currentLang === 'uk' ?
                     `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> викликає <span style="color: #ffaa00; font-weight: bold;">@${targetUser}</span> на Товариську Дуель! У вас є 30 секунд, щоб написати <b>!прийняти</b> або <b>!відхилити</b>.` :
@@ -2812,7 +2892,7 @@ function drakeSpriteURL(type) {
         if (client) client.on('message', handleChatMessage);
 
         function checkQueue() {
-            if (isBattleRunning || matchmakingQueue.length < 2) return;
+            if (isBattleRunning || waitingDuel || matchmakingQueue.length < 2) return;
             
             let idx1 = Math.floor(Math.random() * matchmakingQueue.length);
             let p1Name = matchmakingQueue.splice(idx1, 1)[0];
@@ -2848,6 +2928,21 @@ function drakeSpriteURL(type) {
             startFight(p1Name, p1Data.color, p2Name, p2Data.color, true);
         }
 
+        // A duel starts: both fighters go on the cooldown now (a challenge on its own costs nothing)
+        function startDuel(challenger, cColor, accepter, aColor) {
+            isBattleRunning = true;
+            cooldowns[challenger] = Date.now();
+            cooldowns[accepter] = Date.now();
+            fightRecordReset();
+            startFight(challenger, cColor, accepter, aColor, false);
+        }
+        // 5 s after a fight's result: a duel accepted during the fight goes first, then the ranked queue carries on
+        function nextFight() {
+            if (isBattleRunning) return;
+            if (waitingDuel) { const d = waitingDuel; waitingDuel = null; startDuel(d.challenger, d.cColor, d.accepter, d.aColor); return; }
+            checkQueue();
+        }
+
         function testBattle() {
             if (isBattleRunning) return;
             isBattleRunning = true;
@@ -2874,7 +2969,7 @@ function drakeSpriteURL(type) {
                 let greenBonusPct = ELEMENT_BASE.greenHp + (tier.greenHp || 0);
                 hp = Math.floor(hp * (1.0 + greenBonusPct / 100));
             }
-            return hp;
+            return Math.floor(hp);   // always whole: some titles give fractional HP per level (0.3, 1.1)
         }
 
         function getModifiedDefenses(baseLevel, drakeType, title) {
@@ -3015,6 +3110,7 @@ function drakeSpriteURL(type) {
             p1 = { ...p1, color: nameColor(p1.color) };
             p2 = { ...p2, color: nameColor(p2.color) };
             setArenaState({ kind: 'countdown', ranked: isRanked, betting: !!opts.betting, flipped: true });
+            if (!opts.betting) clearForcedCast();   // a new fight (a betting window already cleared it when it opened)
 
             let p1Prog = calculateLevelAndProgress(p1.xp);
             let p2Prog = calculateLevelAndProgress(p2.xp);
@@ -3085,7 +3181,7 @@ function drakeSpriteURL(type) {
 
             let battleInterval = setInterval(() => {
                 try {
-                    if (turn >= 30) {
+                    if (turn > MAX_TURNS) {   // turn 30 has been played: time out
                         clearInterval(battleInterval);
                         let timeoutMsg = currentLang === 'uk' ?
                             `⏳ <span style="color: #ffaa00; font-weight: bold;">Час вийшов! (Ліміт: 30 ходів)</span> Обидва дракони занадто сильні і виснажені!` :
@@ -3536,7 +3632,7 @@ function drakeSpriteURL(type) {
                     let castChance = getCastChance(attacker.drakeObj.type, attacker.title, attackerProg.level);
                     if (Math.random() * 100 < castChance && finalDmg > 0) applyEffect(attacker, defender, pickEffect(attacker), attackerProg.level, fx);
                     // Test menu only (never set in normal fights or balance runs): this hit also casts the chosen effect
-                    if (forcedCast && finalDmg > 0) { const id = forcedCast; forcedCast = null; applyEffect(attacker, defender, id, attackerProg.level, fx); }
+                    if (forcedCast && finalDmg > 0) { const id = forcedCast; clearForcedCast(); applyEffect(attacker, defender, id, attackerProg.level, fx); }
 
                     if (titleMechanic(attacker) === 'chaotic_charge' && finalDmg > 0) {
                         if (Math.random() * 100 < MECH.chaosChance) {
@@ -3575,7 +3671,7 @@ function drakeSpriteURL(type) {
                         `❌ <span style="color: #ff4141; font-weight: bold;">Критична помилка симуляції:</span> ${error.message}. Бій перервано!` :
                         `❌ <span style="color: #ff4141; font-weight: bold;">Critical simulation error:</span> ${error.message}. Battle aborted!`;
                     addLog(errorMsg);
-                    setTimeout(() => { checkQueue(); }, 2000);
+                    setTimeout(() => { nextFight(); }, 2000);
                 }
             }, TURN_MS);
         }
@@ -3662,6 +3758,7 @@ function drakeSpriteURL(type) {
         }
 
         function finishBattle(p1, p2, p1HP, p2HP, isRanked) {
+            clearForcedCast();   // a pick that never fired doesn't carry over to the next fight
             let winner, looser;
             if (p1HP > p2HP) { winner = p1; looser = p2; }
             else if (p2HP > p1HP) { winner = p2; looser = p1; }
@@ -3685,7 +3782,7 @@ function drakeSpriteURL(type) {
                 fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: false, turns: fightTurns, xp: null, lvl: null });
                 setArenaState({ kind: 'result', ranked: false, winner, turns: fightTurns });
                 isBattleRunning = false;
-                setTimeout(() => { checkQueue(); }, 5000);
+                setTimeout(() => { nextFight(); }, 5000);
                 return;
             }
 
@@ -3693,8 +3790,7 @@ function drakeSpriteURL(type) {
                 let added1 = addXP(p1.name, 10);
                 let added2 = addXP(p2.name, 10);
                 fvXp = { [p1.name]: added1, [p2.name]: added2 };
-                recordStats(p1.name, false);
-                recordStats(p2.name, false);
+                // A draw is neither a win nor a loss: the record stays as it was
                 let msg = currentLang === 'uk' ?
                     `🤝 Нічия між <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> та <span style="color: ${p2.color}; font-weight: bold;">@${p2.name}</span>! (+${added1}/${added2} XP)` :
                     `🤝 Draw between <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> and <span style="color: ${p2.color}; font-weight: bold;">@${p2.name}</span>! (+${added1}/${added2} XP)`;
@@ -3728,7 +3824,7 @@ function drakeSpriteURL(type) {
             setArenaState({ kind: 'result', ranked: true, winner, turns: fightTurns });
             isBattleRunning = false;
             renderLeaderboard();
-            setTimeout(() => { checkQueue(); }, 5000);
+            setTimeout(() => { nextFight(); }, 5000);
         }
 
         function recordStats(username, isWin) {
