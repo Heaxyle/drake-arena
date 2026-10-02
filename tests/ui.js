@@ -12,14 +12,36 @@
 // Fights with the dragon (one natural, one with vampire rolls forced) must never log a heal above the healer's max HP.
 // A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent.
 // Screenshots go to tests/screenshots/. Game timers run on a fake clock, so fights take seconds.
+// Fights are seeded: Math.random is replaced with a seeded generator before the page loads, so every run plays the same
+// fights (UI_SEED=n picks another seed). The run prints a fingerprint of the whole battle log to compare runs.
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { chromium } = require('playwright');
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
 const STEP_MS = 500;              // fake-clock step between layout samples during a fight
 const FIGHT_LIMIT_MS = 5 * 60000; // 30s countdown + 30 turns x 4.5s fits easily
+// The default seed is one where both languages show a full Element Power meter during the fights
+const SEED = Number(process.env.UI_SEED || 3);
+
+// Runs in the page before its own script: seeded Math.random (mulberry32), and every battle-log line recorded
+function seedAndRecord(seed) {
+    let a = seed >>> 0;
+    Math.random = () => {
+        a = (a + 0x6D2B79F5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    window.__fightLog = [];
+    document.addEventListener('DOMContentLoaded', () => {
+        const log = document.getElementById('battle-log');
+        if (log) new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => window.__fightLog.push(n.textContent)))).observe(log, { childList: true });
+    });
+}
 
 // Per-version setup: [username, color word, element type] for each drake type, and the duels to run.
 const VERSIONS = {
@@ -78,7 +100,7 @@ function measureBars() {
 function infoFeedProblems() {
     const out = [];
     const feed = document.getElementById('info-feed');
-    const col = feed.closest('.leaderboard-container');
+    const col = feed.closest('.panel');
     const f = feed.getBoundingClientRect(), c = col.getBoundingClientRect();
     if (feed.scrollHeight > feed.clientHeight + 1) out.push(['cards clipped at the bottom', `content ${feed.scrollHeight}px tall, only ${feed.clientHeight}px fit`]);
     if (feed.scrollWidth > feed.clientWidth + 1) out.push(['content too wide', `content ${feed.scrollWidth}px wide, only ${feed.clientWidth}px fit`]);
@@ -97,18 +119,19 @@ function effectChips() {
     return [...document.querySelectorAll('#status-p1 .status-item, #status-p2 .status-item')].map(c => [c.innerText.trim(), c.scrollWidth > c.clientWidth + 1]);
 }
 
-// Runs in the page: the Element Power meter rows — where they sit relative to their neighbours and the sprite, their
+// Runs in the page: the Element Power meter rows — where they sit relative to their neighbours (the chips above, the HP
+// row below) and the sprite, their
 // text, whether it's cut off, and the meter value (from the fight state)
 function powerMeters() {
     return ['p1', 'p2'].map(p => {
         const row = document.getElementById(`power-${p}`), r = row.getBoundingClientRect();
-        const info = document.getElementById(`info-${p}`).getBoundingClientRect(), stats = document.getElementById(`stats-sub-${p}`).getBoundingClientRect();
+        const chips = document.getElementById(`status-${p}`).getBoundingClientRect(), hp = row.parentElement.querySelector('.fc-hp').getBoundingClientRect();
         const sprite = row.parentElement.querySelector('.sprite-wrap').getBoundingClientRect();
         const content = [...row.children].reduce((m, c) => Math.max(m, c.getBoundingClientRect().right), r.left);
         const name = document.getElementById(`name-${p}`).innerText.replace('@', '').trim();
         const st = isBattleRunning && typeof battleFx !== 'undefined' && battleFx && battleFx[name];   // between fights the cards are idle
         return { p, text: row.innerText.replace(/\s+/g, ' ').trim(), pips: row.querySelectorAll('.pm-pip').length, on: row.querySelectorAll('.pm-pip.on').length,
-                 meter: st ? st.meter : null, overlapsInfo: r.top < info.bottom - 0.5, overlapsStats: r.bottom > stats.top + 0.5,
+                 meter: st ? st.meter : null, overlapsChips: r.height > 0 && r.top < chips.bottom - 0.5, overlapsHp: r.height > 0 && r.bottom > hp.top + 0.5,
                  overlapsSprite: content > sprite.left + 0.5 && r.bottom > sprite.top && r.top < sprite.bottom, cut: row.scrollWidth > row.clientWidth + 1 };
     });
 }
@@ -141,7 +164,9 @@ async function testVersion(browser, key) {
     page.on('console', m => { if (m.type() === 'error') pageErrors.push('console.error: ' + m.text()); });
     await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
     await page.clock.install({ time: new Date('2026-01-01T12:00:00') });
+    await page.addInitScript(seedAndRecord, SEED);
     await page.goto('file:///' + path.join(ROOT, cfg.file).replace(/\\/g, '/'));
+    console.log(`    (fights seeded with UI_SEED=${SEED})`);
     // The overlay is transparent for OBS; paint a dark backdrop so screenshots are readable (layout unchanged)
     await page.addStyleTag({ content: 'html { background: #1e1f26; }' });
 
@@ -217,7 +242,7 @@ async function testVersion(browser, key) {
                 chipLangs.set(text, lang);
             }
             for (const m of await page.evaluate(powerMeters)) {
-                if (m.overlapsInfo || m.overlapsStats || m.overlapsSprite) meterIssues.add(`${label}: #power-${m.p} overlaps ${[m.overlapsInfo && 'the info line', m.overlapsStats && 'the stats box', m.overlapsSprite && 'the sprite'].filter(Boolean).join(' and ')}`);
+                if (m.overlapsChips || m.overlapsHp || m.overlapsSprite) meterIssues.add(`${label}: #power-${m.p} overlaps ${[m.overlapsChips && 'the effect chips', m.overlapsHp && 'the HP row', m.overlapsSprite && 'the sprite'].filter(Boolean).join(' and ')}`);
                 if (m.cut) meterIssues.add(`${label}: #power-${m.p} text cut off ("${m.text}")`);
                 if (m.meter === null || m.pips === 0) continue;   // White Dragon (no meter) or no fight state yet
                 meterTexts.add(m.text);
@@ -383,7 +408,7 @@ async function testVersion(browser, key) {
         }, lang);
         const meterIssue = (await page.evaluate(powerMeters))[0];
         const bad = worst.chips.filter(c => c.cut).map(c => c.text);
-        if (worst.chips.length !== 4 || bad.length || worst.meterCut || meterIssue.overlapsInfo || meterIssue.overlapsStats || meterIssue.overlapsSprite)
+        if (worst.chips.length !== 4 || bad.length || worst.meterCut || meterIssue.overlapsChips || meterIssue.overlapsHp || meterIssue.overlapsSprite)
             fail(`[${lang}] worst-case card text: ${bad.length ? `chips cut off: ${bad.join(' | ')}` : ''} ${worst.meterCut ? `meter row cut off: "${worst.meter}"` : ''} ${worst.chips.length !== 4 ? `${worst.chips.length} chips shown` : ''}`);
         else pass(`[${lang}] worst-case card text fits: ${worst.chips.map(c => `"${c.text}"`).join(', ')}; meter "${worst.meter}"`);
     }
@@ -426,6 +451,10 @@ async function testVersion(browser, key) {
     if (pageErrors.length) [...new Set(pageErrors)].forEach(e => fail(`JS error: ${e}`));
     else pass('no JS errors');
     skipped.forEach(s => console.log(`    – skipped: ${s}`));
+    // Same seed, same fights: this fingerprint of every battle-log line must match between runs
+    const fightLog = await page.evaluate(() => window.__fightLog);
+    const fingerprint = crypto.createHash('sha256').update(fightLog.join('\n')).digest('hex').slice(0, 16);
+    console.log(`    fight log fingerprint (UI_SEED=${SEED}): ${fingerprint} (${fightLog.length} lines)`);
 
     await context.close();
     return failures;

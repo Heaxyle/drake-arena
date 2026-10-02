@@ -84,7 +84,7 @@ function scripted({ A = {}, B = {}, setup = null, turns }) {
         global.setInterval = realInterval;
         const fx = G.battleFx;
         const res = setup ? setup(fx) : null;
-        const hp = id => Number(document.getElementById(id).innerText.split(' / ')[0]);
+        const hp = id => Number(document.getElementById(id).innerText.split('/')[0])   // the card shows "44/150";
         const out = turns.map(d => {
             queue = [...d]; const from = lines.length; tick();
             const l = lines.slice(from), all = l.join('\n');

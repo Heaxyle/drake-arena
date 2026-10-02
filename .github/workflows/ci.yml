@@ -29,6 +29,10 @@ jobs:
       - name: UI smoke test
         run: npm run test:ui showcase
 
+      # 1920x1080 layout in both languages: worst-case cards, fonts blocked, OBS mode, demo controls, contrast, result labels
+      - name: Layout test
+        run: npm run test:layout
+
       # Upload even when a test fails: the screenshots are how you see what went wrong
       - name: Upload screenshots
         if: always()

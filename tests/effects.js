@@ -121,9 +121,6 @@ for (const id of EFFECT_IDS) {
 // with comments stripped. A line that uses one of the icons or words for something unrelated must be listed here,
 // with the reason. An allowlist entry that no longer matches any line fails too, so the list can't go stale.
 const EFFECT_TEXT_ALLOWLIST = [
-    { line: 'id="stats-sub-p1">', terms: ['🛡'], why: 'fighter card defence label (🛡️ Захист), HTML default' },
-    { line: 'id="stats-sub-p2">', terms: ['🛡'], why: 'fighter card defence label (🛡️ Захист), HTML default' },
-    { line: "let defText = currentLang === 'uk' ? '🛡️ Захист", terms: ['🛡'], why: 'fighter card defence label (two copies: card and status update)' },
     { line: '· 🛡️ ${defs.physDef}%', terms: ['🛡'], why: '!stats card defence figure' },
     { line: '`🛡️ Ультраблок (0 шкоди)!`', terms: ['🛡'], why: 'Ultra Block label in the attack log' },
     { line: '${loseXpText} 🛡️`', terms: ['🛡'], why: "loser's line in the fight result" },
@@ -340,7 +337,7 @@ function scripted(setup, turns, who = {}) {   // who: { A: {...}, B: {...} } ove
         G.runBattle('A', '#fff', 'B', '#fff', false);
         global.setInterval = realInterval;
         res = setup ? setup() : null;
-        const hp = id => Number(document.getElementById(id).innerText.split(' / ')[0]);
+        const hp = id => Number(document.getElementById(id).innerText.split('/')[0])   // the card shows "44/150";
         const out = turns.map(d => { queue = [...d]; const from = lines.length; tick(); const l = lines.slice(from);
             const dm = l.join('\n').match(/Damage: (\d+) damage/);
             return { lines: l, dmg: dm ? Number(dm[1]) : null, hpA: hp('hp-text-p1'), hpB: hp('hp-text-p2') }; });

@@ -11,6 +11,7 @@
     "balance": "node tests/balance.js elements 200",
     "balance:showcase": "node tests/balance.js elements 200 --file showcase/index.html",
     "test:ui": "node tests/ui.js",
+    "test:layout": "node tests/layout.js",
     "test:balance-gate": "node tests/balance.js matrix 1500 20 --seed 12345 --bounds 40,60",
     "balance:check": "node tests/balance_check.js"
   },
