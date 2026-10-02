@@ -1,5 +1,10 @@
 node_modules/
 *.log
 .DS_Store
-# Mid-fight screenshot from npm run test:ui: different every run (random fight), so not tracked
-tests/screenshots/showcase-05-mid-fight.png
+# Test screenshots change on every run (fonts, animation frames, fights), so they aren't tracked. CI uploads all of them
+# as the ui-screenshots artifact on every run. Tracked: the review sheets, regenerated and committed when the look
+# changes on purpose (showcase/screenshot.png, the README's, is outside this folder and tracked too).
+tests/screenshots/*
+!tests/screenshots/layout-review-cards.png
+!tests/screenshots/fightview-cards.png
+!tests/screenshots/fightview-turn.png
