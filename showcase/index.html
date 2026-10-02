@@ -51,25 +51,26 @@
 
         /* ===== Fighter cards ===== */
         .fighters-box { position: relative; height: 318px; flex-shrink: 0; display: flex; justify-content: space-between; }
-        .fighter-card { position: relative; width: 404px; height: 100%; box-sizing: border-box; padding: 16px 18px 18px; background: var(--card); display: flex; flex-direction: column; gap: 8px;
+        .fighter-card { position: relative; isolation: isolate; width: 404px; height: 100%; box-sizing: border-box; padding: 16px 18px 18px; background: var(--card); display: flex; flex-direction: column; gap: 8px;
             --hi: #6c6f80; --lo: #3a3c48; --deep: #08080b; --meter: #6c6f80; --glow: 0 0 0 0 transparent;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 -2px 0 0 var(--hi), -2px 0 0 0 var(--hi), 0 2px 0 0 var(--lo), 2px 0 0 0 var(--lo),
                 0 -4px 0 0 var(--deep), 0 4px 0 0 var(--deep), -4px 0 0 0 var(--deep), 4px 0 0 0 var(--deep),
                 -2px -2px 0 0 var(--deep), 2px -2px 0 0 var(--deep), -2px 2px 0 0 var(--deep), 2px 2px 0 0 var(--deep), var(--glow); }
-        /* Element colours: red and green are the reference's; the others follow the same light/dark/outline pattern
+        /* Element colours (fighter cards, log cards, the attack tab): red and green are the reference's; the others follow the same light/dark/outline pattern
            from each element's colour on the reference's title plaque */
         /* Light edges are at least 20 apart (CIEDE2000) from every other frame, the winner and the loser; tests/layout.js checks it */
-        .fighter-card.el-red    { --hi: #ff4f5a; --lo: #b0232e; --deep: #1c0507; --meter: #ff4f5a; }
-        .fighter-card.el-green  { --hi: #6fe896; --lo: #2b8a4b; --deep: #06180c; --meter: #6fe896; }
-        .fighter-card.el-blue   { --hi: #4a98ff; --lo: #1f5fb8; --deep: #050d1c; --meter: #4a98ff; }
-        .fighter-card.el-black  { --hi: #a7aab4; --lo: #6f7380; --deep: #000000; --meter: #a7aab4; }
-        .fighter-card.el-gold   { --hi: #ae8513; --lo: #6e4f06; --deep: #1a1102; --meter: #d9a520; }
-        .fighter-card.el-purple { --hi: #b47aff; --lo: #6a35b0; --deep: #12061f; --meter: #b47aff; }
-        .fighter-card.el-white  { --hi: #ffffff; --lo: #5a8fb0; --deep: #061018; --meter: #ffffff; }
+        .el-red    { --hi: #ff4f5a; --lo: #b0232e; --deep: #1c0507; --meter: #ff4f5a; }
+        .el-green  { --hi: #6fe896; --lo: #2b8a4b; --deep: #06180c; --meter: #6fe896; }
+        .el-blue   { --hi: #4a98ff; --lo: #1f5fb8; --deep: #050d1c; --meter: #4a98ff; }
+        .el-black  { --hi: #a7aab4; --lo: #6f7380; --deep: #000000; --meter: #a7aab4; }
+        .el-gold   { --hi: #ae8513; --lo: #6e4f06; --deep: #1a1102; --meter: #d9a520; }
+        .el-purple { --hi: #b47aff; --lo: #6a35b0; --deep: #12061f; --meter: #b47aff; }
+        .el-white  { --hi: #ffffff; --lo: #5a8fb0; --deep: #061018; --meter: #ffffff; }
         /* After the fight: the winner framed in gold, the loser greyed */
         .fighter-card.is-winner { --hi: #ffd978; --lo: #b8862c; --deep: #1b1206; --glow: 0 0 30px rgba(242, 193, 78, 0.28); }
         .fighter-card.is-loser  { --hi: #6c6f80; --lo: #3a3c48; --deep: #08080b; }
-        .fighter-card.is-loser .drake-sprite { filter: grayscale(1) brightness(0.55); animation: none; }
+        .fighter-card.is-loser .drake-sprite { filter: grayscale(1) brightness(0.55); }
+        .fighter-card.is-loser .sprite-bob { animation: none; }
         .result-tag { position: absolute; right: 18px; bottom: -13px; font-size: 12px; font-weight: 800; letter-spacing: 1.5px; padding: 4px 10px; display: none; white-space: nowrap; }
         .fighter-card.is-winner .result-tag { display: block; background: #f2c14e; color: #1a1406; --hi: #ffd978; --lo: #b8862c; --deep: #1b1206; }
         .fighter-card.is-loser .result-tag  { display: block; background: #ff5d52; color: #1f0a08; --hi: #ff8a6a; --lo: #a8321f; --deep: #1a0806; }
@@ -84,18 +85,19 @@
         [id^="badge-container-"] { display: flex; min-width: 0; }
         .fighter-title-badge { font-size: 13px; font-weight: 600; padding: 3px 9px; border-radius: 2px; white-space: nowrap; overflow: hidden; background: rgba(255, 255, 255, 0.05); border: 1px solid currentColor; max-width: 100%; box-sizing: border-box; }
         /* Sprites at exactly 3×: drakes 48×36 → 144×108, the White Dragon 60×42 → 180×126 */
-        .sprite-wrap { width: 144px; height: 108px; flex-shrink: 0; }
+        .sprite-wrap { position: relative; width: 144px; height: 108px; flex-shrink: 0; }
         .sprite-wrap.dragon { width: 180px; height: 126px; }
-        .drake-sprite { width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; animation: drakeBob 1.8s ease-in-out infinite; }
-        #card-p2 .drake-sprite { animation-delay: -0.9s; }
-        .drake-sprite.hit { animation: drakeHit 0.35s ease-out; }
+        .sprite-bob { position: relative; width: 100%; height: 100%; animation: drakeBob 1.8s ease-in-out infinite; }
+        #card-p2 .sprite-bob { animation-delay: -0.9s; }
+        .drake-sprite { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+        .sprite-flash { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; opacity: 0; }
         @keyframes drakeBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-        @keyframes drakeHit { 0% { transform: translateX(0); filter: brightness(2.2) saturate(0.3); } 30% { transform: translateX(-4px); } 60% { transform: translateX(3px); filter: none; } 100% { transform: translateX(0); } }
         .fc-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
         .fighter-info { overflow: hidden; min-width: 0; }
         .fc-xp { font-size: 12px; color: var(--dim); flex-shrink: 0; }
         .px-track { position: relative; flex: 1; background: var(--track); box-shadow: 0 0 0 2px var(--edge); overflow: hidden; }
-        .px-fill { position: absolute; left: 0; top: 0; bottom: 0; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.38), inset 0 -2px 0 rgba(0, 0, 0, 0.28); transition: width 0.3s ease, background-color 0.3s ease; }
+        .px-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%; transform: scaleX(0); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.38), inset 0 -2px 0 rgba(0, 0, 0, 0.28); transition: transform 0.3s ease; }
+        .hp-ghost { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: rgba(255, 255, 255, 0.35); transition: transform 0.45s ease 0.35s; }
         .fc-xpbar { display: flex; padding: 0 2px; flex-shrink: 0; }
         .fc-xpbar .px-track { height: 4px; }
         .fc-xpbar .px-fill { background: #9b7bff; }
@@ -123,14 +125,126 @@
         .hp-bar-container { height: 20px; }
         .hp-text { font-family: var(--pixel); font-size: 16px; color: var(--text); width: 118px; text-align: right; white-space: nowrap; overflow: hidden; }
 
-        /* ===== Battle log (unchanged behaviour; restyled in the next PR) and queue strip ===== */
-        .log-panel { flex: 1; min-height: 0; box-sizing: border-box; padding: 10px 16px 14px; background: rgba(6, 7, 11, 0.96); display: flex; flex-direction: column;
+        /* ===== Turn animation: pre-drawn layers that only fade (opacity) or move (transform), so OBS doesn't drop frames ===== */
+        .fx-layer { position: absolute; pointer-events: none; }
+        .fx-glow, .fx-glow-ult, .fx-flash { inset: 0; z-index: -1; opacity: 0; }
+        .fx-glow, .fx-glow-ult { background: color-mix(in srgb, var(--lo) 16%, var(--card)); transition: opacity 0.25s ease; }
+        .fx-glow { box-shadow: 0 -3px 0 0 var(--hi), -3px 0 0 0 var(--hi), 0 3px 0 0 var(--lo), 3px 0 0 0 var(--lo), 0 -6px 0 0 var(--deep), 0 6px 0 0 var(--deep), -6px 0 0 0 var(--deep), 6px 0 0 0 var(--deep),
+            -3px -3px 0 0 var(--deep), 3px -3px 0 0 var(--deep), -3px 3px 0 0 var(--deep), 3px 3px 0 0 var(--deep), 0 0 30px 6px color-mix(in srgb, var(--hi) 42%, transparent); }
+        .fx-glow-ult { box-shadow: 0 -3px 0 0 var(--hi), -3px 0 0 0 var(--hi), 0 3px 0 0 var(--lo), 3px 0 0 0 var(--lo), 0 -6px 0 0 var(--deep), 0 6px 0 0 var(--deep), -6px 0 0 0 var(--deep), 6px 0 0 0 var(--deep),
+            -3px -3px 0 0 var(--deep), 3px -3px 0 0 var(--deep), -3px 3px 0 0 var(--deep), 3px 3px 0 0 var(--deep), 0 0 40px 10px color-mix(in srgb, var(--hi) 55%, transparent); }
+        .fighter-card.attacking .fx-glow { opacity: 1; }
+        .fighter-card.attacking.ult-turn .fx-glow { opacity: 0; }
+        .fighter-card.attacking.ult-turn .fx-glow-ult { opacity: 1; }
+        .fx-flash { background: rgba(255, 93, 82, 0.13); }
+        .atk-tab { left: 16px; top: -15px; z-index: 2; font-size: 12px; font-weight: 800; letter-spacing: 1.5px; padding: 3px 10px; background: #0f0d10; color: var(--hi); white-space: nowrap;
+            text-transform: uppercase; opacity: 0; transition: opacity 0.2s ease; }
+        .fighter-card.attacking .atk-tab { opacity: 1; }
+        .fighter-card.hit .fx-flash { animation: fxFlash 0.5s ease-out; }
+        .fighter-card.hit .sprite-flash { animation: fxFlash 0.45s ease-out; }
+        .fighter-card.hit .sprite-wrap { animation: recoil 0.4s ease-out; }
+        #card-p1 { --recoil: -8px; }
+        #card-p2 { --recoil: 8px; }
+        @keyframes fxFlash { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+        @keyframes recoil { 0% { transform: translateX(0); } 30% { transform: translateX(var(--recoil)); } 100% { transform: translateX(0); } }
+        .dmg-pop { right: 46px; top: 4px; z-index: 3; font-family: var(--pixel); font-size: 28px; color: #ff5d52; white-space: nowrap; opacity: 0;
+            text-shadow: 3px 3px 0 #2a0604, -2px -2px 0 #2a0604, 2px -2px 0 #2a0604, -2px 2px 0 #2a0604, 2px 2px 0 #2a0604; animation: dmgPop 1.3s ease-out forwards; }
+        .dmg-pop.crit { color: #ffd23f; }
+        .dmg-pop.zero { color: #8ea3cc; text-shadow: 3px 3px 0 #0b1020, -2px -2px 0 #0b1020, 2px -2px 0 #0b1020, -2px 2px 0 #0b1020, 2px 2px 0 #0b1020; }
+        .dmg-pop.heal { color: #4dff7a; text-shadow: 3px 3px 0 #04200c, -2px -2px 0 #04200c, 2px -2px 0 #04200c, -2px 2px 0 #04200c, 2px 2px 0 #04200c; }
+        .dmg-pop.small { font-size: 16px; top: 46px; }
+        @keyframes dmgPop { 0% { opacity: 0; transform: translateY(10px) scale(0.7); } 12% { opacity: 1; transform: translateY(0) scale(1.15); } 25% { transform: translateY(0) scale(1); }
+            75% { opacity: 1; transform: translateY(-6px); } 100% { opacity: 0; transform: translateY(-18px); } }
+
+        /* ===== Battle log: two-column attack cards, one row per round (left fighter's attack | right fighter's) ===== */
+        .log-panel { position: relative; flex: 1; min-height: 0; box-sizing: border-box; padding: 10px 16px 14px; background: rgba(6, 7, 11, 0.96); display: flex; flex-direction: column; gap: 8px;
             --hi: #241d10; --lo: #4a3c1e; --deep: #050403; }
-        .battle-log { flex: 1; min-height: 0; overflow-y: auto; font-size: 14px; line-height: 1.4; color: var(--text2); scroll-behavior: smooth; padding-right: 6px; }
-        .battle-log::-webkit-scrollbar { width: 5px; }
-        .battle-log::-webkit-scrollbar-thumb { background: #4a3c1e; border-radius: 3px; }
-        .log-line { margin-bottom: 3px; border-bottom: 1px dashed rgba(255, 255, 255, 0.08); padding-bottom: 3px; }
-        .log-drop { text-align: center; font-weight: bold; padding: 4px; border-radius: 2px; border: 1px solid currentColor; background: rgba(255, 255, 255, 0.05); }
+        .log-head { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: baseline; gap: 12px; height: 15px; flex-shrink: 0; font-size: 12px; padding: 0 4px; }
+        .lh-side { color: var(--dim); white-space: nowrap; overflow: hidden; }
+        .lh-side b { font-weight: 600; }
+        .lh-right { text-align: right; }
+        .lh-legend { display: flex; gap: 14px; white-space: nowrap; }
+        .t-physical { color: #ffb27a; }
+        .t-magical { color: #8fb8ff; }
+        .t-vampire { color: #ff7ab8; }
+        .log-feed { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; overflow: hidden; padding: 0 8px 8px; margin: 0 -8px -8px;
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 34px); mask-image: linear-gradient(to bottom, transparent 0, #000 34px); }
+        .log-banner { flex-shrink: 0; text-align: center; font-size: 13px; color: #c9cbe3; padding: 3px 0 5px; white-space: nowrap; overflow: hidden; }
+        .log-banner.idle { color: var(--dim); }
+        .log-banner.sd { font-weight: 700; font-size: 14px; padding: 5px 8px; margin: 4px 0; color: #ff6b6b; background: rgba(255, 40, 40, 0.08); border: 1px solid rgba(255, 80, 80, 0.5); border-radius: 2px; }
+        .log-banner.warn { color: #ffb36b; font-weight: 600; }
+        .log-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: stretch; flex-shrink: 0; }
+        .lc { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: center; gap: 4px; height: 58px; box-sizing: border-box; padding: 6px 12px; min-width: 0;
+            background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 2px; }
+        .lc.has-ult { height: 76px; }
+        .lc.crit { background: rgba(255, 210, 63, 0.07); border-color: rgba(255, 210, 63, 0.45); }
+        .lc-glow { position: absolute; inset: -2px; z-index: -1; pointer-events: none; opacity: 0; transition: opacity 0.3s ease; background: color-mix(in srgb, var(--lo) 22%, #1a1c28);
+            box-shadow: 0 -2px 0 0 var(--hi), -2px 0 0 0 var(--hi), 0 2px 0 0 var(--lo), 2px 0 0 0 var(--lo), 0 -4px 0 0 var(--deep), 0 4px 0 0 var(--deep), -4px 0 0 0 var(--deep), 4px 0 0 0 var(--deep),
+                -2px -2px 0 0 var(--deep), 2px -2px 0 0 var(--deep), -2px 2px 0 0 var(--deep), 2px 2px 0 0 var(--deep), 0 0 22px 4px color-mix(in srgb, var(--hi) 42%, transparent); }
+        .lc.has-ult .lc-glow { box-shadow: 0 -3px 0 0 var(--hi), -3px 0 0 0 var(--hi), 0 3px 0 0 var(--lo), 3px 0 0 0 var(--lo), 0 -6px 0 0 var(--deep), 0 6px 0 0 var(--deep), -6px 0 0 0 var(--deep), 6px 0 0 0 var(--deep),
+                -3px -3px 0 0 var(--deep), 3px -3px 0 0 var(--deep), -3px 3px 0 0 var(--deep), 3px 3px 0 0 var(--deep), 0 0 30px 8px color-mix(in srgb, var(--hi) 42%, transparent); }
+        .lc.lit .lc-glow { animation: litIn 0.35s ease-out forwards; }
+        @keyframes litIn { from { opacity: 0; } to { opacity: 1; } }
+        .lc-ult { height: 13px; line-height: 13px; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+        .lc.right .lc-ult { text-align: right; }
+        .lc-l1, .lc-l2 { display: flex; align-items: center; min-width: 0; white-space: nowrap; }
+        /* 2 + 12 padding + 20 + 4 + 20 = 58 (with the ultimate header: + 13 + 4 = 75, in a 76 px card) */
+        .lc-l1 { gap: 8px; height: 20px; line-height: 20px; }
+        .lc-l2 { gap: 6px; height: 20px; line-height: 20px; font-size: 12px; overflow: hidden; padding-left: 24px; }
+        /* Right column: pushed right with an auto margin (not justify-content), so text that doesn't fit overflows to the
+           right, where fitText can measure it */
+        .lc.right .lc-l2 { padding-left: 0; padding-right: 24px; }
+        .lc.right .lc-l2 > :first-child { margin-left: auto; }
+        .lc-l2 .squeeze > * + * { margin-left: 6px; }
+        .lc-turn { font-size: 11px; color: var(--dim); min-width: 16px; text-align: center; flex-shrink: 0; }
+        .lc-move { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; min-width: 0; }
+        .lc-sp { flex: 1 1 0; min-width: 0; }
+        .lc-dmg { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .lc-num { font-family: var(--pixel); font-size: 16px; color: #ff5d52; white-space: nowrap; }
+        .lc.crit .lc-num { color: #ffd23f; }
+        .lc-num.zero { color: #8ea3cc; }
+        .lc-num.heal { color: #4dff7a; }
+        .lc-arrow { font-size: 17px; font-weight: 700; }
+        .lc-critchip { flex-shrink: 0; font-size: 12px; line-height: 14px; font-weight: 700; padding: 2px 8px; border-radius: 2px; color: #ffd23f; background: rgba(255, 200, 40, 0.16); text-transform: uppercase; }
+        .lx { color: var(--dim); white-space: nowrap; }
+        .lk { font-weight: 700; padding: 0.1em 0.67em; line-height: 1.17em; border-radius: 2px; white-space: nowrap; color: #c9cde6; background: rgba(255, 255, 255, 0.08); }
+        .lk.buff { font-weight: 600; color: #6bff9a; background: rgba(60, 255, 120, 0.08); border: 1px solid rgba(107, 255, 154, 0.45); }
+        .lk.debuff { font-weight: 600; color: #ff9a6b; background: rgba(255, 120, 60, 0.10); border: 1px solid rgba(255, 154, 107, 0.5); }
+        .lk.heal { color: #4dff7a; background: rgba(77, 255, 122, 0.12); }
+        .lk.hurt { color: #ff9a8a; background: rgba(255, 93, 82, 0.14); }
+        .lk.sd { color: #ff7a7a; background: rgba(255, 60, 60, 0.18); }
+        .lk.reels { letter-spacing: 2px; color: #ffe38a; background: rgba(255, 215, 0, 0.12); }
+        .lc-cell { display: flex; flex-direction: column; justify-content: center; gap: 3px; height: 58px; box-sizing: border-box; padding: 7px 12px; min-width: 0; border-radius: 2px;
+            font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+        .lc-cell.wait { border: 1px dashed rgba(255, 255, 255, 0.16); color: var(--dim); }
+        .lc-cell.pending { border: 1px solid var(--hi); background: color-mix(in srgb, var(--lo) 18%, transparent); color: var(--hi); animation: litIn 0.25s ease-out; }
+        .lc-ctext { margin: 0 auto; white-space: nowrap; }
+        .log-banner > .lc-ctext { display: inline-block; }
+        .lc-cell.ko { border: 1px solid rgba(255, 93, 82, 0.45); background: rgba(255, 93, 82, 0.08); color: #ff8a80; }
+        .lc-cell.ko .lc-l2 { padding: 0; font-weight: 400; margin: 0 auto; }
+        .lc-cell.empty { visibility: hidden; }
+        .lc-cell b, .lc-l2 b { font-weight: 700; }
+        .log-result { flex-shrink: 0; margin: 8px 4px 4px; box-sizing: border-box; padding: 10px 16px 12px; background: #17140c; --hi: #ffd978; --lo: #b8862c; --deep: #1b1206; }
+        .lr-title { text-align: center; font-weight: 800; font-size: 16px; color: #ffd23f; margin-bottom: 8px; white-space: nowrap; overflow: hidden; }
+        .lr-grid { display: grid; grid-template-columns: minmax(0, 1fr) 190px minmax(0, 1fr); row-gap: 4px; font-size: 15px; }
+        .lr-grid > span { white-space: nowrap; overflow: hidden; }
+        .lr-a { text-align: right; }
+        .lr-k { text-align: center; font-size: 13px; color: var(--dim); }
+        .lr-n { font-family: var(--pixel); font-size: 14px; }
+        .lr-xp { font-weight: 700; color: #b98cff; }
+        .lr-name { font-weight: 700; }
+        /* Countdown before a fight: big timer and progress bar in the log area */
+        .log-countdown { position: absolute; inset: 10px 16px 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .log-panel.counting .log-countdown { opacity: 1; }
+        .log-head, .log-feed { transition: opacity 0.3s ease; }
+        .log-panel.counting .log-head, .log-panel.counting .log-feed { opacity: 0; }
+        .cd-label { font-size: 13px; font-weight: 800; letter-spacing: 3px; color: var(--gold); text-transform: uppercase; }
+        .cd-time { font-family: var(--pixel); font-size: 48px; color: var(--text); text-shadow: 0 4px 0 #000; }
+        .cd-bar { display: flex; width: 360px; }
+        .cd-bar .px-track { height: 8px; }
+        .cd-fill { background: var(--gold); transition: transform 1s linear; }
+        .cd-title { font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; }
+        .cd-sub { font-size: 14px; color: var(--dim); white-space: nowrap; }
         .queue-display-box { flex-shrink: 0; display: flex; align-items: center; gap: 12px; height: 56px; box-sizing: border-box; padding: 0 16px; background: rgba(6, 7, 11, 0.96);
             --hi: #241d10; --lo: #4a3c1e; --deep: #050403; }
         .queue-title { font-size: 14px; font-weight: 600; color: var(--muted); white-space: nowrap; }
@@ -177,6 +291,9 @@
         .info-card.warn { background: rgba(46, 30, 18, 0.9); border-color: rgba(255, 154, 107, 0.4); }
         .info-card.ok { background: rgba(18, 44, 42, 0.75); border-color: rgba(0, 255, 204, 0.35); }
         .info-card.stat { background: rgba(40, 34, 18, 0.9); border-color: rgba(242, 193, 78, 0.45); }
+        .info-card.levelup { background: rgba(20, 38, 52, 0.8); border-color: rgba(159, 232, 255, 0.5); }
+        .info-card .info-title { font-size: 12px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+        .info-card .info-sub { color: #a9aecb; font-size: 13px; }
         .info-card.glow-mythic { border-color: #ff4757; box-shadow: inset 0 0 14px rgba(255, 71, 87, 0.45); }
         .info-card.glow-meme { border-color: #ff66cc; box-shadow: inset 0 0 14px rgba(255, 102, 204, 0.5); }
         .info-card.glow-legendary { border-color: #f1c40f; box-shadow: inset 0 0 12px rgba(241, 196, 15, 0.4); }
@@ -253,6 +370,17 @@
                 <span data-i18n="label_level">Рівень</span>: <input type="number" id="debug-p2-level" min="1" max="20" value="20" style="width: 40px;">
             </div>
             <div class="debug-col">
+                <strong style="color: #ffd978;" data-i18n="label_force_cast">Next hit casts:</strong>
+                <select id="debug-force-cast" onchange="setForcedCast(this.value)"></select>
+                <button class="test-btn secondary" onclick="fillMeter('p1')" id="debug-meter-p1"></button>
+                <button class="test-btn secondary" onclick="fillMeter('p2')" id="debug-meter-p2"></button>
+            </div>
+            <div class="debug-col">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"><input type="checkbox" id="debug-betting" onchange="setBettingWindow(this.checked)">
+                <strong style="color: #ffd978;" data-i18n="label_betting">Betting window</strong></label>
+                <span style="color: var(--dim);" data-i18n="betting_hint">every fight waits 30 s first (for Twitch Predictions); test battles don't</span>
+            </div>
+            <div class="debug-col">
                 <strong style="color: #bfe9ff;" data-i18n="label_streamer">Streamer:</strong>
                 <input type="text" id="debug-streamer" placeholder="username" autocomplete="off" style="width: 140px;" onchange="setStreamerUser(this.value)">
                 <span style="color: var(--dim);" data-i18n="streamer_hint">only this user can pick the 🐉 White Dragon (empty = nobody)</span>
@@ -295,20 +423,22 @@
 
         <div class="fighters-box">
             <div class="fighter-card" id="card-p1">
+                <span class="fx-layer fx-glow"></span><span class="fx-layer fx-glow-ult"></span><span class="fx-layer fx-flash"></span>
+                <span class="fx-layer atk-tab frame-sm" id="tab-p1"></span>
                 <div class="fc-top">
                     <div class="fc-id">
                         <div class="fighter-name" id="name-p1" data-i18n="waiting">Очікування...</div>
                         <div id="badge-container-p1"></div>
                     </div>
-                    <div class="sprite-wrap"><canvas class="drake-sprite" id="sprite-p1" width="48" height="36"></canvas></div>
+                    <div class="sprite-wrap"><div class="sprite-bob"><canvas class="drake-sprite" id="sprite-p1" width="48" height="36"></canvas><canvas class="sprite-flash" id="flash-p1" width="48" height="36"></canvas></div></div>
                 </div>
                 <div class="fc-line"><span class="fighter-info" id="info-p1">—</span><span class="fc-xp" id="xp-p1"></span></div>
-                <div class="fc-xpbar"><div class="px-track"><div class="px-fill" id="xpbar-p1" style="width: 0%;"></div></div></div>
+                <div class="fc-xpbar"><div class="px-track"><div class="px-fill" id="xpbar-p1"></div></div></div>
                 <div class="fighter-stats-sub" id="stats-sub-p1"></div>
                 <div class="fc-chips" id="status-p1"></div>
                 <div class="power-meter" id="power-p1"></div>
                 <div class="fc-hp">
-                    <div class="px-track hp-bar-container"><div class="px-fill hp-bar" id="bar-p1" style="width: 0%;"></div></div>
+                    <div class="px-track hp-bar-container"><div class="hp-ghost" id="ghost-p1"></div><div class="px-fill hp-bar" id="bar-p1"></div></div>
                     <span class="hp-text" id="hp-text-p1">—</span>
                 </div>
                 <span class="result-tag frame-sm" id="result-p1"></span>
@@ -317,30 +447,35 @@
             <div class="vs-badge frame-mid"><span>VS</span></div>
 
             <div class="fighter-card" id="card-p2">
+                <span class="fx-layer fx-glow"></span><span class="fx-layer fx-glow-ult"></span><span class="fx-layer fx-flash"></span>
+                <span class="fx-layer atk-tab frame-sm" id="tab-p2"></span>
                 <div class="fc-top">
                     <div class="fc-id">
                         <div class="fighter-name" id="name-p2" data-i18n="waiting">Очікування...</div>
                         <div id="badge-container-p2"></div>
                     </div>
-                    <div class="sprite-wrap"><canvas class="drake-sprite" id="sprite-p2" width="48" height="36"></canvas></div>
+                    <div class="sprite-wrap"><div class="sprite-bob"><canvas class="drake-sprite" id="sprite-p2" width="48" height="36"></canvas><canvas class="sprite-flash" id="flash-p2" width="48" height="36"></canvas></div></div>
                 </div>
                 <div class="fc-line"><span class="fighter-info" id="info-p2">—</span><span class="fc-xp" id="xp-p2"></span></div>
-                <div class="fc-xpbar"><div class="px-track"><div class="px-fill" id="xpbar-p2" style="width: 0%;"></div></div></div>
+                <div class="fc-xpbar"><div class="px-track"><div class="px-fill" id="xpbar-p2"></div></div></div>
                 <div class="fighter-stats-sub" id="stats-sub-p2"></div>
                 <div class="fc-chips" id="status-p2"></div>
                 <div class="power-meter" id="power-p2"></div>
                 <div class="fc-hp">
-                    <div class="px-track hp-bar-container"><div class="px-fill hp-bar" id="bar-p2" style="width: 0%;"></div></div>
+                    <div class="px-track hp-bar-container"><div class="hp-ghost" id="ghost-p2"></div><div class="px-fill hp-bar" id="bar-p2"></div></div>
                     <span class="hp-text" id="hp-text-p2">—</span>
                 </div>
                 <span class="result-tag frame-sm" id="result-p2"></span>
             </div>
         </div>
 
-        <div class="log-panel frame-sm">
-            <div class="battle-log" id="battle-log">
-                <div class="log-line" style="color: #6f7496; text-align: center;" data-i18n="arena_ready">Арена готова! Очікування бійців...</div>
-            </div>
+        <div class="log-panel frame-sm" id="log-panel">
+            <div class="log-head" id="log-head"></div>
+            <div class="log-feed" id="log-feed"><div class="log-banner idle" data-i18n="arena_ready">Арена готова! Очікування бійців...</div></div>
+            <div class="log-countdown" id="log-countdown"></div>
+            <!-- The fight's text record: every event as a line of text. Not shown (the cards above are built from the
+                 same turns); the balance sims and tests read it. -->
+            <div id="battle-log" hidden></div>
         </div>
 
         <div class="queue-display-box frame-sm">
@@ -407,6 +542,9 @@
                 sim_demo: "🎬 Демо: 4 глядачі стають у чергу",
                 label_streamer: "Стрімер:",
                 streamer_hint: "лише цей користувач може обрати 🐉 Білого Дракона (порожньо = ніхто)",
+                label_force_cast: "Наступний удар накладає:",
+                label_betting: "Вікно ставок",
+                betting_hint: "кожен бій чекає 30 с (для передбачень Twitch); тестові бої — ні",
                 sim_streamer: "🐉 стрімер: !дрейк білий"
             },
             en: {
@@ -435,6 +573,9 @@
                 sim_demo: "🎬 Demo: 4 viewers join the queue",
                 label_streamer: "Streamer:",
                 streamer_hint: "only this user can pick the 🐉 White Dragon (empty = nobody)",
+                label_force_cast: "Next hit casts:",
+                label_betting: "Betting window",
+                betting_hint: "every fight waits 30 s first (for Twitch Predictions); test battles don't",
                 sim_streamer: "🐉 streamer: !drake white"
             }
         };
@@ -456,6 +597,7 @@
             // Cards keep the last fighters between fights: redraw them in the new language
             if (!isBattleRunning) ['p1', 'p2'].forEach(p => { const d = getDragonStrict((document.getElementById(`name-${p}`).textContent || '').replace('@', '')); if (d) { updateFighterCard(p, d); updateStatusUI(d.name, calculateLevelAndProgress(d.xp).level, d.drakeObj.type, d.title); } });
             renderResultTags();
+            fvRepaintAll();
         }
 
         function updateUITranslations() {
@@ -599,6 +741,9 @@
             if (s.kind === 'idle') {
                 type.textContent = uk ? 'Арена чекає на бійців' : 'The arena awaits fighters';
                 plate.textContent = uk ? '⏳ Очікування' : '⏳ Waiting';
+            } else if (s.kind === 'countdown') {
+                type.textContent = fightName;
+                plate.textContent = fvT(s.betting ? 'plateBets' : 'plateStart');
             } else if (s.kind === 'fight') {
                 type.textContent = fightName;
                 plate.textContent = uk ? `⚔️ Хід ${s.turn} / 30` : `⚔️ Turn ${s.turn} / 30`;
@@ -629,6 +774,541 @@
                 tag.style.textTransform = 'uppercase';
             });
         }
+
+        /* ===== Fight view: battle log cards, turn animation, countdown and result card =====
+           Visual only. The fight decides everything first; these functions only draw what it decided. They never roll a
+           random number or change anything the fight uses. In Node (balance sims, the effect and ultimate tests) there is
+           no page, so all of it switches off and the fight runs exactly as before. */
+        const FV_LIVE = typeof document !== 'undefined' && !!document.body;
+        const TURN_MS = 4500;                  // one turn (the fight's interval)
+        const HIT_DELAY_MS = 600;              // turn step 1 (the attacker lights up) → step 2 (the hit lands)
+        const BETTING_WINDOW_MS = 30000;       // the optional betting window before each fight (Test Settings)
+        const BETTING_WINDOW_DEFAULT = false;  // a build with the betting window on by default only changes this
+        const BETTING_KEY = 'drake_arena_showcase_betting';
+        const SUDDEN_DEATH = { from: 16, perTurn: 0.3 };   // from this turn every hit gets ×(1 + perTurn per turn since)
+        const levelAttackBonus = level => Math.floor(level * 0.8);   // flat damage every attack gets from the level
+        let forcedCast = null;   // test menu only: the next hit that deals damage also casts this effect
+
+        const FV_TEXT = {
+            uk: { attacks: 'атаки', physical: 'фізична', magical: 'магічна', vampire: 'вампірська', tab: '⚔ Атакує', attacking: 'атакує…', upNext: '⏳ хід',
+                  ko: 'вибуває', start: 'початок ходу', applies: 'накладає', gets: 'отримує', refreshes: 'оновлює', replaces: 'замінює', removes: 'знімає',
+                  takes: 'забирає', lost: 'зникає', immune: '🐉 імунітет', block: '🚫 блок', sovereign: '👑 атака розсіюється', pierce: '⚡ крізь броню',
+                  unblockable: 'не блокується', crit: '💥 Крит', miss: 'промах', frozen: 'атаку пропущено', back: 'назад', reflect: '🟦 відбиває',
+                  fortune: '🟨 фортуна · 1 HP', thorns: '🌵 шипи', lifesteal: '🧛 титул', execute: '⚰️ добивання', sleep: '😴 проспав хід', wrath: '👑 кара етеру',
+                  guardian: '👼 ангел-охоронець', chaos: '⚡ хаос', cat: '🐈 кіт', forced: 'гарантований крит', noBuffs: 'бафів немає',
+                  sdBanner: '💀 РАПТОВА СМЕРТЬ з {n}-го ходу · шкода зростає щоходу', timeout: '⏳ ЧАС ВИЙШОВ · ліміт {n} ходів',
+                  error: '❌ Помилка симуляції — бій перервано', vs: 'проти', fightStart: '🔔 Бій почався{bets} · 🎲 першим б’є {a}', betsClosed: ' · ставки закрито',
+                  opening: '🌅 {title}: {who} починає бій з {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
+                  draw: '🤝 НІЧИЯ · {n} {turns}', dmg: 'шкода', biggest: 'найсильніший удар', crits: 'крити', xp: 'досвід', noXp: 'без досвіду', maxLvl: 'макс. рівень',
+                  cdLabel: 'Старт через', cdBets: 'Ставки відкрито — хто переможе?', cdStart: 'Бій починається!', cdFlip: '🎲 хто б’є першим, вирішить жереб на старті',
+                  cdFirst: '🎲 першим б’є {a}', plateBets: '⏳ Ставки відкрито', plateStart: '⏳ Бій починається', levelUp: '⬆️ Новий рівень',
+                  reaches: '{who} досягає {n}-го рівня', atkGain: '+{n} до атаки', tierGain: 'стихія сильнішає', meterBtn: '✦ {meter}: {side}',
+                  left: 'лівий', right: 'правий', noCast: '— випадково —' },
+            en: { attacks: 'attacks', physical: 'physical', magical: 'magic', vampire: 'vampire', tab: '⚔ Attacks', attacking: 'attacks…', upNext: '⏳ up next:',
+                  ko: 'is knocked out', start: 'start of turn', applies: 'applies', gets: 'gets', refreshes: 'refreshes', replaces: 'replaces', removes: 'removes',
+                  takes: 'takes', lost: 'lost', immune: '🐉 immune', block: '🚫 block', sovereign: '👑 the attack dissolves', pierce: '⚡ armour-piercing',
+                  unblockable: 'unblockable', crit: '💥 Crit', miss: 'miss', frozen: 'attack skipped', back: 'back', reflect: '🟦 reflects',
+                  fortune: '🟨 fortune · 1 HP', thorns: '🌵 thorns', lifesteal: '🧛 title', execute: '⚰️ execute', sleep: '😴 slept through it', wrath: '👑 aether wrath',
+                  guardian: '👼 guardian angel', chaos: '⚡ chaos', cat: '🐈 cat', forced: 'guaranteed crit', noBuffs: 'no buffs',
+                  sdBanner: '💀 SUDDEN DEATH from turn {n} · damage grows every turn', timeout: '⏳ TIME OUT · {n}-turn limit',
+                  error: '❌ Simulation error — the fight was stopped', vs: 'vs', fightStart: '🔔 The fight is on{bets} · 🎲 {a} strikes first', betsClosed: ' · bets closed',
+                  opening: '🌅 {title}: {who} starts with {fx}', knockout: '🏆 KNOCKOUT · {w} wins in {n} {turns}', timeoutWin: '⏳ TIME OUT · {w} wins on HP',
+                  draw: '🤝 DRAW · {n} {turns}', dmg: 'damage', biggest: 'biggest hit', crits: 'crits', xp: 'XP', noXp: 'no XP', maxLvl: 'max level',
+                  cdLabel: 'Starts in', cdBets: 'Bets are open — who will win?', cdStart: 'The fight is starting!', cdFlip: '🎲 a coin flip at the start decides who strikes first',
+                  cdFirst: '🎲 {a} strikes first', plateBets: '⏳ Bets open', plateStart: '⏳ Fight starting', levelUp: '⬆️ Level up',
+                  reaches: '{who} reaches level {n}', atkGain: '+{n} attack', tierGain: 'element passive grows', meterBtn: '✦ {meter}: {side}',
+                  left: 'left', right: 'right', noCast: '— random —' },
+        };
+        const fvT = (key, vars = {}) => FV_TEXT[currentLang][key].replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '');
+        const fvTurns = n => currentLang === 'uk' ? turnsWordUk(n) : (n === 1 ? 'turn' : 'turns');
+
+        // Move names: one per element, attack type and strength, both languages. Looked up, never rolled.
+        const ATTACK_ICONS = { physical: '🗡️', magical: '🔮', vampire: '🧛' };
+        const MOVE_NAMES = {
+            red:    { physical: { light: ['Кігті', 'Claws'], heavy: ['Удар хвостом', 'Tail Slam'], sneaky: ['Підступний укус', 'Sneaky Bite'] },
+                      magical: { light: ['Іскра', 'Spark'], heavy: ['Вогняний подих', 'Fire Breath'], sneaky: ['Пекучий промінь', 'Searing Ray'] },
+                      vampire: { light: ['Гарячий укус', 'Scorching Bite'], heavy: ['Кривава жага', 'Bloodthirst'] } },
+            blue:   { physical: { light: ['Крижані кігті', 'Ice Claws'], heavy: ['Удар хвилі', 'Wave Slam'], sneaky: ['Підводна течія', 'Undertow'] },
+                      magical: { light: ['Бризки', 'Splash'], heavy: ['Крижаний подих', 'Ice Breath'], sneaky: ['Водяний спис', 'Water Lance'] },
+                      vampire: { light: ['Холодний укус', 'Cold Bite'], heavy: ['Крижана спрага', 'Icy Thirst'] } },
+            black:  { physical: { light: ['Темні кігті', 'Dark Claws'], heavy: ['Удар мороку', 'Gloom Strike'], sneaky: ['Удар у спину', 'Backstab'] },
+                      magical: { light: ['Темна іскра', 'Dark Spark'], heavy: ['Хвиля мороку', 'Gloom Wave'], sneaky: ['Проклятий промінь', 'Cursed Ray'] },
+                      vampire: { light: ['Нічний укус', 'Night Bite'], heavy: ['Нічна спрага', 'Night Thirst'] } },
+            gold:   { physical: { light: ['Золоті кігті', 'Golden Claws'], heavy: ['Удар скарбу', 'Treasure Slam'], sneaky: ['Хитра монета', 'Sly Coin'] },
+                      magical: { light: ['Відблиск', 'Glint'], heavy: ['Сяйво', 'Radiance'], sneaky: ['Сліпучий промінь', 'Blinding Ray'] },
+                      vampire: { light: ['Жадібний укус', 'Greedy Bite'], heavy: ['Золота спрага', 'Golden Thirst'] } },
+            purple: { physical: { light: ['Кристальні кігті', 'Crystal Claws'], heavy: ['Удар аркани', 'Arcane Slam'], sneaky: ['Фазовий випад', 'Phase Lunge'] },
+                      magical: { light: ['Чарівна іскра', 'Magic Spark'], heavy: ['Вибух чарів', 'Spell Burst'], sneaky: ['Промінь порожнечі', 'Void Ray'] },
+                      vampire: { light: ['Укус порожнечі', 'Void Bite'], heavy: ['Магічна спрага', 'Mana Thirst'] } },
+            green:  { physical: { light: ['Удар лози', 'Vine Lash'], heavy: ['Корінний удар', 'Root Slam'], sneaky: ['Колючий випад', 'Thorn Lunge'] },
+                      magical: { light: ['Гострий лист', 'Razor Leaf'], heavy: ['Гнів лісу', 'Forest Wrath'], sneaky: ['Отруйний пилок', 'Toxic Pollen'] },
+                      vampire: { light: ['Укус лози', 'Vine Bite'], heavy: ['Сокова спрага', 'Sap Thirst'] } },
+            white:  { physical: { light: ['Етерні кігті', 'Aether Claws'], heavy: ['Удар бурі', 'Storm Slam'], sneaky: ['Небесний випад', 'Sky Lunge'] },
+                      magical: { light: ['Зоряна іскра', 'Star Spark'], heavy: ['Етерний подих', 'Aether Breath'], sneaky: ['Промінь небес', 'Heaven Ray'] },
+                      vampire: { light: ['Укус вічності', 'Eternal Bite'], heavy: ['Спрага етеру', 'Aether Thirst'] } },
+        };
+        function moveName(drakeType, attackType, subType, lang = currentLang) {
+            const byType = MOVE_NAMES[drakeType] || MOVE_NAMES.red;
+            const entry = (byType[attackType] || {})[subType] || byType.physical.light;
+            return entry[lang === 'uk' ? 0 : 1];
+        }
+
+        // What the view knows about the fight on screen: its log items, the turn being drawn and per-fighter stats
+        let fv = { on: false, items: [], stats: {}, rec: null, hold: null, lit: null };
+        let fvCountdownToken = 0;
+        const fvEl = id => document.getElementById(id);
+        const fvSide = f => f === fv.p1 ? 'p1' : 'p2';
+        const fvWho = f => `<b class="pname" style="color:${f.color}">@${f.name}</b>`;
+        const fvFxChip = id => `<span class="lk ${EFFECTS[id].kind}">${fxName(id)}</span>`;
+        const fvUsedChip = id => `<span class="lk used">${fxName(id)}</span>`;   // an effect this attack counted down (shown last, dropped first)
+        const fvTickChip = t => `<span class="lk ${t.v < 0 ? 'debuff' : 'buff'}">${EFFECTS[t.id].icon} ${t.v < 0 ? t.v : '+' + t.v}</span>`;
+        const fvLx = text => `<span class="lx">${text}</span>`;
+        const fvLk = (text, cls = '') => `<span class="lk ${cls}">${text}</span>`;
+
+        // Turn records: the fight fills one per turn while it resolves the turn (no rolls, just what happened)
+        function fvTurn(turn, attacker, defender) {
+            if (!fv.on) return;
+            fv.rec = { turn, atk: attacker, def: defender, side: turn % 2 ? 'left' : 'right', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: null, frozen: false };
+            const panel = fvEl('log-panel');
+            if (panel) panel.classList.remove('counting');
+        }
+        function fvTick(id, v) { if (fv.rec) fv.rec.ticks.push({ id, v }); }
+        function fvNote(key, value = true) { if (fv.rec) fv.rec.notes[key] = value; }
+        function fvUsed(ids) { if (fv.rec) fv.rec.used = ids; }
+        function fvUlt(id) { if (fv.rec) fv.rec.ult = { id }; }
+        function fvUltInfo(info) { if (fv.rec && fv.rec.ult) Object.assign(fv.rec.ult, info); }
+        function fvCast(owner, id, result, extra) { if (fv.rec) fv.rec.casts.push({ owner, id, result, extra }); }
+        function fvAttack(a) {
+            if (!fv.rec) return;
+            fv.rec.attack = a;
+            const s = fv.stats[fv.rec.atk.name];
+            if (s) { s.dmg += a.dmg; s.max = Math.max(s.max, a.dmg); if (a.crit) s.crits++; }
+        }
+
+        // Visual updates the fight makes while a hit is "in the air" (step 1 → step 2) wait and are shown together
+        function fvHoldable(name) {
+            const orig = window[name];
+            window[name] = function (...args) {
+                if (fv.hold) { fv.hold.push(() => orig.apply(this, args)); return; }
+                return orig.apply(this, args);
+            };
+        }
+        function fvFlush() {
+            const q = fv.hold || [];
+            fv.hold = null;
+            q.forEach(f => f());
+        }
+
+        // ----- Log items: banners, rows of two cells, the result card -----
+        function fvFeedReset() {
+            const feed = fvEl('log-feed');
+            if (feed) feed.innerHTML = '';
+            fv.items = [];
+        }
+        function fvAddItem(item) {
+            const feed = fvEl('log-feed');
+            if (!feed) return item;
+            item.el = document.createElement('div');
+            fv.items.push(item);
+            feed.appendChild(item.el);
+            fvPaint(item);
+            // Only the newest cards can be seen (the feed is bottom-aligned and fades out at the top): drop the rest
+            while (fv.items.length > 16) { const old = fv.items.shift(); if (old.el && old.el.remove) old.el.remove(); }
+            return item;
+        }
+        function fvBanner(kind, data = {}) {
+            if (!fv.on && kind !== 'idle') return;
+            return fvAddItem({ type: 'banner', kind, data });
+        }
+        function fvRow(round, create = true) {
+            let row = fv.items.find(x => x.type === 'row' && x.round === round);
+            if (!row && create) {
+                // Sudden death starts inside this round: its banner goes above the round
+                if (round === Math.ceil(SUDDEN_DEATH.from / 2)) fvBanner('sd');
+                row = fvAddItem({ type: 'row', round, cells: { left: { k: 'empty' }, right: { k: 'empty' } } });
+            }
+            return row;
+        }
+        const fvSlot = turn => ({ round: Math.ceil(turn / 2), side: turn % 2 ? 'left' : 'right' });
+        function fvSetCell(turn, cell) {
+            const { round, side } = fvSlot(turn);
+            const row = fvRow(round);
+            if (!row) return;
+            row.cells[side] = cell;
+            fvPaint(row);
+        }
+
+        function fvPaint(item) {
+            const el = item.el;
+            if (!el) return;
+            if (item.type === 'banner') {
+                el.className = `log-banner ${item.kind}`;
+                el.innerHTML = `<span class="lc-ctext">${fvBannerHtml(item)}</span>`;
+                fitText(el, 10);
+            } else if (item.type === 'row') {
+                el.className = 'log-row';
+                el.innerHTML = fvCellHtml(item.cells.left, 'left') + fvCellHtml(item.cells.right, 'right');
+                el.querySelectorAll('.lc-move').forEach(m => fitText(m, 11));
+                // Line 2 shrinks to fit; if it still can't fit at a readable size, the effects this attack merely counted down
+                // (the least important part) drop out first, then it shrinks further
+                el.querySelectorAll('.lc-l2').forEach(l => {
+                    fitText(l, 10);
+                    if (l.scrollWidth > l.clientWidth + 0.5 || l.querySelector('.squeeze')) { l.querySelectorAll('.used').forEach(u => u.remove()); fitText(l, 8); }
+                });
+                el.querySelectorAll('.lc-cell').forEach(c => fitText(c, 10));
+            } else if (item.type === 'result') {
+                el.className = 'log-result frame-sm';
+                el.innerHTML = fvResultHtml(item.data);
+                el.querySelectorAll('.lr-title, .lr-grid > span').forEach(s => fitText(s, 10));
+            }
+        }
+        function fvBannerHtml(item) {
+            const d = item.data;
+            switch (item.kind) {
+                case 'idle': return translations[currentLang].arena_ready;
+                case 'intro': {
+                    const type = fv.ranked ? (currentLang === 'uk' ? '🏆 Рейтинговий бій' : '🏆 Ranked battle') : (currentLang === 'uk' ? '🤝 Товариська дуель' : '🤝 Friendly duel');
+                    return `${type} · ${drakeIcon(fv.p1.drakeObj)} ${fvWho(fv.p1)} ${fvT('vs')} ${fvWho(fv.p2)} ${drakeIcon(fv.p2.drakeObj)}`;
+                }
+                case 'start': return fvT('fightStart', { bets: fv.betting ? fvT('betsClosed') : '', a: fvWho(fv.p1) });
+                case 'opening': return fvT('opening', { title: `${d.f.title.icon} ${d.f.title.name[currentLang]}`, who: fvWho(d.f), fx: fxName(d.id) });
+                case 'sd': return fvT('sdBanner', { n: SUDDEN_DEATH.from });
+                case 'timeout': return fvT('timeout', { n: 30 });
+                case 'error': return fvT('error');
+            }
+            return '';
+        }
+
+        // One log cell: a finished attack card, "⚔ @x атакує…", "⏳ хід @x", "💀 @x вибуває" or nothing yet
+        function fvCellHtml(cell, side) {
+            if (cell.k === 'empty') return `<div class="lc-cell empty"></div>`;
+            if (cell.k === 'wait') return `<div class="lc-cell wait"><span class="lc-ctext">${fvT('upNext')}&nbsp;${fvWho(cell.f)}</span></div>`;
+            if (cell.k === 'pending') {
+                const u = cell.ult ? CLASS_ULTIMATES[cell.ult] : null;
+                const text = u ? `${u.icon} ${fvWho(cell.f)}&nbsp;· ${u.name[currentLang]}…` : `⚔ ${fvWho(cell.f)}&nbsp;${fvT('attacking')}`;
+                return `<div class="lc-cell pending el-${cell.f.drakeObj.type}"><span class="lc-ctext">${text}</span></div>`;
+            }
+            if (cell.k === 'ko') {
+                const ticks = cell.rec && cell.rec.ticks.length ? `<div class="lc-l2">${fvLx(fvT('start'))}${cell.rec.ticks.map(fvTickChip).join('')}</div>` : '';
+                return `<div class="lc-cell ko"><span class="lc-ctext">💀 <b>@${cell.f.name}</b>&nbsp;${fvT('ko')}</span>${ticks}</div>`;
+            }
+            return fvCardHtml(cell.rec, side);
+        }
+
+        function fvCardHtml(rec, side) {
+            const a = rec.attack, u = rec.ult ? CLASS_ULTIMATES[rec.ult.id] : null, uk = currentLang === 'uk';
+            const cls = ['lc', side, `el-${rec.atk.drakeObj.type}`];
+            if (a && a.crit) cls.push('crit');
+            if (u) cls.push('has-ult');
+            if (fv.lit === rec) cls.push('lit');
+            // Line 1: turn, move, (crit), damage and an arrow toward the target
+            let move, num = '';
+            if (rec.frozen) move = `<span class="lc-move">${fxName('frost')}</span>`;
+            else if (u && !u.attacks) move = `<span class="lc-move" style="color:${u.color}">${ultName(rec.ult.id)}</span>`;
+            else if (a) {
+                const name = u ? u.name[currentLang] : moveName(rec.atk.drakeObj.type, a.type, a.sub);
+                move = `<span class="lc-move t-${a.type}">${ATTACK_ICONS[a.type]} ${name}</span>`;
+            } else move = `<span class="lc-move"></span>`;
+            if (a) num = `<span class="lc-num${a.dmg > 0 ? '' : ' zero'}">${a.dmg > 0 ? '-' + a.dmg : '0'}</span>`;
+            else if (rec.ult && rec.ult.healed !== undefined) num = `<span class="lc-num heal">+${rec.ult.healed}</span>`;
+            const arrowTo = `<span class="lc-arrow" style="color:${rec.def.color}">${side === 'left' ? '→' : '←'}</span>`;
+            const dmg = num ? `<span class="lc-dmg">${side === 'left' ? num + (a ? arrowTo : '') : (a ? arrowTo : '') + num}</span>` : '';
+            const crit = a && a.crit ? `<span class="lc-critchip">${fvT('crit')}</span>` : '';
+            const turnNo = `<span class="lc-turn">${rec.turn}</span>`;
+            const l1 = side === 'left'
+                ? `${turnNo}${move}<span class="lc-sp"></span>${crit}${dmg}`
+                : `${dmg}${crit}<span class="lc-sp"></span>${move}${turnNo}`;
+            // Line 2: what happened, in words
+            const p = [];
+            if (rec.frozen) p.push(fvLx(fvT('frozen')));
+            if (u) {
+                const x = rec.ult;
+                if (u.unblockable) p.push(fvLk(fvT('unblockable')));
+                if (x.reels) p.push(fvLk(x.reels.join(' '), 'reels'), x.miss ? fvLk(fvT('miss'), 'hurt') : fvLk(`×${x.mult}`));
+                if (x.id === 'detonation') { p.push(fvLk(`×${x.mult}`)); if (x.removed && x.removed.length) p.push(fvLx(fvT('removes')), ...x.removed.map(fvFxChip)); }
+                if (x.taken && x.taken.length) p.push(fvLx(fvT('takes')), ...x.taken.map(fvFxChip));
+                if (x.lost && x.lost.length) p.push(fvLx(fvT('lost')), ...x.lost.map(fvFxChip));
+                if (x.forced) p.push(fvLk(fvT('noBuffs')), fvLk(fvT('forced')));
+                if (x.immune) p.push(fvLk(fvT('immune')));
+                if (x.hits !== undefined) p.push(fvLk(`${u.icon} ${unitLeftText('hits', x.hits)}`));
+                if (x.removed && x.id === 'bloom' && x.removed.length) p.push(fvLx(fvT('removes')), ...x.removed.map(fvFxChip));
+            }
+            const n = rec.notes;
+            if (a && a.sd) p.push(fvLk(`💀 ×${Math.round(a.sd * 10) / 10}`, 'sd'));
+            if (n.wrath) p.push(fvLk(fvT('wrath')));
+            if (n.sovereign) p.push(fvLk(fvT('sovereign')));
+            else if (a && a.block) p.push(a.shadow ? fvFxChip('shadow') : '', fvLk(fvT('block')));
+            if (n.unblock && n.unblock === 'divine') p.push(fvLk(`${EFFECTS.divine.icon} ${fvT('unblockable')}`));
+            if (a && a.pierce) p.push(fvLk(fvT('pierce')));
+            if (n.execute) p.push(fvLk(fvT('execute')));
+            if (n.coin) p.push(fvLk(`🪙 ×${n.coin}`));
+            if (n.sleep) p.push(fvLk(fvT('sleep')));
+            if (n.mirror) p.push(fvLk(`${CLASS_ULTIMATES.mirror.icon} ${n.mirror.would} → ${n.mirror.would - n.mirror.absorbed}`), n.mirror.back ? fvLk(`-${n.mirror.back} ${fvT('back')}`, 'hurt') : '');
+            if (n.fortune) p.push(fvLk(fvT('fortune')));
+            if (n.reflect) p.push(fvLk(`${fvT('reflect')} -${n.reflect}`, 'hurt'));
+            if (n.vamp) p.push(fvLk(`🩸 +${n.vamp}`, 'heal'));
+            if (n.lifesteal) p.push(fvLk(`${fvT('lifesteal')} +${n.lifesteal}`, 'heal'));
+            if (n.thorns) p.push(fvLk(`${fvT('thorns')} -${n.thorns}`, 'hurt'));
+            rec.used.filter(id => !(id === 'shadow' && a && a.shadow)).forEach(id => p.push(fvUsedChip(id)));
+            if (n.guardian) p.push(fvLk(`${fvT('guardian')} +${n.guardian}`, 'heal'));
+            if (rec.ticks.length) p.push(fvLx(fvT('start')), ...rec.ticks.map(fvTickChip));
+            if (n.chaos) p.push(fvLk(fvT('chaos')));
+            if (n.cat) p.push(fvLk(fvT('cat')));
+            rec.casts.forEach(c => {
+                const kind = EFFECTS[c.id].kind;
+                const mine = (kind === 'buff' && c.owner === rec.atk) || (kind === 'debuff' && c.owner === rec.def);
+                if (c.result === 'immune') p.push(fvLk(fvT('immune')), fvFxChip(c.id));
+                else if (c.result === 'dispelled') p.push(fvFxChip(c.id), fvLx(fvT('removes')), ...(c.extra || []).map(fvFxChip));
+                else if (c.result === 'refreshed') p.push(fvLx(fvT('refreshes')), fvFxChip(c.id));
+                else if (c.result === 'replaced') p.push(fvFxChip(c.id), fvLx(fvT('replaces')), fvFxChip(c.extra));
+                else p.push(fvLx(mine ? (kind === 'buff' ? fvT('gets') : fvT('applies')) : `@${c.owner.name} ${fvT('gets')}`), fvFxChip(c.id));
+            });
+            const head = u ? `<div class="lc-ult" style="color:${u.color}">${ultLabel(rec.ult.id)}</div>` : '';
+            return `<div class="${cls.join(' ')}"><span class="lc-glow"></span>${head}<div class="lc-l1">${l1}</div><div class="lc-l2">${p.filter(Boolean).join('')}</div></div>`;
+        }
+
+        function fvResultHtml(d) {
+            const w = d.winner, l = d.loser;
+            const title = !w ? fvT('draw', { n: d.turns, turns: fvTurns(d.turns) })
+                : d.timeout ? fvT('timeoutWin', { w: fvWho(w) })
+                : fvT('knockout', { w: fvWho(w), n: d.turns, turns: fvTurns(d.turns) });
+            const [a, b] = [fv.p1, fv.p2];
+            const st = f => d.stats[f.name] || { dmg: 0, max: 0, crits: 0 };
+            const xp = f => {
+                if (!d.ranked) return fvT('noXp');
+                const v = d.xp ? d.xp[f.name] : null;
+                return v ? `+${v} XP` : fvT('maxLvl');
+            };
+            const row = (label, fa, fb, cls) => `<span class="lr-a ${cls}">${fa}</span><span class="lr-k">${label}</span><span class="${cls}">${fb}</span>`;
+            return `<div class="lr-title">${title}</div><div class="lr-grid">`
+                + `<span class="lr-a lr-name" style="color:${a.color}">@${a.name}</span><span></span><span class="lr-name" style="color:${b.color}">@${b.name}</span>`
+                + row(fvT('dmg'), st(a).dmg, st(b).dmg, 'lr-n') + row(fvT('biggest'), st(a).max, st(b).max, 'lr-n')
+                + row(fvT('crits'), st(a).crits, st(b).crits, 'lr-n') + row(fvT('xp'), xp(a), xp(b), 'lr-xp') + `</div>`;
+        }
+
+        // ----- The fight's steps -----
+        function fvHead() {
+            const head = fvEl('log-head');
+            if (!head) return;
+            const legend = ['physical', 'magical', 'vampire'].map(t => `<span class="t-${t}">${ATTACK_ICONS[t]} ${fvT(t)}</span>`).join('');
+            head.innerHTML = fv.p1
+                ? `<span class="lh-side">${fvT('attacks')} ${fvWho(fv.p1)}</span><span class="lh-legend">${legend}</span><span class="lh-side lh-right">${fvT('attacks')} ${fvWho(fv.p2)}</span>`
+                : `<span class="lh-side"></span><span class="lh-legend">${legend}</span><span class="lh-side"></span>`;
+        }
+        function fvCards(fn) { ['p1', 'p2'].forEach(p => { const c = fvEl(`card-${p}`); if (c && c.classList) fn(c, p); }); }
+
+        // A fight begins: clear the log (so hours of streaming don't pile up cards), headings, countdown
+        function fvBegin(p1, p2, ranked, opts = {}) {
+            if (!FV_LIVE) return;
+            fv = { on: true, p1, p2, ranked, betting: !!opts.betting, items: [], stats: { [p1.name]: { dmg: 0, max: 0, crits: 0 }, [p2.name]: { dmg: 0, max: 0, crits: 0 } },
+                   rec: null, hold: null, lit: null };
+            fvFeedReset();
+            fvCards(c => c.classList.remove('attacking', 'ult-turn', 'hit'));
+            fvHead();
+            fvBanner('intro');
+            fvBanner('start');
+            fvCountdown(TURN_MS);
+        }
+        function fvOpening(f, id) { fvBanner('opening', { f, id }); }
+
+        // Countdown: the big timer and its bar in the log area until the first turn. Ticks are scheduled up front (a fixed
+        // number of them), each only drawing if this countdown is still the one on screen.
+        function fvCountdown(ms) {
+            if (!FV_LIVE) return;
+            const panel = fvEl('log-panel'), box = fvEl('log-countdown');
+            if (!panel || !box) return;
+            const s = arenaState;
+            const total = s.betting ? BETTING_WINDOW_MS : TURN_MS;
+            const ends = ms === null ? (s.ends || Date.now()) : Date.now() + ms;
+            arenaState.ends = ends;
+            const token = ++fvCountdownToken;
+            panel.classList.add('counting');
+            const paint = () => {
+                if (token !== fvCountdownToken || arenaState.kind !== 'countdown') return;
+                const left = Math.max(0, ends - Date.now()), secs = Math.ceil(left / 1000);
+                const sub = s.betting && !s.flipped ? fvT('cdFlip') : fvT('cdFirst', { a: fv.p1 ? fvWho(fv.p1) : '' });
+                box.innerHTML = `<span class="cd-label">${fvT('cdLabel')}</span><span class="cd-time" id="cd-time">${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</span>`
+                    + `<div class="cd-bar"><div class="px-track"><div class="px-fill cd-fill" id="cd-fill" style="transform:scaleX(${left / total})"></div></div></div>`
+                    + `<span class="cd-title">${s.betting ? fvT('cdBets') : fvT('cdStart')}</span><span class="cd-sub">${sub}</span>`;
+            };
+            paint();
+            const left0 = ends - Date.now(), n = Math.ceil(left0 / 1000);
+            for (let k = n - 1; k >= 0; k--) setTimeout(paint, left0 - k * 1000);
+        }
+        function fvRepaintCountdown() { if (arenaState.kind === 'countdown') fvCountdown(null); }
+
+        // Pre-fight betting window: both fighters on their cards, "СТАВКИ ВІДКРИТО", the timer from 30 s
+        function startFight(p1Name, p1Color, p2Name, p2Color, isRanked) {
+            if (!FV_LIVE || !bettingWindowOn()) return runBattle(p1Name, p1Color, p2Name, p2Color, isRanked);
+            const show = (n, c) => { const d = getDragonStrict(n) || getDragon(n, c); return { ...d, color: nameColor(d.color) }; };
+            const a = show(p1Name, p1Color), b = show(p2Name, p2Color);
+            fv = { on: false, p1: a, p2: b, ranked: isRanked, betting: true, items: [], stats: {}, rec: null, hold: null, lit: null };
+            fvFeedReset();
+            fvHead();
+            updateFighterCard('p1', a); updateFighterCard('p2', b);
+            const lv = d => calculateLevelAndProgress(d.xp).level;
+            updateStatusUI(a.name, lv(a), a.drakeObj.type, a.title); updateStatusUI(b.name, lv(b), b.drakeObj.type, b.title);
+            const hp = d => getMaxHP(lv(d), d.drakeObj.type, d.title);
+            updateUIHP(hp(a), hp(a), hp(b), hp(b));
+            setArenaState({ kind: 'countdown', ranked: isRanked, betting: true, flipped: false, ends: Date.now() + BETTING_WINDOW_MS });
+            fvCountdown(BETTING_WINDOW_MS);
+            setTimeout(() => runBattle(p1Name, p1Color, p2Name, p2Color, isRanked, { betting: true }), BETTING_WINDOW_MS - TURN_MS);
+        }
+        function bettingWindowOn() {
+            try { const v = localStorage.getItem(BETTING_KEY); return v === null ? BETTING_WINDOW_DEFAULT : v === '1'; } catch (e) { return BETTING_WINDOW_DEFAULT; }
+        }
+        function setBettingWindow(on) {
+            try { localStorage.setItem(BETTING_KEY, on ? '1' : '0'); } catch (e) {}
+            const box = fvEl('debug-betting');
+            if (box) box.checked = !!on;
+        }
+
+        // Turn step 1, after the start-of-turn effects: the attacker lights up (its tab says what it does), the log
+        // shows "⚔ @x атакує…", start-of-turn numbers pop on its card. Visual updates then wait for step 2.
+        function fvStep1(atkFx) {
+            const rec = fv.rec;
+            if (!rec) return;
+            // Whether this turn is the ultimate: the same check the fight makes next (Frost first, then a full meter)
+            const ultId = !getFx(atkFx, 'frost') && atkFx.meter >= METER.max ? ultimateFor(rec.atk.drakeObj.type) : null;
+            const me = fvSide(rec.atk);
+            fvCards((c, p) => {
+                c.classList.toggle('attacking', p === me);
+                c.classList.toggle('ult-turn', p === me && !!ultId);
+            });
+            const tab = fvEl(`tab-${me}`);
+            if (tab) tab.textContent = ultId ? ultName(ultId) : fvT('tab');
+            fvSetCell(rec.turn, { k: 'pending', f: rec.atk, ult: ultId });
+            if (rec.turn % 2) { const row = fvRow(fvSlot(rec.turn).round); if (row && row.cells.right.k === 'empty') { row.cells.right = { k: 'wait', f: rec.def }; fvPaint(row); } }
+            rec.ticks.forEach((t, i) => fvPop(me, t.v < 0 ? String(t.v) : '+' + t.v, `small ${t.v < 0 ? '' : 'heal'}`, i));
+            if (rec.notes.guardian) fvPop(me, '+' + rec.notes.guardian, 'small heal', rec.ticks.length);
+            fv.hold = [];
+        }
+        function fvTurnEnd() {
+            const rec = fv.rec;
+            if (!rec) return;
+            fv.rec = null;
+            setTimeout(() => fvStep2(rec), HIT_DELAY_MS);
+        }
+        // Step 2: the hit lands. The new card is lit in the attacker's colour, the held-back HP bars and cards update
+        // (the target flashes and recoils), and the damage number pops on the target's card.
+        function fvStep2(rec) {
+            if (!rec.attack && !rec.frozen && !rec.ult) {
+                // Knocked out by start-of-turn effects before attacking: the card says so
+                fvSetCell(rec.turn, { k: 'ko', f: rec.atk, rec });
+                rec.koShown = true;
+            } else {
+                const prev = fv.lit;
+                fv.lit = rec;
+                if (prev) { const row = fvRow(fvSlot(prev.turn).round, false); if (row) fvPaint(row); }
+                fvSetCell(rec.turn, { k: 'card', rec });
+            }
+            fvFlush();
+            const a = rec.attack, n = rec.notes, me = fvSide(rec.atk), them = fvSide(rec.def);
+            if (a) fvPop(them, a.dmg > 0 ? '-' + a.dmg : '0', a.dmg > 0 ? (a.crit ? 'crit' : '') : 'zero', 0);
+            const back = [];
+            if (n.vamp) back.push(['+' + n.vamp, 'heal']);
+            if (n.lifesteal) back.push(['+' + n.lifesteal, 'heal']);
+            if (n.reflect) back.push(['-' + n.reflect, '']);
+            if (n.mirror && n.mirror.back) back.push(['-' + n.mirror.back, '']);
+            if (n.thorns) back.push(['-' + n.thorns, '']);
+            if (rec.ult && rec.ult.healed) back.push(['+' + rec.ult.healed, 'heal']);
+            back.forEach(([t, c], i) => fvPop(me, t, `small ${c}`, i));
+        }
+        function fvPop(prefix, text, cls, i = 0) {
+            const card = fvEl(`card-${prefix}`);
+            if (!card || !card.appendChild) return;
+            const pop = document.createElement('span');
+            pop.className = `fx-layer dmg-pop ${cls}`.trim();
+            pop.textContent = text;
+            if (i) pop.style.marginTop = `${i * 24}px`;
+            card.appendChild(pop);
+            setTimeout(() => pop.remove(), 1400);
+        }
+
+        // The fight ended (called by finishBattle; waits for step 2 like every other visual update)
+        function fvFinish(info) {
+            if (!fv.on) return;
+            if (fv.hold) { fv.hold.push(() => fvFinishNow(info)); return; }
+            fvFinishNow(info);
+        }
+        function fvFinishNow(d) {
+            fvCards((c, p) => c.classList.remove('attacking', 'ult-turn'));
+            fv.items.filter(x => x.type === 'row').forEach(row => {
+                let changed = false;
+                ['left', 'right'].forEach(s => { if (row.cells[s].k === 'wait' || row.cells[s].k === 'pending') { row.cells[s] = { k: 'empty' }; changed = true; } });
+                if (changed) fvPaint(row);
+            });
+            const hpOf = f => f === d.p1 ? d.p1HP : d.p2HP;
+            const loser = d.winner ? d.loser : null;
+            if (loser && hpOf(loser) <= 0) {
+                // The knocked-out fighter's card goes where its next attack would have been
+                const last = Math.max(0, ...fv.items.filter(x => x.type === 'row').flatMap(r => ['left', 'right'].map(s => r.cells[s].rec ? r.cells[s].rec.turn : 0)));
+                const lastRec = fv.items.filter(x => x.type === 'row').flatMap(r => ['left', 'right'].map(s => r.cells[s].rec)).find(r => r && r.turn === last);
+                const alreadyShown = lastRec && lastRec.koShown && lastRec.atk === loser;
+                if (!alreadyShown) {
+                    let slot = last + 1;
+                    if (fvSlot(slot).side !== (loser === fv.p1 ? 'left' : 'right')) slot++;
+                    fvSetCell(slot, { k: 'ko', f: loser });
+                }
+            }
+            fvAddItem({ type: 'result', data: { winner: d.winner, loser, ranked: d.ranked, turns: d.turns, timeout: !!(loser && hpOf(loser) > 0), xp: d.xp, stats: fv.stats } });
+            // Level-ups go to the chat panel, with the game's own numbers (max HP and attack from the level)
+            if (d.lvl) [d.p1, d.p2].forEach(f => {
+                const saved = getDragonStrict(f.name), before = d.lvl[f.name];
+                if (!saved || !before) return;
+                const after = calculateLevelAndProgress(saved.xp).level;
+                if (after <= before) return;
+                const type = saved.drakeObj.type, hp = getMaxHP(after, type, saved.title) - getMaxHP(before, type, saved.title);
+                const atk = levelAttackBonus(after) - levelAttackBonus(before);
+                const tier = JSON.stringify(getTierMultiplier(after)) !== JSON.stringify(getTierMultiplier(before));
+                const gains = [`+${hp} HP`, atk ? fvT('atkGain', { n: atk }) : '', tier ? fvT('tierGain') : ''].filter(Boolean).join(' · ');
+                addInfo(`<div class="info-title" style="color:#9fe8ff">${fvT('levelUp')}</div><div>${fvT('reaches', { who: fvWho(f), n: after })}</div><div class="info-sub">${gains}</div>`, 'levelup', 'levelup');
+            });
+        }
+        // Levels before the fight's XP is added (for the level-up messages)
+        function fvLevels(fighters) {
+            if (!FV_LIVE) return null;
+            const out = {};
+            fighters.forEach(f => { const d = getDragonStrict(f.name); if (d) out[f.name] = calculateLevelAndProgress(d.xp).level; });
+            return out;
+        }
+        // Something went wrong mid-turn: show what was held back and say so in the log
+        function fvAbort() {
+            if (!fv.on) return;
+            fv.rec = null;
+            fvFlush();
+            fvBanner('error');
+        }
+        // The language switch redraws everything in the new language
+        function fvRepaintAll() {
+            if (!FV_LIVE) return;
+            fvHead();
+            fv.items.forEach(fvPaint);
+            fvRepaintCountdown();
+            fvPopulateTestMenu();
+        }
+
+        // Test menu: make the next damaging hit cast a chosen effect; fill either fighter's СИЛА meter
+        function setForcedCast(id) { forcedCast = id && EFFECTS[id] ? id : null; }
+        function fillMeter(prefix) {
+            if (!isBattleRunning || !battleFx || !fv.on) return;
+            const f = prefix === 'p1' ? fv.p1 : fv.p2;
+            if (!f || !ultimateFor(f.drakeObj.type) || !battleFx[f.name]) return;   // the White Dragon has no meter
+            battleFx[f.name].meter = METER.max;
+            renderPowerMeter(prefix, f.drakeObj.type, battleFx[f.name]);
+        }
+        function fvPopulateTestMenu() {
+            const sel = fvEl('debug-force-cast');
+            if (sel && sel.options !== undefined) {
+                sel.innerHTML = `<option value="">${fvT('noCast')}</option>` + EFFECT_IDS.map(id => `<option value="${id}">${fxName(id)}</option>`).join('');
+                sel.value = forcedCast || '';
+            }
+            ['p1', 'p2'].forEach(p => { const b = fvEl(`debug-meter-${p}`); if (b) b.textContent = fvT('meterBtn', { meter: METER.short[currentLang], side: fvT(p === 'p1' ? 'left' : 'right') }); });
+            const box = fvEl('debug-betting');
+            if (box) box.checked = bettingWindowOn();
+        }
+
+        if (FV_LIVE) ['updateUIHP', 'updateFighterCard', 'updateStatusUI', 'setArenaState', 'flashSpriteHit', 'renderLeaderboard'].forEach(fvHoldable);
 
         // Side column: the streamer's card (their White Dragon, if they have one)
         function renderStreamerCard() {
@@ -1035,16 +1715,24 @@ function drakeSpriteURL(type) {
                 if (target.width !== src.width) target.width = src.width;
                 if (target.height !== src.height) target.height = src.height;
                 g.drawImage(src, 0, 0);
+                const flash = document.getElementById(`flash-${prefix}`);
+                const fg = flash && flash.getContext && flash.getContext('2d');
+                if (fg) {
+                    flash.width = src.width; flash.height = src.height;
+                    fg.filter = 'brightness(1.8) saturate(0.45)';
+                    fg.drawImage(src, 0, 0);
+                    fg.filter = 'none';
+                }
             }
         }
-        // Коротке "струшування" дрейка, коли він отримує удар
+        // The hit lands: the target's card flashes and its sprite recoils (opacity and transform only)
         function flashSpriteHit(prefix) {
-            const el = document.getElementById(`sprite-${prefix}`);
-            if (!el || !el.classList) return;
-            el.classList.remove('hit');
-            void el.offsetWidth;   // перезапуск анімації
-            el.classList.add('hit');
-            setTimeout(() => el.classList.remove('hit'), 380);
+            const card = document.getElementById(`card-${prefix}`);
+            if (!card || !card.classList) return;
+            card.classList.remove('hit');
+            void card.offsetWidth;   // restart the animation
+            card.classList.add('hit');
+            setTimeout(() => card.classList.remove('hit'), 600);
         }
 
         const DRAKE_TYPES = [
@@ -1731,21 +2419,21 @@ function drakeSpriteURL(type) {
             t[key] += amount;
         }
 
+        // The fight's text record: every event as a line of text, kept in a hidden element (the visible log is the attack
+        // cards, drawn from the same turns). The balance sims and the tests read these lines.
         function addLog(text) {
             const logBox = document.getElementById('battle-log');
             const line = document.createElement('div');
             line.className = 'log-line';
             line.innerHTML = text;
             logBox.appendChild(line);
-            
             if (logBox.children.length > 35) { logBox.removeChild(logBox.children[0]); }
-            setTimeout(() => { logBox.scrollTop = logBox.scrollHeight; }, 50);
         }
 
         /* --- CHAT-REQUEST WINDOW --- */
         // Replies to viewers go here (not the battle log). Cards fade out on their own.
         const INFO_MAX_CARDS = 4;
-        const INFO_LIFETIME_MS = { note: 25000, warn: 20000, ok: 30000, stat: 45000 };
+        const INFO_LIFETIME_MS = { note: 25000, warn: 20000, ok: 30000, stat: 45000, levelup: 30000 };
 
         function addInfo(html, kind = 'note', extraClass = '') {
             const feed = document.getElementById('info-feed');
@@ -1991,7 +2679,7 @@ function drakeSpriteURL(type) {
                 cooldowns[sender] = Date.now();
                 matchmakingQueue = matchmakingQueue.filter(u => u !== sender && u !== challenger);
                 updateQueueUI();
-                runBattle(challenger, cColor, sender, senderColor, false); 
+                startFight(challenger, cColor, sender, senderColor, false);
                 return;
             }
 
@@ -2119,7 +2807,7 @@ function drakeSpriteURL(type) {
                 `🚨 <b>Ranked Matchmaking!</b> Selected from queue: <span style="color: ${p1Data.color};">@${p1Name}</span> and <span style="color: ${p2Data.color};">@${p2Name}</span>...`;
             addLog(msg);
             
-            runBattle(p1Name, p1Data.color, p2Name, p2Data.color, true);
+            startFight(p1Name, p1Data.color, p2Name, p2Data.color, true);
         }
 
         function testBattle() {
@@ -2244,7 +2932,7 @@ function drakeSpriteURL(type) {
             document.getElementById(`info-${prefix}`).innerText = `${drakeIcon(dragon.drakeObj)} ${drakeLabel(dragon.drakeObj)} · ${uk ? 'Рівень' : 'Level'} ${prog.level}`.trim();
             const xpEl = document.getElementById(`xp-${prefix}`), xpBar = document.getElementById(`xpbar-${prefix}`);
             if (xpEl) xpEl.innerText = prog.level >= 20 ? 'XP MAX' : `XP ${prog.currentXP} / ${prog.requiredXP}`;
-            if (xpBar) xpBar.style.width = (prog.level >= 20 ? 100 : Math.floor(100 * prog.currentXP / prog.requiredXP)) + '%';
+            if (xpBar) xpBar.style.transform = `scaleX(${(prog.level >= 20 ? 100 : Math.floor(100 * prog.currentXP / prog.requiredXP)) / 100})`;
 
             renderStatsRow(prefix, prog.level, drakeType, dragon.title, fx);
             fitText(nameEl, 13);
@@ -2258,8 +2946,15 @@ function drakeSpriteURL(type) {
             [['p1', hp1, max1], ['p2', hp2, max2]].forEach(([p, hp, max]) => {
                 const h = Math.round(Math.max(0, hp)), pct = Math.max(0, (h / max) * 100);
                 const bar = document.getElementById(`bar-${p}`);
-                bar.style.width = pct + '%';
+                bar.style.transform = `scaleX(${pct / 100})`;
                 bar.style.backgroundColor = hpColor(pct);
+                const ghost = document.getElementById(`ghost-${p}`);
+                if (ghost && ghost.style) {
+                    // Lost HP: the ghost keeps the old width, then drains (its CSS transition has a delay). Gained HP: no ghost.
+                    if (!(pct < (ghost.dataset ? +(ghost.dataset.pct || 0) : 0))) { ghost.style.transition = 'none'; ghost.style.transform = `scaleX(${pct / 100})`; void ghost.offsetWidth; ghost.style.transition = ''; }
+                    else ghost.style.transform = `scaleX(${pct / 100})`;
+                    if (ghost.dataset) ghost.dataset.pct = pct;
+                }
                 const hpText = document.getElementById(`hp-text-${p}`);
                 hpText.innerText = `${h}/${max}`;
                 fitText(hpText, 10);
@@ -2269,7 +2964,7 @@ function drakeSpriteURL(type) {
         // Active effects of the fight in progress, per fighter name (one fight runs at a time). The tests read it.
         let battleFx = null;
 
-        function runBattle(p1Name, p1Color, p2Name, p2Color, isRanked) {
+        function runBattle(p1Name, p1Color, p2Name, p2Color, isRanked, opts = {}) {
             // Coin flip: fighter 1 always attacks first, so randomise who that is
             if (Math.random() < 0.5) {
                 [p1Name, p2Name] = [p2Name, p1Name];
@@ -2280,7 +2975,7 @@ function drakeSpriteURL(type) {
             // Display copies: names drawn in the log and on the cards get a readable brightness (saves are untouched)
             p1 = { ...p1, color: nameColor(p1.color) };
             p2 = { ...p2, color: nameColor(p2.color) };
-            setArenaState({ kind: 'fight', ranked: isRanked, turn: 1 });
+            setArenaState({ kind: 'countdown', ranked: isRanked, betting: !!opts.betting, flipped: true });
 
             let p1Prog = calculateLevelAndProgress(p1.xp);
             let p2Prog = calculateLevelAndProgress(p2.xp);
@@ -2302,6 +2997,7 @@ function drakeSpriteURL(type) {
 
             let fx = { [p1.name]: newFxState(), [p2.name]: newFxState() };
             battleFx = fx;
+            fvBegin(p1, p2, isRanked, opts);
             let guardianUsed = { [p1.name]: false, [p2.name]: false };
             // Damage dealt per attack so far (the balance sim estimates what Frost prevented from it)
             let dealt = { [p1.name]: { sum: 0, n: 0 }, [p2.name]: { sum: 0, n: 0 } };
@@ -2338,6 +3034,7 @@ function drakeSpriteURL(type) {
                     const id = BUFF_IDS[Math.floor(Math.random() * BUFF_IDS.length)];
                     const other = f === p1 ? p2 : p1;
                     applyEffect(f, other, id, levelOf(f), fx, { silent: true });
+                    fvOpening(f, id);
                     addLog(currentLang === 'uk'
                         ? `<span style="color: #ff4757; font-weight: bold;">🌅 ${f.title.name.uk}:</span> ${tag(f)} починає бій з бафом ${fxName(id)} (${effectLeftText(id, EFFECTS[id].count)})!`
                         : `<span style="color: #ff4757; font-weight: bold;">🌅 ${f.title.name.en}:</span> ${tag(f)} starts the fight with ${fxName(id)} (${effectLeftText(id, EFFECTS[id].count)})!`);
@@ -2355,6 +3052,7 @@ function drakeSpriteURL(type) {
                             `⏳ <span style="color: #ffaa00; font-weight: bold;">Час вийшов! (Ліміт: 30 ходів)</span> Обидва дракони занадто сильні і виснажені!` :
                             `⏳ <span style="color: #ffaa00; font-weight: bold;">Time out! (Limit: 30 turns)</span> Both dragons are too strong and exhausted!`;
                         addLog(timeoutMsg);
+                        fvBanner('timeout');
                         finishBattle(p1, p2, p1HP, p2HP, isRanked);
                         return;
                     }
@@ -2363,6 +3061,7 @@ function drakeSpriteURL(type) {
                     let attacker = turn % 2 !== 0 ? p1 : p2;
                     let defender = turn % 2 !== 0 ? p2 : p1;
                     const atkFx = fx[attacker.name], defFx = fx[defender.name];
+                    fvTurn(turn, attacker, defender);
                     let attackerMaxHP = maxHPOf(attacker);
 
                     let attackerProg = calculateLevelAndProgress(attacker.xp);
@@ -2389,6 +3088,7 @@ function drakeSpriteURL(type) {
                         if (e.kind === 'debuff') {
                             setHP(attacker, hpOf(attacker) - amount);
                             tallyEffect(inst.id, 'dmg', amount);
+                            fvTick(inst.id, -amount);
                             addLog(currentLang === 'uk'
                                 ? `${tag(attacker)} втрачає HP через ${fxName(inst.id)} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${amount} HP</span>) · ${leftAfter}`
                                 : `${tag(attacker)} loses HP from ${fxName(inst.id)} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${amount} HP</span>) · ${leftAfter}`);
@@ -2398,6 +3098,7 @@ function drakeSpriteURL(type) {
                             // Log what was actually restored; nothing to log when already at full HP
                             const healed = hpOf(attacker) - hpBefore;
                             tallyEffect(inst.id, 'healed', healed);
+                            if (healed > 0) fvTick(inst.id, healed);
                             if (healed > 0) addLog(currentLang === 'uk'
                                 ? `${tag(attacker)} відновлює HP завдяки ${fxName(inst.id)} (<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>) · ${leftAfter}`
                                 : `${tag(attacker)} heals HP from ${fxName(inst.id)} (<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>) · ${leftAfter}`);
@@ -2412,6 +3113,7 @@ function drakeSpriteURL(type) {
                         let shieldHeal = Math.round(healAmount(attacker, attackerMaxHP * MECH.guardianHeal));
                         setHP(attacker, currAttackerLiveHP + shieldHeal);
                         const shieldHealed = hpOf(attacker) - currAttackerLiveHP;
+                        fvNote('guardian', shieldHealed);
 
                         updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
                         let msg = currentLang === 'uk' ?
@@ -2420,8 +3122,10 @@ function drakeSpriteURL(type) {
                         addLog(msg);
                     }
 
+                    fvStep1(atkFx);
                     if (p1HP <= 0 || p2HP <= 0) {
                         clearInterval(battleInterval);
+                        fvTurnEnd();
                         finishBattle(p1, p2, p1HP, p2HP, isRanked);
                         return;
                     }
@@ -2437,6 +3141,8 @@ function drakeSpriteURL(type) {
                         addLog(currentLang === 'uk'
                             ? `[Хід ${turn}] ${tag(attacker)} скутий: ${fxName('frost')} — атаку пропущено!`
                             : `[Turn ${turn}] ${tag(attacker)} is frozen: ${fxName('frost')} — the attack is skipped!`);
+                        if (fv.rec) fv.rec.frozen = true;
+                        fvTurnEnd();
                         turn++;
                         return;
                     }
@@ -2450,12 +3156,14 @@ function drakeSpriteURL(type) {
                         atkFx.meter = 0;
                         tallyUltimate(ultId, 'fires');
                         ultTag = `<span style="color: ${ult.color}; font-weight: bold;">${ultLabel(ultId)}</span>`;
+                        fvUlt(ultId);
                     }
                     // Ice Mirror and Bloom replace the attack: no attack is made, so no "own attacks" or "hits taken" counts go down
                     if (ult && !ult.attacks) {
                         if (ultId === 'mirror') {
                             atkFx.mirror = ult.nums.hits;
                             ultText = describeUltimate(ultId);
+                            fvUltInfo({ hits: atkFx.mirror });
                         } else {   // Bloom: own debuffs off first (so Poison doesn't cut the heal), then the heal
                             const removed = atkFx.debuff;
                             atkFx.debuff = [];
@@ -2463,6 +3171,7 @@ function drakeSpriteURL(type) {
                             setHP(attacker, Math.min(attackerMaxHP, before + Math.round(attackerMaxHP * ult.nums.heal / 100)));
                             const healed = hpOf(attacker) - before;
                             tallyUltimate(ultId, 'healed', healed);
+                            fvUltInfo({ healed, removed: removed.map(x => x.id) });
                             const names = removed.map(x => fxName(x.id)).join(', ');
                             ultText = currentLang === 'uk'
                                 ? `<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>${removed.length ? `, знімає ${names}` : ''}`
@@ -2473,6 +3182,7 @@ function drakeSpriteURL(type) {
                         addLog(`[${currentLang === 'uk' ? 'Хід' : 'Turn'} ${turn}] ${tag(attacker)} ${ultTag}: ${ultText}`);
                         if (ult.applies) applyEffect(attacker, defender, ult.applies, attackerProg.level, fx);
                         renderCards();
+                        fvTurnEnd();
                         turn++;
                         return;
                     }
@@ -2485,18 +3195,22 @@ function drakeSpriteURL(type) {
                         ultMiss = skulls >= ult.nums.missAt;
                         ultMult = ultMiss ? 1 : ult.nums.base + ult.nums.perGem * gems;
                         ultText = `[${reels.map(r => r.icon).join(' ')}] ` + (ultMiss ? (currentLang === 'uk' ? 'Промах! ' : 'Miss! ') : `×${ultMult} `);
+                        fvUltInfo({ reels: reels.map(r => r.icon), miss: ultMiss, mult: ultMult });
                     }
                     if (ultId === 'detonation') {
                         detonated = defFx.debuff.slice();
                         ultMult = ult.nums.dmgMult + ult.nums.perDebuff / 100 * detonated.length;
                         ultText = `×${Math.round(ultMult * 100) / 100}${detonated.length ? ` (${detonated.map(x => fxName(x.id)).join(', ')})` : ''} `;
+                        fvUltInfo({ mult: Math.round(ultMult * 100) / 100, removed: detonated.map(x => x.id) });
                     }
                     if (ultId === 'theft') {
                         const had = defFx.buff;
                         ultForceCrit = had.length === 0;
+                        if (!had.length) fvUltInfo({ forced: true });
                         if (!had.length) ultText = currentLang === 'uk' ? 'бафів немає — гарантований крит! ' : 'no buffs — guaranteed crit! ';
                         else if (isDebuffImmune(defender)) {
                             ultText = currentLang === 'uk' ? `🐉 Імунітет: ${tag(defender)} не віддає бафи! ` : `🐉 Immunity: ${tag(defender)} keeps its buffs! `;
+                            fvUltInfo({ immune: true });
                         } else {
                             // Each stolen buff keeps its remaining count and power; one the thief already has merges (the
                             // longer one stays); the rest fill free slots in order, and any that don't fit are removed
@@ -2510,13 +3224,14 @@ function drakeSpriteURL(type) {
                             defFx.buff = [];
                             ultText = (taken.length ? (currentLang === 'uk' ? `забирає ${taken.map(x => fxName(x.id)).join(', ')}` : `takes ${taken.map(x => fxName(x.id)).join(', ')}`) : '')
                                 + (lost.length ? (currentLang === 'uk' ? `${taken.length ? '; ' : ''}зникає ${lost.map(x => fxName(x.id)).join(', ')}` : `${taken.length ? '; ' : ''}removes ${lost.map(x => fxName(x.id)).join(', ')}`) : '') + '! ';
+                            fvUltInfo({ taken: taken.map(x => x.id), lost: lost.map(x => x.id) });
                         }
                     }
 
                     let attackRoll = Math.random() * 100;
                     let attackType, subType, subTypeNameUk, baseDmg = 15;
 
-                    let levelDmgBonus = Math.floor(attackerProg.level * 0.8);
+                    let levelDmgBonus = levelAttackBonus(attackerProg.level);
 
                     if (attackRoll < 45) {
                         attackType = 'physical';
@@ -2547,8 +3262,8 @@ function drakeSpriteURL(type) {
                     let damageMultiplier = rageMult * weakMult * divineMult * rageTakenMult * ultMult;
 
                     let suddenDeathMult = 1.0;
-                    if (turn >= 16) {
-                        suddenDeathMult = 1.0 + ((turn - 15) * 0.3);
+                    if (turn >= SUDDEN_DEATH.from) {
+                        suddenDeathMult = 1.0 + ((turn - SUDDEN_DEATH.from + 1) * SUDDEN_DEATH.perTurn);
                         damageMultiplier *= suddenDeathMult;
                     }
 
@@ -2559,20 +3274,22 @@ function drakeSpriteURL(type) {
                     if (atkMech === 'executioner') {
                         const defHPNow = hpOf(defender);
                         const defMaxNow = maxHPOf(defender);
-                        if (defHPNow < defMaxNow * MECH.executeThreshold) { baseDmg *= 1 + MECH.executeBonus; logExtra += currentLang === 'uk' ? `⚰️ Добивання! ` : `⚰️ Execute! `; }
+                        if (defHPNow < defMaxNow * MECH.executeThreshold) { baseDmg *= 1 + MECH.executeBonus; logExtra += currentLang === 'uk' ? `⚰️ Добивання! ` : `⚰️ Execute! `; fvNote('execute'); }
                     } else if (atkMech === 'coin_flip') {
                         const heads = Math.random() < 0.5;
                         baseDmg *= heads ? MECH.coinHigh : MECH.coinLow;
                         logExtra += heads ? (currentLang === 'uk' ? `🪙 Орел! (×${MECH.coinHigh}) ` : `🪙 Heads! (×${MECH.coinHigh}) `)
                                           : (currentLang === 'uk' ? `🪙 Решка... (×${MECH.coinLow}) ` : `🪙 Tails... (×${MECH.coinLow}) `);
+                        fvNote('coin', heads ? MECH.coinHigh : MECH.coinLow);
                     } else if (atkMech === 'sleepy') {
-                        if (Math.random() < MECH.sleepChance) { baseDmg = 0; logExtra += currentLang === 'uk' ? `😴 Проспав хід! ` : `😴 Slept through the turn! `; }
+                        if (Math.random() < MECH.sleepChance) { baseDmg = 0; logExtra += currentLang === 'uk' ? `😴 Проспав хід! ` : `😴 Slept through the turn! `; fvNote('sleep'); }
                         else baseDmg *= 1 + MECH.sleepBonus;
                     }
 
                     if (attacker.drakeObj.type === DRAGON_TYPE) {
                         baseDmg = 999999;
                         logExtra += `<span style="color: #9fe3ff; font-weight: bold;">${currentLang === 'uk' ? '[КАРА ВЛАДИКИ ЕТЕРУ!]' : '[WRATH OF THE AETHER SOVEREIGN!]'}</span> `;
+                        fvNote('wrath');
                     }
 
                     // Crit: Blessing raises the chance, Mark on the defender makes it certain
@@ -2603,6 +3320,7 @@ function drakeSpriteURL(type) {
                     let blockText = "";
                     if (defender.drakeObj.type === DRAGON_TYPE) {
                         ultraBlock = true; blockedByShadow = false;
+                        fvNote('sovereign');
                         addLog(currentLang === 'uk'
                             ? `<span style="color: #9fe3ff; font-weight: bold;">👑 Владика Етеру!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> навіть не дивиться на атаку — вона просто розсіюється!`
                             : `<span style="color: #9fe3ff; font-weight: bold;">👑 Sovereign of the Aether!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> doesn't even look at the attack — it simply dissolves!`);
@@ -2611,6 +3329,7 @@ function drakeSpriteURL(type) {
                         blockText = currentLang === 'uk' ? `👑 Абсолютне пробиття! ` : `👑 Absolute breach! `;
                     } else if (ultraBlock && (divine || (ult && ult.unblockable))) {
                         ultraBlock = false; divineBreak = !!divine;
+                        fvNote('unblock', divine ? 'divine' : ultId);
                         const by = divine ? fxName('divine') : ultName(ultId);
                         blockText = currentLang === 'uk' ? `${by}: блок неможливий! ` : `${by}: can't be blocked! `;
                     } else if (ultraBlock && blockedByShadow) {
@@ -2660,6 +3379,8 @@ function drakeSpriteURL(type) {
                     const usedLabels = [...atkFx.buff, ...atkFx.debuff].filter(x => EFFECTS[x.id].lasts === 'attacks')
                         .concat([...defFx.buff, ...defFx.debuff].filter(x => EFFECTS[x.id].lasts === 'hits'))
                         .map(x => ` [${fxName(x.id)}]`).join('');
+                    fvUsed([...atkFx.buff, ...atkFx.debuff].filter(x => EFFECTS[x.id].lasts === 'attacks')
+                        .concat([...defFx.buff, ...defFx.debuff].filter(x => EFFECTS[x.id].lasts === 'hits')).map(x => x.id));
                     countDownEffects(atkFx, 'attacks');
                     countDownEffects(defFx, 'hits');
 
@@ -2677,6 +3398,7 @@ function drakeSpriteURL(type) {
                         if (back > 0) setHP(attacker, Math.max(0, hpOf(attacker) - back));
                         tallyUltimate('mirror', 'prevented', absorbed);
                         tallyUltimate('mirror', 'dmg', back);
+                        fvNote('mirror', { would, absorbed, back });
                         if (back > 0 && hpOf(attacker) <= 0) tallyUltimate('mirror', 'kills');
                         mirrorText = currentLang === 'uk'
                             ? `${ultName('mirror')}: ${would} → ${finalDmg}, -${back} назад${defFx.mirror ? ` · ${unitLeftText('hits', defFx.mirror, 'uk')}` : ''}! `
@@ -2689,6 +3411,7 @@ function drakeSpriteURL(type) {
                         let reflectedDmg = Math.round(finalDmg * 0.5);
                         finalDmg -= reflectedDmg;
                         setHP(attacker, Math.max(0, hpOf(attacker) - reflectedDmg));
+                        fvNote('reflect', reflectedDmg);
                         blueReflectText = currentLang === 'uk' ? `🔵 Відбито! (-${reflectedDmg} назад)` : `🔵 Reflected! (-${reflectedDmg} back)`;
                         let msg = currentLang === 'uk' ?
                             `<span style="color: #00bfff; font-weight: bold;">🟦 Синій Дрейк!</span> <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> відбиває ${reflectedDmg} шкоди назад!` :
@@ -2703,6 +3426,7 @@ function drakeSpriteURL(type) {
                         if (targetHPBefore > 1 && finalDmg < targetHPBefore) {
                             if (Math.random() * 100 < goldOneHpChance) {
                                 finalDmg = targetHPBefore - 1;
+                                fvNote('fortune');
                                 goldOneHpText = currentLang === 'uk' ? `🟨 Фортуна (1 HP)! ` : `🟨 Fortune (1 HP)! `;
                                 let msg = currentLang === 'uk' ?
                                     `<span style="color: #ffd700; font-weight: bold;">🟨 Золота фортуна!</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> завдає критичного пробиття, залишаючи 1 HP!` :
@@ -2712,6 +3436,8 @@ function drakeSpriteURL(type) {
                         }
                     }
 
+                    fvAttack({ type: attackType, sub: subType, dmg: finalDmg, crit: isCrit, block: ultraBlock, shadow: blockedByShadow, miss: ultMiss,
+                               pierce: subType === 'sneaky' && !ultraBlock && attacker.drakeObj.type !== DRAGON_TYPE, sd: turn >= SUDDEN_DEATH.from ? suddenDeathMult : 0 });
                     if (finalDmg > 0) flashSpriteHit(defender === p1 ? 'p1' : 'p2');
                     setHP(defender, Math.max(0, hpOf(defender) - finalDmg));
                     dealt[attacker.name].sum += finalDmg; dealt[attacker.name].n++;
@@ -2728,12 +3454,14 @@ function drakeSpriteURL(type) {
                         setHP(attacker, newHP);
                         // Log what was actually restored (capped at max HP), not the raw 50% of the hit
                         const vampHealed = newHP - currAtkHP;
+                        if (vampHealed > 0) fvNote('vamp', vampHealed);
                         if (vampHealed > 0) logExtra += currentLang === 'uk' ? `🩸 +${vampHealed} HP лікування! ` : `🩸 +${vampHealed} HP healing! `;
                     }
 
                     if (finalDmg > 0 && titleMechanic(defender) === 'thorns' && attacker.drakeObj.type !== DRAGON_TYPE) {
                         const thorn = Math.max(1, Math.round(finalDmg * MECH.thorns));
                         setHP(attacker, Math.max(0, hpOf(attacker) - thorn));
+                        fvNote('thorns', thorn);
                         logExtra += currentLang === 'uk' ? `🌵 Шипи: -${thorn} HP атакуючому! ` : `🌵 Thorns: -${thorn} HP to the attacker! `;
                     }
                     if (finalDmg > 0 && titleMechanic(attacker) === 'lifesteal') {
@@ -2741,6 +3469,7 @@ function drakeSpriteURL(type) {
                         const hpBeforeSteal = hpOf(attacker);
                         setHP(attacker, Math.min(maxHPOf(attacker), hpBeforeSteal + steal));
                         const stealHealed = hpOf(attacker) - hpBeforeSteal;
+                        if (stealHealed > 0) fvNote('lifesteal', stealHealed);
                         if (stealHealed > 0) logExtra += currentLang === 'uk' ? `🧛 +${stealHealed} HP (вампіризм титулу) ` : `🧛 +${stealHealed} HP (title lifesteal) `;
                     }
 
@@ -2753,7 +3482,7 @@ function drakeSpriteURL(type) {
                     let critLabel = isCrit ? (currentLang === 'uk' ? `💥 КРИТ (x${critData.critPower})! ` : `💥 CRIT (x${critData.critPower})! `) : ``;
                     let multLabel = usedLabels ? usedLabels + ' ' : '';
 
-                    let sdLabel = turn >= 16 ? `<span style="color: #ff0000; font-weight: bold;">[${currentLang === 'uk' ? '💀 Раптова смерть' : '💀 Sudden Death'} x${suddenDeathMult.toFixed(1)}]</span> ` : ``;
+                    let sdLabel = turn >= SUDDEN_DEATH.from ? `<span style="color: #ff0000; font-weight: bold;">[${currentLang === 'uk' ? '💀 Раптова смерть' : '💀 Sudden Death'} x${suddenDeathMult.toFixed(1)}]</span> ` : ``;
 
                     let damageFormatted = `<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">${finalDmg} ${currentLang === 'uk' ? 'шкоди' : 'damage'}</span>`;
 
@@ -2767,6 +3496,8 @@ function drakeSpriteURL(type) {
 
                     let castChance = getCastChance(attacker.drakeObj.type, attacker.title, attackerProg.level);
                     if (Math.random() * 100 < castChance && finalDmg > 0) applyEffect(attacker, defender, pickEffect(attacker), attackerProg.level, fx);
+                    // Test menu only (never set in normal fights or balance runs): this hit also casts the chosen effect
+                    if (forcedCast && finalDmg > 0) { const id = forcedCast; forcedCast = null; applyEffect(attacker, defender, id, attackerProg.level, fx); }
 
                     if (titleMechanic(attacker) === 'chaotic_charge' && finalDmg > 0) {
                         if (Math.random() * 100 < MECH.chaosChance) {
@@ -2774,6 +3505,7 @@ function drakeSpriteURL(type) {
                                 `<span style="color: #f1c40f; font-weight: bold;">⚡ Хаос:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> створює вибух!` :
                                 `<span style="color: #f1c40f; font-weight: bold;">⚡ Chaos:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> creates an explosion!`;
                             addLog(msg);
+                            fvNote('chaos');
                             applyEffect(attacker, defender, DEBUFF_IDS[Math.floor(Math.random() * DEBUFF_IDS.length)], attackerProg.level, fx, { pool: DEBUFF_IDS });
                         }
                     }
@@ -2782,11 +3514,13 @@ function drakeSpriteURL(type) {
                         addLog(currentLang === 'uk'
                             ? `<span style="color: #ff66cc; font-weight: bold;">🐈 Кіт пройшовся по клавіатурі!</span> Хтозна, кому цей ефект...`
                             : `<span style="color: #ff66cc; font-weight: bold;">🐈 The cat walked across the keyboard!</span> Who knows who gets this effect...`);
+                        fvNote('cat');
                         const id = EFFECT_IDS[Math.floor(Math.random() * EFFECT_IDS.length)];
                         if (Math.random() < 0.5) applyEffect(attacker, defender, id, attackerProg.level, fx, { pool: EFFECT_IDS });
                         else applyEffect(defender, attacker, id, defenderProg.level, fx, { pool: EFFECT_IDS });
                     }
                     renderCards();
+                    fvTurnEnd();
 
                     if (p1HP <= 0 || p2HP <= 0) {
                         clearInterval(battleInterval);
@@ -2797,13 +3531,14 @@ function drakeSpriteURL(type) {
                 } catch (error) {
                     clearInterval(battleInterval);
                     isBattleRunning = false;
+                    fvAbort();
                     let errorMsg = currentLang === 'uk' ?
                         `❌ <span style="color: #ff4141; font-weight: bold;">Критична помилка симуляції:</span> ${error.message}. Бій перервано!` :
                         `❌ <span style="color: #ff4141; font-weight: bold;">Critical simulation error:</span> ${error.message}. Battle aborted!`;
                     addLog(errorMsg);
                     setTimeout(() => { checkQueue(); }, 2000);
                 }
-            }, 4500);
+            }, TURN_MS);
         }
 
         // What a cast does: usually one of the caster's own element pair (50/50 buff or debuff), otherwise any of the 12.
@@ -2836,6 +3571,7 @@ function drakeSpriteURL(type) {
                 log(uk
                     ? `<span style="color: #f1c40f; font-weight: bold;">🐉 Імунітет:</span> ${who} ігнорує дебаф ${fxName(id)}!`
                     : `<span style="color: #f1c40f; font-weight: bold;">🐉 Immunity:</span> ${who} ignores debuff ${fxName(id)}!`);
+                if (!opts.silent) fvCast(owner, id, 'immune');
                 return 'immune';
             }
             const st = fx[owner.name] || (fx[owner.name] = newFxState());
@@ -2854,6 +3590,7 @@ function drakeSpriteURL(type) {
                 tallyEffect(id, 'removed', gone.length);
                 const list = gone.map(x => fxName(x.id)).join(', ');
                 log(uk ? `${fxName(id)}: ${who} втрачає всі бафи (${list})` : `${fxName(id)}: ${who} loses every buff (${list})`);
+                if (!opts.silent) fvCast(owner, id, 'dispelled', gone.map(x => x.id));
                 return 'dispelled';
             }
 
@@ -2864,6 +3601,7 @@ function drakeSpriteURL(type) {
                 current.power = power;
                 log(uk ? `${who}: ${kindWord} ${fxName(id)} оновлено (${effectLeftText(id, e.count)})`
                        : `${who}: ${kindWord} ${fxName(id)} refreshed (${effectLeftText(id, e.count)})`);
+                if (!opts.silent) fvCast(owner, id, 'refreshed');
                 return 'refreshed';
             }
             let replaced = null;
@@ -2875,10 +3613,12 @@ function drakeSpriteURL(type) {
             if (replaced) {
                 log(uk ? `${who}: ${kindWord} ${fxName(id)} замінює ${fxName(replaced.id)} (${effectLeftText(id, e.count)})`
                        : `${who}: ${kindWord} ${fxName(id)} replaces ${fxName(replaced.id)} (${effectLeftText(id, e.count)})`);
+                if (!opts.silent) fvCast(owner, id, 'replaced', replaced.id);
                 return 'replaced';
             }
             log(uk ? `${who} отримує ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count)})`
                    : `${who} receives ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count)})`);
+            if (!opts.silent) fvCast(owner, id, 'applied');
             return 'applied';
         }
 
@@ -2888,6 +3628,8 @@ function drakeSpriteURL(type) {
             else if (p2HP > p1HP) { winner = p2; looser = p1; }
             else { winner = null; looser = null; }
             const fightTurns = arenaState.turn || 0;
+            const fvLvl = fvLevels([p1, p2]);
+            let fvXp = null;
 
             if (!isRanked) {
                 if (!winner) {
@@ -2901,6 +3643,7 @@ function drakeSpriteURL(type) {
                         `🤝 <b>Friendly battle finished!</b> Winner: <span style="color: ${winner.color}; font-weight: bold;">@${winner.name}</span>! <i>(XP and stats unchanged)</i>`;
                     addLog(msg);
                 }
+                fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: false, turns: fightTurns, xp: null, lvl: null });
                 setArenaState({ kind: 'result', ranked: false, winner, turns: fightTurns });
                 isBattleRunning = false;
                 setTimeout(() => { checkQueue(); }, 5000);
@@ -2910,6 +3653,7 @@ function drakeSpriteURL(type) {
             if (!winner) {
                 let added1 = addXP(p1.name, 10);
                 let added2 = addXP(p2.name, 10);
+                fvXp = { [p1.name]: added1, [p2.name]: added2 };
                 recordStats(p1.name, false);
                 recordStats(p2.name, false);
                 let msg = currentLang === 'uk' ?
@@ -2922,6 +3666,7 @@ function drakeSpriteURL(type) {
 
                 let winXP = addXP(winner.name, 40);
                 let loseXP = addXP(looser.name, 10);
+                fvXp = { [winner.name]: winXP, [looser.name]: loseXP };
 
                 let maxLvlText = currentLang === 'uk' ? '(МАХ Рівень)' : '(MAX Level)';
                 let winXpText = winXP > 0 ? `(+${winXP} XP)` : maxLvlText;
@@ -2940,6 +3685,7 @@ function drakeSpriteURL(type) {
             updateFighterCard('p1', getDragonStrict(p1.name));
             updateFighterCard('p2', getDragonStrict(p2.name));
             
+            fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: true, turns: fightTurns, xp: fvXp, lvl: fvLvl });
             setArenaState({ kind: 'result', ranked: true, winner, turns: fightTurns });
             isBattleRunning = false;
             renderLeaderboard();
@@ -3090,6 +3836,8 @@ function drakeSpriteURL(type) {
             updateQueueUI();
             renderArenaHeader();
             renderHowTo();
+            fvHead();
+            fvPopulateTestMenu();
             fitStage();
         }
         document.addEventListener('DOMContentLoaded', initPage);

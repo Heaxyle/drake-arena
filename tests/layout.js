@@ -15,6 +15,9 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
+const { settleArena } = require('./settle');
+const { pageInit } = require('./page_hooks');
+const SEED = Number(process.env.UI_SEED || 3);   // seeded fights: the same every run
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
@@ -38,19 +41,16 @@ async function open(browser, { lang = 'uk', obs = false, width = 1920, height = 
     page.on('console', m => { if (m.type() === 'error' && !/net::ERR_FAILED|Failed to load resource/.test(m.text())) errors.push(m.text()); });
     await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
     if (blockFonts) await page.route(FONTS, r => r.abort());
-    await page.clock.install({ time: new Date('2026-01-01T12:00:00') });
+    await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
+    await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));   // game time only moves when the test moves it
+    await page.addInitScript(pageInit, SEED);
     await page.goto(`${PAGE}?lang=${lang}${obs ? '&obs' : ''}`);
     await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(300);
+    await settleArena(page);
     return { page, context, errors };
 }
-const settle = page => page.waitForTimeout(450);   // CSS transitions and the info-card fade-in run on real time
-// The HP bars' width and colour transitions run on real time, and the fake clock keeps running between steps, so a
-// fight turn can start a new fade during any fixed wait: wait until every transition on both bars has actually finished
-const settleBars = async page => {
-    await settle(page);
-    await page.evaluate(() => Promise.all(['bar-p1', 'bar-p2'].flatMap(id => document.getElementById(id).getAnimations()).map(a => a.finished.catch(() => null))));
-};
+// Every visual check first pauses the game clock and lets the arena's animations finish (one shared helper)
+const settle = settleArena, settleBars = settleArena;
 
 // Fills the overlay with its worst case for the current language: the longest everything, on both cards, plus a full
 // leaderboard, a streamer with a long name and a tall chat card
@@ -122,7 +122,7 @@ function layoutProblems() {
         if (el.scrollHeight > el.clientHeight + 1) out.push(`cut off (too tall): ${label(el)} "${el.innerText.slice(0, 40)}" ${el.scrollHeight} > ${el.clientHeight}`);
     }
     // 3. Boxes inside their containers
-    const within = [['#arena > *:not(.plaque):not(.stud)', '#arena'], ['#card-p1 > *:not(.result-tag)', '#card-p1'], ['#card-p2 > *:not(.result-tag)', '#card-p2'],
+    const within = [['#arena > *:not(.plaque):not(.stud)', '#arena'], ['#card-p1 > *:not(.result-tag):not(.fx-layer)', '#card-p1'], ['#card-p2 > *:not(.result-tag):not(.fx-layer)', '#card-p2'],
         ['#side > *', '#side'], ['#leaderboard-list > li', '#top-panel'], ['#info-feed > li', '#info-feed'], ['#arena', '#stage'], ['#side', '#stage']];
     for (const [s, c] of within) {
         const box = document.querySelector(c);
@@ -415,7 +415,7 @@ async function layoutChecks(browser, lang, blockFonts) {
                 say('alpha', currentLang === 'uk' ? '!черга' : '!queue'); say('omega', currentLang === 'uk' ? '!черга' : '!queue');
             });
             for (let i = 0; i < 80 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(4500);
-            await page.clock.runFor(300);
+            await page.clock.runFor(1000);   // the result is drawn when the last hit lands (0.6 s)
             await settle(page);
             const res = await page.evaluate(() => ['p1', 'p2'].map(p => {
                 const card = document.getElementById(`card-${p}`), tag = document.getElementById(`result-${p}`);
@@ -426,7 +426,7 @@ async function layoutChecks(browser, lang, blockFonts) {
             const [W, L] = lang === 'uk' ? ['ПЕРЕМОЖЕЦЬ', 'НОКАУТ'] : ['WINNER', 'KNOCKED OUT'];
             const w = res.find(c => c.winner), l = res.find(c => c.loser);
             check(w && l && w.tag === W && l.tag === L && w.name === '@' + winnerName && /grayscale/.test(l.gray),
-                `[${lang}] the winner (${w && w.name}) is framed in gold with "${W}", the loser greyed with "${L}"`, JSON.stringify(res));
+                `[${lang}] the winner (${w && w.name}) is framed in gold with "${W}", the loser greyed with "${L}"`, JSON.stringify(res) + ' ' + await page.evaluate(() => JSON.stringify({ kind: arenaState.kind, turn: arenaState.turn, running: isBattleRunning, hold: !!fv.hold, log: [...document.getElementById('battle-log').children].slice(-2).map(x => x.textContent) })));
             const plate = await page.evaluate(() => document.getElementById('status-plate').innerText);
             check(plate.includes('@' + winnerName.toUpperCase()) || plate.includes('@' + winnerName), `[${lang}] the status plate names the winner ("${plate}")`, plate);
             await page.screenshot({ path: path.join(SHOTS, `layout-result-${lang}.png`) });
@@ -483,7 +483,7 @@ async function layoutChecks(browser, lang, blockFonts) {
                     if (!during && /\d+ \/ 30/.test(h.plate)) during = h;
                     if (during && !(await page.evaluate('isBattleRunning'))) break;
                 }
-                await page.clock.runFor(300);
+                await page.clock.runFor(1000);   // the result is drawn when the last hit lands (0.6 s)
                 return { during, after: await header() };
             };
             const kinds = [
@@ -573,7 +573,7 @@ async function layoutChecks(browser, lang, blockFonts) {
                 await page.clock.runFor(2250);
                 if (i % 3 === 0) { await sample('fighting'); states.add('fighting'); }
             }
-            await page.clock.runFor(300);
+            await page.clock.runFor(1000);   // the result is drawn when the last hit lands (0.6 s)
             await sample('result'); states.add('result');
             await page.click('#lang-toggle-btn');
             await sample('result, language switched');
@@ -583,7 +583,7 @@ async function layoutChecks(browser, lang, blockFonts) {
             await page.clock.runFor(1000);
             await sample('test battle');
             for (let i = 0; i < 80 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(4500);
-            await page.clock.runFor(300);
+            await page.clock.runFor(1000);   // the result is drawn when the last hit lands (0.6 s)
             await sample('test battle result');
             check(!bad.length && states.size === 4, `[${lang}] HP text and bar agree (width ±1%, colour, "—" with an empty bar when waiting) in ${seen.length} samples: ${[...new Set(seen)].join(', ')}${retried ? ` (${retried} read(s) retried: a turn started a new fade just before)` : ''}`, bad.slice(0, 6).join(' | '));
             if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);

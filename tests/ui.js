@@ -13,11 +13,16 @@
 // A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent.
 // Screenshots go to tests/screenshots/. Game timers run on a fake clock, so fights take seconds.
 // Fights are seeded: Math.random is replaced with a seeded generator before the page loads, so every run plays the same
-// fights (UI_SEED=n picks another seed). The run prints a fingerprint of the whole battle log to compare runs.
+// fights (UI_SEED=n picks another seed). The game clock is paused and only moved by the test, and visual checks wait
+// for the arena's animations first (tests/settle.js). The run prints a fingerprint of the fight events (who fought, every
+// HP change, how each fight ended) to compare runs; UI_FILE=path runs the same flow against another copy of the page
+// (e.g. main's), which must print the same fingerprint if the fights are the same.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { chromium } = require('playwright');
+const { pageInit } = require('./page_hooks');
+const { settleArena } = require('./settle');
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
@@ -26,22 +31,6 @@ const FIGHT_LIMIT_MS = 5 * 60000; // 30s countdown + 30 turns x 4.5s fits easily
 // The default seed is one where both languages show a full Element Power meter during the fights
 const SEED = Number(process.env.UI_SEED || 3);
 
-// Runs in the page before its own script: seeded Math.random (mulberry32), and every battle-log line recorded
-function seedAndRecord(seed) {
-    let a = seed >>> 0;
-    Math.random = () => {
-        a = (a + 0x6D2B79F5) >>> 0;
-        let t = a;
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-    window.__fightLog = [];
-    document.addEventListener('DOMContentLoaded', () => {
-        const log = document.getElementById('battle-log');
-        if (log) new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => window.__fightLog.push(n.textContent)))).observe(log, { childList: true });
-    });
-}
 
 // Per-version setup: [username, color word, element type] for each drake type, and the duels to run.
 const VERSIONS = {
@@ -132,7 +121,9 @@ function powerMeters() {
         const st = isBattleRunning && typeof battleFx !== 'undefined' && battleFx && battleFx[name];   // between fights the cards are idle
         return { p, text: row.innerText.replace(/\s+/g, ' ').trim(), pips: row.querySelectorAll('.pm-pip').length, on: row.querySelectorAll('.pm-pip.on').length,
                  meter: st ? st.meter : null, overlapsChips: r.height > 0 && r.top < chips.bottom - 0.5, overlapsHp: r.height > 0 && r.bottom > hp.top + 0.5,
-                 overlapsSprite: content > sprite.left + 0.5 && r.bottom > sprite.top && r.top < sprite.bottom, cut: row.scrollWidth > row.clientWidth + 1 };
+                 overlapsSprite: content > sprite.left + 0.5 && r.bottom > sprite.top && r.top < sprite.bottom, cut: row.scrollWidth > row.clientWidth + 1,
+                 // A hit in the air (turn step 1 → 2, 0.6 s): the cards deliberately show the state from before the hit
+                 inAir: typeof fv !== 'undefined' && !!fv.hold };
     });
 }
 
@@ -163,15 +154,17 @@ async function testVersion(browser, key) {
     page.on('pageerror', e => pageErrors.push(e.message));
     page.on('console', m => { if (m.type() === 'error') pageErrors.push('console.error: ' + m.text()); });
     await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
-    await page.clock.install({ time: new Date('2026-01-01T12:00:00') });
-    await page.addInitScript(seedAndRecord, SEED);
-    await page.goto('file:///' + path.join(ROOT, cfg.file).replace(/\\/g, '/'));
-    console.log(`    (fights seeded with UI_SEED=${SEED})`);
+    await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
+    await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));   // game time only moves when the test moves it
+    await page.addInitScript(pageInit, SEED);
+    const file = process.env.UI_FILE ? path.resolve(process.env.UI_FILE) : path.join(ROOT, cfg.file);
+    await page.goto('file:///' + file.replace(/\\/g, '/'));
+    console.log(`    (fights seeded with UI_SEED=${SEED}${process.env.UI_FILE ? `, page ${process.env.UI_FILE}` : ''})`);
     // The overlay is transparent for OBS; paint a dark backdrop so screenshots are readable (layout unchanged)
     await page.addStyleTag({ content: 'html { background: #1e1f26; }' });
 
-    // Info cards fade in with a 0.35s CSS animation (real time, not the fake clock), so let it finish first
-    const shot = async name => { await page.waitForTimeout(450); await page.screenshot({ path: path.join(SHOTS, `${key}-${name}.png`) }); };
+    // Animations run on real time, not the fake clock: let every one in the arena finish first
+    const shot = async name => { await settleArena(page); await page.screenshot({ path: path.join(SHOTS, `${key}-${name}.png`) }); };
     const chat = (user, msg, extra) => page.evaluate(([u, m, e]) => window.__chat(u, m, e), [user, msg, extra]);
     const logText = () => page.locator('#battle-log').innerText();
     const infoCount = () => page.locator('#info-feed .info-card').count();
@@ -244,7 +237,7 @@ async function testVersion(browser, key) {
             for (const m of await page.evaluate(powerMeters)) {
                 if (m.overlapsChips || m.overlapsHp || m.overlapsSprite) meterIssues.add(`${label}: #power-${m.p} overlaps ${[m.overlapsChips && 'the effect chips', m.overlapsHp && 'the HP row', m.overlapsSprite && 'the sprite'].filter(Boolean).join(' and ')}`);
                 if (m.cut) meterIssues.add(`${label}: #power-${m.p} text cut off ("${m.text}")`);
-                if (m.meter === null || m.pips === 0) continue;   // White Dragon (no meter) or no fight state yet
+                if (m.meter === null || m.pips === 0 || m.inAir) continue;   // White Dragon (no meter), no fight state yet, or a hit in the air
                 meterTexts.add(m.text);
                 meterLangs[lang] = (meterLangs[lang] || 0) + 1;
                 if (m.meter === 5) meterFullLangs[lang] = (meterFullLangs[lang] || 0) + 1;
@@ -388,6 +381,8 @@ async function testVersion(browser, key) {
         if (!forcedVamp) fail('forced-vampire duel: the dragon never made a vampire attack, so the heal cap was not exercised');
     }
 
+    await page.clock.runFor(1000);   // the last hit lands on screen (0.6 s after the fight's last turn)
+
     // 3c. Worst case on a real card, in both languages: the longest buff and debuff chips, and a full meter with Ice
     // Mirror's hits left (the longest the meter row gets). Nothing may be cut off or overlap.
     for (const lang of ['uk', 'en']) {
@@ -451,10 +446,11 @@ async function testVersion(browser, key) {
     if (pageErrors.length) [...new Set(pageErrors)].forEach(e => fail(`JS error: ${e}`));
     else pass('no JS errors');
     skipped.forEach(s => console.log(`    – skipped: ${s}`));
-    // Same seed, same fights: this fingerprint of every battle-log line must match between runs
-    const fightLog = await page.evaluate(() => window.__fightLog);
-    const fingerprint = crypto.createHash('sha256').update(fightLog.join('\n')).digest('hex').slice(0, 16);
-    console.log(`    fight log fingerprint (UI_SEED=${SEED}): ${fingerprint} (${fightLog.length} lines)`);
+    // Same seed, same fights: this fingerprint of the fight events (not of how the log looks) must match between runs,
+    // and between versions of the page that only change visuals
+    const events = await page.evaluate(() => window.__fightEvents);
+    const fingerprint = crypto.createHash('sha256').update(events.join('\n')).digest('hex').slice(0, 16);
+    console.log(`    fight events fingerprint (UI_SEED=${SEED}): ${fingerprint} (${events.length} events)`);
 
     await context.close();
     return failures;
