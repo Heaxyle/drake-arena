@@ -2,7 +2,7 @@
 
 Drake Arena is a single HTML file with no build step, so the tests work on that file as it is. The testing has two layers:
 
-1. **Effect rules, ultimates and balance simulation** (`tests/effects.js`, `tests/ultimates.js`, `tests/balance.js` + `tests/sim_harness.js`) run the real game code in Node. The effect and ultimate tests check the buff/debuff, meter and ultimate rules; the balance sim plays thousands of fights. Together they answer: *do the rules work as written, is the game fair, and does combat ever crash?*
+1. **Effect rules, ultimates, game rules and balance simulation** (`tests/effects.js`, `tests/ultimates.js`, `tests/rules.js`, `tests/balance.js` + `tests/sim_harness.js`) run the real game code in Node. The effect, ultimate and rules tests check the buff/debuff, meter, ultimate, chat and fight rules; the balance sim plays thousands of fights. Together they answer: *do the rules work as written, is the game fair, and does combat ever crash?*
 2. **UI smoke test, layout test and fight view test** (`tests/ui.js`, `tests/layout.js`, `tests/fightview.js`) open the page in headless Chromium, play it through fake chat and check the layout, the battle log and the turn animation. They answer: *does it work and look right on stream?*
 
 Both run in CI (`.github/workflows/ci.yml`) on every pull request and on every push to `main`, so each PR update runs CI once.
@@ -23,7 +23,9 @@ flowchart TD
     L -->|a check failed| X
     L -->|all checks passed| V["Layer 2: fight view test<br/>npm run test:fightview"]
     V -->|a check failed| X
-    V -->|all checks passed| P[CI passes]
+    V -->|all checks passed| K["Layer 2: controls test<br/>npm run test:controls"]
+    K -->|a check failed| X
+    K -->|all checks passed| P[CI passes]
     E -.->|always| S[Upload tests/screenshots<br/>as a build artifact]
     X -.-> S
 ```
@@ -91,9 +93,26 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 
 `effects.js` covers the rest: its name/icon scan also checks `CLASS_ULTIMATES` (ultimate names and icons appear only in that table, with the same allowlist for unrelated uses), and its real-fight countdown check knows ultimate turns (Ice Mirror and Bloom make no attack; Shadow Theft moves buffs; Detonation and Bloom remove effects).
 
+## Layer 1: game rules
+
+`rules.js` (part of `npm test`) loads the real game in Node, like `effects.js`, and checks the rules that came out of the code review, through the game's own functions and chat handler, in both languages:
+
+| Check | What it catches |
+|---|---|
+| Max HP is a whole number for every title, element and level 1–20 | Titles with fractional HP per level (0.3, 1.1) giving "186.3 HP" and "+10.300000000000011 HP" |
+| "!drake  red" (two spaces) and a tab create the drake; "!battle   @x" sends the challenge | Commands split on single spaces |
+| A "next hit casts" pick made before a fight is cleared when it starts; one still armed at the end is cleared then | A leftover pick reaching the next fight (a ranked fight's turn 1 "applies ❄️ Frost") |
+| The streamer's "!reroll white" ends with "Level 20!"; other rerolls still end with "Level reset to 1!" | The wrong level in the message |
+| A fight nobody can win (HP too high) plays turn 30, then times out, and its result says 30 turns | The time-out coming before turn 30 |
+| A ranked draw keeps both records and gives +10 XP each (Gold its bonus) | A draw counted as a loss |
+| A declined or expired challenge leaves the challenger off the cooldown; a second `!battle` while one is open gets a reply; a duel and a ranked fight put both fighters on the cooldown when they start | Cooldowns charged for challenges, or for only one duellist |
+| `!accept` during a fight: the duel waits ("starts after the current fight") and both leave the ranked queue; another `!accept` is told to challenge again after the next fight; the waiting players get a "busy" reply to `!queue`, `!battle`, `!accept`; after the fight the waiting duel starts before the ranked queue and both go on the cooldown; accepting while a player is resting gets a clear reply, starts nothing and charges nothing | Duels dropped when the arena is busy, or the queue jumping ahead of them |
+| "!battle" with no name, even on the cooldown, replies "ℹ️ @x, to challenge someone type !battle @name." | No reply, or "Arena is exhausted" |
+| The opening-buff banner shows the title's icon once | "🌅 🌅 Woke Up Swinging" |
+
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 49 specific ways and checks that `effects.js` or `ultimates.js` fails on each one (both run on every copy, in parallel). An unchanged copy runs first and both files must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 64 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -146,6 +165,21 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 47 | A Jackpot miss counts down nothing | Interaction test, and the countdown check | `@B's weakness (attacks) went 2 → 2, expected 1` |
 | 48 | Detonation keeps the debuffs when its hit is blocked | Interaction test | `dmg 0, debuffs [...]` (still there) |
 | 49 | The below-half bonus waits until the meter has room | Interaction test | the bonus wasn't spent while the meter was full |
+| 50 | Max HP keeps a title's fractional HP per level | `rules.js` 1 | `Red Drake + 🃏 Funny Meme King at L2: 186.3 HP, +10.300000000000011 HP on level-up` |
+| 51 | Commands split on single spaces | `rules.js` 2 | `saves: [], last reply: ℹ️ @spacey, to create a Drake, type: …` |
+| 52 | A pick made before a fight is kept when the fight starts | `rules.js` 4 | `at the start: frost` |
+| 53 | A pick still armed at the end of a fight isn't cleared | `rules.js` 4 | `at the end: mark` |
+| 54 | Rerolling into the White Dragon says "Level reset to 1!" | `rules.js` 7 | `🔥 @boss REBORN! New element: White Dragon 🐉. Level reset to 1!` |
+| 55 | The time-out comes before turn 30 | `rules.js` 8 | `last turn played: 29 … result turns: 29` |
+| 56 | A ranked draw adds a loss to both records | `rules.js` 9 | `records {"wins":4,"losses":3} {"wins":1,"losses":6}` |
+| 57 | Sending a challenge puts the challenger on the cooldown | `rules.js` 10 (and 11, 12) | `cooldown after decline: 3 min, after expiry: 3 min` |
+| 58 | A viewer can send a second challenge while one is open | `rules.js` 10 | `pending {"c2":"c1","c3":"c1"}` |
+| 59 | A duel starts without putting the challenger on the cooldown | `rules.js` 10, 11 | `duel 0,3` |
+| 60 | After a fight, the ranked queue goes before the waiting duel | `rules.js` 11 | `first fight: undefined` (the waiting duel never started) |
+| 61 | A duel can be accepted while a player is still resting | `rules.js` 11 | the duel started and the challenger was charged |
+| 62 | Players whose duel is waiting can still `!queue`, `!battle`, `!accept` | `rules.js` 11 | `⏳ @d1 joined ranked queue!` |
+| 63 | `!battle` with no name gets no explanation | `rules.js` 12 | `⏳ @hinty, your Arena is exhausted!` |
+| 64 | The opening banner adds its own 🌅 before the title's icon | `rules.js` 13 | `🌅 🌅 Woke Up Swinging: …` |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -200,7 +234,10 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: Detonation keeps debuffs on a block
 ✓ caught: below-half bonus waits for room
 ✓ caught: effect power stretches counts
-All 49 mutations caught.
+✓ caught: fractional max HP
+…
+✓ caught: two icons in the opening banner
+All 64 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -390,6 +427,17 @@ Screenshots: `layout-worst-{uk,en}[-nofonts].png`, `layout-obs-{uk,en}.png` (tra
 
 Text that is still too wide at its smallest allowed size is squeezed sideways (`fitText` wraps it in a `.squeeze` span with `scaleX`). `scrollWidth` ignores transforms, so the test measures squeezed text as drawn.
 
+## Layer 2: controls test
+
+`controls.js` checks the test menu and the language switch in headless Chromium, both languages, with seeded fights and the paused clock:
+
+| Check | What it catches |
+|---|---|
+| A "next hit casts" pick made with no fight running is dropped when the next fight starts, and the picker shows "— random —" | Leftover picks reaching the next fight |
+| When the pick fires the picker goes back to "— random —", and picking the same effect again arms it | A picker showing an effect that already fired (picking it again changed nothing) |
+| The Test Settings drake and title drop-downs switch language while the panel is closed and while it's open, keeping the picks | Old-language names after a switch with the panel closed |
+| Switching language during a fight redraws both fighter cards at once (title, info line, stats, chips, the СИЛА / POWER label), with the same HP and meter, and every card block where it was | Cards in the old language until the next turn, or the switch moving things |
+
 ## Layer 2: fight view test
 
 `fightview.js` checks the battle log, the turn animation, the ultimates, the countdown and the result card (`design/redesign-reference.html`), in **both languages**, with seeded fights and the paused clock. The test steps the clock to exact turn times: a turn's step 1 is the turn's tick (the attacker lights up), step 2 is 0.6 s later (the hit lands).
@@ -405,7 +453,7 @@ Text that is still too wide at its smallest allowed size is squeezed sideways (`
 | **The result card**: per fighter, damage = the sum of that fighter's card numbers, biggest hit = the largest, crits = the gold cards; XP = the change in the saved XP (ranked), "без досвіду" / "no XP" (duels), "макс. рівень" at level 20 | Stats counted wrongly, or counting that changed the fight |
 | **Only the current fight**: at the first turn of each fight the log has no cards and its banner names the two fighters, and the hidden text record (`#battle-log`) names only those two and only turn 1 | Cards or text piling up over hours of streaming |
 | **Damage numbers**: on every hit, the card's number pops on the target's card | Pops on the wrong card or with the wrong number |
-| **Every effect from the test menu** ("Наступний удар накладає"): each of the 12 is picked, the next damaging hit casts it, the card says so ("накладає 🔥 Підпал", "отримує 💢 Лють", or refresh / replace / Dispel in words) and the owner's fighter card shows its chip; the pick is used up | An effect without card text or chip, the picker not working |
+| **Every effect from the test menu** ("Наступний удар накладає"): each of the 12 is picked, the next damaging hit casts it, the card says so ("накладає 🔥 Підпал", "отримує 💢 Лють", or refresh / replace / Dispel in words) and the owner's fighter card shows its chip; the pick is used up and the picker goes back to "— випадково —" / "— random —" | An effect without card text or chip, the picker not working |
 | **Every ultimate from the test menu** (the СИЛА buttons fill a meter): the attacker's tab shows the ultimate's icon and name with the stronger glow; its card has the header strip ("☄️ УЛЬТИМЕЙТ · Вогняний шторм") and lists what it did (unblockable, Ice Mirror's hits, what Theft took or the guaranteed crit, Detonation's multiplier, Bloom's heal). **Jackpot** with the reels forced to 💎💎💎, 💎🪙💀, 🪙💀💀 and 💀💀💀: the card shows the three reels, the multiplier, or "промах" / "miss" with 0 damage | An ultimate without its card text, a Jackpot miss without reels |
 | **Level-ups**: two fighters a few XP short of level 5 fight; each level-up appears in the chat panel as "@x досягає 5-го рівня" / "@x reaches level 5" with the HP gain from `getMaxHP` and the attack gain from the level | Level-up numbers made up or missing |
 | **No internal ids** (`rage`, `firestorm`, …), placeholders (`{n}`), `undefined` or `NaN` anywhere on screen, at every step | Untranslated keys leaking into the overlay |
@@ -435,12 +483,14 @@ npx playwright install chromium        # once; CI adds --with-deps for Linux sys
 npm test                               # effect rules, then balance: element matrix, title tiers, level gaps
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
-npm run test:mutations                 # break the game 49 ways, check effects.js / ultimates.js catch each (~25 s)
+npm run test:rules                     # the game rules: whole HP, chat commands, cooldowns, duels, turn 30, draws (~5 s)
+npm run test:mutations                 # break the game 64 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)
 npm run test:ui showcase               # UI smoke test + screenshots in tests/screenshots/
 npm run test:layout                    # 1920×1080 layout test, both languages
+npm run test:controls                 # the test menu's picker and drop-downs, the language switch during a fight
 npm run test:fightview                 # battle log, turns, ultimates, countdown, result, both languages (slow: plays dozens of fights)
 UI_FILE=main.html node tests/ui.js showcase   # same flow on another copy of the page: compare the fingerprint
 
