@@ -95,6 +95,16 @@ function cardFitProblems() {
             if (width(l) > l.clientWidth + 1) out.push(`cut off: "${l.textContent.slice(0, 60)}" ${width(l)} > ${l.clientWidth}`);
             if (l.scrollHeight > l.clientHeight + 1) out.push(`wraps: "${l.textContent.slice(0, 60)}"`);
         });
+        // Second lines are never drawn below 90% of their normal size (font size × any sideways squeeze)
+        const l2 = c.querySelector('.lc-l2');
+        if (l2) {
+            const sq = l2.querySelector(':scope > .squeeze');
+            const squeeze = sq ? +(/scaleX\(([\d.]+)\)/.exec(sq.style.transform) || [0, 1])[1] : 1;
+            const scale = parseFloat(getComputedStyle(l2).fontSize) / 12 * squeeze;
+            if (scale < 0.9 - 1e-6) out.push(`second line at ${Math.round(scale * 100)}%: "${l2.textContent.slice(0, 60)}"`);
+            const more = l2.querySelector('.lk.more');
+            if (more && (!/^\+\d+$/.test(more.textContent) || [...l2.querySelectorAll('.lk')].pop() !== more)) out.push(`"+N" isn't the last chip: "${l2.textContent.slice(0, 60)}"`);
+        }
         c.querySelectorAll('.lc-move').forEach(m => { if (width(m) > m.clientWidth + 1) out.push(`move name cut off: "${m.textContent}"`); });
     });
     document.querySelectorAll('#log-feed .lc-cell:not(.empty), #review-sheet .lc-cell:not(.empty), #log-feed .log-banner, #review-sheet .log-banner').forEach(c => {
@@ -294,7 +304,14 @@ async function popAtStep2(page, turn) {
                 const seen = await playChecked(page, `[${lang}] ${a} vs ${b}`, {
                     onStep1: async (s1, turn) => {
                         // Only the current fight's cards: after its first turn, no card from an earlier fight
-                        if (turn === 1) onlyCurrent.push(s1.cards.length === 0 && s1.banners.some(t => t.includes('@' + a)) && s1.banners.some(t => t.includes('@' + b)));
+                        if (turn === 1) {
+                            // The visible log and the hidden text record (#battle-log) hold only this fight
+                            const record = await page.evaluate(() => [...document.getElementById('battle-log').children].map(x => x.textContent));
+                            const names = [...new Set(record.join(' ').match(/@[\w-]+/g) || [])];
+                            const turns = record.map(l => (/^\[(?:Хід|Turn) (\d+)\]/.exec(l) || [])[1]).filter(Boolean);
+                            onlyCurrent.push(s1.cards.length === 0 && s1.banners.some(t => t.includes('@' + a)) && s1.banners.some(t => t.includes('@' + b))
+                                && names.every(n => n === '@' + a || n === '@' + b) && turns.every(n => n === '1') && turns.length === 1);
+                        }
                         if (turn === 1 && lang === 'uk' && a === 'kotyk_ua') turnShots['uk-1'] = await page.screenshot({ clip: crop });
                         if (turn === 1 && lang === 'en' && a === 'kotyk_ua') turnShots['en-1'] = await page.screenshot({ clip: crop });
                     },
@@ -327,7 +344,7 @@ async function popAtStep2(page, turn) {
             check(!fit.length, `[${lang}] no card wraps past two lines or is cut off (long names, the White Dragon's damage, effect lines)`, fit.slice(0, 5).join(' | '));
             check(resultChecks.every(r => r.ok), `[${lang}] result cards match the fights' cards: damage, biggest hit, crits per fighter, XP as saved (${resultChecks.map(r => `${r.turns} turns`).join(', ')})`,
                 JSON.stringify(resultChecks.filter(r => !r.ok).slice(0, 1)));
-            check(onlyCurrent.every(Boolean) && onlyCurrent.length === fights.length, `[${lang}] each new fight starts with an empty log (only its own cards)`, JSON.stringify(onlyCurrent));
+            check(onlyCurrent.every(Boolean) && onlyCurrent.length === fights.length, `[${lang}] each new fight starts with an empty log and an empty text record (#battle-log): only its own cards, names and turns`, JSON.stringify(onlyCurrent));
             check(!ids.size, `[${lang}] no internal ids, placeholders or broken values on screen`, [...ids].join(', '));
             if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
@@ -552,7 +569,9 @@ async function popAtStep2(page, turn) {
                     // Every ultimate
                     const U = (turn, at, df, id, a, info) => card(rec(turn, at, df, { ult: Object.assign({ id }, info), attack: a }));
                     const Bl = mk('sapphire', 'blue', '#5fd4ff'), Go = mk('ruby', 'gold', '#ffd166'), Pu = mk('mira', 'purple', '#c792ea');
-                    row(U(15, A, B, 'firestorm', atk('magical', 'heavy', 68, { sd: 0 }), {}), U(16, Bl, A, 'mirror', null, { hits: 2 }));
+                    const fire = rec(15, A, B, { ult: { id: 'firestorm' }, attack: atk('magical', 'heavy', 68, { sd: 0 }), used: ['burn'],
+                        casts: [{ owner: B, id: 'burn', result: 'applied' }, { owner: B, id: 'burn', result: 'refreshed' }] });
+                    row(card(fire), U(16, Bl, A, 'mirror', null, { hits: 2 }));
                     row(U(17, B, A, 'theft', atk('physical', 'heavy', 61, { crit: true, sd: 1.6 }), { forced: true }), U(18, B, A, 'theft', atk('physical', 'sneaky', 44, { pierce: true, sd: 1.9 }), { taken: ['rage', 'shield'], lost: ['blessing'] }));
                     row(U(19, Go, A, 'jackpot', atk('magical', 'light', 96, { sd: 2.2 }), { reels: ['💎', '💎', '🪙'], miss: false, mult: 3 }), U(20, Go, A, 'jackpot', atk('magical', 'light', 0, { miss: true, sd: 2.5 }), { reels: ['💀', '🪙', '💀'], miss: true, mult: 1 }));
                     row(U(21, Pu, A, 'detonation', atk('magical', 'sneaky', 112, { pierce: true, sd: 2.8 }), { mult: 3.2, removed: ['burn', 'weakness'] }), U(22, G, A, 'bloom', null, { healed: 45, removed: ['poison', 'burn'] }));
@@ -577,9 +596,19 @@ async function popAtStep2(page, turn) {
             await settleArena(page);
             const fitIssues = await page.evaluate(cardFitProblems);
             const n = await page.evaluate(() => document.querySelectorAll('#review-sheet .lc').length);
+            const burnOnce = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .lc')].filter(c => (c.querySelector('.lc-turn') || {}).textContent === '15')
+                .map(c => [...c.querySelectorAll('.lc-l2 .lk')].filter(x => x.textContent.includes(EFFECTS.burn.icon)).length));
+            check(burnOnce.length === 2 && burnOnce.every(k => k === 1), 'one attack touching the same effect twice (Firestorm applies 🔥 Burn, its cast refreshes it) shows it once', JSON.stringify(burnOnce));
+            const crowded = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .lc')].filter(c => (c.querySelector('.lc-turn') || {}).textContent === '24').map(c => {
+                const chips = [...c.querySelectorAll('.lc-l2 .lk')].map(x => x.textContent);
+                return { more: (c.querySelector('.lc-l2 .lk.more') || {}).textContent || '', kept: ['uk', 'en'].some(l => ['shadow', 'divine'].every(id => chips.includes(`${EFFECTS[id].icon} ${EFFECTS[id].name[l]}`))), chips };
+            }));
+            check(crowded.length === 2 && crowded.every(c => /^\+\d+$/.test(c.more) && c.kept),
+                `the most crowded card keeps what the attack did (${crowded.length ? crowded[0].chips.filter(x => !x.startsWith('+')).slice(-3).join(' ') : ''}) and ends with "${crowded.length ? crowded[0].more : ''}" for what it dropped`, JSON.stringify(crowded));
             check(!fitIssues.length, `worst cases fit in two lines (${n} cards, both languages): 25-letter names, the White Dragon's -1949998, the longest effect line, every ultimate`, fitIssues.slice(0, 5).join(' | '));
             const idsLeft = await page.evaluate(() => { const t = document.getElementById('review-sheet').innerText; return [...EFFECT_IDS, ...ULTIMATE_IDS].filter(id => new RegExp(`(?<![\\p{L}_])${id}(?![\\p{L}_])`, 'u').test(t)).concat(['undefined', 'NaN', '{'].filter(w => t.includes(w))); });
             check(!idsLeft.length, 'no internal ids on any kind of card', idsLeft.join(', '));
+            await page.waitForTimeout(500);   // the sheet sits outside the stage, so let its cells' fade-in finish too
             await page.locator('#review-sheet').screenshot({ path: path.join(SHOTS, 'fightview-cards.png') });
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();

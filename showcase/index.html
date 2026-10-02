@@ -214,6 +214,8 @@
         .lk.hurt { color: #ff9a8a; background: rgba(255, 93, 82, 0.14); }
         .lk.sd { color: #ff7a7a; background: rgba(255, 60, 60, 0.18); }
         .lk.reels { letter-spacing: 2px; color: #ffe38a; background: rgba(255, 215, 0, 0.12); }
+        .lk.more { font-weight: 600; color: var(--dim); background: transparent; border: 1px dashed rgba(255, 255, 255, 0.22); }   /* "+2": items not shown */
+        .lg { display: contents; }
         .lc-cell { display: flex; flex-direction: column; justify-content: center; gap: 3px; height: 58px; box-sizing: border-box; padding: 7px 12px; min-width: 0; border-radius: 2px;
             font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; }
         .lc-cell.wait { border: 1px dashed rgba(255, 255, 255, 0.16); color: var(--dim); }
@@ -691,7 +693,7 @@
             el.style.fontSize = '';
             if (!el.scrollWidth || !el.clientWidth) return;
             let size = parseFloat(getComputedStyle(el).fontSize);
-            while (el.scrollWidth > el.clientWidth + 0.5 && size > minPx) { size -= 0.5; el.style.fontSize = size + 'px'; }
+            while (el.scrollWidth > el.clientWidth + 0.5 && size > minPx) { size = Math.max(minPx, size - 0.5); el.style.fontSize = size + 'px'; }
             if (el.scrollWidth > el.clientWidth + 0.5) {
                 const cs = getComputedStyle(el), pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
                 const k = Math.floor(1000 * (el.clientWidth - pad - 1) / (el.scrollWidth - pad)) / 1000;
@@ -949,17 +951,33 @@
                 el.className = 'log-row';
                 el.innerHTML = fvCellHtml(item.cells.left, 'left') + fvCellHtml(item.cells.right, 'right');
                 el.querySelectorAll('.lc-move').forEach(m => fitText(m, 11));
-                // Line 2 shrinks to fit; if it still can't fit at a readable size, the effects this attack merely counted down
-                // (the least important part) drop out first, then it shrinks further
-                el.querySelectorAll('.lc-l2').forEach(l => {
-                    fitText(l, 10);
-                    if (l.scrollWidth > l.clientWidth + 0.5 || l.querySelector('.squeeze')) { l.querySelectorAll('.used').forEach(u => u.remove()); fitText(l, 8); }
-                });
+                el.querySelectorAll('.lc-l2').forEach(fvFitLine);
                 el.querySelectorAll('.lc-cell').forEach(c => fitText(c, 10));
             } else if (item.type === 'result') {
                 el.className = 'log-result frame-sm';
                 el.innerHTML = fvResultHtml(item.data);
                 el.querySelectorAll('.lr-title, .lr-grid > span').forEach(s => fitText(s, 10));
+            }
+        }
+        // A card's second line: shrinks to at most 90% of its normal size; if it still doesn't fit, the least important
+        // groups drop out (see fvCardHtml), and a muted "+N" at the end says how many items aren't shown
+        const FV_LINE_PX = 12, FV_MIN_SCALE = 0.9;
+        function fvFitLine(l) {
+            const min = FV_LINE_PX * FV_MIN_SCALE;
+            const unsqueeze = () => { const sq = l.firstElementChild; if (sq && sq.classList.contains('squeeze') && l.childNodes.length === 1) l.innerHTML = sq.innerHTML; };
+            const over = () => l.scrollWidth > l.clientWidth + 0.5 || !!l.querySelector('.squeeze');
+            fitText(l, min);
+            let dropped = 0;
+            for (const level of [1, 2, 3, 4]) {
+                if (!over()) break;
+                unsqueeze();
+                const groups = l.querySelectorAll(`.lg[data-drop="${level}"]`);
+                if (!groups.length) { fitText(l, min); continue; }
+                groups.forEach(x => { dropped += +x.dataset.n; x.remove(); });
+                let more = l.querySelector('.lk.more');
+                if (!more) { more = document.createElement('span'); more.className = 'lk more'; l.appendChild(more); }
+                more.textContent = `+${dropped}`;
+                fitText(l, min);
             }
         }
         function fvBannerHtml(item) {
@@ -1018,53 +1036,65 @@
             const l1 = side === 'left'
                 ? `${turnNo}${move}<span class="lc-sp"></span>${crit}${dmg}`
                 : `${dmg}${crit}<span class="lc-sp"></span>${move}${turnNo}`;
-            // Line 2: what happened, in words
+            // Line 2: what happened, in words. Parts that may drop out when the line is too long are grouped by priority
+            // (fvFitLine): 1 = effects this attack only counted down, 2 = start-of-turn ticks (they also pop on the
+            // card), 3 = the sudden-death multiplier (the banner says damage grows), 4 = the other hit notes.
+            // What the attack applied, removed or stole, and what an ultimate did, are level 0: never dropped.
             const p = [];
-            if (rec.frozen) p.push(fvLx(fvT('frozen')));
+            const g = (level, ...parts) => {
+                parts = parts.filter(Boolean);
+                if (!parts.length) return;
+                const n = parts.filter(x => x.startsWith('<span class="lk')).length;
+                p.push(level ? `<span class="lg" data-drop="${level}" data-n="${n}">${parts.join('')}</span>` : parts.join(''));
+            };
+            if (rec.frozen) g(0, fvLx(fvT('frozen')));
             if (u) {
                 const x = rec.ult;
-                if (u.unblockable) p.push(fvLk(fvT('unblockable')));
-                if (x.reels) p.push(fvLk(x.reels.join(' '), 'reels'), x.miss ? fvLk(fvT('miss'), 'hurt') : fvLk(`×${x.mult}`));
-                if (x.id === 'detonation') { p.push(fvLk(`×${x.mult}`)); if (x.removed && x.removed.length) p.push(fvLx(fvT('removes')), ...x.removed.map(fvFxChip)); }
-                if (x.taken && x.taken.length) p.push(fvLx(fvT('takes')), ...x.taken.map(fvFxChip));
-                if (x.lost && x.lost.length) p.push(fvLx(fvT('lost')), ...x.lost.map(fvFxChip));
-                if (x.forced) p.push(fvLk(fvT('noBuffs')), fvLk(fvT('forced')));
-                if (x.immune) p.push(fvLk(fvT('immune')));
-                if (x.hits !== undefined) p.push(fvLk(`${u.icon} ${unitLeftText('hits', x.hits)}`));
-                if (x.removed && x.id === 'bloom' && x.removed.length) p.push(fvLx(fvT('removes')), ...x.removed.map(fvFxChip));
+                if (u.unblockable) g(4, fvLk(fvT('unblockable')));
+                if (x.reels) g(0, fvLk(x.reels.join(' '), 'reels'), x.miss ? fvLk(fvT('miss'), 'hurt') : fvLk(`×${x.mult}`));
+                if (x.id === 'detonation') { g(0, fvLk(`×${x.mult}`)); if (x.removed && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvFxChip)); }
+                if (x.taken && x.taken.length) g(0, fvLx(fvT('takes')), ...x.taken.map(fvFxChip));
+                if (x.lost && x.lost.length) g(0, fvLx(fvT('lost')), ...x.lost.map(fvFxChip));
+                if (x.forced) g(0, fvLk(fvT('noBuffs')), fvLk(fvT('forced')));
+                if (x.immune) g(0, fvLk(fvT('immune')));
+                if (x.hits !== undefined) g(0, fvLk(`${u.icon} ${unitLeftText('hits', x.hits)}`));
+                if (x.removed && x.id === 'bloom' && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvFxChip));
             }
             const n = rec.notes;
-            if (a && a.sd) p.push(fvLk(`💀 ×${Math.round(a.sd * 10) / 10}`, 'sd'));
-            if (n.wrath) p.push(fvLk(fvT('wrath')));
-            if (n.sovereign) p.push(fvLk(fvT('sovereign')));
-            else if (a && a.block) p.push(a.shadow ? fvFxChip('shadow') : '', fvLk(fvT('block')));
-            if (n.unblock && n.unblock === 'divine') p.push(fvLk(`${EFFECTS.divine.icon} ${fvT('unblockable')}`));
-            if (a && a.pierce) p.push(fvLk(fvT('pierce')));
-            if (n.execute) p.push(fvLk(fvT('execute')));
-            if (n.coin) p.push(fvLk(`🪙 ×${n.coin}`));
-            if (n.sleep) p.push(fvLk(fvT('sleep')));
-            if (n.mirror) p.push(fvLk(`${CLASS_ULTIMATES.mirror.icon} ${n.mirror.would} → ${n.mirror.would - n.mirror.absorbed}`), n.mirror.back ? fvLk(`-${n.mirror.back} ${fvT('back')}`, 'hurt') : '');
-            if (n.fortune) p.push(fvLk(fvT('fortune')));
-            if (n.reflect) p.push(fvLk(`${fvT('reflect')} -${n.reflect}`, 'hurt'));
-            if (n.vamp) p.push(fvLk(`🩸 +${n.vamp}`, 'heal'));
-            if (n.lifesteal) p.push(fvLk(`${fvT('lifesteal')} +${n.lifesteal}`, 'heal'));
-            if (n.thorns) p.push(fvLk(`${fvT('thorns')} -${n.thorns}`, 'hurt'));
-            rec.used.filter(id => !(id === 'shadow' && a && a.shadow)).forEach(id => p.push(fvUsedChip(id)));
-            if (n.guardian) p.push(fvLk(`${fvT('guardian')} +${n.guardian}`, 'heal'));
-            if (rec.ticks.length) p.push(fvLx(fvT('start')), ...rec.ticks.map(fvTickChip));
-            if (n.chaos) p.push(fvLk(fvT('chaos')));
-            if (n.cat) p.push(fvLk(fvT('cat')));
-            rec.casts.forEach(c => {
+            if (a && a.sd) g(3, fvLk(`💀 ×${Math.round(a.sd * 10) / 10}`, 'sd'));
+            if (n.wrath) g(4, fvLk(fvT('wrath')));
+            if (n.sovereign) g(4, fvLk(fvT('sovereign')));
+            else if (a && a.block) g(4, a.shadow ? fvFxChip('shadow') : '', fvLk(fvT('block')));
+            if (n.unblock && n.unblock === 'divine') g(4, fvLk(`${EFFECTS.divine.icon} ${fvT('unblockable')}`));
+            if (a && a.pierce) g(4, fvLk(fvT('pierce')));
+            if (n.execute) g(4, fvLk(fvT('execute')));
+            if (n.coin) g(4, fvLk(`🪙 ×${n.coin}`));
+            if (n.sleep) g(4, fvLk(fvT('sleep')));
+            if (n.mirror) g(4, fvLk(`${CLASS_ULTIMATES.mirror.icon} ${n.mirror.would} → ${n.mirror.would - n.mirror.absorbed}`), n.mirror.back ? fvLk(`-${n.mirror.back} ${fvT('back')}`, 'hurt') : '');
+            if (n.fortune) g(4, fvLk(fvT('fortune')));
+            if (n.reflect) g(4, fvLk(`${fvT('reflect')} -${n.reflect}`, 'hurt'));
+            if (n.vamp) g(4, fvLk(`🩸 +${n.vamp}`, 'heal'));
+            if (n.lifesteal) g(4, fvLk(`${fvT('lifesteal')} +${n.lifesteal}`, 'heal'));
+            if (n.thorns) g(4, fvLk(`${fvT('thorns')} -${n.thorns}`, 'hurt'));
+            // One attack touching the same effect twice (Firestorm's Burn, then a cast of Burn that refreshes it) shows it once
+            const seen = new Set(), casts = rec.casts.filter(c => { const k = c.owner.name + '|' + c.id; if (seen.has(k)) return false; seen.add(k); return true; });
+            const castIds = new Set(casts.map(c => c.id));
+            rec.used.filter(id => !(id === 'shadow' && a && a.shadow) && !castIds.has(id)).forEach(id => g(1, fvUsedChip(id)));
+            if (n.guardian) g(2, fvLk(`${fvT('guardian')} +${n.guardian}`, 'heal'));
+            if (rec.ticks.length) g(2, fvLx(fvT('start')), ...rec.ticks.map(fvTickChip));
+            if (n.chaos) g(4, fvLk(fvT('chaos')));
+            if (n.cat) g(4, fvLk(fvT('cat')));
+            casts.forEach(c => {
                 const kind = EFFECTS[c.id].kind;
                 const mine = (kind === 'buff' && c.owner === rec.atk) || (kind === 'debuff' && c.owner === rec.def);
-                if (c.result === 'immune') p.push(fvLk(fvT('immune')), fvFxChip(c.id));
-                else if (c.result === 'dispelled') p.push(fvFxChip(c.id), fvLx(fvT('removes')), ...(c.extra || []).map(fvFxChip));
-                else if (c.result === 'refreshed') p.push(fvLx(fvT('refreshes')), fvFxChip(c.id));
-                else if (c.result === 'replaced') p.push(fvFxChip(c.id), fvLx(fvT('replaces')), fvFxChip(c.extra));
-                else p.push(fvLx(mine ? (kind === 'buff' ? fvT('gets') : fvT('applies')) : `@${c.owner.name} ${fvT('gets')}`), fvFxChip(c.id));
+                if (c.result === 'immune') g(0, fvLk(fvT('immune')), fvFxChip(c.id));
+                else if (c.result === 'dispelled') g(0, fvFxChip(c.id), fvLx(fvT('removes')), ...(c.extra || []).map(fvFxChip));
+                else if (c.result === 'refreshed') g(0, fvLx(fvT('refreshes')), fvFxChip(c.id));
+                else if (c.result === 'replaced') g(0, fvFxChip(c.id), fvLx(fvT('replaces')), fvFxChip(c.extra));
+                else g(0, fvLx(mine ? (kind === 'buff' ? fvT('gets') : fvT('applies')) : `@${c.owner.name} ${fvT('gets')}`), fvFxChip(c.id));
             });
             const head = u ? `<div class="lc-ult" style="color:${u.color}">${ultLabel(rec.ult.id)}</div>` : '';
-            return `<div class="${cls.join(' ')}"><span class="lc-glow"></span>${head}<div class="lc-l1">${l1}</div><div class="lc-l2">${p.filter(Boolean).join('')}</div></div>`;
+            return `<div class="${cls.join(' ')}"><span class="lc-glow"></span>${head}<div class="lc-l1">${l1}</div><div class="lc-l2">${p.join('')}</div></div>`;
         }
 
         function fvResultHtml(d) {
@@ -1110,6 +1140,12 @@
             fvCountdown(TURN_MS);
         }
         function fvOpening(f, id) { fvBanner('opening', { f, id }); }
+        // The fight's hidden text record (#battle-log) starts empty for each fight, like the visible log
+        function fightRecordReset() {
+            if (!FV_LIVE) return;
+            const box = fvEl('battle-log');
+            if (box) box.innerHTML = '';
+        }
 
         // Countdown: the big timer and its bar in the log area until the first turn. Ticks are scheduled up front (a fixed
         // number of them), each only drawing if this countdown is still the one on screen.
@@ -2679,6 +2715,7 @@ function drakeSpriteURL(type) {
                 cooldowns[sender] = Date.now();
                 matchmakingQueue = matchmakingQueue.filter(u => u !== sender && u !== challenger);
                 updateQueueUI();
+                fightRecordReset();
                 startFight(challenger, cColor, sender, senderColor, false);
                 return;
             }
@@ -2796,6 +2833,7 @@ function drakeSpriteURL(type) {
             cooldowns[p1Name] = Date.now();
             cooldowns[p2Name] = Date.now();
             updateQueueUI();
+            fightRecordReset();
             
             let p1Data = getDragonStrict(p1Name);
             let p2Data = getDragonStrict(p2Name);
@@ -2813,6 +2851,7 @@ function drakeSpriteURL(type) {
         function testBattle() {
             if (isBattleRunning) return;
             isBattleRunning = true;
+            fightRecordReset();
             runBattle("QA-Tester-Alpha", "#ff4500", "QA-Tester-Omega", "#00ff7f", false);
         }
 
