@@ -414,7 +414,7 @@ Text that is still too wide at its smallest allowed size is squeezed sideways (`
 | **One effect once**: a Firestorm card whose hit applies 🔥 Burn and whose cast then refreshes it shows Burn once | The same effect listed twice on one card |
 | No page errors | Exceptions from the view code |
 
-Review screenshots: `fightview-cards.png` (every kind of log card, both languages) and `fightview-turn.png` (the countdown, the betting window, turn steps 1 and 2, an ultimate turn and the result, both languages). `FV_ONLY=2,4 npm run test:fightview` runs only some sections (numbered in the file).
+Review screenshots: `fightview-cards.png` (every kind of log card, both languages) and `fightview-turn.png` (the countdown, the betting window, turn steps 1 and 2, an ultimate turn and the result, both languages). Both are committed, like `layout-review-cards.png`: regenerate and commit them when the look changes on purpose. `FV_ONLY=2,4 npm run test:fightview` runs only some sections (numbered in the file).
 
 ### Visual only: the fights stay the same
 
