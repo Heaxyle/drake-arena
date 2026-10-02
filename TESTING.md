@@ -3,7 +3,7 @@
 Drake Arena is a single HTML file with no build step, so the tests work on that file as it is. The testing has two layers:
 
 1. **Effect rules, ultimates and balance simulation** (`tests/effects.js`, `tests/ultimates.js`, `tests/balance.js` + `tests/sim_harness.js`) run the real game code in Node. The effect and ultimate tests check the buff/debuff, meter and ultimate rules; the balance sim plays thousands of fights. Together they answer: *do the rules work as written, is the game fair, and does combat ever crash?*
-2. **UI smoke test and layout test** (`tests/ui.js`, `tests/layout.js`) open the page in headless Chromium, play it through fake chat and check the layout rules. They answer: *does it work and look right on stream?*
+2. **UI smoke test, layout test and fight view test** (`tests/ui.js`, `tests/layout.js`, `tests/fightview.js`) open the page in headless Chromium, play it through fake chat and check the layout, the battle log and the turn animation. They answer: *does it work and look right on stream?*
 
 Both run in CI on every push and pull request (`.github/workflows/ci.yml`).
 
@@ -21,7 +21,9 @@ flowchart TD
     E -->|a check failed| X
     E -->|all checks passed| L["Layer 2: layout test<br/>npm run test:layout"]
     L -->|a check failed| X
-    L -->|all checks passed| P[CI passes]
+    L -->|all checks passed| V["Layer 2: fight view test<br/>npm run test:fightview"]
+    V -->|a check failed| X
+    V -->|all checks passed| P[CI passes]
     E -.->|always| S[Upload tests/screenshots<br/>as a build artifact]
     X -.-> S
 ```
@@ -337,8 +339,10 @@ Everything else (the tier and level tables, the 45–57% target) is printed for 
 `ui.js` opens `showcase/index.html` in headless Chromium at 1920×1080, the OBS canvas size.
 
 - **Fake tmi.js.** The Twitch chat library is swapped for a stub, so the test "types" chat messages through the same handler real Twitch messages use. No network or Twitch account is needed.
-- **Fake clock.** Playwright's clock controls the game timers, so a full fight (30 s countdown plus up to 30 turns at 4.5 s each) runs in seconds, and the test can stop every 500 ms of game time to measure the layout.
-- **Seeded fights.** Before the page loads, `Math.random` is replaced with a seeded generator (mulberry32), so every run plays the same fights and a failure can be reproduced. The default seed (`UI_SEED`, 3) is one where both languages reach a full Element Power meter; `UI_SEED=n npm run test:ui` tries another. The run ends by printing a fingerprint of every battle-log line (`fight log fingerprint (UI_SEED=3): …`): two runs with the same seed must print the same one.
+- **Fake clock, paused.** Playwright's clock controls the game timers and is paused: game time only moves when the test moves it (`clock.runFor`), so a full fight (up to 30 turns at 4.5 s each) runs in seconds and the test can stop every 500 ms of game time to measure the layout.
+- **Animations settle first.** CSS animations run on real time, not on the fake clock. Before a visual check reads the page, the shared helper `tests/settle.js` (`settleArena`) pauses the game clock and waits until every finite transition and animation in the arena has finished (the drakes' idle bob loops forever and is left out). `ui.js`, `layout.js` and `fightview.js` all use it, so an animation caught halfway can't fail a test at random.
+- **Seeded fights.** `tests/page_hooks.js` runs in the page before the game's script: `Math.random` is replaced with a seeded generator (mulberry32), so every run plays the same fights and a failure can be reproduced. The default seed (`UI_SEED`, 3) is one where both languages reach a full Element Power meter; `UI_SEED=n npm run test:ui` tries another.
+- **Fight-event fingerprint.** The same hooks record what the fights *did*: who fought, every HP update and how each fight ended. The run ends by printing a fingerprint of those events (`fight events fingerprint (UI_SEED=3): …`): two runs with the same seed must print the same one. It doesn't depend on how the log looks, so `UI_FILE=path/to/other/index.html node tests/ui.js showcase` runs the same flow against another copy of the page (e.g. `git show main:showcase/index.html`): a change that is visual only must print the same fingerprint as main.
 
 First it checks the White Dragon is streamer-only: with no streamer set, `!дрейк білий` is refused; then it sets a streamer through **⚙️ Test Settings** (as `@TESTSTREAMER`, to check that `@` and case are ignored) and checks the name is saved and the chat simulator shows a streamer chip. It then registers all seven drake types (the six viewer elements plus the streamer's White Dragon), checks another viewer is refused with `!дрейк білий`, `!drake white` and `!рерол білий`, uses `!стата`, `!титул` (as a channel-point reward) and `!шанси`, plays a ranked fight through `!черга`, then friendly duels (`!бій` / `!прийняти`) until every drake type has been on screen.
 
@@ -362,7 +366,7 @@ It also saves screenshots at each stage to `tests/screenshots/` (`showcase-01-re
 
 ## Layer 2: layout test
 
-`layout.js` checks the overlay against the redesign (`design/redesign-reference.html`) at 1920×1080, in **both languages**. Like `ui.js` it uses a fake clock; it waits about 450 ms of real time before measuring, because CSS transitions (the HP bar, a chat card fading in) run on real time.
+`layout.js` checks the overlay against the redesign (`design/redesign-reference.html`) at 1920×1080, in **both languages**. Like `ui.js` it uses a paused fake clock, seeded fights and `settleArena` before every measurement.
 
 | Check | What it catches |
 |---|---|
@@ -386,6 +390,40 @@ Screenshots: `layout-worst-{uk,en}[-nofonts].png`, `layout-obs-{uk,en}.png` (tra
 
 Text that is still too wide at its smallest allowed size is squeezed sideways (`fitText` wraps it in a `.squeeze` span with `scaleX`). `scrollWidth` ignores transforms, so the test measures squeezed text as drawn.
 
+## Layer 2: fight view test
+
+`fightview.js` checks the battle log, the turn animation, the ultimates, the countdown and the result card (`design/redesign-reference.html`), in **both languages**, with seeded fights and the paused clock. The test steps the clock to exact turn times: a turn's step 1 is the turn's tick (the attacker lights up), step 2 is 0.6 s later (the hit lands).
+
+| Check | What it catches |
+|---|---|
+| **Only `transform` and `opacity` are animated**: every `@keyframes` rule and every transition in the page's stylesheets | An animated shadow, size or colour, which costs OBS frames (glows are pre-drawn and faded instead) |
+| **Countdown, default**: queue two fighters; until turn 1 the plate says "⏳ БІЙ ПОЧИНАЄТЬСЯ" / "⏳ FIGHT STARTING", the log area shows the timer (0:05 → 0:01, checked every 0.5 s against the time left); turn 1 lands at exactly 4.5 s, not 1 ms earlier, and the log replaces the countdown; turns 2–4 every 4.5 s after | The countdown changing the fight's timing, a timer that doesn't match the time left |
+| **Countdown, betting window on** (Test Settings): "⏳ СТАВКИ ВІДКРИТО" / "⏳ BETS OPEN", the timer from 0:30; turn 1 at exactly 30 s; turns every 4.5 s after; a test battle still starts after 4.5 s | The switch not delaying the fight, or delaying test battles |
+| **Four real fights per language, every turn** (ranked, duels, every element, a 25-letter name, the White Dragon): at step 1 the attacker's card has the highlight and its tab and the other doesn't, and the log shows "⚔ @x атакує…" in the attacker's column; at step 2 exactly one card for that turn, in the attacker's column (left = the fighter who struck first), lit, and the only lit card | Cards in the wrong column, missing or doubled; the highlight not following the attacker |
+| The whole turn animation, from the tick to the end of the last animation, finishes inside the 4.5 s turn | Animations overlapping the next turn |
+| No card wraps past two lines (three with an ultimate's header), and nothing in a card is cut off (squeezed text measured as drawn). **No second line is drawn below 90% of its normal size** (font size × any sideways squeeze); a line that dropped items ends with a muted "+N" chip | Long move names, names, damage numbers or effect lines breaking the card, or shrunk until unreadable at stream size |
+| **The result card**: per fighter, damage = the sum of that fighter's card numbers, biggest hit = the largest, crits = the gold cards; XP = the change in the saved XP (ranked), "без досвіду" / "no XP" (duels), "макс. рівень" at level 20 | Stats counted wrongly, or counting that changed the fight |
+| **Only the current fight**: at the first turn of each fight the log has no cards and its banner names the two fighters, and the hidden text record (`#battle-log`) names only those two and only turn 1 | Cards or text piling up over hours of streaming |
+| **Damage numbers**: on every hit, the card's number pops on the target's card | Pops on the wrong card or with the wrong number |
+| **Every effect from the test menu** ("Наступний удар накладає"): each of the 12 is picked, the next damaging hit casts it, the card says so ("накладає 🔥 Підпал", "отримує 💢 Лють", or refresh / replace / Dispel in words) and the owner's fighter card shows its chip; the pick is used up | An effect without card text or chip, the picker not working |
+| **Every ultimate from the test menu** (the СИЛА buttons fill a meter): the attacker's tab shows the ultimate's icon and name with the stronger glow; its card has the header strip ("☄️ УЛЬТИМЕЙТ · Вогняний шторм") and lists what it did (unblockable, Ice Mirror's hits, what Theft took or the guaranteed crit, Detonation's multiplier, Bloom's heal). **Jackpot** with the reels forced to 💎💎💎, 💎🪙💀, 🪙💀💀 and 💀💀💀: the card shows the three reels, the multiplier, or "промах" / "miss" with 0 damage | An ultimate without its card text, a Jackpot miss without reels |
+| **Level-ups**: two fighters a few XP short of level 5 fight; each level-up appears in the chat panel as "@x досягає 5-го рівня" / "@x reaches level 5" with the HP gain from `getMaxHP` and the attack gain from the level | Level-up numbers made up or missing |
+| **No internal ids** (`rage`, `firestorm`, …), placeholders (`{n}`), `undefined` or `NaN` anywhere on screen, at every step | Untranslated keys leaking into the overlay |
+| **Every kind of card** built through the real renderer with worst-case data (25-letter names, the White Dragon's -1949998, the longest effect line, sudden death, every ultimate, both Jackpot outcomes, Knock-out by start-of-turn effects, pending / waiting / knocked-out cells, the result card, a draw) fits in two lines | Worst cases that real fights rarely produce |
+| **Crowded second lines**: the most crowded card on the sheet (turn 24) keeps everything the attack applied, removed or stole and ends with "+N" for what it dropped. Drop order: effects the attack only counted down, then start-of-turn ticks (they also pop on the card), then the sudden-death multiplier (the banner says damage grows), then the other hit notes | Important parts dropped, or dropped silently |
+| **One effect once**: a Firestorm card whose hit applies 🔥 Burn and whose cast then refreshes it shows Burn once | The same effect listed twice on one card |
+| No page errors | Exceptions from the view code |
+
+Review screenshots: `fightview-cards.png` (every kind of log card, both languages) and `fightview-turn.png` (the countdown, the betting window, turn steps 1 and 2, an ultimate turn and the result, both languages). `FV_ONLY=2,4 npm run test:fightview` runs only some sections (numbered in the file).
+
+### Visual only: the fights stay the same
+
+The view only draws what the fight already decided. In Node (the balance sims, `effects.js`, `ultimates.js`, the mutations) there is no page, so the view switches itself off, and the fight's text record (the hidden `#battle-log`, which the sims and the effect tests read) is unchanged. Three checks back this up:
+
+- `npm run test:balance-gate` prints exactly the same table as on main (same seed).
+- `ui.js`'s fight-event fingerprint is the same on this branch and on main (`UI_FILE`), with the betting window off.
+- `npm test` passes and every mutation is still caught.
+
 ## Running locally
 
 Requires Node 18+ (CI uses Node 22).
@@ -402,7 +440,9 @@ npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)
 npm run test:ui showcase               # UI smoke test + screenshots in tests/screenshots/
-npm run test:layout                    # 1920×1080 layout test, both languages (~1 min)
+npm run test:layout                    # 1920×1080 layout test, both languages
+npm run test:fightview                 # battle log, turns, ultimates, countdown, result, both languages (slow: plays dozens of fights)
+UI_FILE=main.html node tests/ui.js showcase   # same flow on another copy of the page: compare the fingerprint
 
 node tests/balance.js matrix 300 20 --seed 42    # rerun with another seed
 node tests/balance.js bonuses 600                # every title bonus vs Common

@@ -17,8 +17,11 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 - **Progression:** XP, levels 1–20 and a win/loss leaderboard, saved in `localStorage`
 - **Channel-point rewards** for title rolls and element rerolls
 - **1920×1080 overlay** with pixel-art gold frames: the arena and a side column (streamer card, top drakes, chat replies) on the right, the camera column and the strip above the arena left free. Outside OBS the demo controls sit in the camera column and the whole stage scales down to fit the window
+- **Battle log as attack cards:** one row per round, the left fighter's attack on the left and the right fighter's on the right. Each card names the move (from the drake's element, the attack type and its strength), the damage with an arrow toward the target, and what happened in words: blocks, crits (gold cards), armour-piercing, vampire heals, start-of-turn ticks, effects cast, refreshed or replaced. Ultimates get a header strip; sudden death gets a banner and the damage multiplier on each card. The log starts empty for every fight
+- **Turn animation** inside the 4.5 s turn: the attacker lights up with an "⚔ АТАКУЄ" tab (or its ultimate's name), then the target flashes and recoils, its damage number pops, and the HP bar keeps a grey chunk for the lost HP before it drains. Only transform and opacity are animated, so OBS doesn't drop frames
+- **Countdown and result:** a big timer before the first turn ("БІЙ ПОЧИНАЄТЬСЯ"), and a knockout card after the fight with damage, biggest hit, crits and XP for both fighters; level-ups are announced in the chat panel
 - **Ukrainian / English** interface and commands
-- **Test panel:** set up any two drakes at any level with any title and run a fight
+- **Test panel:** set up any two drakes at any level with any title and run a fight; make the next damaging hit cast a chosen effect; fill either fighter's СИЛА meter to see its ultimate
 - **Chat simulator** that feeds the same handler as real Twitch messages
 
 ## Setup
@@ -36,7 +39,8 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
    let STREAMER_USER = "yourname";
    ```
    or type the name into **⚙️ Test Settings → Streamer**, which saves it in that browser and overrides the script value. Empty (the default) means nobody can pick the White Dragon.
-4. *(Optional)* Create two channel-point rewards that require text. Paste their IDs into `REWARD_ID_TITLE` and `REWARD_ID_REROLL`. Until you do, any text reward is accepted.
+4. *(Optional)* **Betting window:** tick it in **⚙️ Test Settings** (saved in that browser) and every ranked fight and duel waits 30 s first, with "СТАВКИ ВІДКРИТО" / "BETS OPEN" and a 30-second timer, for running Twitch Predictions on fights. Test battles keep the short wait. Off by default; a build with it on by default only changes `BETTING_WINDOW_DEFAULT` (the wait itself is `BETTING_WINDOW_MS`).
+5. *(Optional)* Create two channel-point rewards that require text. Paste their IDs into `REWARD_ID_TITLE` and `REWARD_ID_REROLL`. Until you do, any text reward is accepted.
 
 Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The overlay never posts to chat. If tmi.js can't load, the page still works offline through the simulator.
 
@@ -209,6 +213,7 @@ Everything is in `index.html`:
 - `CLASS_ULTIMATES`, `METER`: the six class ultimates (icon, names, numbers, description) and the Element Power meter; `ultimateFor`, `describeUltimate`, `renderPowerMeter` (the meter row on the fighter cards)
 - `checkQueue`, `runBattle`, `pickEffect`, `applyEffect`, `finishBattle`: matchmaking and the combat loop (`applyEffect` handles refresh, replacement, Dispel and immunity; `runBattle` fills the meter and plays the ultimates)
 - `addInfo`, `showStatsCard`, `showTitleRoll`, `showOddsCard`: the chat-request window
+- The fight view (`fvBegin`, `fvTurn`, `fvStep1`, `fvStep2`, `fvFinish`, `fvCardHtml`, `fvCountdown`, `startFight`): the battle log cards, the turn animation, the countdown and the result card. Visual only: the fight records what each turn did (no rolls), and the view draws it. `MOVE_NAMES` holds the move names (element × attack type × strength, both languages). `addLog` is now the fight's hidden text record, which the balance sims and tests read
 - `renderLeaderboard`, `updateFighterCard`, `updateStatusUI`: UI rendering; `renderStreamerCard`, `renderHowTo`, `setArenaState` (the header), `renderResultTags` (winner/loser cards); `nameColor` (minimum name brightness), `fitText` (shrinks long text), `fitStage` (scales the stage outside OBS)
 - `migrateOldSaves`, the chat simulator and page init are at the end of the script
 

@@ -33,6 +33,10 @@ jobs:
       - name: Layout test
         run: npm run test:layout
 
+      # Battle log cards, turn animation, ultimates, countdown (both modes) and result card, both languages
+      - name: Fight view test
+        run: npm run test:fightview
+
       # Upload even when a test fails: the screenshots are how you see what went wrong
       - name: Upload screenshots
         if: always()
