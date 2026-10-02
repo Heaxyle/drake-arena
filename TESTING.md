@@ -5,13 +5,13 @@ Drake Arena is a single HTML file with no build step, so the tests work on that 
 1. **Effect rules, ultimates and balance simulation** (`tests/effects.js`, `tests/ultimates.js`, `tests/balance.js` + `tests/sim_harness.js`) run the real game code in Node. The effect and ultimate tests check the buff/debuff, meter and ultimate rules; the balance sim plays thousands of fights. Together they answer: *do the rules work as written, is the game fair, and does combat ever crash?*
 2. **UI smoke test, layout test and fight view test** (`tests/ui.js`, `tests/layout.js`, `tests/fightview.js`) open the page in headless Chromium, play it through fake chat and check the layout, the battle log and the turn animation. They answer: *does it work and look right on stream?*
 
-Both run in CI on every push and pull request (`.github/workflows/ci.yml`).
+Both run in CI (`.github/workflows/ci.yml`) on every pull request and on every push to `main`, so each PR update runs CI once.
 
 ## Pipeline
 
 ```mermaid
 flowchart TD
-    A[Push or pull request] --> B[Checkout, Node 22, npm ci]
+    A[Pull request, or push to main] --> B[Checkout, Node 22, npm ci]
     B --> C[Install headless Chromium]
     C --> D["Layer 1: effect rules + balance simulation<br/>npm test"]
     D -->|an effect rule broke, or a fight crashed| X[CI fails]
@@ -362,7 +362,7 @@ First it checks the White Dragon is streamer-only: with no streamer set, `!др�
 | The White Dragon is refused with no streamer set and for every other viewer; the streamer's dragon gets title 999 | The streamer-only check missing from a command path (`!drake`, `!reroll`, either language) |
 | Old-save migration: a second page loads a save from before the Green Drake, then reloads | Viewers' `'white'` not becoming `'green'` (with XP kept), the streamer's dragon being converted, title 999 left on a non-dragon, or a second load changing the save again (not idempotent) |
 
-It also saves screenshots at each stage to `tests/screenshots/` (`showcase-01-registered.png` … `showcase-07-all-fights-done.png`). CI uploads them as the `ui-screenshots` artifact even when the run fails, so you can see what the overlay looked like. Some layout bugs are easier to spot by eye than to assert, and the screenshots are how those get found.
+It also saves screenshots at each stage to `tests/screenshots/` (`showcase-01-registered.png` … `showcase-07-all-fights-done.png`). They change on every run, so they aren't committed (`.gitignore`); CI uploads every screenshot as the `ui-screenshots` artifact on every run, even when the run fails, so you can see what the overlay looked like. Some layout bugs are easier to spot by eye than to assert, and the screenshots are how those get found.
 
 ## Layer 2: layout test
 
@@ -386,7 +386,7 @@ It also saves screenshots at each stage to `tests/screenshots/` (`showcase-01-re
 | **Review sheet** (`layout-review-cards.png`): the fighter card for every element and the White Dragon, plus a winner (Gold drake) and a loser (Black drake), in both languages, on the arena panel inside the arena frame | Nothing by itself: it's for checking by eye |
 | No page errors | Exceptions from the new rendering code |
 
-Screenshots: `layout-worst-{uk,en}[-nofonts].png`, `layout-obs-{uk,en}.png` (transparent), `layout-1366x768.png`, `layout-result-{uk,en}.png`, `layout-review-cards.png`.
+Screenshots: `layout-worst-{uk,en}[-nofonts].png`, `layout-obs-{uk,en}.png` (transparent), `layout-1366x768.png`, `layout-result-{uk,en}.png`, `layout-review-cards.png`. Only the review sheet, `layout-review-cards.png`, is committed (regenerate and commit it when the look changes on purpose); the rest are in the CI artifact.
 
 Text that is still too wide at its smallest allowed size is squeezed sideways (`fitText` wraps it in a `.squeeze` span with `scaleX`). `scrollWidth` ignores transforms, so the test measures squeezed text as drawn.
 
