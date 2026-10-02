@@ -153,6 +153,14 @@ const MUTATIONS = [
         "if ((command === '!бій' || command === '!battle') && !args[1]) {", 'if (false) {'],
     ['two icons in the opening banner', 'the opening banner template adds its own 🌅 before the title icon',
         "opening: '{title}: {who} starts with {fx}'", "opening: '🌅 {title}: {who} starts with {fx}'"],
+    ['refused accept leaves the challenge open', 'an !accept refused because a player is resting keeps the challenge, so "did not answer" follows 30 s later',
+        "dropChallenge();   // answered, so no", "// answered, so no"],
+    ['challenging a resting viewer', '!battle opens a challenge to a viewer who is still resting',
+        'if (targetUser !== channelName && getCooldownRemaining(targetUser) > 0) {', 'if (false) {'],
+    ['challenging a waiting duellist', '!battle opens a challenge to a viewer whose duel is waiting',
+        'if (inWaitingDuel(targetUser)) {', 'if (false) {'],
+    ['double full stop', 'the accept refusal ends "min.." / "хв.."',
+        'is resting for another ${getCooldownRemaining(u)} min`', 'is resting for another ${getCooldownRemaining(u)} min.`'],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported

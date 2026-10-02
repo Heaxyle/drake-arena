@@ -183,6 +183,11 @@ for (const lang of ['en', 'uk']) {
     G.say('d2', t('!accept', '!прийняти'));
     const acceptReply = lastInfo();
     const waiting = G.waitingDuel;
+    // !battle to a viewer in the waiting duel: said at once, no challenge opened
+    G.say('d3', t('!battle @d1', '!бій @d1'));
+    const toWaiting = lastInfo(), pendingD1 = G.pending.d1;
+    const wantWait = t('⏳ @d1 is waiting for a duel. Challenge them after the next fight.', '⏳ @d1 чекає на дуель. Киньте виклик після наступного бою.');
+    check(toWaiting === wantWait && pendingD1 === undefined, `11. "!battle" to a viewer whose duel is waiting says "${wantWait}" and opens no challenge`, `reply: ${toWaiting}; pending ${JSON.stringify(G.pending)}`);
     G.say('d3', t('!battle @d4', '!бій @d4'));
     G.say('d4', t('!accept', '!прийняти'));
     const secondReply = lastInfo();
@@ -202,12 +207,21 @@ for (const lang of ['en', 'uk']) {
     // Accepting needs both players free; a refusal charges nothing and keeps the challenge
     fresh();
     ['e1', 'e2', 'e3', 'e4'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i].type));
-    G.say('e1', t('!queue', '!черга')); G.say('e3', t('!queue', '!черга')); __drain();   // e1 and e3 fought: both resting
-    G.say('e2', t('!battle @e1', '!бій @e1'));
+    G.say('e2', t('!battle @e1', '!бій @e1'));                               // e2 challenges e1 while e1 is free …
+    G.say('e1', t('!queue', '!черга')); G.say('e3', t('!queue', '!черга'));    // … then e1 starts a ranked fight: now resting
     G.say('e1', t('!accept', '!прийняти'));
     const refused = lastInfo();
-    check(/is resting|відпочиває/.test(refused) && G.getCooldownRemaining('e2') === 0 && G.pending.e1 === 'e2' && fightsStarted.length === 1,
-        '11. accepting while one player is still resting: a clear reply, no fight, nothing charged, the challenge stays open', `reply: ${refused}; e2 cooldown ${G.getCooldownRemaining('e2')}; fights ${fightsStarted.length}`);
+    const openAfter = G.pending.e1;
+    __drain();   // the fight, and the 30 s the challenge would have had
+    const noAnswerMsg = infos.some(x => /did not answer|не відповів/.test(x));
+    check(/is resting|відпочиває/.test(refused) && G.getCooldownRemaining('e2') === 0 && openAfter === undefined && !noAnswerMsg && fightsStarted.length === 1,
+        '11. accepting while a player is resting: a clear reply, no fight, nothing charged, and the challenge closes (no "did not answer" 30 s later)',
+        `reply: ${refused}; e2 cooldown ${G.getCooldownRemaining('e2')}; challenge after: ${openAfter}; "did not answer": ${noAnswerMsg}; fights ${fightsStarted.length}`);
+    check(/(min|хв)\.$/.test(refused) && !refused.includes('..'), '11. the refusal ends with one full stop', refused);
+    // !battle to a resting viewer: said at once, no challenge opened
+    G.say('e4', t('!battle @e3', '!бій @e3'));
+    const wantRest = t(`⏳ @e3 is resting for another ${G.getCooldownRemaining('e3')} min. Challenge them later.`, `⏳ @e3 відпочиває ще ${G.getCooldownRemaining('e3')} хв. Киньте виклик пізніше.`);
+    check(lastInfo() === wantRest && !G.pending.e3, `10. "!battle" to a resting viewer says "${wantRest}" and opens no challenge`, `reply: ${lastInfo()}; pending ${JSON.stringify(G.pending)}`);
 
     // 12. "!battle" with no name
     fresh();

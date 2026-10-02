@@ -790,8 +790,8 @@
         const BETTING_WINDOW_MS = 30000;       // the optional betting window before each fight (Test Settings)
         const BETTING_WINDOW_DEFAULT = false;  // a build with the betting window on by default only changes this
         const BETTING_KEY = 'drake_arena_showcase_betting';
-        const SUDDEN_DEATH = { from: 16, perTurn: 0.3 };
-        const MAX_TURNS = 30;                  // the last turn played; the time-out comes after it   // from this turn every hit gets ×(1 + perTurn per turn since)
+        const SUDDEN_DEATH = { from: 16, perTurn: 0.3 };   // from this turn every hit gets ×(1 + perTurn per turn since)
+        const MAX_TURNS = 30;                  // the last turn played; the time-out comes after it
         const levelAttackBonus = level => Math.floor(level * 0.8);   // flat damage every attack gets from the level
         let forcedCast = null;   // test menu only: the next hit that deals damage also casts this effect
 
@@ -2749,13 +2749,15 @@ function drakeSpriteURL(type) {
                         : `⏳ <span style="color: ${senderColor};">@${sender}</span>, another duel is already waiting for the arena. Challenge again after the next fight.`, 'warn');
                     return;
                 }
-                // Both players must be free (not resting after a fight); if not, nothing happens and nothing is charged
+                // Both players must be free (not resting after a fight). If not, the challenge was still answered: it closes
+                // (with its timer), and nothing is charged
                 const channel = target.replace('#', '');
                 const resting = [challenger, sender].filter(u => u !== channel && getCooldownRemaining(u) > 0);
                 if (resting.length) {
+                    dropChallenge();   // answered, so no "did not answer" 30 s later
                     addInfo(currentLang === 'uk'
-                        ? `⏳ Дуель не почалася: ${resting.map(u => `<b>@${u}</b> відпочиває ще ${getCooldownRemaining(u)} хв.`).join(', ')}.`
-                        : `⏳ The duel can't start: ${resting.map(u => `<b>@${u}</b> is resting for another ${getCooldownRemaining(u)} min.`).join(', ')}.`, 'warn');
+                        ? `⏳ Дуель не почалася: ${resting.map(u => `<b>@${u}</b> відпочиває ще ${getCooldownRemaining(u)} хв`).join(', ')}.`
+                        : `⏳ The duel can't start: ${resting.map(u => `<b>@${u}</b> is resting for another ${getCooldownRemaining(u)} min`).join(', ')}.`, 'warn');
                     return;
                 }
 
@@ -2834,6 +2836,22 @@ function drakeSpriteURL(type) {
                         `⚠️ <span style="color: ${senderColor};">@${sender}</span>, глядач <b>@${targetUser}</b> ще не грає в Арену! Викликати можна лише гравців з Дрейком.` :
                         `⚠️ <span style="color: ${senderColor};">@${sender}</span>, viewer <b>@${targetUser}</b> is not playing Arena yet! You can only challenge players with a Drake.`;
                     addInfo(msg, 'warn');
+                    return;
+                }
+
+                // The target must be free: not resting after a fight, not in a waiting duel
+                const channelName = target.replace('#', '');
+                if (targetUser !== channelName && getCooldownRemaining(targetUser) > 0) {
+                    const mins = getCooldownRemaining(targetUser);
+                    addInfo(currentLang === 'uk'
+                        ? `⏳ <b>@${targetUser}</b> відпочиває ще ${mins} хв. Киньте виклик пізніше.`
+                        : `⏳ <b>@${targetUser}</b> is resting for another ${mins} min. Challenge them later.`, 'warn');
+                    return;
+                }
+                if (inWaitingDuel(targetUser)) {
+                    addInfo(currentLang === 'uk'
+                        ? `⏳ <b>@${targetUser}</b> чекає на дуель. Киньте виклик після наступного бою.`
+                        : `⏳ <b>@${targetUser}</b> is waiting for a duel. Challenge them after the next fight.`, 'warn');
                     return;
                 }
 

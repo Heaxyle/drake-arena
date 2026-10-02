@@ -105,14 +105,14 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | The streamer's "!reroll white" ends with "Level 20!"; other rerolls still end with "Level reset to 1!" | The wrong level in the message |
 | A fight nobody can win (HP too high) plays turn 30, then times out, and its result says 30 turns | The time-out coming before turn 30 |
 | A ranked draw keeps both records and gives +10 XP each (Gold its bonus) | A draw counted as a loss |
-| A declined or expired challenge leaves the challenger off the cooldown; a second `!battle` while one is open gets a reply; a duel and a ranked fight put both fighters on the cooldown when they start | Cooldowns charged for challenges, or for only one duellist |
-| `!accept` during a fight: the duel waits ("starts after the current fight") and both leave the ranked queue; another `!accept` is told to challenge again after the next fight; the waiting players get a "busy" reply to `!queue`, `!battle`, `!accept`; after the fight the waiting duel starts before the ranked queue and both go on the cooldown; accepting while a player is resting gets a clear reply, starts nothing and charges nothing | Duels dropped when the arena is busy, or the queue jumping ahead of them |
+| A declined or expired challenge leaves the challenger off the cooldown; a second `!battle` while one is open gets a reply; `!battle` to a resting viewer says "⏳ @x is resting for another N min. Challenge them later." and opens no challenge; a duel and a ranked fight put both fighters on the cooldown when they start | Cooldowns charged for challenges, or for only one duellist; challenges to players who can't accept |
+| `!accept` during a fight: the duel waits ("starts after the current fight") and both leave the ranked queue; another `!accept` is told to challenge again after the next fight; the waiting players get a "busy" reply to `!queue`, `!battle`, `!accept`; after the fight the waiting duel starts before the ranked queue and both go on the cooldown; accepting while a player is resting gets a clear reply (one full stop), starts nothing, charges nothing and closes the challenge (no "did not answer" 30 s later); `!battle` to a player whose duel is waiting says "⏳ @x is waiting for a duel. Challenge them after the next fight." and opens no challenge | Duels dropped when the arena is busy, the queue jumping ahead of them, or a misleading "did not answer" |
 | "!battle" with no name, even on the cooldown, replies "ℹ️ @x, to challenge someone type !battle @name." | No reply, or "Arena is exhausted" |
 | The opening-buff banner shows the title's icon once | "🌅 🌅 Woke Up Swinging" |
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 64 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 68 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -180,6 +180,10 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 62 | Players whose duel is waiting can still `!queue`, `!battle`, `!accept` | `rules.js` 11 | `⏳ @d1 joined ranked queue!` |
 | 63 | `!battle` with no name gets no explanation | `rules.js` 12 | `⏳ @hinty, your Arena is exhausted!` |
 | 64 | The opening banner adds its own 🌅 before the title's icon | `rules.js` 13 | `🌅 🌅 Woke Up Swinging: …` |
+| 65 | An `!accept` refused because a player is resting keeps the challenge open | `rules.js` 11 | `challenge after: e2; "did not answer": true` |
+| 66 | `!battle` opens a challenge to a viewer who is still resting | `rules.js` 10 | `reply: ⚔️ @e4 challenges @e3 to a Friendly Duel!` |
+| 67 | `!battle` opens a challenge to a viewer whose duel is waiting | `rules.js` 11 | `reply: ⚔️ @d3 challenges @d1 to a Friendly Duel!` |
+| 68 | The accept refusal ends with two full stops | `rules.js` 11 | `… is resting for another 3 min..` |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -237,7 +241,9 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: fractional max HP
 …
 ✓ caught: two icons in the opening banner
-All 64 mutations caught.
+…
+✓ caught: double full stop
+All 68 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -484,7 +490,7 @@ npm test                               # effect rules, then balance: element mat
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
 npm run test:rules                     # the game rules: whole HP, chat commands, cooldowns, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 64 ways, check effects.js / ultimates.js / rules.js catch each
+npm run test:mutations                 # break the game 68 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)
