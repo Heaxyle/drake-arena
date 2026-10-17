@@ -394,7 +394,8 @@
             <div class="debug-col">
                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"><input type="checkbox" id="debug-betting" onchange="setBettingWindow(this.checked)">
                 <strong style="color: #ffd978;" data-i18n="label_betting">Betting window</strong></label>
-                <span style="color: var(--dim);" data-i18n="betting_hint">every fight waits 30 s first (for Twitch Predictions); test battles don't</span>
+                <span style="color: var(--dim);" data-i18n="betting_hint">every fight waits 2 min first (for Twitch Predictions); the channel owner or a moderator can type !start to begin early; test battles don't wait</span>
+                <button class="test-btn secondary" onclick="skipBettingWindow()" id="debug-skip-bets" data-i18n="btn_skip_bets">⏭ Skip the betting window</button>
             </div>
             <div class="debug-col">
                 <strong style="color: #bfe9ff;" data-i18n="label_streamer">Streamer:</strong>
@@ -560,7 +561,8 @@
                 streamer_hint: "лише цей користувач може обрати 🐉 Білого Дракона (порожньо = ніхто)",
                 label_force_cast: "Наступний удар накладає:",
                 label_betting: "Вікно ставок",
-                betting_hint: "кожен бій чекає 30 с (для передбачень Twitch); тестові бої — ні",
+                betting_hint: "кожен бій чекає 2 хв (для передбачень Twitch); власник каналу або модератор може написати !старт, щоб почати раніше; тестові бої не чекають",
+                btn_skip_bets: "⏭ Пропустити вікно ставок",
                 sim_streamer: "🐉 стрімер: !дрейк білий"
             },
             en: {
@@ -591,7 +593,8 @@
                 streamer_hint: "only this user can pick the 🐉 White Dragon (empty = nobody)",
                 label_force_cast: "Next hit casts:",
                 label_betting: "Betting window",
-                betting_hint: "every fight waits 30 s first (for Twitch Predictions); test battles don't",
+                betting_hint: "every fight waits 2 min first (for Twitch Predictions); the channel owner or a moderator can type !start to begin early; test battles don't wait",
+                btn_skip_bets: "⏭ Skip the betting window",
                 sim_streamer: "🐉 streamer: !drake white"
             }
         };
@@ -631,22 +634,12 @@
         let playerLeaderboardStats = JSON.parse(localStorage.getItem('drake_arena_showcase_stats')) || {};
         let isBattleRunning = false;
         let matchmakingQueue = [];
-        let cooldowns = {}; 
-        const COOLDOWN_MINUTES = 3; 
 
         let pendingChallenges = {}; 
         let challengeTimeouts = {};
         // A duel accepted while the arena is busy: it starts after the current fight (before the ranked queue carries on)
         let waitingDuel = null;
         const inWaitingDuel = u => !!waitingDuel && (waitingDuel.challenger === u || waitingDuel.accepter === u);
-
-        function getCooldownRemaining(username) {
-            if (!cooldowns[username]) return 0;
-            let timePassed = Date.now() - cooldowns[username];
-            let requiredTime = COOLDOWN_MINUTES * 60 * 1000;
-            if (timePassed >= requiredTime) return 0;
-            return Math.ceil((requiredTime - timePassed) / 1000 / 60); 
-        }
 
         function updateQueueUI() {
             const queueContainer = document.getElementById('queue-list-ui');
@@ -801,7 +794,7 @@
         const FV_LIVE = typeof document !== 'undefined' && !!document.body;
         const TURN_MS = 4500;                  // one turn (the fight's interval)
         const HIT_DELAY_MS = 600;              // turn step 1 (the attacker lights up) → step 2 (the hit lands)
-        const BETTING_WINDOW_MS = 30000;       // the optional betting window before each fight (Test Settings)
+        const BETTING_WINDOW_MS = 120000;      // the optional betting window before each fight (Test Settings); !старт / !start ends it early
         const BETTING_WINDOW_DEFAULT = false;  // a build with the betting window on by default only changes this
         const BETTING_KEY = 'drake_arena_showcase_betting';
         const SUDDEN_DEATH = { from: 16, perTurn: 0.3 };   // from this turn every hit gets ×(1 + perTurn per turn since)
@@ -1191,7 +1184,9 @@
         }
         function fvRepaintCountdown() { if (arenaState.kind === 'countdown') fvCountdown(null); }
 
-        // Pre-fight betting window: both fighters on their cards, "СТАВКИ ВІДКРИТО", the timer from 30 s
+        // The open betting window's fight, waiting to start (null when there is none): { start }
+        let bettingWait = null;
+        // Pre-fight betting window: both fighters on their cards, "СТАВКИ ВІДКРИТО", the timer from 2:00
         function startFight(p1Name, p1Color, p2Name, p2Color, isRanked) {
             clearForcedCast();
             if (!FV_LIVE || !bettingWindowOn()) return runBattle(p1Name, p1Color, p2Name, p2Color, isRanked);
@@ -1207,7 +1202,22 @@
             updateUIHP(hp(a), hp(a), hp(b), hp(b));
             setArenaState({ kind: 'countdown', ranked: isRanked, betting: true, flipped: false, ends: Date.now() + BETTING_WINDOW_MS });
             fvCountdown(BETTING_WINDOW_MS);
-            setTimeout(() => runBattle(p1Name, p1Color, p2Name, p2Color, isRanked, { betting: true }), BETTING_WINDOW_MS - TURN_MS);
+            // The fight starts the normal way (coin flip, then the 4.5 s "першим б'є …" countdown) TURN_MS before the window
+            // ends, or at once on a skip: whichever comes first, and only once
+            const wait = { start: () => {
+                bettingWait = null;
+                clearTimeout(wait.timer);
+                runBattle(p1Name, p1Color, p2Name, p2Color, isRanked, { betting: true });
+            } };
+            bettingWait = wait;
+            wait.timer = setTimeout(wait.start, BETTING_WINDOW_MS - TURN_MS);
+        }
+        // !старт / !start (the channel owner or a moderator) and the test panel's Skip: end the betting window now. Does
+        // nothing (returns false) when no fight is waiting for one: none open, or its fight has already started
+        function skipBettingWindow() {
+            if (!bettingWait) return false;
+            bettingWait.start();
+            return true;
         }
         function bettingWindowOn() {
             try { const v = localStorage.getItem(BETTING_KEY); return v === null ? BETTING_WINDOW_DEFAULT : v === '1'; } catch (e) { return BETTING_WINDOW_DEFAULT; }
@@ -2612,6 +2622,13 @@ function drakeSpriteURL(type) {
             const isBroadcaster = (sender === target.replace('#', ''));
             const rewardId = context['custom-reward-id'];
 
+            // The channel owner or a moderator ends the betting window early; anyone else's !старт is ignored
+            if (command === '!старт' || command === '!start') {
+                const badges = context.badges || {};
+                if (isBroadcaster || context.mod === true || !!badges.broadcaster || !!badges.moderator) skipBettingWindow();
+                return;
+            }
+
             let db = getDragonDB();
 
             // "!battle" with no name: say how to challenge, before any other check
@@ -2765,18 +2782,6 @@ function drakeSpriteURL(type) {
                         : `⏳ <span style="color: ${senderColor};">@${sender}</span>, another duel is already waiting for the arena. Challenge again after the next fight.`, 'warn');
                     return;
                 }
-                // Both players must be free (not resting after a fight). If not, the challenge was still answered: it closes
-                // (with its timer), and nothing is charged
-                const channel = target.replace('#', '');
-                const resting = [challenger, sender].filter(u => u !== channel && getCooldownRemaining(u) > 0);
-                if (resting.length) {
-                    dropChallenge();   // answered, so no "did not answer" 30 s later
-                    addInfo(currentLang === 'uk'
-                        ? `⏳ Дуель не почалася: ${resting.map(u => `<b>@${u}</b> відпочиває ще ${getCooldownRemaining(u)} хв`).join(', ')}.`
-                        : `⏳ The duel can't start: ${resting.map(u => `<b>@${u}</b> is resting for another ${getCooldownRemaining(u)} min`).join(', ')}.`, 'warn');
-                    return;
-                }
-
                 dropChallenge();
                 let cColor = db[challenger] ? db[challenger].color : '#cccccc';
                 matchmakingQueue = matchmakingQueue.filter(u => u !== sender && u !== challenger);
@@ -2804,17 +2809,6 @@ function drakeSpriteURL(type) {
                     `❌ <span style="color: ${senderColor};">@${sender}</span> declined duel challenge from @${challenger}.`;
                 addInfo(msg);
                 return;
-            }
-
-            if (command === '!черга' || command === '!queue' || command === '!бій' || command === '!battle') {
-                let cdMinutes = getCooldownRemaining(sender);
-                if (cdMinutes > 0 && !isBroadcaster) {
-                    let msg = currentLang === 'uk' ?
-                        `⏳ <span style="color: ${senderColor};">@${sender}</span>, ваша Арена виснажена! Зачекайте ще <b>${cdMinutes} хв.</b> перед наступним боєм.` :
-                        `⏳ <span style="color: ${senderColor};">@${sender}</span>, your Arena is exhausted! Wait another <b>${cdMinutes} min.</b> before next battle.`;
-                    addInfo(msg, 'warn');
-                    return;
-                }
             }
 
             if (command === '!черга' || command === '!queue') {
@@ -2855,15 +2849,7 @@ function drakeSpriteURL(type) {
                     return;
                 }
 
-                // The target must be free: not resting after a fight, not in a waiting duel
-                const channelName = target.replace('#', '');
-                if (targetUser !== channelName && getCooldownRemaining(targetUser) > 0) {
-                    const mins = getCooldownRemaining(targetUser);
-                    addInfo(currentLang === 'uk'
-                        ? `⏳ <b>@${targetUser}</b> відпочиває ще ${mins} хв. Киньте виклик пізніше.`
-                        : `⏳ <b>@${targetUser}</b> is resting for another ${mins} min. Challenge them later.`, 'warn');
-                    return;
-                }
+                // The target must not be in a waiting duel
                 if (inWaitingDuel(targetUser)) {
                     addInfo(currentLang === 'uk'
                         ? `⏳ <b>@${targetUser}</b> чекає на дуель. Киньте виклик після наступного бою.`
@@ -2887,7 +2873,7 @@ function drakeSpriteURL(type) {
                     return;
                 }
 
-                pendingChallenges[targetUser] = sender;   // a challenge on its own costs nothing: the cooldown starts with the fight
+                pendingChallenges[targetUser] = sender;
                 
                 let msg = currentLang === 'uk' ?
                     `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> викликає <span style="color: #ffaa00; font-weight: bold;">@${targetUser}</span> на Товариську Дуель! У вас є 30 секунд, щоб написати <b>!прийняти</b> або <b>!відхилити</b>.` :
@@ -2926,8 +2912,6 @@ function drakeSpriteURL(type) {
             let p2Name = matchmakingQueue.splice(idx2, 1)[0];
 
             isBattleRunning = true;
-            cooldowns[p1Name] = Date.now();
-            cooldowns[p2Name] = Date.now();
             updateQueueUI();
             fightRecordReset();
             
@@ -2944,11 +2928,9 @@ function drakeSpriteURL(type) {
             startFight(p1Name, p1Data.color, p2Name, p2Data.color, true);
         }
 
-        // A duel starts: both fighters go on the cooldown now (a challenge on its own costs nothing)
+        // A duel starts
         function startDuel(challenger, cColor, accepter, aColor) {
             isBattleRunning = true;
-            cooldowns[challenger] = Date.now();
-            cooldowns[accepter] = Date.now();
             fightRecordReset();
             startFight(challenger, cColor, accepter, aColor, false);
         }
