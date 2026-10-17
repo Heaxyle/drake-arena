@@ -11,6 +11,8 @@
 // streamer is set and for every other viewer (!дрейк / !drake / !рерол), and works for the streamer set in Test Settings.
 // Fights with the dragon (one natural, one with vampire rolls forced) must never log a heal above the healer's max HP.
 // A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent.
+// Another checks the streamer card in the side column draws the streamer's own drake: the dragon, then a red drake after a
+// reroll (at an exact 2x, centred in the dragon's slot), then the dragon again.
 // Screenshots go to tests/screenshots/. Game timers run on a fake clock, so fights take seconds.
 // Fights are seeded: Math.random is replaced with a seeded generator before the page loads, so every run plays the same
 // fights (UI_SEED=n picks another seed). The game clock is paused and only moved by the test, and visual checks wait
@@ -530,6 +532,73 @@ async function testMigration(browser, key) {
     return failures;
 }
 
+// The streamer card draws the streamer's own drake, in a fresh page (so the main run's seeded fights are untouched):
+// no drake yet → the greyed-out dragon placeholder; !дрейк білий → the dragon at 2x (120×84); a reroll to red, as chat
+// sends it (a channel-point redemption) → the red sprite at 2x (96×72) centred in the same 120×84 slot, the text column
+// where it was, the label naming the red drake; a reroll back to white → the dragon again. Both languages; the Ukrainian
+// run saves screenshots of the side column with the dragon and with the red drake.
+async function testStreamerCard(browser, key) {
+    const failures = [];
+    const fail = msg => { failures.push(msg); console.log(`    ✗ ${msg}`); };
+    const pass = msg => console.log(`    ✓ ${msg}`);
+    const cfg = VERSIONS[key];
+    const streamer = cfg.dragon.streamer;
+    console.log(`\n=== ${key}: streamer card sprite ===`);
+
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const pageErrors = [];
+    for (const lang of ['uk', 'en']) {
+        const page = await context.newPage();
+        page.on('pageerror', e => pageErrors.push(e.message));
+        await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
+        await page.addInitScript(([k, u]) => { localStorage.clear(); localStorage.setItem(k, u); }, [cfg.dragon.storageKey, streamer]);
+        await page.goto('file:///' + path.join(ROOT, cfg.file).replace(/\\/g, '/') + '?lang=' + lang);
+        await page.addStyleTag({ content: 'html { background: #1e1f26; }' });
+        await page.evaluate(() => document.fonts.ready);
+        const chat = (msg, extra) => page.evaluate(([u, m, e]) => window.__chat(u, m, e), [streamer, msg, extra]);
+        // What the card shows: which sprite (compared with each type's own sprite), its box, the text column's left edge
+        const card = () => page.evaluate(() => {
+            const box = document.getElementById('streamer-card'), img = box.querySelector('.sc-sprite'), id = box.querySelector('.sc-id');
+            const r = img.getBoundingClientRect(), b = box.getBoundingClientRect(), slotLeft = id.getBoundingClientRect().left - 16 - 120;
+            const type = DRAKE_TYPES.map(d => d.type).find(t => drakeSpriteURL(t) === img.getAttribute('src')) || '?';
+            const slotTop = b.top + (b.height - 84) / 2;   // the 120×84 slot, centred in the card's height
+            return { type, w: Math.round(r.width), h: Math.round(r.height), dx: Math.round(r.left + r.width / 2 - (slotLeft + 60)), dy: Math.round(r.top + r.height / 2 - (slotTop + 42)),
+                textLeft: Math.round(id.getBoundingClientRect().left), grey: /grayscale/.test(img.getAttribute('style') || ''), sub: box.querySelector('.sc-sub').innerText };
+        });
+        const tag = `[${lang}]`;
+        const red = lang === 'uk' ? 'Червоний Дрейк' : 'Red Drake', dragonName = lang === 'uk' ? 'Білий Дракон' : 'White Dragon';
+        const reward = { 'custom-reward-id': 'test-reward' };   // !рерол only counts as a channel-point redemption
+
+        const none = await card();
+        if (none.type !== 'white' || !none.grey || none.w !== 120 || none.h !== 84) fail(`${tag} with no drake yet the card should show the greyed-out dragon at 120×84, got ${JSON.stringify(none)}`);
+        else pass(`${tag} no drake yet: the greyed-out dragon placeholder (${none.sub})`);
+
+        await chat(lang === 'uk' ? '!дрейк білий' : '!drake white');
+        const white = await card();
+        if (white.type !== 'white' || white.dx || white.dy || white.grey || white.w !== 120 || white.h !== 84 || !white.sub.startsWith(dragonName)) fail(`${tag} after !дрейк білий the card should show the dragon at 120×84, got ${JSON.stringify(white)}`);
+        else pass(`${tag} the White Dragon: dragon sprite at 120×84, "${white.sub}"`);
+        if (lang === 'uk') await page.locator('#side').screenshot({ path: path.join(SHOTS, `${key}-streamer-card-dragon.png`) });
+
+        await chat(lang === 'uk' ? '!рерол червоний' : '!reroll red', reward);
+        const redCard = await card();
+        if (redCard.type !== 'red' || redCard.grey || redCard.w !== 96 || redCard.h !== 72 || !redCard.sub.startsWith(red)) fail(`${tag} after a reroll to red the card should show the red sprite at 96×72 and name the red drake, got ${JSON.stringify(redCard)}`);
+        else pass(`${tag} rerolled to red: red sprite at 96×72, "${redCard.sub}"`);
+        if (redCard.dx !== 0 || redCard.dy !== 0 || redCard.textLeft !== white.textLeft) fail(`${tag} the red sprite should be centred in the 120×84 slot with the text where it was (centre offset 0,0; text at ${white.textLeft}), got offset ${redCard.dx},${redCard.dy}, text at ${redCard.textLeft}`);
+        else pass(`${tag} the red sprite is centred in the dragon's 120×84 slot; the text column didn't move`);
+        if (lang === 'uk') await page.locator('#side').screenshot({ path: path.join(SHOTS, `${key}-streamer-card-red.png`) });
+
+        await chat(lang === 'uk' ? '!рерол білий' : '!reroll white', reward);
+        const back = await card();
+        if (back.type !== 'white' || back.w !== 120 || back.h !== 84 || back.textLeft !== white.textLeft || !back.sub.startsWith(dragonName)) fail(`${tag} after a reroll back to white the card should show the dragon at 120×84 again, got ${JSON.stringify(back)}`);
+        else pass(`${tag} rerolled back to white: the dragon at 120×84 again`);
+        await page.close();
+    }
+    if (pageErrors.length) [...new Set(pageErrors)].forEach(e => fail(`JS error: ${e}`));
+    else pass('no JS errors');
+    await context.close();
+    return failures;
+}
+
 (async () => {
     const only = process.argv[2];
     if (only && !VERSIONS[only]) { console.error(`Unknown version "${only}". Use: ${Object.keys(VERSIONS).join(' | ')}`); process.exit(1); }
@@ -540,6 +609,7 @@ async function testMigration(browser, key) {
         for (const key of only ? [only] : Object.keys(VERSIONS)) {
             total += (await testVersion(browser, key)).length;
             if (VERSIONS[key].dragon) total += (await testMigration(browser, key)).length;
+            if (VERSIONS[key].dragon) total += (await testStreamerCard(browser, key)).length;
         }
     } finally {
         await browser.close();

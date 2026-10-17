@@ -30,5 +30,5 @@ The root `index.html` only redirects to `showcase/index.html` (for GitHub Pages)
 - `npm run test:fightview` — battle log cards, turn animation, every effect and ultimate from the test menu, countdown in both modes, result card and level-ups, both languages. Review screenshots: `tests/screenshots/fightview-*.png`.
 - Visual-only changes: `npm run test:balance-gate` must print the same table as main, and `UI_FILE=<main's index.html> node tests/ui.js showcase` must print the same fight-events fingerprint as the branch.
 - `npm run test:layout` — 1920x1080 layout in both languages (worst-case cards, Google Fonts blocked, `?obs` empty regions, demo controls, 1366x768, "How to play", name contrast, winner/loser labels). Screenshots in `tests/screenshots/layout-*.png`.
-- `npm run test:ui` — headless Chromium smoke test (7 types, streamer-only dragon refusal, idempotent old-save migration) (needs `npx playwright install chromium` once). Screenshots go to `tests/screenshots/`.
+- `npm run test:ui` — headless Chromium smoke test (7 types, streamer-only dragon refusal, idempotent old-save migration, the streamer card showing the streamer's own drake) (needs `npx playwright install chromium` once). Screenshots go to `tests/screenshots/`.
 - Node 18+ required. Open the HTML in a browser to check visuals.
