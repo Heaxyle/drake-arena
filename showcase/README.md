@@ -39,7 +39,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
    let STREAMER_USER = "yourname";
    ```
    or type the name into **⚙️ Test Settings → Streamer**, which saves it in that browser and overrides the script value. Empty (the default) means nobody can pick the White Dragon.
-4. *(Optional)* **Betting window:** tick it in **⚙️ Test Settings** (saved in that browser) and every ranked fight and duel waits 30 s first, with "СТАВКИ ВІДКРИТО" / "BETS OPEN" and a 30-second timer, for running Twitch Predictions on fights. Test battles keep the short wait. Off by default; a build with it on by default only changes `BETTING_WINDOW_DEFAULT` (the wait itself is `BETTING_WINDOW_MS`).
+4. *(Optional)* **Betting window:** tick it in **⚙️ Test Settings** (saved in that browser) and every ranked fight and duel waits 2 minutes first, with "СТАВКИ ВІДКРИТО" / "BETS OPEN" and a 2:00 timer, for running Twitch Predictions on fights. The channel owner or a moderator can type `!старт` / `!start` to end it early (anyone else's is ignored); the fight then starts the usual way, with the coin flip and the 4.5 s countdown. The test panel has a **⏭ Skip the betting window** button that does the same. Test battles keep the short wait. Off by default; a build with it on by default only changes `BETTING_WINDOW_DEFAULT` (the wait itself is `BETTING_WINDOW_MS`).
 5. *(Optional)* Create two channel-point rewards that require text. Paste their IDs into `REWARD_ID_TITLE` and `REWARD_ID_REROLL`. Until you do, any text reward is accepted.
 
 Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The overlay never posts to chat. If tmi.js can't load, the page still works offline through the simulator.
@@ -56,10 +56,11 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The 
 | `!title` | `!титул` | Roll a random title *(channel points)* |
 | `!odds` / `!chances` | `!шанси` | Show the title roulette drop chances |
 | `!reroll <color>` | `!рерол <колір>` | Change element and reset to level 1 *(channel points)* |
+| `!start` | `!старт` | End the betting window early *(channel owner and moderators only)* |
 
-**Cooldown:** when a fight starts (ranked or duel), both fighters rest for 3 minutes: no `!queue`, `!battle` or `!accept` until it's over. A challenge on its own costs nothing, so a declined or expired one leaves the challenger free. The broadcaster is exempt.
+**No rest between fights:** fighters can `!queue`, `!battle` and `!accept` again straight away, even during their own fight. Only two things hold a player back: someone already in the queue can't join it twice, and players whose duel is waiting for the arena are busy until it starts (below).
 
-**Duels during a fight:** `!accept` while the arena is busy doesn't cancel the duel: it waits, and starts about 5 s after the current fight's result, before the ranked queue carries on. Accepting takes both players out of the ranked queue, and until their duel starts both get a short "busy" reply to `!queue`, `!battle` and `!accept`. Only one duel can wait at a time; another `!accept` meanwhile is told to challenge again after the next fight. Accepting needs both players free (not resting, not in a waiting duel); if they aren't, they get a reply saying who is resting, the challenge closes (it was answered), and nothing is charged. A `!battle` to a viewer who is resting or whose duel is waiting is answered straight away ("⏳ @x is resting for another N min. Challenge them later." / "⏳ @x is waiting for a duel. Challenge them after the next fight.") and opens no challenge.
+**Duels during a fight:** `!accept` while the arena is busy doesn't cancel the duel: it waits, and starts about 5 s after the current fight's result, before the ranked queue carries on. Accepting takes both players out of the ranked queue, and until their duel starts both get a short "busy" reply to `!queue`, `!battle` and `!accept`. Only one duel can wait at a time; another `!accept` meanwhile is told to challenge again after the next fight. A `!battle` to a viewer whose duel is waiting is answered straight away ("⏳ @x is waiting for a duel. Challenge them after the next fight.") and opens no challenge.
 
 ## How combat works
 

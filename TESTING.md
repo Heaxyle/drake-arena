@@ -105,14 +105,14 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | The streamer's "!reroll white" ends with "Level 20!"; other rerolls still end with "Level reset to 1!" | The wrong level in the message |
 | A fight nobody can win (HP too high) plays turn 30, then times out, and its result says 30 turns | The time-out coming before turn 30 |
 | A ranked draw keeps both records and gives +10 XP each (Gold its bonus) | A draw counted as a loss |
-| A declined or expired challenge leaves the challenger off the cooldown; a second `!battle` while one is open gets a reply; `!battle` to a resting viewer says "⏳ @x is resting for another N min. Challenge them later." and opens no challenge; a duel and a ranked fight put both fighters on the cooldown when they start | Cooldowns charged for challenges, or for only one duellist; challenges to players who can't accept |
-| `!accept` during a fight: the duel waits ("starts after the current fight") and both leave the ranked queue; another `!accept` is told to challenge again after the next fight; the waiting players get a "busy" reply to `!queue`, `!battle`, `!accept`; after the fight the waiting duel starts before the ranked queue and both go on the cooldown; accepting while a player is resting gets a clear reply (one full stop), starts nothing, charges nothing and closes the challenge (no "did not answer" 30 s later); `!battle` to a player whose duel is waiting says "⏳ @x is waiting for a duel. Challenge them after the next fight." and opens no challenge | Duels dropped when the arena is busy, the queue jumping ahead of them, or a misleading "did not answer" |
-| "!battle" with no name, even on the cooldown, replies "ℹ️ @x, to challenge someone type !battle @name." | No reply, or "Arena is exhausted" |
+| **No rest between fights**: both duellists `!queue` during their duel and their ranked fight starts right after it; a second `!queue` still says "already in queue"; a viewer who just fought is challenged and accepts at once, and a viewer in a fight can be challenged; no "exhausted" or "resting" reply anywhere. A second `!battle` while one is open gets a reply | A rest creeping back in (a fighter turned away from the queue, a challenge or an accept refused) |
+| `!accept` during a fight: the duel waits ("starts after the current fight") and both leave the ranked queue; another `!accept` is told to challenge again after the next fight; the waiting players get a "busy" reply to `!queue`, `!battle`, `!accept`; after the fight the waiting duel starts before the ranked queue; a fighter who accepts a challenge during their own fight gets a waiting duel that starts right after it, and the challenge closes (no "did not answer" 30 s later); `!battle` to a player whose duel is waiting says "⏳ @x is waiting for a duel. Challenge them after the next fight." and opens no challenge | Duels dropped when the arena is busy, the queue jumping ahead of them, or a misleading "did not answer" |
+| "!battle" with no name, even mid-fight, replies "ℹ️ @x, to challenge someone type !battle @name." | No reply |
 | The opening-buff banner shows the title's icon once | "🌅 🌅 Woke Up Swinging" |
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 68 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 63 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -172,18 +172,13 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 54 | Rerolling into the White Dragon says "Level reset to 1!" | `rules.js` 7 | `🔥 @boss REBORN! New element: White Dragon 🐉. Level reset to 1!` |
 | 55 | The time-out comes before turn 30 | `rules.js` 8 | `last turn played: 29 … result turns: 29` |
 | 56 | A ranked draw adds a loss to both records | `rules.js` 9 | `records {"wins":4,"losses":3} {"wins":1,"losses":6}` |
-| 57 | Sending a challenge puts the challenger on the cooldown | `rules.js` 10 (and 11, 12) | `cooldown after decline: 3 min, after expiry: 3 min` |
-| 58 | A viewer can send a second challenge while one is open | `rules.js` 10 | `pending {"c2":"c1","c3":"c1"}` |
-| 59 | A duel starts without putting the challenger on the cooldown | `rules.js` 10, 11 | `duel 0,3` |
-| 60 | After a fight, the ranked queue goes before the waiting duel | `rules.js` 11 | `first fight: undefined` (the waiting duel never started) |
-| 61 | A duel can be accepted while a player is still resting | `rules.js` 11 | the duel started and the challenger was charged |
-| 62 | Players whose duel is waiting can still `!queue`, `!battle`, `!accept` | `rules.js` 11 | `⏳ @d1 joined ranked queue!` |
-| 63 | `!battle` with no name gets no explanation | `rules.js` 12 | `⏳ @hinty, your Arena is exhausted!` |
-| 64 | The opening banner adds its own 🌅 before the title's icon | `rules.js` 13 | `🌅 🌅 Woke Up Swinging: …` |
-| 65 | An `!accept` refused because a player is resting keeps the challenge open | `rules.js` 11 | `challenge after: e2; "did not answer": true` |
-| 66 | `!battle` opens a challenge to a viewer who is still resting | `rules.js` 10 | `reply: ⚔️ @e4 challenges @e3 to a Friendly Duel!` |
-| 67 | `!battle` opens a challenge to a viewer whose duel is waiting | `rules.js` 11 | `reply: ⚔️ @d3 challenges @d1 to a Friendly Duel!` |
-| 68 | The accept refusal ends with two full stops | `rules.js` 11 | `… is resting for another 3 min..` |
+| 57 | A viewer can send a second challenge while one is open | `rules.js` 10 | `pending {"c2":"c1","c3":"c1"}` |
+| 58 | After a fight, the ranked queue goes before the waiting duel | `rules.js` 11 | `first fight: undefined` (the waiting duel never started) |
+| 59 | Players whose duel is waiting can still `!queue`, `!battle`, `!accept` | `rules.js` 11 | `⏳ @d1 joined ranked queue!` |
+| 60 | `!battle` with no name gets no explanation | `rules.js` 12 | no reply (the last one is still `⏳ @other joined ranked queue!`) |
+| 61 | The opening banner adds its own 🌅 before the title's icon | `rules.js` 13 | `🌅 🌅 Woke Up Swinging: …` |
+| 62 | A rest creeps back in: nobody can join the ranked queue while a fight is on | `rules.js` 10 (4 checks) | `duel on: true; queue during the duel: ` (empty) |
+| 63 | `!battle` opens a challenge to a viewer whose duel is waiting | `rules.js` 11 | `reply: ⚔️ @d3 challenges @d1 to a Friendly Duel!` |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -242,8 +237,8 @@ Output of the last run (the "by" lines say which test file caught it and how man
 …
 ✓ caught: two icons in the opening banner
 …
-✓ caught: double full stop
-All 68 mutations caught.
+✓ caught: challenging a waiting duellist
+All 63 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -452,7 +447,8 @@ Text that is still too wide at its smallest allowed size is squeezed sideways (`
 |---|---|
 | **Only `transform` and `opacity` are animated**: every `@keyframes` rule and every transition in the page's stylesheets | An animated shadow, size or colour, which costs OBS frames (glows are pre-drawn and faded instead) |
 | **Countdown, default**: queue two fighters; until turn 1 the plate says "⏳ БІЙ ПОЧИНАЄТЬСЯ" / "⏳ FIGHT STARTING", the log area shows the timer (0:05 → 0:01, checked every 0.5 s against the time left); turn 1 lands at exactly 4.5 s, not 1 ms earlier, and the log replaces the countdown; turns 2–4 every 4.5 s after | The countdown changing the fight's timing, a timer that doesn't match the time left |
-| **Countdown, betting window on** (Test Settings): "⏳ СТАВКИ ВІДКРИТО" / "⏳ BETS OPEN", the timer from 0:30; turn 1 at exactly 30 s; turns every 4.5 s after; a test battle still starts after 4.5 s | The switch not delaying the fight, or delaying test battles |
+| **Countdown, betting window on** (Test Settings): "⏳ СТАВКИ ВІДКРИТО" / "⏳ BETS OPEN", the timer from 2:00 (checked every second); turn 1 at exactly 2 min; turns every 4.5 s after; a test battle still starts after 4.5 s | The switch not delaying the fight, or delaying test battles |
+| **`!старт` / `!start`** on channel `#test`, both languages: with no fight waiting the owner's `!старт` and Skip do nothing; in an open window a viewer's, a fighter's, a VIP's and a subscriber's are ignored (the timer keeps going: 1:50 at 10 s); a moderator's starts the fight the normal way at once (coin flip, then the 4.5 s "🎲 першим б’є …" countdown from 0:05), and turn 1 lands exactly 4.5 s later; two more `!старт` right after, `!старт` mid-fight and the window's own timer running out start no second fight; the owner's ends the next window (the fighters queued again straight after their fight), and so does a moderator known only by the badge; a skip 1 ms before the window's own start, and one at the same moment as it, each give one fight; the test panel's **⏭ Skip the betting window** does the same | Anyone skipping the window; a skip that starts a fight twice (or a second fight when the timer runs out), or skips the coin flip and countdown |
 | **Four real fights per language, every turn** (ranked, duels, every element, a 25-letter name, the White Dragon): at step 1 the attacker's card has the highlight and its tab and the other doesn't, and the log shows "⚔ @x атакує…" in the attacker's column; at step 2 exactly one card for that turn, in the attacker's column (left = the fighter who struck first), lit, and the only lit card | Cards in the wrong column, missing or doubled; the highlight not following the attacker |
 | The whole turn animation, from the tick to the end of the last animation, finishes inside the 4.5 s turn | Animations overlapping the next turn |
 | No card wraps past two lines (three with an ultimate's header), and nothing in a card is cut off (squeezed text measured as drawn). **No second line is drawn below 90% of its normal size** (font size × any sideways squeeze); a line that dropped items ends with a muted "+N" chip | Long move names, names, damage numbers or effect lines breaking the card, or shrunk until unreadable at stream size |
@@ -489,8 +485,8 @@ npx playwright install chromium        # once; CI adds --with-deps for Linux sys
 npm test                               # effect rules, then balance: element matrix, title tiers, level gaps
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
-npm run test:rules                     # the game rules: whole HP, chat commands, cooldowns, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 68 ways, check effects.js / ultimates.js / rules.js catch each
+npm run test:rules                     # the game rules: whole HP, chat commands, no rest, duels, turn 30, draws (~5 s)
+npm run test:mutations                 # break the game 63 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)

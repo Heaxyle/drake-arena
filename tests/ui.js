@@ -27,7 +27,7 @@ const { settleArena } = require('./settle');
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
 const STEP_MS = 500;              // fake-clock step between layout samples during a fight
-const FIGHT_LIMIT_MS = 5 * 60000; // 30s countdown + 30 turns x 4.5s fits easily
+const FIGHT_LIMIT_MS = 5 * 60000; // a 2-minute betting window + 30 turns x 4.5s fits
 // The default seed is one where both languages show a full Element Power meter during the fights
 const SEED = Number(process.env.UI_SEED || 3);
 
@@ -360,7 +360,7 @@ async function testVersion(browser, key) {
             return vampHits;
         };
         const dragonDuel = async label => {
-            await page.clock.runFor(3 * 60000 + 6000);   // past the 3-minute per-player fight cooldown
+            await page.clock.runFor(3 * 60000 + 6000);   // a pause between fights (there is no rest now; kept so the fight-events fingerprint compares with main)
             await startLogCapture();
             await runFight(label, async () => {
                 await chat(pair[0], `!бій @${pair[1]}`);

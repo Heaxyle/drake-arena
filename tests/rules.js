@@ -12,10 +12,10 @@
 //   7  rerolling into the White Dragon says its level (20), not "reset to 1"
 //   8  a fight that reaches the limit plays turn 30, then times out, and its result says 30 turns
 //   9  a ranked draw gives both +10 XP (Gold its bonus) and leaves wins and losses alone
-//   10 the cooldown starts when a fight starts (both fighters, ranked or duel); a challenge alone costs nothing; one
-//      open challenge per viewer
+//   10 no rest after a fight: fighters can !queue, !battle and !accept straight away (ranked or duel); one open
+//      challenge per viewer
 //   11 a duel accepted during a fight waits and starts after it, before the ranked queue; one waiting duel; both
-//      players busy meanwhile; accepting needs both players free, and a refusal charges nothing
+//      players busy meanwhile; a fighter can accept a challenge, or be challenged, while their fight is on
 //   12 "!battle" with no name says how to challenge, before any other check
 //   13 the opening-buff banner shows the title's icon once
 // Exits non-zero if any check fails.
@@ -31,7 +31,7 @@ const _warn = console.warn; console.warn = () => {};
 eval(gameScript(FILE) + `
 ;globalThis.__game = {
     TITLES_DB, DRAKE_TYPES, VIEWER_DRAKE_TYPES, DRAGON_TYPE, EFFECTS, FV_TEXT: typeof FV_TEXT !== 'undefined' ? FV_TEXT : null,
-    getMaxHP, getRequiredXP, calculateLevelAndProgress, getDragonDB, saveDragonDB, setStreamerUser, getCooldownRemaining,
+    getMaxHP, getRequiredXP, calculateLevelAndProgress, getDragonDB, saveDragonDB, setStreamerUser,
     say: (user, text, channel) => handleChatMessage('#' + (channel || 'streamchannel'), { username: user, color: '#8ab4f8' }, text, false),
     runBattle: (...a) => runBattle(...a), finishBattle: (...a) => finishBattle(...a), checkQueue: () => checkQueue(),
     nextFight: typeof nextFight === 'function' ? () => nextFight() : null,
@@ -41,7 +41,6 @@ eval(gameScript(FILE) + `
     get pending() { return pendingChallenges; }, get queue() { return matchmakingQueue; }, set queue(q) { matchmakingQueue = q; },
     get waitingDuel() { return typeof waitingDuel !== 'undefined' ? waitingDuel : undefined; },
     get running() { return isBattleRunning; }, set running(v) { isBattleRunning = v; },
-    resetCooldowns: () => { Object.keys(cooldowns).forEach(k => delete cooldowns[k]); },
     setLang: l => { currentLang = l; },
     withMaxHP: (f, fn) => { const orig = getMaxHP; getMaxHP = f; try { return fn(); } finally { getMaxHP = orig; } },
     wrapRunBattle: f => { const orig = runBattle; runBattle = (...a) => { f(...a); return orig(...a); }; },
@@ -64,11 +63,11 @@ G.wrapAddInfo(h => infos.push(strip(h)));
 G.wrapAddLog(t => logs.push(strip(t)));
 G.wrapRunBattle((a, ac, b, bc, ranked) => fightsStarted.push({ a, b, ranked }));
 const lastInfo = () => infos[infos.length - 1] || '';
-// A clean slate: no saves, stats, queue, challenges, cooldowns or fight
+// A clean slate: no saves, stats, queue, challenges or fight
 const fresh = () => {
     __drain();
     G.saveDragonDB({}); Object.keys(G.stats).forEach(k => delete G.stats[k]); G.queue = [];
-    Object.keys(G.pending).forEach(k => delete G.pending[k]); G.resetCooldowns(); G.running = false;
+    Object.keys(G.pending).forEach(k => delete G.pending[k]); G.running = false;
     infos = []; logs = []; fightsStarted = [];
 };
 const make = (name, type, opts = {}) => {
@@ -152,27 +151,35 @@ for (const lang of ['en', 'uk']) {
     check(JSON.stringify(G.stats.drawa) === '{"wins":4,"losses":2}' && JSON.stringify(G.stats.drawb) === '{"wins":1,"losses":5}' && xpA === 10 && xpB > 10,
         `9. a ranked draw keeps both records (4–2, 1–5) and gives +10 XP (Gold +${xpB})`, `records ${JSON.stringify(G.stats.drawa)} ${JSON.stringify(G.stats.drawb)}, XP +${xpA} / +${xpB}`);
 
-    // 10. Cooldowns start with a fight
+    // 10. No rest after a fight
     fresh();
     ['c1', 'c2', 'c3', 'c4'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i].type));
-    G.say('c1', t('!battle @c2', '!бій @c2'));
-    G.say('c2', t('!decline', '!відхилити'));
-    const afterDecline = G.getCooldownRemaining('c1');
-    G.say('c1', t('!battle @c3', '!бій @c3'));
-    __drain();   // the challenge expires unanswered
-    const afterExpiry = G.getCooldownRemaining('c1');
-    check(afterDecline === 0 && afterExpiry === 0, '10. a declined or expired challenge costs the challenger nothing (no cooldown)', `cooldown after decline: ${afterDecline} min, after expiry: ${afterExpiry} min`);
     G.say('c1', t('!battle @c2', '!бій @c2'));
     G.say('c1', t('!battle @c3', '!бій @c3'));
     check(G.pending.c2 === 'c1' && !G.pending.c3 && /already have an open challenge|уже є відкритий виклик/.test(lastInfo()),
         '10. a viewer can have one open challenge; a second !battle gets a short reply', `pending ${JSON.stringify(G.pending)}, reply: ${lastInfo()}`);
-    G.say('c2', t('!accept', '!прийняти'));
-    const duelCd = [G.getCooldownRemaining('c1'), G.getCooldownRemaining('c2')];
+    G.say('c2', t('!accept', '!прийняти'));                                   // the duel c1 vs c2 starts …
+    const duelOn = G.running && fightsStarted.length === 1;
+    G.say('c1', t('!queue', '!черга')); G.say('c2', t('!queue', '!черга'));    // … and both join the ranked queue during it
+    const queuedDuringDuel = [...G.queue];
+    G.say('c1', t('!queue', '!черга'));
+    const already = lastInfo();
+    __drain();                                                                // the duel ends; 5 s later the queue goes on
+    const rankedNext = fightsStarted[1];
     __drain();
-    G.say('c3', t('!queue', '!черга')); G.say('c4', t('!queue', '!черга'));
-    const rankedCd = [G.getCooldownRemaining('c3'), G.getCooldownRemaining('c4')];
+    check(duelOn && queuedDuringDuel.join() === 'c1,c2' && rankedNext && rankedNext.ranked && [rankedNext.a, rankedNext.b].sort().join() === 'c1,c2',
+        '10. no rest: both duellists join the ranked queue during their duel, and their ranked fight starts right after it',
+        `duel on: ${duelOn}; queue during the duel: ${queuedDuringDuel}; next fight: ${JSON.stringify(rankedNext)}`);
+    check(/already in queue|вже в черзі/.test(already), '10. "already in the queue" still applies', already);
+    G.say('c3', t('!battle @c1', '!бій @c1'));                                // straight after two fights in a row
+    const challenged = G.pending.c1 === 'c3';
+    G.say('c1', t('!accept', '!прийняти'));
+    const thirdFight = fightsStarted[2];
+    G.say('c4', t('!battle @c2', '!бій @c2'));                                // c2 fought twice, c1 is fighting
+    check(challenged && thirdFight && thirdFight.a === 'c3' && thirdFight.b === 'c1' && G.pending.c2 === 'c4',
+        '10. no rest: a viewer who just fought can be challenged and accept at once, and can be challenged mid-fight', `challenge opened: ${challenged}; fight: ${JSON.stringify(thirdFight)}; pending ${JSON.stringify(G.pending)}`);
     __drain();
-    check(duelCd.every(m => m > 0) && rankedCd.every(m => m > 0), '10. when a fight starts, both fighters go on the cooldown (duel and ranked)', `duel ${duelCd}, ranked ${rankedCd}`);
+    check(!infos.some(x => /exhausted|resting|виснажена|відпочиває/.test(x)), '10. no "exhausted" or "resting" reply anywhere', infos.filter(x => /exhausted|resting|виснажена|відпочиває/.test(x)).slice(0, 2).join(' | '));
 
     // 11. An accepted duel waits for the arena
     fresh();
@@ -196,40 +203,35 @@ for (const lang of ['en', 'uk']) {
     G.running = false;                  // the fight ends …
     if (G.nextFight) G.nextFight();     // … and 5 s after its result the next fight starts
     const first = fightsStarted[0];
-    const cds = [G.getCooldownRemaining('d1'), G.getCooldownRemaining('d2')];
     check(/after the current fight|після поточного бою/.test(acceptReply) && !!waiting && waiting.challenger === 'd1' && waiting.accepter === 'd2' && !G.queue.includes('d2'),
         '11. !accept during a fight: the duel waits ("starts after the current fight"), and both players leave the ranked queue', `reply: ${acceptReply}; waiting: ${JSON.stringify(waiting)}; queue ${G.queue}`);
     check(/after the next fight|після наступного бою/.test(secondReply) && !G.pending.d4, '11. only one duel waits: another !accept is told to challenge again after the next fight', secondReply);
     check(busy.every(r => /waiting for the arena|чекає на арену/.test(r)), '11. while their duel waits, both players get a short "busy" reply to !queue, !battle and !accept', busy.join(' | '));
-    check(first && first.a === 'd1' && first.b === 'd2' && !first.ranked && cds.every(m => m > 0) && G.waitingDuel === null,
-        '11. after the fight, the waiting duel starts first (before the ranked queue), and both duellists go on the cooldown then', `first fight: ${JSON.stringify(first)}, cooldowns ${cds}`);
+    check(first && first.a === 'd1' && first.b === 'd2' && !first.ranked && G.waitingDuel === null,
+        '11. after the fight, the waiting duel starts first (before the ranked queue)', `first fight: ${JSON.stringify(first)}`);
     __drain();
-    // Accepting needs both players free; a refusal charges nothing and keeps the challenge
+    // A fighter accepts a challenge during their own fight: the duel waits for the arena, and the challenge closes
     fresh();
     ['e1', 'e2', 'e3', 'e4'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i].type));
-    G.say('e2', t('!battle @e1', '!бій @e1'));                               // e2 challenges e1 while e1 is free …
-    G.say('e1', t('!queue', '!черга')); G.say('e3', t('!queue', '!черга'));    // … then e1 starts a ranked fight: now resting
+    G.say('e2', t('!battle @e1', '!бій @e1'));                               // e2 challenges e1 …
+    G.say('e1', t('!queue', '!черга')); G.say('e3', t('!queue', '!черга'));    // … then e1 starts a ranked fight
     G.say('e1', t('!accept', '!прийняти'));
-    const refused = lastInfo();
-    const openAfter = G.pending.e1;
-    __drain();   // the fight, and the 30 s the challenge would have had
+    const midFight = lastInfo(), waitingE = G.waitingDuel, openAfter = G.pending.e1;
+    __drain();   // the fight, the waiting duel after it, and the 30 s the challenge would have had
     const noAnswerMsg = infos.some(x => /did not answer|не відповів/.test(x));
-    check(/is resting|відпочиває/.test(refused) && G.getCooldownRemaining('e2') === 0 && openAfter === undefined && !noAnswerMsg && fightsStarted.length === 1,
-        '11. accepting while a player is resting: a clear reply, no fight, nothing charged, and the challenge closes (no "did not answer" 30 s later)',
-        `reply: ${refused}; e2 cooldown ${G.getCooldownRemaining('e2')}; challenge after: ${openAfter}; "did not answer": ${noAnswerMsg}; fights ${fightsStarted.length}`);
-    check(/(min|хв)\.$/.test(refused) && !refused.includes('..'), '11. the refusal ends with one full stop', refused);
-    // !battle to a resting viewer: said at once, no challenge opened
-    G.say('e4', t('!battle @e3', '!бій @e3'));
-    const wantRest = t(`⏳ @e3 is resting for another ${G.getCooldownRemaining('e3')} min. Challenge them later.`, `⏳ @e3 відпочиває ще ${G.getCooldownRemaining('e3')} хв. Киньте виклик пізніше.`);
-    check(lastInfo() === wantRest && !G.pending.e3, `10. "!battle" to a resting viewer says "${wantRest}" and opens no challenge`, `reply: ${lastInfo()}; pending ${JSON.stringify(G.pending)}`);
+    check(/after the current fight|після поточного бою/.test(midFight) && waitingE && waitingE.challenger === 'e2' && waitingE.accepter === 'e1' && openAfter === undefined && !noAnswerMsg
+        && fightsStarted.length === 2 && fightsStarted[1].a === 'e2' && fightsStarted[1].b === 'e1',
+        '11. a fighter accepts a challenge during their own fight: the duel waits and starts right after it (no "did not answer" 30 s later)',
+        `reply: ${midFight}; waiting: ${JSON.stringify(waitingE)}; challenge after: ${openAfter}; "did not answer": ${noAnswerMsg}; fights ${JSON.stringify(fightsStarted)}`);
 
     // 12. "!battle" with no name
     fresh();
     make('hinty', 'red');
-    G.say('hinty', t('!queue', '!черга')); make('other', 'blue'); G.say('other', t('!queue', '!черга')); __drain();   // hinty is now on the cooldown
+    G.say('hinty', t('!queue', '!черга')); make('other', 'blue'); G.say('other', t('!queue', '!черга'));   // hinty is fighting
     G.say('hinty', t('!battle', '!бій'));
     const want12 = t('ℹ️ @hinty, to challenge someone type !battle @name.', 'ℹ️ @hinty, щоб кинути виклик, напишіть !бій @нік.');
-    check(lastInfo() === want12, `12. "${t('!battle', '!бій')}" with no name (even on the cooldown) replies "${want12}"`, lastInfo());
+    check(lastInfo() === want12, `12. "${t('!battle', '!бій')}" with no name (even mid-fight) replies "${want12}"`, lastInfo());
+    __drain();
 
     // 13. One icon in the opening banner
     const opener = G.TITLES_DB.filter(x => x.mechanic === 'opening_buff' || (x.bonus && x.bonus.mechanic === 'opening_buff'));

@@ -1,7 +1,9 @@
 // Fight view test: the battle log cards, the turn animation, ultimates, the countdown and the result card
 // (design/redesign-reference.html), in both languages, with seeded fights and the game clock under the test's control.
-//   - Countdown: default (the existing 4.5 s before turn 1, "БІЙ ПОЧИНАЄТЬСЯ") and with the betting window on (30 s,
+//   - Countdown: default (the existing 4.5 s before turn 1, "БІЙ ПОЧИНАЄТЬСЯ") and with the betting window on (2 min,
 //     "СТАВКИ ВІДКРИТО"; test battles keep the short wait): the timer, the plate and that turn 1 comes at zero
+//   - !старт / !start: the channel owner or a moderator ends the betting window early (anyone else's is ignored), and
+//     so does the test panel's Skip button; the fight then starts the normal way (coin flip, 4.5 s "першим б'є …"), once
 //   - Every turn of several real fights: one card per attack in the attacker's column, the highlight on the attacker,
 //     the damage number on the target's card, the whole turn animation finished inside the turn, no card past 2 lines
 //   - Every effect from the test menu's "next hit casts" picker, every ultimate from its СИЛА button, every Jackpot
@@ -227,11 +229,11 @@ async function popAtStep2(page, turn) {
             const { page, context, errors } = await open(browser, { lang, betting });
             await register(page, lang, [['alpha', 'red'], ['omega', 'green']]);
             await say(page, 'alpha', cmd(lang, '!черга', '!queue')); await say(page, 'omega', cmd(lang, '!черга', '!queue'));
-            const W = betting ? 30000 : TURN;
+            const W = betting ? 120000 : TURN;
             const t0 = await page.evaluate(() => Date.now());
             const plateWant = betting ? (lang === 'uk' ? 'СТАВКИ ВІДКРИТО' : 'BETS OPEN') : (lang === 'uk' ? 'БІЙ ПОЧИНАЄТЬСЯ' : 'FIGHT STARTING');
             const samples = [];
-            for (let e = 0; e < W; e += 500) {
+            for (let e = 0; e < W; e += betting ? 1000 : 500) {
                 const now = await page.evaluate(() => Date.now());
                 if (t0 + e > now) await page.clock.runFor(t0 + e - now);
                 const s = await page.evaluate(() => ({ kind: arenaState.kind, plate: document.getElementById('status-plate').textContent, shown: document.getElementById('status-plate').innerText,
@@ -283,6 +285,96 @@ async function popAtStep2(page, turn) {
             await context.close();
         }
 
+        // ===== 1b. !старт / !start and the test panel's Skip end the betting window early =====
+        if (run(1)) for (const lang of ['uk', 'en']) {
+            const tag = `[${lang}, ${cmd(lang, '!старт', '!start')}]`;
+            const { page, context, errors } = await open(browser, { lang, betting: true });
+            await register(page, lang, [['alpha', 'red'], ['omega', 'green']]);
+            const START = cmd(lang, '!старт', '!start');
+            // The chat handler as tmi.js calls it on channel #test: the owner is "test"; moderators come with mod / badges
+            const chat = (user, extra = {}) => page.evaluate(([u, m, x]) => handleChatMessage('#test', { username: u, color: '#7fd1ff', ...x }, m, false), [user, START, extra]);
+            const state = () => page.evaluate(() => ({ fights: window.__fights.length, kind: arenaState.kind, betting: !!arenaState.betting, flipped: !!arenaState.flipped,
+                timer: (document.getElementById('cd-time') || {}).textContent, sub: (document.querySelector('#log-countdown .cd-sub') || {}).textContent || '',
+                plate: document.getElementById('status-plate').textContent, turn1: window.__fightLog.filter(l => /^\[(Хід|Turn) 1\]/.test(l)).length, running: isBattleRunning }));
+            const openWindow = async () => { await say(page, 'alpha', cmd(lang, '!черга', '!queue')); await say(page, 'omega', cmd(lang, '!черга', '!queue')); return page.evaluate(() => Date.now()); };
+            const finish = async () => { for (let i = 0; i < 60 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(TURN); await page.clock.runFor(6000); };
+            const firstWord = lang === 'uk' ? 'першим б’є' : 'strikes first';
+
+            // With no fight waiting: nothing happens
+            await chat('test');
+            const idle = await state(), idleSkip = await page.evaluate(() => skipBettingWindow());
+            check(idle.fights === 0 && idle.kind === 'idle' && idleSkip === false && (await state()).fights === 0, `${tag} with no fight waiting, the owner's ${START} and Skip do nothing`, JSON.stringify(idle));
+
+            // Window 1: viewers, a fighter and a VIP are ignored; a moderator ends it at 10 s
+            const t1 = await openWindow();
+            await page.clock.runFor(10000);
+            await chat('random_viewer'); await chat('alpha'); await chat('vip_viewer', { badges: { vip: '1' } }); await chat('sub_viewer', { subscriber: true, badges: { subscriber: '12' } });
+            const ignored = await state();
+            check(ignored.fights === 0 && ignored.kind === 'countdown' && ignored.betting && !ignored.flipped && ignored.timer === '1:50',
+                `${tag} a viewer's, a fighter's, a VIP's and a subscriber's ${START} are ignored: the window keeps counting (${ignored.timer})`, JSON.stringify(ignored));
+            await chat('mod_one', { mod: true, badges: { moderator: '1' } });
+            const skipped = await state();
+            await chat('mod_one', { mod: true, badges: { moderator: '1' } }); await chat('test');   // a second !старт, then the owner's
+            const twice = await state();
+            check(skipped.fights === 1 && skipped.kind === 'countdown' && skipped.flipped && skipped.timer === '0:05' && skipped.sub.includes(firstWord) && !skipped.turn1,
+                `${tag} a moderator's ${START} at 0:10 starts the fight the normal way: the coin flip and the 4.5 s "${skipped.sub}" countdown (${skipped.timer})`, JSON.stringify(skipped));
+            check(twice.fights === 1, `${tag} two more ${START} right after the skip (moderator, owner) start no second fight`, JSON.stringify(twice));
+            await page.clock.runFor(TURN - 1);
+            const early = await state();
+            await page.clock.runFor(1);
+            const onTime = await state();
+            check(!early.turn1 && onTime.turn1 === 1 && onTime.kind === 'fight', `${tag} turn 1 lands exactly 4.5 s after the skip`, JSON.stringify({ early, onTime }));
+            await chat('test'); await chat('mod_one', { mod: true });   // during the fight
+            const now1 = await page.evaluate(() => Date.now());
+            await page.clock.runFor(t1 + 120000 + 1000 - now1);         // past where the window would have ended
+            const during = await state();
+            check(during.fights === 1, `${tag} ${START} during the fight, and the window's own timer running out, start no second fight`, JSON.stringify(during));
+            await finish();
+
+            // Window 2: the channel owner; window 3: a moderator known only by the badge (no mod flag)
+            await openWindow();
+            await page.clock.runFor(3000);
+            await chat('test');
+            const owner = await state();
+            check(owner.fights === 2 && owner.flipped && owner.timer === '0:05', `${tag} the channel owner's ${START} ends the window too (the fighters queued again straight after their fight)`, JSON.stringify(owner));
+            await finish();
+            await openWindow();
+            await chat('badge_mod', { badges: { moderator: '1' } });
+            check((await state()).fights === 3, `${tag} a moderator known only by the badge can skip`, JSON.stringify(await state()));
+            await finish();
+
+            // Window 4: a skip 1 ms before the window's own start, then the timer; window 5: the timer, then a skip at the same moment
+            let t = await openWindow();
+            await page.clock.runFor(120000 - TURN - 1);
+            await chat('test');
+            let n = await page.evaluate(() => Date.now());
+            await page.clock.runFor(t + 120000 - n);
+            const edgeA = await state();
+            await finish();
+            t = await openWindow();
+            await page.clock.runFor(120000 - TURN);   // the window's own timer starts the fight now …
+            const atEnd = (await state()).fights;
+            await chat('test');                        // … and the skip arrives at the same moment
+            const edgeB = await state();
+            check(edgeA.fights === 4 && atEnd === 5 && edgeB.fights === 5,
+                `${tag} a skip right as the window ends starts one fight, whichever comes first (skip 1 ms before the timer, or the timer then the skip)`, JSON.stringify({ edgeA: edgeA.fights, atEnd, edgeB: edgeB.fights }));
+            await finish();
+
+            // Window 6: the test panel's Skip button
+            await page.evaluate(() => toggleDebugMenu());
+            const btn = page.locator('#debug-skip-bets');
+            const label = (await btn.innerText()).trim();
+            await openWindow();
+            await page.clock.runFor(2000);
+            await btn.click();
+            const viaButton = await state();
+            check(viaButton.fights === 6 && viaButton.flipped && viaButton.timer === '0:05' && label === cmd(lang, '⏭ Пропустити вікно ставок', '⏭ Skip the betting window'),
+                `${tag} the test panel's "${label}" button ends the window the same way`, JSON.stringify({ viaButton, label }));
+            await finish();
+            if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
         // ===== 2. Real fights, turn by turn, both languages =====
         console.log('\nFights, turn by turn');
         if (run(2)) for (const lang of ['uk', 'en']) {
@@ -295,7 +387,7 @@ async function popAtStep2(page, turn) {
             const allProblems = [], fit = [], ids = new Set(), tails = [];
             let resultChecks = [], onlyCurrent = [], xpChecks = [];
             for (const [a, b, ranked] of fights) {
-                await page.clock.runFor(4 * 60000);   // past the fighters' 3-minute cooldown
+                await page.clock.runFor(4 * 60000);   // a pause between fights (there is no rest now; kept so the seeded fights stay the same)
                 const xpBefore = await page.evaluate(([a, b]) => ({ [a]: getDragonStrict(a).xp, [b]: getDragonStrict(b).xp }), [a, b]);
                 if (ranked) { await say(page, a, cmd(lang, '!черга', '!queue')); await say(page, b, cmd(lang, '!черга', '!queue')); }
                 else { await say(page, a, `${cmd(lang, '!бій', '!battle')} @${b}`); await say(page, b, cmd(lang, '!прийняти', '!accept')); }
