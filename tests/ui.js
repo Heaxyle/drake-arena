@@ -121,7 +121,8 @@ function powerMeters() {
         const st = isBattleRunning && typeof battleFx !== 'undefined' && battleFx && battleFx[name];   // between fights the cards are idle
         return { p, text: row.innerText.replace(/\s+/g, ' ').trim(), pips: row.querySelectorAll('.pm-pip').length, on: row.querySelectorAll('.pm-pip.on').length,
                  meter: st ? st.meter : null, overlapsChips: r.height > 0 && r.top < chips.bottom - 0.5, overlapsHp: r.height > 0 && r.bottom > hp.top + 0.5,
-                 overlapsSprite: content > sprite.left + 0.5 && r.bottom > sprite.top && r.top < sprite.bottom, cut: row.scrollWidth > row.clientWidth + 1,
+                 // the sprite is on the right of the left card and on the left of the right card: check both sides
+                 overlapsSprite: Math.min(content, sprite.right) > Math.max(r.left, sprite.left) + 0.5 && r.bottom > sprite.top && r.top < sprite.bottom, cut: row.scrollWidth > row.clientWidth + 1,
                  // A hit in the air (turn step 1 → 2, 0.6 s): the cards deliberately show the state from before the hit
                  inAir: typeof fv !== 'undefined' && !!fv.hold };
     });

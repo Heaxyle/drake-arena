@@ -147,6 +147,47 @@ function layoutProblems() {
         const sizes = [...document.querySelectorAll(`#status-${p} .status-item`)].map(el => getComputedStyle(el).fontSize);
         if (new Set(sizes).size > 1) out.push(`#status-${p}: chips at different sizes (${sizes.join(', ')})`);
     }
+    // 7. The fighters face each other near the VS badge: the left drake is mirrored (its two canvases only — .sprite-wrap
+    //    and .sprite-bob animate transform), the right one isn't; each sprite is on the VS side of its card, both the same
+    //    distance from the badge; the name and title stay inside their column, left-aligned on p1, right-aligned on p2
+    const vs = r(document.querySelector('.vs-badge'));
+    const mirrored = el => { const t = getComputedStyle(el).transform; return t !== 'none' && new DOMMatrix(t).a < 0; };
+    const gaps = {};
+    for (const p of ['p1', 'p2']) {
+        const card = document.getElementById(`card-${p}`), wrap = card.querySelector('.sprite-wrap'), col = r(card.querySelector('.fc-id'));
+        for (const el of card.querySelectorAll('.drake-sprite, .sprite-flash')) if (mirrored(el) !== (p === 'p1')) out.push(`#card-${p} .${el.classList[0]} ${p === 'p1' ? "isn't mirrored (the drake faces away from the centre)" : 'is mirrored'}`);
+        for (const el of [wrap, card.querySelector('.sprite-bob')]) if (mirrored(el)) out.push(`#card-${p} .${el.classList[0]} is mirrored (only the canvases should be)`);
+        const W = r(wrap);
+        if (p === 'p1' ? W.left < col.right - 0.5 : W.right > col.left + 0.5) out.push(`#card-${p}: the sprite isn't on the VS side of the name column`);
+        gaps[p] = Math.round(p === 'p1' ? vs.left - W.right : W.left - vs.right);
+        for (const el of [document.getElementById(`name-${p}`), card.querySelector('.fighter-title-badge')]) {
+            if (!el || !visible(el)) continue;
+            const box = r(el), sq = el.querySelector(':scope > .squeeze'), drawn = sq ? r(sq) : box;
+            if (Math.min(box.left, drawn.left) < col.left - 1 || Math.max(box.right, drawn.right) > col.right + 1)
+                out.push(`#card-${p} ${label(el)} at ${Math.round(Math.min(box.left, drawn.left))}–${Math.round(Math.max(box.right, drawn.right))}, outside its column ${Math.round(col.left)}–${Math.round(col.right)}`);
+            const off = p === 'p1' ? box.left - col.left : col.right - box.right;
+            if (Math.abs(off) > 1.5) out.push(`#card-${p} ${label(el)} isn't ${p === 'p1' ? 'left' : 'right'}-aligned (${Math.round(off)} px from the column edge)`);
+        }
+    }
+    if (Math.abs(gaps.p1 - gaps.p2) > 1) out.push(`the sprites aren't the same distance from the VS badge: ${gaps.p1} and ${gaps.p2} px`);
+    return out;
+}
+
+// Runs in the page: drops a damage number and a small "back" number on each card (the game's own fvPop) and says
+// whether each one's centre lands over that card's drake; removes them again
+function popPositions() {
+    const out = [];
+    for (const p of ['p1', 'p2']) {
+        fvPop(p, '-99', 'crit');
+        fvPop(p, '+9', 'small heal', 1);
+        const card = document.getElementById(`card-${p}`), W = card.querySelector('.sprite-wrap').getBoundingClientRect();
+        for (const pop of card.querySelectorAll('.dmg-pop')) {
+            const P = pop.getBoundingClientRect(), x = (P.left + P.right) / 2, y = (P.top + P.bottom) / 2;
+            out.push({ p, text: pop.textContent, over: x >= W.left && x <= W.right && y >= W.top && y <= W.bottom,
+                       at: `${Math.round(x)},${Math.round(y)}`, drake: `${Math.round(W.left)}–${Math.round(W.right)} × ${Math.round(W.top)}–${Math.round(W.bottom)}` });
+            pop.remove();
+        }
+    }
     return out;
 }
 
@@ -254,6 +295,8 @@ async function layoutChecks(browser, lang, blockFonts) {
     check(!problems.length, `${tag} worst case fits at 1920×1080: name "${worst.longName}", title "${worst.longTitle}", "${worst.longDrake}", 4 longest chips, full СИЛА + Ice Mirror, 7 leaderboard rows, a stats card`,
         problems.slice(0, 6).join(' | '));
     await page.screenshot({ path: path.join(SHOTS, `layout-worst-${lang}${blockFonts ? '-nofonts' : ''}.png`) });
+    const pops = await page.evaluate(popPositions);
+    check(pops.length === 4 && pops.every(x => x.over), `${tag} hit numbers pop over each card's drake (a hit and a small "back" number on both cards)`, JSON.stringify(pops.filter(x => !x.over)));
     // The White Dragon's card: no СИЛА row, taller sprite, still fits
     await page.evaluate(() => {
         const dragonTitle = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
@@ -264,6 +307,18 @@ async function layoutChecks(browser, lang, blockFonts) {
     await settle(page);
     const dragonProblems = await page.evaluate(layoutProblems);
     check(!dragonProblems.length, `${tag} the White Dragon's card (3× sprite, no СИЛА row, two chips) fits`, dragonProblems.slice(0, 5).join(' | '));
+    // ...and on the right card, where its sprite sits on the VS side
+    await page.evaluate(() => {
+        const dragonTitle = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
+        const d = { name: 'wmwmwmwmwmwmwmwmwmwmwmwmw', color: '#bfe9ff', drakeObj: DRAKE_TYPES.find(x => x.type === DRAGON_TYPE), title: dragonTitle, xp: 1000000 };
+        updateFighterCard('p2', d, { buff: [], debuff: [], meter: 0, halfDone: false, mirror: 0 });
+        updateStatusUI(d.name, 20, DRAGON_TYPE, dragonTitle, { buff: [], debuff: [] });
+    });
+    await settle(page);
+    const dragonRight = await page.evaluate(layoutProblems);
+    check(!dragonRight.length, `${tag} the White Dragon on the right card fits, its sprite on the VS side`, dragonRight.slice(0, 5).join(' | '));
+    const dragonPops = await page.evaluate(popPositions);
+    check(dragonPops.length === 4 && dragonPops.every(x => x.over), `${tag} hit numbers pop over the White Dragon on either card`, JSON.stringify(dragonPops.filter(x => !x.over)));
     if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
     await context.close();
 }
@@ -606,6 +661,8 @@ async function layoutChecks(browser, lang, blockFonts) {
                     card.removeAttribute('id'); card.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
                     const src = document.getElementById('sprite-p1'), dst = card.querySelector('canvas');
                     dst.width = src.width; dst.height = src.height; dst.getContext('2d').drawImage(src, 0, 0);
+                    // The clone has no #card-p1, so copy the left card's mirror onto its canvases, as drawn on stream
+                    card.querySelectorAll('.drake-sprite, .sprite-flash').forEach(c => { c.style.transform = getComputedStyle(src).transform; });
                     card.style.height = '318px'; card.style.animation = 'none';
                     const cell = document.createElement('div');
                     cell.style.cssText = 'display:flex;flex-direction:column;gap:14px;';

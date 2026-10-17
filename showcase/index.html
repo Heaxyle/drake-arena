@@ -92,6 +92,12 @@
         .drake-sprite { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
         .sprite-flash { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; opacity: 0; }
         @keyframes drakeBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+        /* The fighters face each other, close to the centre: the left drake is mirrored (the canvases only: .sprite-wrap and
+           .sprite-bob animate transform), the right card puts its sprite on the VS side with the name and title right-aligned */
+        #card-p1 .drake-sprite, #card-p1 .sprite-flash { transform: scaleX(-1); }
+        #card-p2 .fc-top { flex-direction: row-reverse; }
+        #card-p2 .fc-id { align-items: flex-end; text-align: right; }
+        #card-p2 .fc-id > * { max-width: 100%; }   /* right-aligned items shrink to their text: keep a long name or title inside the column so fitText sees it */
         .fc-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
         .fighter-info { overflow: hidden; min-width: 0; }
         .fc-xp { font-size: 12px; color: var(--dim); flex-shrink: 0; }
@@ -153,6 +159,7 @@
         .dmg-pop.zero { color: #8ea3cc; text-shadow: 3px 3px 0 #0b1020, -2px -2px 0 #0b1020, 2px -2px 0 #0b1020, -2px 2px 0 #0b1020, 2px 2px 0 #0b1020; }
         .dmg-pop.heal { color: #4dff7a; text-shadow: 3px 3px 0 #04200c, -2px -2px 0 #04200c, 2px -2px 0 #04200c, -2px 2px 0 #04200c, 2px 2px 0 #04200c; }
         .dmg-pop.small { font-size: 16px; top: 46px; }
+        #card-p2 .dmg-pop { right: auto; left: 46px; }   /* over the right card's drake, which sits on the VS side */
         @keyframes dmgPop { 0% { opacity: 0; transform: translateY(10px) scale(0.7); } 12% { opacity: 1; transform: translateY(0) scale(1.15); } 25% { transform: translateY(0) scale(1); }
             75% { opacity: 1; transform: translateY(-6px); } 100% { opacity: 0; transform: translateY(-18px); } }
 
