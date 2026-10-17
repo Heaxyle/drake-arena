@@ -1777,7 +1777,8 @@ function drakeSpriteURL(type) {
             const src = makeDrakeCanvas(type);
             g.clearRect(0, 0, target.width, target.height);
             const isDragon = type === DRAGON_TYPE;
-            if (target.parentElement) target.parentElement.classList.toggle('dragon', isDragon);
+            const wrap = target.closest && target.closest('.sprite-wrap');   // the 3× box (.sprite-wrap.dragon is 180×126)
+            if (wrap) wrap.classList.toggle('dragon', isDragon);
             const card = document.getElementById(`card-${prefix}`);
             if (card && card.classList) card.classList.toggle('has-dragon', isDragon);
             if (src) {

@@ -158,6 +158,11 @@ function layoutProblems() {
         for (const el of card.querySelectorAll('.drake-sprite, .sprite-flash')) if (mirrored(el) !== (p === 'p1')) out.push(`#card-${p} .${el.classList[0]} ${p === 'p1' ? "isn't mirrored (the drake faces away from the centre)" : 'is mirrored'}`);
         for (const el of [wrap, card.querySelector('.sprite-bob')]) if (mirrored(el)) out.push(`#card-${p} .${el.classList[0]} is mirrored (only the canvases should be)`);
         const W = r(wrap);
+        // Every sprite at exactly 3× its pixels: drakes 48×36 → 144×108, the White Dragon 60×42 → 180×126
+        const cv = card.querySelector('.drake-sprite'), S = r(cv), want = card.classList.contains('has-dragon') ? [180, 126] : [144, 108];
+        if (cv.width * 3 !== want[0] || cv.height * 3 !== want[1]) out.push(`#card-${p}: a ${cv.width}×${cv.height} sprite on a ${card.classList.contains('has-dragon') ? 'dragon' : 'drake'} card`);
+        for (const [what, B] of [['sprite box', W], ['sprite', S]])
+            if (Math.abs(B.width - want[0]) > 0.5 || Math.abs(B.height - want[1]) > 0.5) out.push(`#card-${p}: the ${what} is ${Math.round(B.width)}×${Math.round(B.height)}, not ${want.join('×')} (exactly 3×)`);
         if (p === 'p1' ? W.left < col.right - 0.5 : W.right > col.left + 0.5) out.push(`#card-${p}: the sprite isn't on the VS side of the name column`);
         gaps[p] = Math.round(p === 'p1' ? vs.left - W.right : W.left - vs.right);
         for (const el of [document.getElementById(`name-${p}`), card.querySelector('.fighter-title-badge')]) {
@@ -317,6 +322,10 @@ async function layoutChecks(browser, lang, blockFonts) {
     await settle(page);
     const dragonRight = await page.evaluate(layoutProblems);
     check(!dragonRight.length, `${tag} the White Dragon on the right card fits, its sprite on the VS side`, dragonRight.slice(0, 5).join(' | '));
+    // Both cards now show the dragon: its sprite box is exactly 3× (180×126) on either card, not the drakes' 144×108
+    const dragonBoxes = await page.evaluate(() => ['p1', 'p2'].map(p => [`#card-${p} .sprite-wrap`, `#card-${p} .drake-sprite`]
+        .map(s => { const R = document.querySelector(s).getBoundingClientRect(); return `${Math.round(R.width)}×${Math.round(R.height)}`; }).join(' / ')));
+    check(dragonBoxes.every(s => s === '180×126 / 180×126'), `${tag} the White Dragon's sprite box is 180×126 (exactly 3×) on either card`, dragonBoxes.join(', '));
     const dragonPops = await page.evaluate(popPositions);
     check(dragonPops.length === 4 && dragonPops.every(x => x.over), `${tag} hit numbers pop over the White Dragon on either card`, JSON.stringify(dragonPops.filter(x => !x.over)));
     if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
