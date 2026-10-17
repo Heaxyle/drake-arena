@@ -147,6 +147,112 @@ function layoutProblems() {
         const sizes = [...document.querySelectorAll(`#status-${p} .status-item`)].map(el => getComputedStyle(el).fontSize);
         if (new Set(sizes).size > 1) out.push(`#status-${p}: chips at different sizes (${sizes.join(', ')})`);
     }
+    // 7. The fighters face each other near the VS badge: the left drake is mirrored (its two canvases only — .sprite-wrap
+    //    and .sprite-bob animate transform), the right one isn't; each sprite is on the VS side of its card, both the same
+    //    distance from the badge; the name and title stay inside their column, left-aligned on p1, right-aligned on p2
+    const vs = r(document.querySelector('.vs-badge'));
+    const mirrored = el => { const t = getComputedStyle(el).transform; return t !== 'none' && new DOMMatrix(t).a < 0; };
+    const gaps = {};
+    for (const p of ['p1', 'p2']) {
+        const card = document.getElementById(`card-${p}`), wrap = card.querySelector('.sprite-wrap'), col = r(card.querySelector('.fc-id'));
+        for (const el of card.querySelectorAll('.drake-sprite, .sprite-flash')) if (mirrored(el) !== (p === 'p1')) out.push(`#card-${p} .${el.classList[0]} ${p === 'p1' ? "isn't mirrored (the drake faces away from the centre)" : 'is mirrored'}`);
+        for (const el of [wrap, card.querySelector('.sprite-bob')]) if (mirrored(el)) out.push(`#card-${p} .${el.classList[0]} is mirrored (only the canvases should be)`);
+        const W = r(wrap);
+        // Every sprite at exactly 3× its pixels: drakes 48×36 → 144×108, the White Dragon 60×42 → 180×126
+        const cv = card.querySelector('.drake-sprite'), S = r(cv), want = card.classList.contains('has-dragon') ? [180, 126] : [144, 108];
+        if (cv.width * 3 !== want[0] || cv.height * 3 !== want[1]) out.push(`#card-${p}: a ${cv.width}×${cv.height} sprite on a ${card.classList.contains('has-dragon') ? 'dragon' : 'drake'} card`);
+        for (const [what, B] of [['sprite box', W], ['sprite', S]])
+            if (Math.abs(B.width - want[0]) > 0.5 || Math.abs(B.height - want[1]) > 0.5) out.push(`#card-${p}: the ${what} is ${Math.round(B.width)}×${Math.round(B.height)}, not ${want.join('×')} (exactly 3×)`);
+        if (p === 'p1' ? W.left < col.right - 0.5 : W.right > col.left + 0.5) out.push(`#card-${p}: the sprite isn't on the VS side of the name column`);
+        gaps[p] = Math.round(p === 'p1' ? vs.left - W.right : W.left - vs.right);
+        for (const el of [document.getElementById(`name-${p}`), card.querySelector('.fighter-title-badge')]) {
+            if (!el || !visible(el)) continue;
+            const box = r(el), sq = el.querySelector(':scope > .squeeze'), drawn = sq ? r(sq) : box;
+            if (Math.min(box.left, drawn.left) < col.left - 1 || Math.max(box.right, drawn.right) > col.right + 1)
+                out.push(`#card-${p} ${label(el)} at ${Math.round(Math.min(box.left, drawn.left))}–${Math.round(Math.max(box.right, drawn.right))}, outside its column ${Math.round(col.left)}–${Math.round(col.right)}`);
+            const off = p === 'p1' ? box.left - col.left : col.right - box.right;
+            if (Math.abs(off) > 1.5) out.push(`#card-${p} ${label(el)} isn't ${p === 'p1' ? 'left' : 'right'}-aligned (${Math.round(off)} px from the column edge)`);
+        }
+    }
+    if (Math.abs(gaps.p1 - gaps.p2) > 1) out.push(`the sprites aren't the same distance from the VS badge: ${gaps.p1} and ${gaps.p2} px`);
+    // 8. The bars are mirrored on the right card: the HP number sits next to the VS badge (drawn against the VS edge of
+    //    its box), the HP, ghost and XP fills grow from the outer edge; the info line, stats and chips stay left-aligned on
+    //    both cards; the HP rows of the two cards are level (the White Dragon's card too)
+    const hpRows = {};
+    for (const p of ['p1', 'p2']) {
+        const card = document.getElementById(`card-${p}`), outer = p === 'p1' ? 'left' : 'right';
+        const track = r(card.querySelector('.hp-bar-container')), textEl = document.getElementById(`hp-text-${p}`), T = r(textEl);
+        if (p === 'p1' ? T.left < track.right - 0.5 : T.right > track.left + 0.5) out.push(`#card-${p}: the HP number isn't on the VS side of its bar`);
+        const sq = textEl.querySelector(':scope > .squeeze'), range = document.createRange();
+        range.selectNodeContents(sq || textEl);
+        const drawn = sq ? r(sq) : range.getBoundingClientRect();
+        const off = p === 'p1' ? T.right - drawn.right : drawn.left - T.left;
+        if (drawn.width > 0 && Math.abs(off) > 1.5) out.push(`#card-${p}: the HP number is drawn ${Math.round(off)} px from the VS edge of its box`);
+        for (const el of [document.getElementById(`bar-${p}`), document.getElementById(`ghost-${p}`), document.getElementById(`xpbar-${p}`)]) {
+            const ox = parseFloat(getComputedStyle(el).transformOrigin), w = el.offsetWidth;
+            if (Math.abs(ox - (outer === 'left' ? 0 : w)) > 0.5) out.push(`#card-${p} #${el.id} doesn't grow from the ${outer} (outer) edge: transform-origin x = ${ox} of ${w}`);
+        }
+        const line = r(card.querySelector('.fc-line'));
+        for (const [el, box] of [[document.getElementById(`info-${p}`), line], [card.querySelector('.fighter-stats-sub > *'), r(card.querySelector('.fighter-stats-sub'))], [card.querySelector(`#status-${p} .status-item`), r(document.getElementById(`status-${p}`))]])
+            if (el && visible(el) && Math.abs(r(el).left - box.left) > 1.5) out.push(`#card-${p} ${label(el)} isn't left-aligned (${Math.round(r(el).left - box.left)} px in)`);
+        hpRows[p] = r(card.querySelector('.fc-hp'));
+    }
+    if (Math.abs(hpRows.p1.top - hpRows.p2.top) > 1 || Math.abs(hpRows.p1.bottom - hpRows.p2.bottom) > 1) out.push(`the HP rows aren't level: ${Math.round(hpRows.p1.top)} and ${Math.round(hpRows.p2.top)}`);
+    return out;
+}
+
+// Runs in the page: where each card's bars fill from, with partial values. Sets the HP fill to 50% and its ghost to 80%
+// (transitions off), the XP fill to 30%, and the СИЛА meter to 2 of 5 and then full with the game's renderPowerMeter;
+// puts everything back. The fill must touch the outer edge, the ghost's visible part (lost HP) sit on the VS side of the
+// fill, the lit pips sit at the outer end, the label at the outer end of the row and the count / "✦ READY" on the VS side
+function barSides() {
+    const out = [], R = el => el.getBoundingClientRect();
+    for (const p of ['p1', 'p2']) {
+        const card = document.getElementById(`card-${p}`), left = p === 'p1';
+        const outerGap = (el, box) => left ? R(el).left - R(box).left : R(box).right - R(el).right;
+        const bar = document.getElementById(`bar-${p}`), ghost = document.getElementById(`ghost-${p}`), xp = document.getElementById(`xpbar-${p}`);
+        const saved = [bar, ghost, xp].map(el => [el.style.transition, el.style.transform]);
+        [[bar, 0.5], [ghost, 0.8], [xp, 0.3]].forEach(([el, s]) => { el.style.transition = 'none'; el.style.transform = `scaleX(${s})`; });
+        const track = bar.parentElement, B = R(bar), G = R(ghost), Tr = R(track);
+        if (Math.abs(outerGap(bar, track)) > 1) out.push(`#card-${p}: the HP fill doesn't start at the outer edge (${Math.round(outerGap(bar, track))} px off)`);
+        if (Math.abs(outerGap(xp, xp.parentElement)) > 1) out.push(`#card-${p}: the XP fill doesn't start at the outer edge (${Math.round(outerGap(xp, xp.parentElement))} px off)`);
+        // the ghost's visible part: from the fill's end towards the VS side
+        const lost = left ? [B.right, G.right] : [G.left, B.left];
+        if (!(lost[1] - lost[0] > 0.25 * Tr.width && (left ? G.left <= B.left + 1 : G.right >= B.right - 1))) out.push(`#card-${p}: the HP ghost (lost HP) isn't on the VS side of the fill (fill ${Math.round(B.left)}–${Math.round(B.right)}, ghost ${Math.round(G.left)}–${Math.round(G.right)})`);
+        [bar, ghost, xp].forEach((el, i) => { el.style.transition = 'none'; el.style.transform = saved[i][1]; void el.offsetWidth; el.style.transition = saved[i][0]; });
+        if (card.classList.contains('has-dragon')) continue;   // no СИЛА row (checked in layoutProblems)
+        const meter = document.getElementById(`power-${p}`), html = meter.innerHTML, cls = meter.className, title = meter.title;
+        for (const v of [2, METER.max]) {
+            renderPowerMeter(p, 'red', { meter: v });
+            const pips = [...meter.querySelectorAll('.pm-pip')], on = pips.filter(x => x.classList.contains('on')), pipsBox = R(meter.querySelector('.pm-pips'));
+            const lab = R(meter.querySelector('.pm-label')), tail = meter.querySelector(v >= METER.max ? '.pm-ready' : '.pm-count');
+            const outerFirst = [...pips].sort((a, b) => left ? R(a).left - R(b).left : R(b).left - R(a).left);
+            if (on.length !== v || outerFirst.slice(0, v).some(x => !x.classList.contains('on'))) out.push(`#card-${p}: with ${v} of ${METER.max} the lit СИЛА pips aren't at the outer end`);
+            if (left ? lab.right > pipsBox.left + 0.5 : lab.left < pipsBox.right - 0.5) out.push(`#card-${p}: the СИЛА label isn't at the outer end of the row`);
+            if (!tail || (left ? R(tail).left < pipsBox.right - 0.5 : R(tail).right > pipsBox.left + 0.5)) out.push(`#card-${p}: "${tail ? tail.textContent : '?'}" isn't on the VS side of the pips`);
+            const M = R(meter);
+            for (const c of meter.children) if (R(c).left < M.left - 0.5 || R(c).right > M.right + 0.5) out.push(`#card-${p}: the СИЛА row's ${c.className} sticks out of the row`);
+        }
+        meter.innerHTML = html; meter.className = cls; meter.title = title;
+    }
+    return out;
+}
+
+// Runs in the page: drops a damage number and a small "back" number on each card (the game's own fvPop) and says
+// whether each one's centre lands over that card's drake; removes them again
+function popPositions() {
+    const out = [];
+    for (const p of ['p1', 'p2']) {
+        fvPop(p, '-99', 'crit');
+        fvPop(p, '+9', 'small heal', 1);
+        const card = document.getElementById(`card-${p}`), W = card.querySelector('.sprite-wrap').getBoundingClientRect();
+        for (const pop of card.querySelectorAll('.dmg-pop')) {
+            const P = pop.getBoundingClientRect(), x = (P.left + P.right) / 2, y = (P.top + P.bottom) / 2;
+            out.push({ p, text: pop.textContent, over: x >= W.left && x <= W.right && y >= W.top && y <= W.bottom,
+                       at: `${Math.round(x)},${Math.round(y)}`, drake: `${Math.round(W.left)}–${Math.round(W.right)} × ${Math.round(W.top)}–${Math.round(W.bottom)}` });
+            pop.remove();
+        }
+    }
     return out;
 }
 
@@ -254,6 +360,10 @@ async function layoutChecks(browser, lang, blockFonts) {
     check(!problems.length, `${tag} worst case fits at 1920×1080: name "${worst.longName}", title "${worst.longTitle}", "${worst.longDrake}", 4 longest chips, full СИЛА + Ice Mirror, 7 leaderboard rows, a stats card`,
         problems.slice(0, 6).join(' | '));
     await page.screenshot({ path: path.join(SHOTS, `layout-worst-${lang}${blockFonts ? '-nofonts' : ''}.png`) });
+    const pops = await page.evaluate(popPositions);
+    check(pops.length === 4 && pops.every(x => x.over), `${tag} hit numbers pop over each card's drake (a hit and a small "back" number on both cards)`, JSON.stringify(pops.filter(x => !x.over)));
+    const sides = await page.evaluate(barSides);
+    check(!sides.length, `${tag} the bars fill from the outer edge on both cards (lost HP and the СИЛА count / ready on the VS side)`, sides.slice(0, 5).join(' | '));
     // The White Dragon's card: no СИЛА row, taller sprite, still fits
     await page.evaluate(() => {
         const dragonTitle = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
@@ -264,6 +374,24 @@ async function layoutChecks(browser, lang, blockFonts) {
     await settle(page);
     const dragonProblems = await page.evaluate(layoutProblems);
     check(!dragonProblems.length, `${tag} the White Dragon's card (3× sprite, no СИЛА row, two chips) fits`, dragonProblems.slice(0, 5).join(' | '));
+    // ...and on the right card, where its sprite sits on the VS side
+    await page.evaluate(() => {
+        const dragonTitle = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
+        const d = { name: 'wmwmwmwmwmwmwmwmwmwmwmwmw', color: '#bfe9ff', drakeObj: DRAKE_TYPES.find(x => x.type === DRAGON_TYPE), title: dragonTitle, xp: 1000000 };
+        updateFighterCard('p2', d, { buff: [], debuff: [], meter: 0, halfDone: false, mirror: 0 });
+        updateStatusUI(d.name, 20, DRAGON_TYPE, dragonTitle, { buff: [], debuff: [] });
+    });
+    await settle(page);
+    const dragonRight = await page.evaluate(layoutProblems);
+    check(!dragonRight.length, `${tag} the White Dragon on the right card fits, its sprite on the VS side`, dragonRight.slice(0, 5).join(' | '));
+    // Both cards now show the dragon: its sprite box is exactly 3× (180×126) on either card, not the drakes' 144×108
+    const dragonBoxes = await page.evaluate(() => ['p1', 'p2'].map(p => [`#card-${p} .sprite-wrap`, `#card-${p} .drake-sprite`]
+        .map(s => { const R = document.querySelector(s).getBoundingClientRect(); return `${Math.round(R.width)}×${Math.round(R.height)}`; }).join(' / ')));
+    check(dragonBoxes.every(s => s === '180×126 / 180×126'), `${tag} the White Dragon's sprite box is 180×126 (exactly 3×) on either card`, dragonBoxes.join(', '));
+    const dragonPops = await page.evaluate(popPositions);
+    check(dragonPops.length === 4 && dragonPops.every(x => x.over), `${tag} hit numbers pop over the White Dragon on either card`, JSON.stringify(dragonPops.filter(x => !x.over)));
+    const dragonSides = await page.evaluate(barSides);
+    check(!dragonSides.length, `${tag} the White Dragon's bars fill from the outer edge on either card`, dragonSides.slice(0, 5).join(' | '));
     if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
     await context.close();
 }
@@ -606,6 +734,8 @@ async function layoutChecks(browser, lang, blockFonts) {
                     card.removeAttribute('id'); card.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
                     const src = document.getElementById('sprite-p1'), dst = card.querySelector('canvas');
                     dst.width = src.width; dst.height = src.height; dst.getContext('2d').drawImage(src, 0, 0);
+                    // The clone has no #card-p1, so copy the left card's mirror onto its canvases, as drawn on stream
+                    card.querySelectorAll('.drake-sprite, .sprite-flash').forEach(c => { c.style.transform = getComputedStyle(src).transform; });
                     card.style.height = '318px'; card.style.animation = 'none';
                     const cell = document.createElement('div');
                     cell.style.cssText = 'display:flex;flex-direction:column;gap:14px;';

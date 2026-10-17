@@ -92,6 +92,12 @@
         .drake-sprite { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
         .sprite-flash { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; opacity: 0; }
         @keyframes drakeBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+        /* The fighters face each other, close to the centre: the left drake is mirrored (the canvases only: .sprite-wrap and
+           .sprite-bob animate transform), the right card puts its sprite on the VS side with the name and title right-aligned */
+        #card-p1 .drake-sprite, #card-p1 .sprite-flash { transform: scaleX(-1); }
+        #card-p2 .fc-top { flex-direction: row-reverse; }
+        #card-p2 .fc-id { align-items: flex-end; text-align: right; }
+        #card-p2 .fc-id > * { max-width: 100%; }   /* right-aligned items shrink to their text: keep a long name or title inside the column so fitText sees it */
         .fc-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
         .fighter-info { overflow: hidden; min-width: 0; }
         .fc-xp { font-size: 12px; color: var(--dim); flex-shrink: 0; }
@@ -124,6 +130,12 @@
         .fc-hp { display: flex; align-items: center; gap: 12px; margin-top: auto; flex-shrink: 0; }
         .hp-bar-container { height: 20px; }
         .hp-text { font-family: var(--pixel); font-size: 16px; color: var(--text); width: 118px; text-align: right; white-space: nowrap; overflow: hidden; }
+        /* The right card's bars are mirrored, so lost HP disappears on the VS side of both cards: the HP number sits next to
+           the VS badge, the HP, ghost and XP bars and the СИЛА pips fill from the outer edge (info line, stats and chips stay left-aligned) */
+        #card-p2 .fc-hp { flex-direction: row-reverse; }
+        #card-p2 .hp-text { text-align: left; }
+        #card-p2 .px-fill, #card-p2 .hp-ghost { transform-origin: 100% 50%; }
+        #card-p2 .power-meter, #card-p2 .pm-pips { flex-direction: row-reverse; }
 
         /* ===== Turn animation: pre-drawn layers that only fade (opacity) or move (transform), so OBS doesn't drop frames ===== */
         .fx-layer { position: absolute; pointer-events: none; }
@@ -153,6 +165,7 @@
         .dmg-pop.zero { color: #8ea3cc; text-shadow: 3px 3px 0 #0b1020, -2px -2px 0 #0b1020, 2px -2px 0 #0b1020, -2px 2px 0 #0b1020, 2px 2px 0 #0b1020; }
         .dmg-pop.heal { color: #4dff7a; text-shadow: 3px 3px 0 #04200c, -2px -2px 0 #04200c, 2px -2px 0 #04200c, -2px 2px 0 #04200c, 2px 2px 0 #04200c; }
         .dmg-pop.small { font-size: 16px; top: 46px; }
+        #card-p2 .dmg-pop { right: auto; left: 46px; }   /* over the right card's drake, which sits on the VS side */
         @keyframes dmgPop { 0% { opacity: 0; transform: translateY(10px) scale(0.7); } 12% { opacity: 1; transform: translateY(0) scale(1.15); } 25% { transform: translateY(0) scale(1); }
             75% { opacity: 1; transform: translateY(-6px); } 100% { opacity: 0; transform: translateY(-18px); } }
 
@@ -263,6 +276,7 @@
         .panel { position: relative; box-sizing: border-box; padding: 22px 12px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 4px; }
         #streamer-card { position: relative; height: 108px; flex-shrink: 0; box-sizing: border-box; padding: 12px 20px 12px 16px; background: var(--panel); display: flex; align-items: center; gap: 16px; }
         .sc-sprite { width: 120px; height: 84px; flex-shrink: 0; image-rendering: pixelated; }
+        .sc-sprite.drake { width: 96px; height: 72px; margin: 6px 12px; }   /* a 48×36 drake at exactly 2x, centred in the dragon's 120×84 slot */
         .sc-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
         .sc-title { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: var(--gold); text-transform: uppercase; white-space: nowrap; overflow: hidden; }
         .sc-name { font-size: 21px; font-weight: 700; white-space: nowrap; overflow: hidden; }
@@ -1382,15 +1396,16 @@
 
         if (FV_LIVE) ['updateUIHP', 'updateFighterCard', 'updateStatusUI', 'setArenaState', 'flashSpriteHit', 'renderLeaderboard'].forEach(fvHoldable);
 
-        // Side column: the streamer's card (their White Dragon, if they have one)
+        // Side column: the streamer's card (their own drake: the White Dragon, or a drake after a reroll)
         function renderStreamerCard() {
             const box = document.getElementById('streamer-card');
             if (!box) return;
             const uk = currentLang === 'uk';
             const db = getDragonDB();
             const d = STREAMER_USER ? db[STREAMER_USER] : null;
-            const sprite = drakeSpriteURL(DRAGON_TYPE);
-            const img = sprite ? `<img class="sc-sprite" src="${sprite}" alt=""${d ? '' : ' style="filter: grayscale(1) brightness(0.5)"'}>` : '';
+            const type = d && d.drakeObj ? d.drakeObj.type : DRAGON_TYPE;   // no drake yet: the greyed-out dragon
+            const sprite = drakeSpriteURL(type);
+            const img = sprite ? `<img class="sc-sprite${type === DRAGON_TYPE ? '' : ' drake'}" src="${sprite}" alt=""${d ? '' : ' style="filter: grayscale(1) brightness(0.5)"'}>` : '';
             if (!STREAMER_USER) {
                 box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">👑 ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-sub">${uk ? 'Стрімера ще не вказано' : 'No streamer set yet'}</span></div>`;
             } else if (!d) {
@@ -1780,7 +1795,8 @@ function drakeSpriteURL(type) {
             const src = makeDrakeCanvas(type);
             g.clearRect(0, 0, target.width, target.height);
             const isDragon = type === DRAGON_TYPE;
-            if (target.parentElement) target.parentElement.classList.toggle('dragon', isDragon);
+            const wrap = target.closest && target.closest('.sprite-wrap');   // the 3× box (.sprite-wrap.dragon is 180×126)
+            if (wrap) wrap.classList.toggle('dragon', isDragon);
             const card = document.getElementById(`card-${prefix}`);
             if (card && card.classList) card.classList.toggle('has-dragon', isDragon);
             if (src) {
