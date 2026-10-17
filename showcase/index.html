@@ -130,6 +130,12 @@
         .fc-hp { display: flex; align-items: center; gap: 12px; margin-top: auto; flex-shrink: 0; }
         .hp-bar-container { height: 20px; }
         .hp-text { font-family: var(--pixel); font-size: 16px; color: var(--text); width: 118px; text-align: right; white-space: nowrap; overflow: hidden; }
+        /* The right card's bars are mirrored, so lost HP disappears on the VS side of both cards: the HP number sits next to
+           the VS badge, the HP, ghost and XP bars and the СИЛА pips fill from the outer edge (info line, stats and chips stay left-aligned) */
+        #card-p2 .fc-hp { flex-direction: row-reverse; }
+        #card-p2 .hp-text { text-align: left; }
+        #card-p2 .px-fill, #card-p2 .hp-ghost { transform-origin: 100% 50%; }
+        #card-p2 .power-meter, #card-p2 .pm-pips { flex-direction: row-reverse; }
 
         /* ===== Turn animation: pre-drawn layers that only fade (opacity) or move (transform), so OBS doesn't drop frames ===== */
         .fx-layer { position: absolute; pointer-events: none; }

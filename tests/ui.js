@@ -116,13 +116,15 @@ function powerMeters() {
         const row = document.getElementById(`power-${p}`), r = row.getBoundingClientRect();
         const chips = document.getElementById(`status-${p}`).getBoundingClientRect(), hp = row.parentElement.querySelector('.fc-hp').getBoundingClientRect();
         const sprite = row.parentElement.querySelector('.sprite-wrap').getBoundingClientRect();
-        const content = [...row.children].reduce((m, c) => Math.max(m, c.getBoundingClientRect().right), r.left);
+        // the row's content, from its leftmost to its rightmost child (the right card's row is reversed)
+        const kids = [...row.children].map(c => c.getBoundingClientRect()), from = kids.length ? Math.min(...kids.map(c => c.left)) : r.left;
+        const content = kids.length ? Math.max(...kids.map(c => c.right)) : r.left;
         const name = document.getElementById(`name-${p}`).innerText.replace('@', '').trim();
         const st = isBattleRunning && typeof battleFx !== 'undefined' && battleFx && battleFx[name];   // between fights the cards are idle
         return { p, text: row.innerText.replace(/\s+/g, ' ').trim(), pips: row.querySelectorAll('.pm-pip').length, on: row.querySelectorAll('.pm-pip.on').length,
                  meter: st ? st.meter : null, overlapsChips: r.height > 0 && r.top < chips.bottom - 0.5, overlapsHp: r.height > 0 && r.bottom > hp.top + 0.5,
                  // the sprite is on the right of the left card and on the left of the right card: check both sides
-                 overlapsSprite: Math.min(content, sprite.right) > Math.max(r.left, sprite.left) + 0.5 && r.bottom > sprite.top && r.top < sprite.bottom, cut: row.scrollWidth > row.clientWidth + 1,
+                 overlapsSprite: Math.min(content, sprite.right) > Math.max(from, sprite.left) + 0.5 && r.bottom > sprite.top && r.top < sprite.bottom, cut: row.scrollWidth > row.clientWidth + 1,
                  // A hit in the air (turn step 1 → 2, 0.6 s): the cards deliberately show the state from before the hit
                  inAir: typeof fv !== 'undefined' && !!fv.hold };
     });

@@ -175,6 +175,66 @@ function layoutProblems() {
         }
     }
     if (Math.abs(gaps.p1 - gaps.p2) > 1) out.push(`the sprites aren't the same distance from the VS badge: ${gaps.p1} and ${gaps.p2} px`);
+    // 8. The bars are mirrored on the right card: the HP number sits next to the VS badge (drawn against the VS edge of
+    //    its box), the HP, ghost and XP fills grow from the outer edge; the info line, stats and chips stay left-aligned on
+    //    both cards; the HP rows of the two cards are level (the White Dragon's card too)
+    const hpRows = {};
+    for (const p of ['p1', 'p2']) {
+        const card = document.getElementById(`card-${p}`), outer = p === 'p1' ? 'left' : 'right';
+        const track = r(card.querySelector('.hp-bar-container')), textEl = document.getElementById(`hp-text-${p}`), T = r(textEl);
+        if (p === 'p1' ? T.left < track.right - 0.5 : T.right > track.left + 0.5) out.push(`#card-${p}: the HP number isn't on the VS side of its bar`);
+        const sq = textEl.querySelector(':scope > .squeeze'), range = document.createRange();
+        range.selectNodeContents(sq || textEl);
+        const drawn = sq ? r(sq) : range.getBoundingClientRect();
+        const off = p === 'p1' ? T.right - drawn.right : drawn.left - T.left;
+        if (drawn.width > 0 && Math.abs(off) > 1.5) out.push(`#card-${p}: the HP number is drawn ${Math.round(off)} px from the VS edge of its box`);
+        for (const el of [document.getElementById(`bar-${p}`), document.getElementById(`ghost-${p}`), document.getElementById(`xpbar-${p}`)]) {
+            const ox = parseFloat(getComputedStyle(el).transformOrigin), w = el.offsetWidth;
+            if (Math.abs(ox - (outer === 'left' ? 0 : w)) > 0.5) out.push(`#card-${p} #${el.id} doesn't grow from the ${outer} (outer) edge: transform-origin x = ${ox} of ${w}`);
+        }
+        const line = r(card.querySelector('.fc-line'));
+        for (const [el, box] of [[document.getElementById(`info-${p}`), line], [card.querySelector('.fighter-stats-sub > *'), r(card.querySelector('.fighter-stats-sub'))], [card.querySelector(`#status-${p} .status-item`), r(document.getElementById(`status-${p}`))]])
+            if (el && visible(el) && Math.abs(r(el).left - box.left) > 1.5) out.push(`#card-${p} ${label(el)} isn't left-aligned (${Math.round(r(el).left - box.left)} px in)`);
+        hpRows[p] = r(card.querySelector('.fc-hp'));
+    }
+    if (Math.abs(hpRows.p1.top - hpRows.p2.top) > 1 || Math.abs(hpRows.p1.bottom - hpRows.p2.bottom) > 1) out.push(`the HP rows aren't level: ${Math.round(hpRows.p1.top)} and ${Math.round(hpRows.p2.top)}`);
+    return out;
+}
+
+// Runs in the page: where each card's bars fill from, with partial values. Sets the HP fill to 50% and its ghost to 80%
+// (transitions off), the XP fill to 30%, and the СИЛА meter to 2 of 5 and then full with the game's renderPowerMeter;
+// puts everything back. The fill must touch the outer edge, the ghost's visible part (lost HP) sit on the VS side of the
+// fill, the lit pips sit at the outer end, the label at the outer end of the row and the count / "✦ READY" on the VS side
+function barSides() {
+    const out = [], R = el => el.getBoundingClientRect();
+    for (const p of ['p1', 'p2']) {
+        const card = document.getElementById(`card-${p}`), left = p === 'p1';
+        const outerGap = (el, box) => left ? R(el).left - R(box).left : R(box).right - R(el).right;
+        const bar = document.getElementById(`bar-${p}`), ghost = document.getElementById(`ghost-${p}`), xp = document.getElementById(`xpbar-${p}`);
+        const saved = [bar, ghost, xp].map(el => [el.style.transition, el.style.transform]);
+        [[bar, 0.5], [ghost, 0.8], [xp, 0.3]].forEach(([el, s]) => { el.style.transition = 'none'; el.style.transform = `scaleX(${s})`; });
+        const track = bar.parentElement, B = R(bar), G = R(ghost), Tr = R(track);
+        if (Math.abs(outerGap(bar, track)) > 1) out.push(`#card-${p}: the HP fill doesn't start at the outer edge (${Math.round(outerGap(bar, track))} px off)`);
+        if (Math.abs(outerGap(xp, xp.parentElement)) > 1) out.push(`#card-${p}: the XP fill doesn't start at the outer edge (${Math.round(outerGap(xp, xp.parentElement))} px off)`);
+        // the ghost's visible part: from the fill's end towards the VS side
+        const lost = left ? [B.right, G.right] : [G.left, B.left];
+        if (!(lost[1] - lost[0] > 0.25 * Tr.width && (left ? G.left <= B.left + 1 : G.right >= B.right - 1))) out.push(`#card-${p}: the HP ghost (lost HP) isn't on the VS side of the fill (fill ${Math.round(B.left)}–${Math.round(B.right)}, ghost ${Math.round(G.left)}–${Math.round(G.right)})`);
+        [bar, ghost, xp].forEach((el, i) => { el.style.transition = 'none'; el.style.transform = saved[i][1]; void el.offsetWidth; el.style.transition = saved[i][0]; });
+        if (card.classList.contains('has-dragon')) continue;   // no СИЛА row (checked in layoutProblems)
+        const meter = document.getElementById(`power-${p}`), html = meter.innerHTML, cls = meter.className, title = meter.title;
+        for (const v of [2, METER.max]) {
+            renderPowerMeter(p, 'red', { meter: v });
+            const pips = [...meter.querySelectorAll('.pm-pip')], on = pips.filter(x => x.classList.contains('on')), pipsBox = R(meter.querySelector('.pm-pips'));
+            const lab = R(meter.querySelector('.pm-label')), tail = meter.querySelector(v >= METER.max ? '.pm-ready' : '.pm-count');
+            const outerFirst = [...pips].sort((a, b) => left ? R(a).left - R(b).left : R(b).left - R(a).left);
+            if (on.length !== v || outerFirst.slice(0, v).some(x => !x.classList.contains('on'))) out.push(`#card-${p}: with ${v} of ${METER.max} the lit СИЛА pips aren't at the outer end`);
+            if (left ? lab.right > pipsBox.left + 0.5 : lab.left < pipsBox.right - 0.5) out.push(`#card-${p}: the СИЛА label isn't at the outer end of the row`);
+            if (!tail || (left ? R(tail).left < pipsBox.right - 0.5 : R(tail).right > pipsBox.left + 0.5)) out.push(`#card-${p}: "${tail ? tail.textContent : '?'}" isn't on the VS side of the pips`);
+            const M = R(meter);
+            for (const c of meter.children) if (R(c).left < M.left - 0.5 || R(c).right > M.right + 0.5) out.push(`#card-${p}: the СИЛА row's ${c.className} sticks out of the row`);
+        }
+        meter.innerHTML = html; meter.className = cls; meter.title = title;
+    }
     return out;
 }
 
@@ -302,6 +362,8 @@ async function layoutChecks(browser, lang, blockFonts) {
     await page.screenshot({ path: path.join(SHOTS, `layout-worst-${lang}${blockFonts ? '-nofonts' : ''}.png`) });
     const pops = await page.evaluate(popPositions);
     check(pops.length === 4 && pops.every(x => x.over), `${tag} hit numbers pop over each card's drake (a hit and a small "back" number on both cards)`, JSON.stringify(pops.filter(x => !x.over)));
+    const sides = await page.evaluate(barSides);
+    check(!sides.length, `${tag} the bars fill from the outer edge on both cards (lost HP and the СИЛА count / ready on the VS side)`, sides.slice(0, 5).join(' | '));
     // The White Dragon's card: no СИЛА row, taller sprite, still fits
     await page.evaluate(() => {
         const dragonTitle = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
@@ -328,6 +390,8 @@ async function layoutChecks(browser, lang, blockFonts) {
     check(dragonBoxes.every(s => s === '180×126 / 180×126'), `${tag} the White Dragon's sprite box is 180×126 (exactly 3×) on either card`, dragonBoxes.join(', '));
     const dragonPops = await page.evaluate(popPositions);
     check(dragonPops.length === 4 && dragonPops.every(x => x.over), `${tag} hit numbers pop over the White Dragon on either card`, JSON.stringify(dragonPops.filter(x => !x.over)));
+    const dragonSides = await page.evaluate(barSides);
+    check(!dragonSides.length, `${tag} the White Dragon's bars fill from the outer edge on either card`, dragonSides.slice(0, 5).join(' | '));
     if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
     await context.close();
 }
