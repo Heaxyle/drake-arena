@@ -263,6 +263,7 @@
         .panel { position: relative; box-sizing: border-box; padding: 22px 12px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 4px; }
         #streamer-card { position: relative; height: 108px; flex-shrink: 0; box-sizing: border-box; padding: 12px 20px 12px 16px; background: var(--panel); display: flex; align-items: center; gap: 16px; }
         .sc-sprite { width: 120px; height: 84px; flex-shrink: 0; image-rendering: pixelated; }
+        .sc-sprite.drake { width: 96px; height: 72px; margin: 6px 12px; }   /* a 48×36 drake at exactly 2x, centred in the dragon's 120×84 slot */
         .sc-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
         .sc-title { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: var(--gold); text-transform: uppercase; white-space: nowrap; overflow: hidden; }
         .sc-name { font-size: 21px; font-weight: 700; white-space: nowrap; overflow: hidden; }
@@ -1372,15 +1373,16 @@
 
         if (FV_LIVE) ['updateUIHP', 'updateFighterCard', 'updateStatusUI', 'setArenaState', 'flashSpriteHit', 'renderLeaderboard'].forEach(fvHoldable);
 
-        // Side column: the streamer's card (their White Dragon, if they have one)
+        // Side column: the streamer's card (their own drake: the White Dragon, or a drake after a reroll)
         function renderStreamerCard() {
             const box = document.getElementById('streamer-card');
             if (!box) return;
             const uk = currentLang === 'uk';
             const db = getDragonDB();
             const d = STREAMER_USER ? db[STREAMER_USER] : null;
-            const sprite = drakeSpriteURL(DRAGON_TYPE);
-            const img = sprite ? `<img class="sc-sprite" src="${sprite}" alt=""${d ? '' : ' style="filter: grayscale(1) brightness(0.5)"'}>` : '';
+            const type = d && d.drakeObj ? d.drakeObj.type : DRAGON_TYPE;   // no drake yet: the greyed-out dragon
+            const sprite = drakeSpriteURL(type);
+            const img = sprite ? `<img class="sc-sprite${type === DRAGON_TYPE ? '' : ' drake'}" src="${sprite}" alt=""${d ? '' : ' style="filter: grayscale(1) brightness(0.5)"'}>` : '';
             if (!STREAMER_USER) {
                 box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">👑 ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-sub">${uk ? 'Стрімера ще не вказано' : 'No streamer set yet'}</span></div>`;
             } else if (!d) {
