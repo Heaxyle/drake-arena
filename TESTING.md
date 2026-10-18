@@ -107,12 +107,13 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | A ranked draw keeps both records and gives +10 XP each (Gold its bonus) | A draw counted as a loss |
 | **No rest between fights**: both duellists `!queue` during their duel and their ranked fight starts right after it; a second `!queue` still says "already in queue"; a viewer who just fought is challenged and accepts at once, and a viewer in a fight can be challenged; no "exhausted" or "resting" reply anywhere. A second `!battle` while one is open gets a reply | A rest creeping back in (a fighter turned away from the queue, a challenge or an accept refused) |
 | `!accept` during a fight: the duel waits ("starts after the current fight") and both leave the ranked queue; another `!accept` is told to challenge again after the next fight; the waiting players get a "busy" reply to `!queue`, `!battle`, `!accept`; after the fight the waiting duel starts before the ranked queue; a fighter who accepts a challenge during their own fight gets a waiting duel that starts right after it, and the challenge closes (no "did not answer" 30 s later); `!battle` to a player whose duel is waiting says "⏳ @x is waiting for a duel. Challenge them after the next fight." and opens no challenge | Duels dropped when the arena is busy, the queue jumping ahead of them, or a misleading "did not answer" |
+| **The result screen holds the arena**: after a ranked fight two `!queue` only join the queue and a duel accepted then waits ("after the current fight"); a viewer's and a VIP's `!start` are ignored, a moderator's ends the hold and the waiting duel starts first; after that duel and its own hold the queue carries on; a friendly draw and a ranked draw hold too; the channel owner's `!start` with nobody waiting ends the hold, and the next two `!queue` start at once | The next fight starting the moment a result appears, `!start` ignored or open to anyone |
 | "!battle" with no name, even mid-fight, replies "ℹ️ @x, to challenge someone type !battle @name." | No reply |
 | The opening-buff banner shows the title's icon once | "🌅 🌅 Woke Up Swinging" |
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 63 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 69 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -179,6 +180,12 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 61 | The opening banner adds its own 🌅 before the title's icon | `rules.js` 13 | `🌅 🌅 Woke Up Swinging: …` |
 | 62 | A rest creeps back in: nobody can join the ranked queue while a fight is on | `rules.js` 10 (4 checks) | `duel on: true; queue during the duel: ` (empty) |
 | 63 | `!battle` opens a challenge to a viewer whose duel is waiting | `rules.js` 11 | `reply: ⚔️ @d3 challenges @d1 to a Friendly Duel!` |
+| 64 | No hold after a ranked fight: the next fight or duel starts as soon as it ends | `rules.js` 14 (8 checks) | `held false; queue ; fights 1` |
+| 65 | No hold after a duel or a friendly draw | `rules.js` 14 (2 checks) | `after a friendly draw the queue waits for the hold, then starts — {"during":1,…}` |
+| 66 | The queue ignores the hold: two `!queue` during the result screen start a fight at once | `rules.js` 14 (10 checks) | `held true; queue ; fights 1` |
+| 67 | A duel accepted during the result screen starts at once | `rules.js` 14 (4 checks) | `held true; queue h3,h4; fights 0` (no waiting duel) |
+| 68 | A moderator's `!start` during the result screen does nothing | `rules.js` 14 (4 checks) | `ignored true; fights …` (the waiting duel never starts) |
+| 69 | Anyone's `!start` ends the result screen | `rules.js` 14 (2 checks) | `ignored false` |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -238,7 +245,9 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: two icons in the opening banner
 …
 ✓ caught: challenging a waiting duellist
-All 63 mutations caught.
+…
+✓ caught: anyone's !start ends the hold
+All 69 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -453,6 +462,7 @@ Text that is still too wide at its smallest allowed size is squeezed sideways (`
 | **Countdown, default**: queue two fighters; until turn 1 the plate says "⏳ БІЙ ПОЧИНАЄТЬСЯ" / "⏳ FIGHT STARTING", the log area shows the timer (0:05 → 0:01, checked every 0.5 s against the time left); turn 1 lands at exactly 4.5 s, not 1 ms earlier, and the log replaces the countdown; turns 2–4 every 4.5 s after | The countdown changing the fight's timing, a timer that doesn't match the time left |
 | **Countdown, betting window on** (Test Settings): "⏳ СТАВКИ ВІДКРИТО" / "⏳ BETS OPEN", the timer from 2:00 (checked every second); turn 1 at exactly 2 min; turns every 4.5 s after; a test battle still starts after 4.5 s | The switch not delaying the fight, or delaying test battles |
 | **`!старт` / `!start`** on channel `#test`, both languages: with no fight waiting the owner's `!старт` and Skip do nothing; in an open window a viewer's, a fighter's, a VIP's and a subscriber's are ignored (the timer keeps going: 1:50 at 10 s); a moderator's starts the fight the normal way at once (coin flip, then the 4.5 s "🎲 першим б’є …" countdown from 0:05), and turn 1 lands exactly 4.5 s later; two more `!старт` right after, `!старт` mid-fight and the window's own timer running out start no second fight; the owner's ends the next window (the fighters queued again straight after their fight), and so does a moderator known only by the badge; a skip 1 ms before the window's own start, and one at the same moment as it, each give one fight; the test panel's **⏭ Skip the betting window** does the same | Anyone skipping the window; a skip that starts a fight twice (or a second fight when the timer runs out), or skips the coin flip and countdown |
+| **The result screen holds the arena** (`RESULT_HOLD_MS` = 20 s), both languages: after a ranked fight two `!черга` only queue, the result stays at 19.999 s and their fight starts at exactly 20 s; a duel accepted during the hold waits ("Дуель почнеться після поточного бою") and starts when it ends, before the queue; after that duel the hold applies again; with the betting window on, a viewer's and a VIP's `!старт` during the hold are ignored and a moderator's opens the next betting window at once (2:00); the owner's `!старт` with nobody waiting ends the hold, the result stays, and the next two `!черга` start at once; a friendly and a ranked draw hold for 20 s too | The countdown of a fight queued during the result replacing the result at once; a hold that's too short, skipped after a duel or a draw, or ended by anyone |
 | **Four real fights per language, every turn** (ranked, duels, every element, a 25-letter name, the White Dragon): at step 1 the attacker's card has the highlight and its tab and the other doesn't, and the log shows "⚔ @x атакує…" in the attacker's column; at step 2 exactly one card for that turn, in the attacker's column (left = the fighter who struck first), lit, and the only lit card | Cards in the wrong column, missing or doubled; the highlight not following the attacker |
 | The whole turn animation, from the tick to the end of the last animation, finishes inside the 4.5 s turn | Animations overlapping the next turn |
 | No card wraps past two lines (three with an ultimate's header), and nothing in a card is cut off (squeezed text measured as drawn). **No second line is drawn below 90% of its normal size** (font size × any sideways squeeze); a line that dropped items ends with a muted "+N" chip | Long move names, names, damage numbers or effect lines breaking the card, or shrunk until unreadable at stream size |
@@ -490,7 +500,7 @@ npm test                               # effect rules, then balance: element mat
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
 npm run test:rules                     # the game rules: whole HP, chat commands, no rest, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 63 ways, check effects.js / ultimates.js / rules.js catch each
+npm run test:mutations                 # break the game 69 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)
