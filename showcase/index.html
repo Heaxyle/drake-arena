@@ -180,8 +180,19 @@
         .t-physical { color: #ffb27a; }
         .t-magical { color: #8fb8ff; }
         .t-vampire { color: #ff7ab8; }
-        .log-feed { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; overflow: hidden; padding: 0 8px 8px; margin: 0 -8px -8px;
+        /* The feed scrolls (mouse wheel; in OBS: Interact) with no scrollbar. The list inside is pushed to the bottom by
+           margin-top: auto while it's short (justify-content: flex-end would make an overflowing top unreachable); its top
+           padding is the fade's height, so scrolled to the top the first card is clear of the fade */
+        .log-feed { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+            padding: 0 8px 8px; margin: 0 -8px -8px;
             -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 34px); mask-image: linear-gradient(to bottom, transparent 0, #000 34px); }
+        .log-feed::-webkit-scrollbar { display: none; }
+        .log-list { margin-top: auto; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding-top: 34px; }
+        /* Scrolled up while turns arrive: "↓ нові ходи (N)" at the bottom of the log; a click goes back to the newest */
+        .log-new { position: absolute; left: 50%; bottom: 20px; z-index: 2; transform: translateX(-50%); opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+            font: inherit; font-size: 12px; font-weight: 700; color: #ffd23f; background: #17140c; border: 1px solid #b8862c; border-radius: 999px; padding: 4px 14px;
+            white-space: nowrap; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6); }
+        .log-panel.has-new .log-new { opacity: 1; pointer-events: auto; }
         .log-banner { flex-shrink: 0; text-align: center; font-size: 13px; color: #c9cbe3; padding: 3px 0 5px; white-space: nowrap; overflow: hidden; }
         .log-banner.idle { color: var(--dim); }
         .log-banner.sd { font-weight: 700; font-size: 14px; padding: 5px 8px; margin: 4px 0; color: #ff6b6b; background: rgba(255, 40, 40, 0.08); border: 1px solid rgba(255, 80, 80, 0.5); border-radius: 2px; }
@@ -488,7 +499,8 @@
 
         <div class="log-panel frame-sm" id="log-panel">
             <div class="log-head" id="log-head"></div>
-            <div class="log-feed" id="log-feed"><div class="log-banner idle" data-i18n="arena_ready">Арена готова! Очікування бійців...</div></div>
+            <div class="log-feed" id="log-feed"><div class="log-list" id="log-list"><div class="log-banner idle" data-i18n="arena_ready">Арена готова! Очікування бійців...</div></div></div>
+            <button class="log-new" id="log-new" type="button" onclick="fvLogToBottom(true)"></button>
             <div class="log-countdown" id="log-countdown"></div>
             <!-- The fight's text record: every event as a line of text. Not shown (the cards above are built from the
                  same turns); the balance sims and tests read it. -->
@@ -816,7 +828,7 @@
                   cdLabel: 'Старт через', cdBets: 'Ставки відкрито — хто переможе?', cdStart: 'Бій починається!', cdFlip: '🎲 хто б’є першим, вирішить жереб на старті',
                   cdFirst: '🎲 першим б’є {a}', plateBets: '⏳ Ставки відкрито', plateStart: '⏳ Бій починається', levelUp: '⬆️ Новий рівень',
                   reaches: '{who} досягає {n}-го рівня', atkGain: '+{n} до атаки', tierGain: 'стихія сильнішає', meterBtn: '✦ {meter}: {side}',
-                  left: 'лівий', right: 'правий', noCast: '— випадково —' },
+                  left: 'лівий', right: 'правий', noCast: '— випадково —', newTurns: '↓ нові ходи ({n})' },
             en: { attacks: 'attacks', physical: 'physical', magical: 'magic', vampire: 'vampire', tab: '⚔ Attacks', attacking: 'attacks…', upNext: '⏳ up next:',
                   ko: 'is knocked out', start: 'start of turn', applies: 'applies', gets: 'gets', refreshes: 'refreshes', replaces: 'replaces', removes: 'removes',
                   takes: 'takes', lost: 'lost', immune: '🐉 immune', block: '🚫 block', sovereign: '👑 the attack dissolves', pierce: '⚡ armour-piercing',
@@ -830,7 +842,7 @@
                   cdLabel: 'Starts in', cdBets: 'Bets are open — who will win?', cdStart: 'The fight is starting!', cdFlip: '🎲 a coin flip at the start decides who strikes first',
                   cdFirst: '🎲 {a} strikes first', plateBets: '⏳ Bets open', plateStart: '⏳ Fight starting', levelUp: '⬆️ Level up',
                   reaches: '{who} reaches level {n}', atkGain: '+{n} attack', tierGain: 'element passive grows', meterBtn: '✦ {meter}: {side}',
-                  left: 'left', right: 'right', noCast: '— random —' },
+                  left: 'left', right: 'right', noCast: '— random —', newTurns: '↓ new turns ({n})' },
         };
         const fvT = (key, vars = {}) => FV_TEXT[currentLang][key].replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '');
         const fvTurns = n => currentLang === 'uk' ? turnsWordUk(n) : (n === 1 ? 'turn' : 'turns');
@@ -882,6 +894,7 @@
         function fvTurn(turn, attacker, defender) {
             if (!fv.on) return;
             fv.rec = { turn, atk: attacker, def: defender, side: turn % 2 ? 'left' : 'right', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: null, frozen: false };
+            if (!logFollowing) { logUnseen++; fvLogPill(); }
             const panel = fvEl('log-panel');
             if (panel) panel.classList.remove('counting');
         }
@@ -913,21 +926,75 @@
         }
 
         // ----- Log items: banners, rows of two cells, the result card -----
+        // A new fight starts with an empty log that follows the newest card
         function fvFeedReset() {
-            const feed = fvEl('log-feed');
-            if (feed) feed.innerHTML = '';
+            const list = fvEl('log-list');
+            if (list) list.innerHTML = '';
             fv.items = [];
+            fvLogFollow();
         }
+        // Every item of the fight is kept (the log is cleared when the next fight begins, so it can't grow across fights)
         function fvAddItem(item) {
-            const feed = fvEl('log-feed');
-            if (!feed) return item;
+            const list = fvEl('log-list');
+            if (!list) return item;
             item.el = document.createElement('div');
             fv.items.push(item);
-            feed.appendChild(item.el);
+            list.appendChild(item.el);
             fvPaint(item);
-            // Only the newest cards can be seen (the feed is bottom-aligned and fades out at the top): drop the rest
-            while (fv.items.length > 16) { const old = fv.items.shift(); if (old.el && old.el.remove) old.el.remove(); }
             return item;
+        }
+
+        // Scrolling back through the fight. While the view is at the bottom it follows each new card. Scrolled up, new
+        // cards don't move it and "↓ нові ходи (N)" counts the turns since; the pill, or scrolling back to the bottom,
+        // resumes following. During a fight a scrolled-up log left alone for LOG_IDLE_MS glides back to the newest turn;
+        // on the result screen it stays where it is.
+        const LOG_IDLE_MS = 15000;
+        let logFollowing = true, logUnseen = 0, logIdleTimer = null, logGliding = null;
+        const fvLogAtBottom = feed => feed.scrollHeight - feed.scrollTop - feed.clientHeight < 2;
+        function fvLogFollow() {
+            logFollowing = true;
+            logUnseen = 0;
+            clearTimeout(logIdleTimer);
+            fvLogPill();
+        }
+        // Keeps a following view on the newest card (called whenever the log's content changes)
+        function fvLogStick() {
+            const feed = fvEl('log-feed');
+            if (feed && logFollowing && !logGliding) feed.scrollTop = feed.scrollHeight;
+        }
+        // Back to the newest card: at once, or gliding (the pill, the idle return)
+        function fvLogToBottom(glide) {
+            const feed = fvEl('log-feed');
+            if (!feed) return;
+            fvLogFollow();
+            if (!glide) { feed.scrollTop = feed.scrollHeight; return; }
+            // Scroll events during the glide are its own; when it's over the view snaps to the (maybe newer) bottom
+            clearTimeout(logGliding);
+            logGliding = setTimeout(() => { logGliding = null; fvLogStick(); }, 1000);
+            feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
+        }
+        function fvLogPill() {
+            const panel = fvEl('log-panel'), pill = fvEl('log-new');
+            if (!panel || !pill || !panel.classList) return;
+            const show = !logFollowing && logUnseen > 0;
+            panel.classList.toggle('has-new', show);
+            if (show) pill.textContent = fvT('newTurns', { n: logUnseen });
+        }
+        // The viewer scrolled (or wheeled): at the bottom, follow again; anywhere else, stay put and restart the idle timer
+        function fvLogTouched() {
+            const feed = fvEl('log-feed');
+            if (!feed || logGliding) return;
+            if (fvLogAtBottom(feed)) { if (!logFollowing) fvLogFollow(); return; }
+            logFollowing = false;
+            clearTimeout(logIdleTimer);
+            logIdleTimer = setTimeout(() => { if (!logFollowing && arenaState.kind === 'fight') fvLogToBottom(true); }, LOG_IDLE_MS);
+            fvLogPill();
+        }
+        function fvLogInit() {
+            const feed = fvEl('log-feed');
+            if (!FV_LIVE || !feed || !feed.addEventListener) return;
+            feed.addEventListener('scroll', fvLogTouched, { passive: true });
+            feed.addEventListener('wheel', () => { if (!logFollowing) fvLogTouched(); }, { passive: true });
         }
         function fvBanner(kind, data = {}) {
             if (!fv.on && kind !== 'idle') return;
@@ -952,6 +1019,10 @@
         }
 
         function fvPaint(item) {
+            fvPaintItem(item);
+            fvLogStick();
+        }
+        function fvPaintItem(item) {
             const el = item.el;
             if (!el) return;
             if (item.type === 'banner') {
@@ -1362,6 +1433,7 @@
             if (!FV_LIVE) return;
             fvHead();
             fv.items.forEach(fvPaint);
+            fvLogPill();
             fvRepaintCountdown();
             fvPopulateTestMenu();
         }
@@ -3970,6 +4042,7 @@ function drakeSpriteURL(type) {
             renderArenaHeader();
             renderHowTo();
             fvHead();
+            fvLogInit();
             fvPopulateTestMenu();
             fitStage();
         }
