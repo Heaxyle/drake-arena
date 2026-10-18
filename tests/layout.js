@@ -558,7 +558,7 @@ async function layoutChecks(browser, lang, blockFonts) {
             const plate = await page.evaluate(() => document.getElementById('status-plate').innerText);
             check(plate.includes('@' + winnerName.toUpperCase()) || plate.includes('@' + winnerName), `[${lang}] the status plate names the winner ("${plate}")`, plate);
             await page.screenshot({ path: path.join(SHOTS, `layout-result-${lang}.png`) });
-            // A draw shows neither label
+            // A draw frames neither card as the winner or the loser (both say «Нічия»; fightview.js checks the tags)
             await page.evaluate(() => setArenaState({ kind: 'result', ranked: true, winner: null, turns: 30 }));
             const draw = await page.evaluate(() => ['p1', 'p2'].map(p => document.getElementById(`card-${p}`).className));
             check(draw.every(c => !/is-winner|is-loser/.test(c)), `[${lang}] a draw marks neither card`, draw.join(' | '));
@@ -772,7 +772,7 @@ async function layoutChecks(browser, lang, blockFonts) {
                         updateFighterCard('p1', dr, fx(won ? 5 : 2));
                         updateStatusUI(dr.name, 12, dr.drakeObj.type, dr.title, { buff: [], debuff: [] });
                         updateUIHP(won ? 64 : 0, 200, 1, 200);
-                        setArenaState({ kind: 'result', ranked: true, winner: gold, turns: 14 });
+                        setArenaState({ kind: 'result', ranked: true, winner: gold, turns: 14, ko: true });   // a knockout: «Нокаут» on the loser
                         panel.appendChild(snap((lang === 'uk' ? (won ? 'Переможець' : 'Нокаут') : (won ? 'Winner' : 'Knocked out')) + ' · ' + drakeLabel(dr.drakeObj)));
                     }
                     setArenaState({ kind: 'idle' });

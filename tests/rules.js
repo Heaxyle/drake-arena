@@ -35,6 +35,7 @@ eval(gameScript(FILE) + `
     say: (user, text, channel) => handleChatMessage('#' + (channel || 'streamchannel'), { username: user, color: '#8ab4f8' }, text, false),
     sayAs: (user, text, extra) => handleChatMessage('#streamchannel', { username: user, color: '#8ab4f8', ...extra }, text, false),
     get resultHold() { return typeof resultHold !== 'undefined' ? resultHold : undefined; },
+    resetStartGuard: () => { if (typeof lastStartAt !== 'undefined') lastStartAt = -Infinity; },
     runBattle: (...a) => runBattle(...a), finishBattle: (...a) => finishBattle(...a), checkQueue: () => checkQueue(),
     nextFight: typeof nextFight === 'function' ? () => nextFight() : null,
     fvT: typeof fvT === 'function' ? fvT : null,
@@ -70,6 +71,7 @@ const fresh = () => {
     __drain();
     G.saveDragonDB({}); Object.keys(G.stats).forEach(k => delete G.stats[k]); G.queue = [];
     Object.keys(G.pending).forEach(k => delete G.pending[k]); G.running = false;
+    G.resetStartGuard();
     infos = []; logs = []; fightsStarted = [];
 };
 const make = (name, type, opts = {}) => {
@@ -279,6 +281,25 @@ for (const lang of ['en', 'uk']) {
         G.say('o3', t('!queue', '!черга')); G.say('o4', t('!queue', '!черга'));
         check(freeAfterOwner && fightsStarted.length === 1, "14. the channel owner's !start ends the hold; with nobody waiting the result stays, and the queue then starts at once",
             JSON.stringify({ freeAfterOwner, fights: fightsStarted, kind: G.arenaState.kind }));
+        __drain();
+    }
+
+    // 14b. After an accepted !start, further ones are ignored for 5 s (Node's clock is real: these run within milliseconds)
+    {
+        fresh();
+        ['g1', 'g2', 'g3', 'g4'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i].type));
+        const end = (a, b) => { G.running = true; G.finishBattle({ ...G.getDragonDB()[a] }, { ...G.getDragonDB()[b] }, 40, 0, true); };
+        end('g1', 'g2');
+        G.say('streamchannel', t('!start', '!старт'));             // ends this hold
+        const first = G.resultHold === null;
+        end('g3', 'g4');                                            // another result screen straight away
+        G.sayAs('mod1', t('!start', '!старт'), { mod: true });      // within 5 s of the first: ignored
+        G.say('streamchannel', t('!start', '!старт'));
+        const guarded = !!G.resultHold;
+        G.resetStartGuard();                                        // as if 5 s had passed
+        G.sayAs('mod1', t('!start', '!старт'), { mod: true });
+        check(first && guarded && G.resultHold === null, '14b. after an accepted !start, a moderator\'s and the owner\'s !start within 5 s are ignored; after it, one works again',
+            JSON.stringify({ first, guarded, hold: !!G.resultHold }));
         __drain();
     }
 

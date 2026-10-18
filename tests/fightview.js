@@ -5,7 +5,8 @@
 //   - !старт / !start: the channel owner or a moderator ends the betting window early (anyone else's is ignored), and
 //     so does the test panel's Skip button; the fight then starts the normal way (coin flip, 4.5 s "першим б'є …"), once
 //   - The result screen holds the arena for RESULT_HOLD_MS after every fight (ranked, duel, draw): !черга only queues and
-//     an accepted duel waits until it ends; the owner's or a moderator's !старт ends it early (anyone else's is ignored)
+//     an accepted duel waits until it ends; the owner's or a moderator's !старт ends it early (anyone else's is ignored),
+//     and further !старт are ignored for 5 s; the result tags: «Нокаут» after a KO, «Поразка» after a time-out, «Нічия»
 //   - Every turn of several real fights: one card per attack in the attacker's column, the highlight on the attacker,
 //     the damage number on the target's card, the whole turn animation finished inside the turn, no card past 2 lines
 //   - Every effect from the test menu's "next hit casts" picker, every ultimate from its СИЛА button, every Jackpot
@@ -393,6 +394,16 @@ async function popAtStep2(page, turn) {
                 return { fights: window.__fights.length, last: f ? `${f.p1}-${f.p2}${f.ranked ? ' ranked' : ''}` : '', kind: arenaState.kind, betting: !!arenaState.betting, flipped: !!arenaState.flipped,
                     hold: !!resultHold, running: isBattleRunning, timer: (document.getElementById('cd-time') || {}).textContent, queue: matchmakingQueue.join() }; });
             const finish = async () => { for (let i = 0; i < 60 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(TURN); await page.clock.runFor(HIT + 100); };
+            const tags = () => page.evaluate(() => ['p1', 'p2'].map(p => { const t = document.getElementById(`result-${p}`), c = document.getElementById(`card-${p}`);
+                return { name: document.getElementById(`name-${p}`).textContent.replace('@', ''), text: getComputedStyle(t).display === 'none' ? '' : t.innerText.trim(),
+                    won: c.classList.contains('is-winner'), lost: c.classList.contains('is-loser'), draw: c.classList.contains('is-draw') }; }));
+            const [WIN, KO, DEFEAT, DRAW] = lang === 'uk' ? ['ПЕРЕМОЖЕЦЬ', 'НОКАУТ', 'ПОРАЗКА', 'НІЧИЯ'] : ['WINNER', 'KNOCKED OUT', 'DEFEAT', 'DRAW'];
+            // Ends a fight between the two fighters on the cards with the given HP, through the game's own finishBattle
+            const endWith = (hp1, hp2, ranked) => page.evaluate(([a, b, r]) => {
+                const n = p => document.getElementById(`name-${p}`).textContent.replace('@', '');
+                isBattleRunning = true;
+                finishBattle({ ...getDragonStrict(n('p1')) }, { ...getDragonStrict(n('p2')) }, a, b, r);
+            }, [hp1, hp2, ranked]);
             // Moves the clock to `ms` after the last result
             const sinceResult = async ms => { const [end, now] = await page.evaluate(() => [window.__endedAt, Date.now()]); if (end + ms > now) await page.clock.runFor(end + ms - now); };
 
@@ -400,6 +411,9 @@ async function popAtStep2(page, turn) {
             await chat('h1', Q); await chat('h2', Q);
             await finish();
             const r0 = await state();
+            const koTags = await tags();
+            check(koTags.some(t => t.won && t.text === WIN) && koTags.some(t => t.lost && t.text === KO) && !koTags.some(t => t.draw),
+                `${tag} a knockout: "${WIN}" on the winner, "${KO}" on the loser`, JSON.stringify(koTags));
             await sinceResult(1000);
             await chat('h3', Q); await chat('h4', Q);
             await sinceResult(HOLD - 1);
@@ -440,7 +454,18 @@ async function popAtStep2(page, turn) {
             const b1 = await state();
             check(b0.kind === 'result' && b0.hold && b0.fights === 4 && b1.kind === 'countdown' && b1.betting && !b1.flipped && b1.timer === '2:00' && !b1.hold && b1.fights === 4,
                 `${tag} during the result screen a viewer's and a VIP's ${START} are ignored; a moderator's opens the next betting window at once (${b1.timer})`, JSON.stringify({ b0, b1 }));
-            await page.evaluate(() => skipBettingWindow());
+            // Two more right after (the owner, another moderator) and one at 4.999 s are ignored: the window keeps counting
+            await chat('test', START); await chat('mod_two', START, { mod: true });
+            const g0 = await state();
+            await page.clock.runFor(5000 - 1);
+            await chat('mod_two', START, { mod: true });
+            const g1 = await state();
+            await page.clock.runFor(1);
+            await chat('mod_two', START, { mod: true });
+            const g2 = await state();
+            check(g0.kind === 'countdown' && g0.betting && !g0.flipped && g0.timer === '2:00' && g1.kind === 'countdown' && !g1.flipped && g1.fights === 4 && g2.flipped && g2.fights === 5 && g2.timer === '0:05',
+                `${tag} after the moderator's ${START} further ones are ignored for 5 s (the owner's and another moderator's at once, one at 4.999 s): the window keeps counting (${g1.timer}); at 5 s one starts the fight`,
+                JSON.stringify({ g0, g1, g2 }));
             await finish();
             await page.evaluate(() => setBettingWindow(false));
             // The owner's !старт with nobody waiting: the hold ends, the result stays; the next two !черга start at once
@@ -456,7 +481,15 @@ async function popAtStep2(page, turn) {
 
             // Draws (friendly and ranked) hold the arena too: the fight ends with equal HP through finishBattle
             for (const ranked of [false, true]) {
-                await page.evaluate(([r]) => { isBattleRunning = true; const a = getDragonStrict('h1'), b = getDragonStrict('h2'); finishBattle({ ...a }, { ...b }, 50, 50, r); }, [ranked]);
+                await endWith(80, 30, ranked);   // time ran out: both still standing, p1 ahead on HP
+                const tTags = await tags();
+                check(tTags[0].won && tTags[0].text === WIN && tTags[1].lost && tTags[1].text === DEFEAT,
+                    `${tag} a time-out (${ranked ? 'ranked' : 'friendly'}): "${WIN}" on the winner, "${DEFEAT}" (not "${KO}") on the loser`, JSON.stringify(tTags));
+                await sinceResult(HOLD);
+                await endWith(50, 50, ranked);
+                const dTags = await tags();
+                check(dTags.every(t => t.draw && !t.won && !t.lost && t.text === DRAW),
+                    `${tag} a ${ranked ? 'ranked' : 'friendly'} draw: "${DRAW}" on both cards`, JSON.stringify(dTags));
                 await chat('h3', Q); await chat('h4', Q);
                 const w0 = await state();
                 await sinceResult(HOLD - 1);
