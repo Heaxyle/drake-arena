@@ -731,7 +731,8 @@ async function popAtStep2(page, turn) {
                     pill: panel.classList.contains('has-new') ? document.getElementById('log-new').textContent : '', turns, rows: f.querySelectorAll('.log-row').length,
                     clearTurns: cards.filter(clear).map(c => +c.querySelector('.lc-turn').textContent), firstItem: items[0] ? items[0].className : '',
                     firstClear: items[0] ? clear(items[0]) : false, result: !!f.querySelector('.log-result'), resultClear: f.querySelector('.log-result') ? clear(f.querySelector('.log-result')) : false,
-                    scrollbar: f.offsetWidth - f.clientWidth, scrollbarCss: getComputedStyle(f).scrollbarWidth, kind: arenaState.kind, turn: arenaState.turn };
+                    scrollbar: f.offsetWidth - f.clientWidth, scrollbarCss: getComputedStyle(f).scrollbarWidth, kind: arenaState.kind, turn: arenaState.turn,
+                    pillClear: (() => { const p = document.getElementById('log-new').getBoundingClientRect(), pr = panel.getBoundingClientRect(); return p.top >= fr.bottom - 0.5 && p.bottom <= pr.bottom + 0.5; })() };
             });
             // The mouse wheel over the log, as a viewer (or OBS's Interact window) scrolls it; then wait for the scroll to stop
             const box = await page.locator('#log-feed').boundingBox();
@@ -754,9 +755,9 @@ async function popAtStep2(page, turn) {
             const pills = [];
             for (let t = 13; t <= 15; t++) { await toFightTime(page, t * TURN + HIT + 1); pills.push((await view()).pill); }
             const held = await view();
-            check(held.top === up.top && JSON.stringify(held.clearTurns) === JSON.stringify(up.clearTurns) && held.turns.includes(15) && !held.following
+            check(held.top === up.top && held.clearTurns[0] === up.clearTurns[0] && held.pillClear && held.turns.includes(15) && !held.following
                 && JSON.stringify(pills) === JSON.stringify([1, 2, 3].map(pillWant)),
-                `${tag} scrolled up, turns 13–15 arrive without moving the view; the pill counts them: ${pills.join(' → ')}`, JSON.stringify({ held, pills }));
+                `${tag} scrolled up, turns 13–15 arrive without moving the view; the pill (in its own strip below the cards) counts them: ${pills.join(' → ')}`, JSON.stringify({ held, pills }));
             // Scrolling back to the bottom follows again
             await wheel(20000);
             const back = await view();
@@ -773,7 +774,7 @@ async function popAtStep2(page, turn) {
             await page.clock.runFor(1);
             await still();
             const idle2 = await view();
-            check(!idle0.atBottom && idle1.top === idle0.top && !idle1.following && idle1.pill === pillWant(idle1.turn - 16) && idle2.atBottom && idle2.following && !idle2.pill,
+            check(!idle0.atBottom && idle1.top === idle0.top && !idle1.following && idle1.pill === pillWant(idle1.turn - 16) && idle1.pillClear && idle2.atBottom && idle2.following && !idle2.pill,
                 `${tag} scrolled up during the fight and left alone: it stays put for 15 s (pill "${idle1.pill}"), then glides back to the newest turn`, JSON.stringify({ idle0, idle1, idle2 }));
             // The pill: scroll up, a turn arrives, click "↓ нові ходи (1)"
             await page.clock.runFor(1000);   // the glide is over
@@ -786,7 +787,7 @@ async function popAtStep2(page, turn) {
             const clicked = await view();
             await toFightTime(page, (tNow + 2) * TURN + HIT + 1);
             const after = await view();
-            check(before.pill === pillWant(1) && clicked.atBottom && clicked.following && !clicked.pill && after.atBottom && after.clearTurns.includes(tNow + 2),
+            check(before.pill === pillWant(1) && before.pillClear && clicked.atBottom && clicked.following && !clicked.pill && after.atBottom && after.clearTurns.includes(tNow + 2),
                 `${tag} a click on "${before.pill}" goes back to the newest turn and the log follows again`, JSON.stringify({ before, clicked, after }));
 
             // The fight runs to the limit: every row stays, from the intro banner to the result card
