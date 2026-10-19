@@ -13,6 +13,9 @@
 //     outcome (including a miss): the card text and the fighter-card chip
 //   - The result card's numbers against the fight's own cards; level-up messages against the game's numbers
 //   - After several fights the log holds only the current fight; no internal ids anywhere; worst-case cards fit
+//   - The log scrolls: a 30-turn fight keeps every row and its top is reachable; scrolled up, the view stays still while
+//     turns arrive and "↓ нові ходи (N)" counts them; back at the bottom (or the pill) it follows again; 15 s untouched
+//     during a fight brings it back; the result screen scrolls from the intro banner to the result card and stays put
 //   - Review screenshots: tests/screenshots/fightview-cards.png (log cards of every kind, both languages) and
 //     tests/screenshots/fightview-turn.png (countdowns, the turn steps, an ultimate, the result, both languages)
 //
@@ -28,7 +31,7 @@ const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
 const TURN = 4500, HIT = 600;
-// FV_ONLY=2,4 runs only those sections (0–8, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
+// FV_ONLY=2,4 runs only those sections (0–9, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
 const ONLY = (process.env.FV_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
 
@@ -833,6 +836,134 @@ async function popAtStep2(page, turn) {
             await page.waitForTimeout(500);   // the sheet sits outside the stage, so let its cells' fade-in finish too
             await page.locator('#review-sheet').screenshot({ path: path.join(SHOTS, 'fightview-cards.png') });
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // ===== 9. The log scrolls back through the whole fight =====
+        console.log('\nScrollable log');
+        if (run(9)) for (const lang of ['uk', 'en']) {
+            const tag = `[${lang}, log]`;
+            const { page, context, errors } = await open(browser, { lang });
+            await register(page, lang, [['alpha', 'red'], ['omega', 'green']]);
+            // A fight that runs to the 30-turn limit: both fighters get a huge max HP (the fight code reads getMaxHP by name)
+            await page.evaluate(() => { const orig = window.__maxHP = getMaxHP; window.getMaxHP = (...a) => orig(...a) * 1000; });
+            await say(page, 'alpha', cmd(lang, '!черга', '!queue')); await say(page, 'omega', cmd(lang, '!черга', '!queue'));
+            const IDLE = await page.evaluate('LOG_IDLE_MS');
+            const pillWant = n => cmd(lang, `↓ нові ходи (${n})`, `↓ new turns (${n})`);
+            // What the log shows: scroll position, which cards are fully below the fade, the pill
+            const view = () => page.evaluate(() => {
+                const f = document.getElementById('log-feed'), fr = f.getBoundingClientRect(), panel = document.getElementById('log-panel');
+                const clear = el => { const r = el.getBoundingClientRect(); return r.top >= fr.top + 34 - 0.5 && r.bottom <= fr.bottom + 0.5; };
+                const cards = [...f.querySelectorAll('.lc')];
+                const turns = cards.map(c => +c.querySelector('.lc-turn').textContent);
+                const items = [...document.getElementById('log-list').children];
+                return { top: Math.round(f.scrollTop), max: f.scrollHeight - f.clientHeight, atBottom: f.scrollHeight - f.scrollTop - f.clientHeight < 2, following: logFollowing,
+                    pill: panel.classList.contains('has-new') ? document.getElementById('log-new').textContent : '', turns, rows: f.querySelectorAll('.log-row').length,
+                    clearTurns: cards.filter(clear).map(c => +c.querySelector('.lc-turn').textContent), firstItem: items[0] ? items[0].className : '',
+                    firstClear: items[0] ? clear(items[0]) : false, result: !!f.querySelector('.log-result'), resultClear: f.querySelector('.log-result') ? clear(f.querySelector('.log-result')) : false,
+                    scrollbar: f.offsetWidth - f.clientWidth, scrollbarCss: getComputedStyle(f).scrollbarWidth, kind: arenaState.kind, turn: arenaState.turn,
+                    pillClear: (() => { const p = document.getElementById('log-new').getBoundingClientRect(), pr = panel.getBoundingClientRect(); return p.top >= fr.bottom - 0.5 && p.bottom <= pr.bottom + 0.5; })() };
+            });
+            // The mouse wheel over the log, as a viewer (or OBS's Interact window) scrolls it; then wait for the scroll to stop
+            const box = await page.locator('#log-feed').boundingBox();
+            const still = async () => { let prev = -1; for (let i = 0; i < 50; i++) { await page.waitForTimeout(80); const t = await page.evaluate(() => document.getElementById('log-feed').scrollTop); if (t === prev) return; prev = t; } };
+            const wheel = async dy => { await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3); await page.mouse.wheel(0, dy); await still(); };
+
+            // Turn 12: the log is full, following the newest card
+            await toFightTime(page, 12 * TURN + HIT + 1);
+            await settleArena(page);
+            const v12 = await view();
+            check(v12.max > 0 && v12.atBottom && v12.following && !v12.pill && v12.clearTurns.includes(12) && v12.scrollbar === 0 && v12.scrollbarCss === 'none',
+                `${tag} turn 12: the log overflows, follows the newest card (turn 12 in view) and shows no scrollbar`, JSON.stringify(v12));
+
+            // Scrolled to the top: the start of the fight is there, the first item clear of the fade
+            await wheel(-20000);
+            const up = await view();
+            check(up.top === 0 && !up.following && up.firstItem.includes('log-banner') && up.firstClear && up.clearTurns.includes(1) && up.turns[0] === 1 && !up.pill,
+                `${tag} the mouse wheel scrolls to the top: the intro banner and turn 1 are fully readable below the fade`, JSON.stringify(up));
+            // Turns keep arriving: the view stays still, the pill counts them
+            const pills = [];
+            for (let t = 13; t <= 15; t++) { await toFightTime(page, t * TURN + HIT + 1); pills.push((await view()).pill); }
+            const held = await view();
+            check(held.top === up.top && held.clearTurns[0] === up.clearTurns[0] && held.pillClear && held.turns.includes(15) && !held.following
+                && JSON.stringify(pills) === JSON.stringify([1, 2, 3].map(pillWant)),
+                `${tag} scrolled up, turns 13–15 arrive without moving the view; the pill (in its own strip below the cards) counts them: ${pills.join(' → ')}`, JSON.stringify({ held, pills }));
+            // Scrolling back to the bottom follows again
+            await wheel(20000);
+            const back = await view();
+            await toFightTime(page, 16 * TURN + HIT + 1);
+            const next = await view();
+            check(back.atBottom && back.following && !back.pill && next.atBottom && next.clearTurns.includes(16),
+                `${tag} scrolled back to the bottom: the pill goes and the log follows turn 16`, JSON.stringify({ back, next }));
+
+            // Scrolled up and left alone: still at 15 s minus 1 ms, back to the newest turn at 15 s
+            await wheel(-700);
+            const idle0 = await view();
+            await page.clock.runFor(IDLE - 1);
+            const idle1 = await view();
+            await page.clock.runFor(1);
+            await still();
+            const idle2 = await view();
+            check(!idle0.atBottom && idle1.top === idle0.top && !idle1.following && idle1.pill === pillWant(idle1.turn - 16) && idle1.pillClear && idle2.atBottom && idle2.following && !idle2.pill,
+                `${tag} scrolled up during the fight and left alone: it stays put for 15 s (pill "${idle1.pill}"), then glides back to the newest turn`, JSON.stringify({ idle0, idle1, idle2 }));
+            // The pill: scroll up, a turn arrives, click "↓ нові ходи (1)"
+            await page.clock.runFor(1000);   // the glide is over
+            await wheel(-700);
+            const tNow = (await view()).turn;
+            await toFightTime(page, (tNow + 1) * TURN + HIT + 1);
+            const before = await view();
+            await page.click('#log-new');
+            await still();
+            const clicked = await view();
+            await toFightTime(page, (tNow + 2) * TURN + HIT + 1);
+            const after = await view();
+            check(before.pill === pillWant(1) && before.pillClear && clicked.atBottom && clicked.following && !clicked.pill && after.atBottom && after.clearTurns.includes(tNow + 2),
+                `${tag} a click on "${before.pill}" goes back to the newest turn and the log follows again`, JSON.stringify({ before, clicked, after }));
+
+            // The fight runs to the limit: every row stays, from the intro banner to the result card
+            for (let i = 0; i < 40 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(TURN);
+            await page.clock.runFor(HIT + 100);
+            await settleArena(page);
+            const end = await view();
+            const all = Array.from({ length: 30 }, (_, i) => i + 1);
+            check(end.kind === 'result' && end.rows === 15 && JSON.stringify([...end.turns].sort((a, b) => a - b)) === JSON.stringify(all) && end.result && end.resultClear && end.atBottom,
+                `${tag} a 30-turn fight keeps all 15 rows (turns 1–30) and ends on the result card`, JSON.stringify({ ...end, turns: end.turns.length }));
+            await wheel(-20000);
+            const rTop = await view();
+            await page.clock.runFor(IDLE + 1000);
+            await still();
+            const rStay = await view();
+            check(rTop.top === 0 && rTop.firstItem.includes('log-banner') && rTop.firstClear && rStay.top === 0 && !rStay.following,
+                `${tag} on the result screen the log scrolls up to the intro banner and stays there (no return after 15 s)`, JSON.stringify({ rTop, rStay }));
+            await wheel(20000);
+            const rEnd = await view();
+            check(rEnd.atBottom && rEnd.resultClear, `${tag} and back down to the result card`, JSON.stringify(rEnd));
+
+            // The next fight (normal max HP again) starts with an empty log, following, no pill
+            await wheel(-20000);
+            await page.evaluate(() => { window.getMaxHP = window.__maxHP; });
+            await page.clock.runFor(await page.evaluate(() => typeof RESULT_HOLD_MS === 'number' ? RESULT_HOLD_MS : 5000) + 1000);   // past the result screen
+            await say(page, 'alpha', cmd(lang, '!черга', '!queue')); await say(page, 'omega', cmd(lang, '!черга', '!queue'));
+            const fresh = await view();
+            check(fresh.kind === 'countdown' && fresh.turns.length === 0 && fresh.rows === 0 && !fresh.result && fresh.following && !fresh.pill,
+                `${tag} the next fight starts with an empty log that follows again`, JSON.stringify(fresh));
+            // Review screenshots from this ordinary fight: mid-fight scrolled to the top, and the result screen scrolled up
+            if (lang === 'uk') {
+                await toFightTime(page, 10 * TURN + HIT + 1);
+                await wheel(-20000);
+                await settleArena(page);
+                const mid = await view();
+                check(mid.max > 0 && mid.top === 0 && mid.kind === 'fight', `${tag} an ordinary fight's log overflows by turn 10 and scrolls to its top (screenshot)`, JSON.stringify(mid));
+                await page.screenshot({ path: path.join(SHOTS, 'fightview-log-top.png'), clip: crop });
+                for (let i = 0; i < 40 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(TURN);
+                await page.clock.runFor(HIT + 100);
+                await wheel(-20000);
+                await settleArena(page);
+                const res = await view();
+                check(res.kind === 'result' && res.result && res.top === 0 && res.max > 0, `${tag} its result screen scrolled up to the intro banner (screenshot)`, JSON.stringify(res));
+                await page.screenshot({ path: path.join(SHOTS, 'fightview-log-result.png'), clip: crop });
+            }
+            if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
 
