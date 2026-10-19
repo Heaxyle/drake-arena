@@ -105,6 +105,9 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | The streamer's "!reroll white" ends with "Level 20!"; other rerolls still end with "Level reset to 1!" | The wrong level in the message |
 | A fight nobody can win (HP too high) plays turn 30, then times out, and its result says 30 turns | The time-out coming before turn 30 |
 | A ranked draw keeps both records and gives +10 XP each (Gold its bonus) | A draw counted as a loss |
+| **Ranked queue**: four players (L5, L12, L7, L4) queue; the first in line (L5) fights the closest level (L4) and the others keep their places; a level tie (L7 and L3 for an L5) goes to whoever queued first; joining again during the fight goes to the back | A random first pick, a random or late pick on a tie, the queue order shuffled |
+| **Underdog XP**: L9 beats L10 → +45, L6 beats L10 → +60, L5 beats L15 → +80 (bonus capped at +40), L1 beats L20 → +80; a higher or equal level winner → +40; the loser +10 (0 at level 20); the fight record says "+60 XP, +20 for a stronger opponent"; a Gold underdog gets its % on all 60; level 20 gets nothing; a ranked draw is +10 each and a duel nothing | No cap, the bonus for a higher-level winner, Gold skipping the bonus, draws or duels changed |
+| **The Top**: by wins − losses (6–2, 5–1, 4–0 all +4: more wins first; 3–0 at L12 before 3–0 at L10: the higher level), then 7–6; the streamer and the test fighters stay out | The Top by wins only, the wrong tie-break |
 | **No rest between fights**: both duellists `!queue` during their duel and their ranked fight starts right after it; a second `!queue` still says "already in queue"; a viewer who just fought is challenged and accepts at once, and a viewer in a fight can be challenged; no "exhausted" or "resting" reply anywhere. A second `!battle` while one is open gets a reply | A rest creeping back in (a fighter turned away from the queue, a challenge or an accept refused) |
 | `!accept` during a fight: the duel waits ("starts after the current fight") and both leave the ranked queue; another `!accept` is told to challenge again after the next fight; the waiting players get a "busy" reply to `!queue`, `!battle`, `!accept`; after the fight the waiting duel starts before the ranked queue; a fighter who accepts a challenge during their own fight gets a waiting duel that starts right after it, and the challenge closes (no "did not answer" 30 s later); `!battle` to a player whose duel is waiting says "⏳ @x is waiting for a duel. Challenge them after the next fight." and opens no challenge | Duels dropped when the arena is busy, the queue jumping ahead of them, or a misleading "did not answer" |
 | **The result screen holds the arena**: after a ranked fight two `!queue` only join the queue and a duel accepted then waits ("after the current fight"); a viewer's and a VIP's `!start` are ignored, a moderator's ends the hold and the waiting duel starts first; after that duel and its own hold the queue carries on; a friendly draw and a ranked draw hold too; the channel owner's `!start` with nobody waiting ends the hold, and the next two `!queue` start at once. After an accepted `!start` a moderator's and the owner's within 5 s are ignored, and one works again after it | The next fight starting the moment a result appears, `!start` ignored or open to anyone, two `!start` in a row both counting |
@@ -113,7 +116,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 70 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 77 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -187,6 +190,13 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 68 | A moderator's `!start` during the result screen does nothing | `rules.js` 14 (4 checks) | `ignored true; fights …` (the waiting duel never starts) |
 | 69 | Anyone's `!start` ends the result screen | `rules.js` 14 (2 checks) | `ignored false` |
 | 70 | No `!start` guard: two `!start` within 5 s both count | `rules.js` 14b (2 checks) | `{"first":true,"guarded":false,…}` |
+| 71 | The first ranked fighter is picked at random again | `rules.js` 15 (4 checks) | `{"f2":{"a":"qh","b":"qf","ranked":true},"queue":["qe","qg"]}` |
+| 72 | A level tie goes to whoever queued later | `rules.js` 15 (2 checks) | `{"f2":{"a":"qe","b":"qg","ranked":true},…}` |
+| 73 | The underdog bonus isn't capped at +40 | `rules.js` 16 (2 checks) | `L5 beats L15 → +80 (capped at +40 bonus)` fails |
+| 74 | A winner above the loser's level gets the bonus too | `rules.js` 16 (2 checks) | `a higher or equal level winner → +40` fails |
+| 75 | Gold multiplies only the 40, not the bonus | `rules.js` 16 (4 checks) | the underdog XP cases fail |
+| 76 | The Top is ordered by wins only | `rules.js` 17 | the order check fails |
+| 77 | On equal wins − losses the higher level goes first, not more wins | `rules.js` 17 | the order check fails |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -249,7 +259,9 @@ Output of the last run (the "by" lines say which test file caught it and how man
 …
 ✓ caught: anyone's !start ends the hold
 ✓ caught: no !start guard
-All 70 mutations caught.
+…
+✓ caught: Top tie: level before wins
+All 77 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -471,6 +483,7 @@ Text that is still too wide at its smallest allowed size is squeezed sideways (`
 | **The result card**: per fighter, damage = the sum of that fighter's card numbers, biggest hit = the largest, crits = the gold cards; XP = the change in the saved XP (ranked), "без досвіду" / "no XP" (duels), "макс. рівень" at level 20 | Stats counted wrongly, or counting that changed the fight |
 | **Only the current fight**: at the first turn of each fight the log has no cards and its banner names the two fighters, and the hidden text record (`#battle-log`) names only those two and only turn 1 | Cards or text piling up over hours of streaming |
 | **Scrollable log**, both languages, with the mouse wheel: a fight that runs to the 30-turn limit keeps all 15 rows (turns 1–30) and the result card; the log follows the newest card while at the bottom, with no scrollbar; scrolled to the top, the intro banner and turn 1 are fully clear of the fade; scrolled up, turns arriving don't move the view and the pill counts them ("↓ нові ходи (1)" → "(2)" → "(3)") from its own strip below the feed, covering no card; back at the bottom it follows again; scrolled up and left alone it stays put until exactly 15 s, then glides back; a click on the pill goes back and follows; on the result screen it scrolls from the intro banner to the result card and stays put after 15 s; the next fight starts with an empty log that follows. The Ukrainian run saves `fightview-log-top.png` (an ordinary fight scrolled to the top at turn 10) and `fightview-log-result.png` (its result screen scrolled up) | The start of a long fight dropped, an unreachable top, the first card under the fade, a scrolled-up view jumping when a turn arrives, the pill counting wrong, a stream stuck in the past, a visible scrollbar |
+| **Ranked play** through the chat simulator, both languages: while a test battle runs four join (L5, L12, L7, L4) and the strip reads "1 @qa 2 @qb 3 @qc 4 @qd"; after it #1 fights the closest level (L4) and the strip reads "1 @qb 2 @qc"; three more join, the strip's #1 fights next; a level tie goes to whoever waited longer. Rigged ranked fights: an L6 underdog beating L10 gets "+60 XP (+20 за сильнішого суперника)" on the result card (the loser "+10 XP"); a Gold L5 underdog beating L15 gets the +40 cap with Gold's % on all 80, and the longest XP text isn't cut off; a higher-level winner gets "+40 XP". The Top in the new order, W–L shown as before | The queue strip and the fights disagreeing; the bonus missing from the result card or cut off |
 | **Damage numbers**: on every hit, the card's number pops on the target's card | Pops on the wrong card or with the wrong number |
 | **Every effect from the test menu** ("Наступний удар накладає"): each of the 12 is picked, the next damaging hit casts it, the card says so ("накладає 🔥 Підпал", "отримує 💢 Лють", or refresh / replace / Dispel in words) and the owner's fighter card shows its chip; the pick is used up and the picker goes back to "— випадково —" / "— random —" | An effect without card text or chip, the picker not working |
 | **Every ultimate from the test menu** (the СИЛА buttons fill a meter): the attacker's tab shows the ultimate's icon and name with the stronger glow; its card has the header strip ("☄️ УЛЬТИМЕЙТ · Вогняний шторм") and lists what it did (unblockable, Ice Mirror's hits, what Theft took or the guaranteed crit, Detonation's multiplier, Bloom's heal). **Jackpot** with the reels forced to 💎💎💎, 💎🪙💀, 🪙💀💀 and 💀💀💀: the card shows the three reels, the multiplier, or "промах" / "miss" with 0 damage | An ultimate without its card text, a Jackpot miss without reels |
@@ -503,7 +516,7 @@ npm test                               # effect rules, then balance: element mat
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
 npm run test:rules                     # the game rules: whole HP, chat commands, no rest, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 70 ways, check effects.js / ultimates.js / rules.js catch each
+npm run test:mutations                 # break the game 77 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)

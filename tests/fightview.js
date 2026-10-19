@@ -7,6 +7,9 @@
 //   - The result screen holds the arena for RESULT_HOLD_MS after every fight (ranked, duel, draw): !черга only queues and
 //     an accepted duel waits until it ends; the owner's or a moderator's !старт ends it early (anyone else's is ignored),
 //     and further !старт are ignored for 5 s; the result tags: «Нокаут» after a KO, «Поразка» after a time-out, «Нічия»
+//   - Ranked play, through the chat simulator: the queue's longest wait fights first, against the closest level (a tie to
+//     whoever waited longer), in the order the "Далі в черзі" strip shows; an underdog's bonus XP on the result card;
+//     the Top by wins − losses (then wins, then level)
 //   - Every turn of several real fights: one card per attack in the attacker's column, the highlight on the attacker,
 //     the damage number on the target's card, the whole turn animation finished inside the turn, no card past 2 lines
 //   - Every effect from the test menu's "next hit casts" picker, every ultimate from its СИЛА button, every Jackpot
@@ -963,6 +966,94 @@ async function popAtStep2(page, turn) {
                 check(res.kind === 'result' && res.result && res.top === 0 && res.max > 0, `${tag} its result screen scrolled up to the intro banner (screenshot)`, JSON.stringify(res));
                 await page.screenshot({ path: path.join(SHOTS, 'fightview-log-result.png'), clip: crop });
             }
+            if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // ===== 11. Ranked play: queue order, underdog XP, the Top =====
+        console.log('\nRanked play');
+        if (run(11)) for (const lang of ['uk', 'en']) {
+            const tag = `[${lang}, ranked]`;
+            const { page, context, errors } = await open(browser, { lang });
+            const Q = cmd(lang, '!черга', '!queue');
+            // Chat goes through the page's chat simulator, as a viewer typing in the Send box would
+            const sim = (user, msg) => page.evaluate(([u, m]) => simSay(u, m), [user, msg]);
+            const levels = { qa: 5, qb: 12, qc: 7, qd: 4, qe: 5, qf: 7, qg: 3 };
+            for (const [u, l] of Object.entries(levels)) await sim(u, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][['red', 'blue', 'black', 'purple', 'green'][l % 5]]}`);
+            // Each fighter's level, set through their saved XP (as if they had played before)
+            await page.evaluate(lv => { const db = getDragonDB(); const xpFor = l => { let x = 0; for (let i = 1; i < l; i++) x += getRequiredXP(i); return x; };
+                Object.entries(lv).forEach(([u, l]) => { db[u].xp = xpFor(l); db[u].level = l; }); saveDragonDB(db); renderLeaderboard(); }, levels);
+            const strip = () => page.evaluate(() => [...document.querySelectorAll('#queue-list-ui .queue-badge:not(.queue-more)')].map(b => `${b.querySelector('.qn').textContent}.${b.querySelector('.pname').textContent.replace('@', '')}`));
+            const lastFight = () => page.evaluate(() => { const f = window.__fights[window.__fights.length - 1]; return f ? `${f.p1}-${f.p2}` : ''; });
+            const finish = async () => { for (let i = 0; i < 60 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(TURN); await page.clock.runFor(HIT + 100); };
+            const hold = async () => page.clock.runFor(await page.evaluate(() => typeof RESULT_HOLD_MS === 'number' ? RESULT_HOLD_MS : 5000) + 100);
+
+            // A test battle keeps the arena busy while four join: L5, L12, L7, L4
+            await page.evaluate(() => testBattle());
+            for (const u of ['qa', 'qb', 'qc', 'qd']) await sim(u, Q);
+            const s1 = await strip();
+            await finish(); await hold();
+            const f1 = await lastFight(), s2 = await strip();
+            check(s1.join() === '1.qa,2.qb,3.qc,4.qd' && f1 === 'qa-qd' && s2.join() === '1.qb,2.qc',
+                `${tag} the strip reads ${s1.join(' ')}; #1 @qa (L5, the longest wait) fights the closest level, @qd (L4); the strip then reads ${s2.join(' ')}`, JSON.stringify({ s1, f1, s2 }));
+            // During that fight three more join: L5, L7, L3. The next fight is the strip's #1 and #2
+            for (const u of ['qe', 'qf', 'qg']) await sim(u, Q);
+            const s3 = await strip();
+            await finish(); await hold();
+            const f2 = await lastFight();
+            check(s3.join() === '1.qb,2.qc,3.qe,4.qf,5.qg' && f2 === 'qb-qc', `${tag} next, #1 @qb (L12) fights @qc (L7), the closest of the rest`, JSON.stringify({ s3, f2 }));
+            await finish(); await hold();
+            const f3 = await lastFight(), s4 = await strip();
+            check(f3 === 'qe-qf' && s4.join() === '1.qg', `${tag} a level tie: @qe (L5) fights @qf (L7, waited longer), not @qg (L3), both 2 levels away`, JSON.stringify({ f3, s4 }));
+            await page.evaluate(() => { matchmakingQueue = []; updateQueueUI(); });
+            await finish(); await hold();   // the qe–qf fight and its result screen are over
+
+            // Underdog XP: L6 beats L10 in a ranked fight (the underdog can't lose: huge max HP for its element)
+            const rigged = async (win, wType, wLvl, lose, lType, lLvl) => {
+                await sim(win, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][wType]}`); await sim(lose, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][lType]}`);
+                await page.evaluate(([w, wl, l, ll, wt]) => { const db = getDragonDB(); const xpFor = n => { let x = 0; for (let i = 1; i < n; i++) x += getRequiredXP(i); return x; };
+                    db[w].xp = xpFor(wl); db[w].level = wl; db[l].xp = xpFor(ll); db[l].level = ll; saveDragonDB(db);
+                    if (!window.__maxHP) window.__maxHP = getMaxHP;
+                    window.getMaxHP = (lvl, type, title) => window.__maxHP(lvl, type, title) * (type === wt ? 1000 : 1); }, [win, wLvl, lose, lLvl, wType]);
+                const before = await page.evaluate(([w, l]) => [getDragonStrict(w).xp, getDragonStrict(l).xp], [win, lose]);
+                await sim(win, Q); await sim(lose, Q);
+                await finish();
+                await settleArena(page);
+                const out = await page.evaluate(([w, l]) => {
+                    const cells = [...document.querySelectorAll('#log-feed .log-result .lr-xp')];
+                    return { xp: [getDragonStrict(w).xp, getDragonStrict(l).xp], cells: cells.map(c => c.textContent), cut: cells.filter(c => c.scrollWidth > c.clientWidth + 1).map(c => c.textContent),
+                        names: [...document.querySelectorAll('#log-feed .log-result .lr-name')].map(n => n.textContent.replace('@', '')) };
+                }, [win, lose]);
+                await page.evaluate(() => { window.getMaxHP = window.__maxHP; });
+                await hold();
+                const cellOf = n => out.cells[out.names.indexOf(n)];
+                return { gained: [out.xp[0] - before[0], out.xp[1] - before[1]], win: cellOf(win), lose: cellOf(lose), cut: out.cut };
+            };
+            const u1 = await rigged('underdog', 'red', 6, 'favourite', 'blue', 10);
+            const want1 = cmd(lang, '+60 XP (+20 за сильнішого суперника)', '+60 XP (+20 for a stronger opponent)');
+            check(u1.gained.join() === '60,10' && u1.win === want1 && u1.lose === '+10 XP' && !u1.cut.length,
+                `${tag} an L6 underdog beats L10 in a ranked fight: the result card says "${u1.win}" (the loser "${u1.lose}"), nothing cut off`, JSON.stringify(u1));
+            // The longest text: a Gold underdog 10 levels down (bonus capped at +40, Gold on all 80)
+            const u2 = await rigged('goldie', 'gold', 5, 'champ', 'black', 15);
+            const pct = await page.evaluate(() => ELEMENT_BASE.goldXp + getTierMultiplier(5).goldXpBonus);
+            const g = Math.round(80 * (1 + pct / 100));
+            check(u2.gained[0] === g && u2.win === cmd(lang, `+${g} XP (+40 за сильнішого суперника)`, `+${g} XP (+40 for a stronger opponent)`) && !u2.cut.length,
+                `${tag} a Gold L5 underdog beats L15: "${u2.win}" (+40 cap, Gold's +${pct}% on the whole 80), not cut off`, JSON.stringify(u2));
+            // A favourite winning gets no bonus
+            const u3 = await rigged('champ', 'black', 15, 'goldie', 'gold', 5);
+            check(u3.gained[0] === 40 && u3.win === '+40 XP', `${tag} a higher-level winner gets the usual "+40 XP", no bonus`, JSON.stringify(u3));
+
+            // The Top: wins − losses, then more wins, then the higher level
+            const top = await page.evaluate(() => {
+                const rows = { t1: [5, 1, 3], t2: [6, 2, 3], t3: [4, 0, 3], t4: [3, 0, 10], t5: [3, 0, 12], t6: [7, 6, 15] };
+                const db = {}; const xpFor = n => { let x = 0; for (let i = 1; i < n; i++) x += getRequiredXP(i); return x; };
+                Object.entries(rows).forEach(([n, [w, l, lvl]]) => { db[n] = { name: n, color: '#8ab4f8', drakeObj: DRAKE_TYPES[0], title: TITLES_DB[0], xp: xpFor(lvl), level: lvl }; playerLeaderboardStats[n] = { wins: w, losses: l }; });
+                saveDragonDB(db);
+                renderLeaderboard();
+                return [...document.querySelectorAll('#leaderboard-list .lb-row')].map(r => `${r.querySelector('.lb-name').textContent.replace('@', '')} ${r.querySelector('.wl').textContent.replace(/\s/g, '')}`);
+            });
+            check(top.join() === 't2 6–2,t1 5–1,t3 4–0,t5 3–0,t4 3–0,t6 7–6',
+                `${tag} the Top by wins − losses: ${top.join(' · ')} (+4: more wins first; 3–0: the higher level first; the W–L shown as before)`, top.join());
             if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }

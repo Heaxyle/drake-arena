@@ -44,6 +44,9 @@ eval(gameScript(FILE) + `
     get pending() { return pendingChallenges; }, get queue() { return matchmakingQueue; }, set queue(q) { matchmakingQueue = q; },
     get waitingDuel() { return typeof waitingDuel !== 'undefined' ? waitingDuel : undefined; },
     get running() { return isBattleRunning; }, set running(v) { isBattleRunning = v; },
+    get streamer() { return STREAMER_USER; },
+    ELEMENT_BASE, getTierMultiplier, renderLeaderboard: () => renderLeaderboard(),
+    get topRows() { return [...document.getElementById('leaderboard-list').innerHTML.matchAll(/class="lb-name[^>]*>@([^<]+)</g)].map(m => m[1]); },
     setLang: l => { currentLang = l; },
     withMaxHP: (f, fn) => { const orig = getMaxHP; getMaxHP = f; try { return fn(); } finally { getMaxHP = orig; } },
     wrapRunBattle: f => { const orig = runBattle; runBattle = (...a) => { f(...a); return orig(...a); }; },
@@ -301,6 +304,87 @@ for (const lang of ['en', 'uk']) {
         check(first && guarded && G.resultHold === null, '14b. after an accepted !start, a moderator\'s and the owner\'s !start within 5 s are ignored; after it, one works again',
             JSON.stringify({ first, guarded, hold: !!G.resultHold }));
         __drain();
+    }
+
+    // 15. The ranked queue: the longest wait fights first, against the closest level (a tie: whoever waited longer)
+    {
+        fresh();
+        const lv = { qa: 5, qb: 12, qc: 7, qd: 4, qe: 5, qf: 7, qg: 3, qh: 9 };
+        Object.entries(lv).forEach(([n, l], i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: l }));
+        const queueUp = names => { G.running = true; names.forEach(n => G.say(n, t('!queue', '!черга'))); const q = [...G.queue]; G.running = false; G.checkQueue(); return q; };
+        const q1 = queueUp(['qa', 'qb', 'qc', 'qd']);             // L5, L12, L7, L4
+        const f1 = fightsStarted[0], left1 = [...G.queue];
+        check(q1.join() === 'qa,qb,qc,qd' && f1 && f1.a === 'qa' && f1.b === 'qd' && f1.ranked && left1.join() === 'qb,qc',
+            '15. the longest-waiting fighter (@qa, L5) goes first, against the closest level among the rest (@qd, L4); the others keep their places',
+            JSON.stringify({ q1, f1, left1 }));
+        __drain(); fresh();
+        Object.entries(lv).forEach(([n, l], i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: l }));
+        queueUp(['qe', 'qh', 'qf', 'qg']);                           // L5, L9, L7, L3: L7 and L3 are both 2 away
+        const f2 = fightsStarted[0];
+        check(f2 && f2.a === 'qe' && f2.b === 'qf', '15. a level tie goes to whoever waited longer (@qf, L7, queued before @qg, L3)', JSON.stringify({ f2, queue: G.queue }));
+        __drain(); fresh();
+        Object.entries(lv).forEach(([n, l], i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: l }));
+        queueUp(['qg', 'qb', 'qc', 'qh']);                           // L3 first: L7 is closest
+        const f3 = fightsStarted[0];
+        G.say('qg', t('!queue', '!черга'));                          // queues again during the fight: to the back
+        check(f3 && f3.a === 'qg' && f3.b === 'qc' && G.queue.join() === 'qb,qh,qg', '15. @qg (L3, first in line) fights @qc (L7); joining again puts them at the back',
+            JSON.stringify({ f3, queue: G.queue }));
+        __drain();
+    }
+
+    // 16. Underdog XP (ranked): +5 per level below the loser, at most +40, on top of 40; Gold on the whole amount
+    {
+        const fight = (win, lose, ranked = true, hp = [40, 0]) => {
+            const db = G.getDragonDB(), w0 = db[win].xp, l0 = db[lose].xp;
+            G.running = true;
+            G.finishBattle({ ...db[win] }, { ...db[lose] }, hp[0], hp[1], ranked);
+            const after = G.getDragonDB();
+            return [after[win].xp - w0, after[lose].xp - l0];
+        };
+        const cases = [];
+        for (const [wl, ll, want] of [[9, 10, 45], [6, 10, 60], [5, 15, 80], [1, 20, 80], [12, 10, 40], [10, 10, 40]]) {
+            fresh(); make('uw', 'red', { level: wl }); make('ul', 'blue', { level: ll });
+            const [gw, gl] = fight('uw', 'ul');
+            cases.push({ wl, ll, want, got: gw, loser: gl });
+        }
+        check(cases.every(c => c.got === c.want && c.loser === (c.ll >= 20 ? 0 : 10)),
+            '16. underdog XP: L9 beats L10 → +45, L6 beats L10 → +60, L5 beats L15 → +80 (capped at +40 bonus), L1 beats L20 → +80; a higher or equal level winner → +40; the loser +10 as before (0 at level 20)',
+            JSON.stringify(cases));
+        fresh(); make('uw', 'red', { level: 6 }); make('ul', 'blue', { level: 10 });
+        fight('uw', 'ul');
+        const said = logs.find(l => /stronger opponent|сильнішого суперника/.test(l)) || '';
+        check(said.includes(t('+60 XP, +20 for a stronger opponent', '+60 XP, +20 за сильнішого суперника')), '16. the fight record names the bonus: "' + said.slice(0, 90) + '"', said);
+        // Gold applies to the whole amount (40 + bonus), at the winner's own tier
+        fresh(); make('gw', 'gold', { level: 6 }); make('ul', 'blue', { level: 10 });
+        const tier = G.getTierMultiplier(6), pct = G.ELEMENT_BASE.goldXp + tier.goldXpBonus;
+        const [gold] = fight('gw', 'ul');
+        check(gold === Math.round(60 * (1 + pct / 100)), `16. a Gold underdog (L6 beats L10) gets Gold's +${pct}% on all 60: +${gold} XP`, `got ${gold}, want ${Math.round(60 * (1 + pct / 100))}`);
+        // Level 20 gets nothing; draws and duels are unchanged
+        fresh(); make('top', 'red', { level: 20 }); make('ul', 'blue', { level: 20 });
+        const [l20] = fight('top', 'ul');
+        fresh(); make('dw', 'red', { level: 3 }); make('dl', 'blue', { level: 12 });
+        const draw = fight('dw', 'dl', true, [30, 30]);
+        fresh(); make('dw', 'red', { level: 3 }); make('dl', 'blue', { level: 12 });
+        const duel = fight('dw', 'dl', false);
+        check(l20 === 0 && draw.join() === '10,10' && duel.join() === '0,0', '16. level 20 gets no XP; a ranked draw is +10 each and a duel nothing, whatever the levels',
+            JSON.stringify({ l20, draw, duel }));
+        __drain();
+    }
+
+    // 17. The Top: wins − losses; a tie goes to more wins, then the higher level. The streamer and test fighters stay out
+    if (lang === 'en') {
+        fresh();
+        const rows = { t1: [5, 1, 3], t2: [6, 2, 3], t3: [4, 0, 3], t4: [3, 0, 10], t5: [3, 0, 12], t6: [7, 6, 15] };   // wins, losses, level
+        Object.entries(rows).forEach(([n, [w, l, lvl]], i) => { make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: lvl }); G.stats[n] = { wins: w, losses: l }; });
+        const prevStreamer = G.streamer;
+        G.setStreamerUser('streamchannel'); make('streamchannel', 'white', { level: 20 }); G.stats.streamchannel = { wins: 50, losses: 0 };
+        make('QA-Tester-Alpha', 'red', { level: 20 }); G.stats['QA-Tester-Alpha'] = { wins: 40, losses: 0 };
+        G.renderLeaderboard();
+        const order = G.topRows;
+        check(order.join() === 't2,t1,t3,t5,t4,t6',
+            '17. the Top by wins − losses: @t2 6–2 and @t1 5–1 and @t3 4–0 (all +4: more wins first), @t5 3–0 L12 before @t4 3–0 L10 (same record: higher level), then @t6 7–6; no streamer, no test fighter',
+            order.join());
+        G.setStreamerUser(prevStreamer);
     }
 
     // 13. One icon in the opening banner
