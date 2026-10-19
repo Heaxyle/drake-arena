@@ -108,7 +108,7 @@
         /* After the fight: the winner framed in gold, the loser greyed */
         .fighter-card.is-winner { --hi: #ffd978; --lo: #b8862c; --deep: #1b1206; --glow: 0 0 30px rgba(242, 193, 78, 0.28); }
         .fighter-card.is-loser  { --hi: #6c6f80; --lo: #3a3c48; --deep: #08080b; }
-        .fighter-card.is-loser .drake-sprite { filter: grayscale(1) brightness(0.55); }
+        .fighter-card.is-loser .drake-sprite, .fighter-card.champion.is-loser .drake-sprite { filter: grayscale(1) brightness(0.55); }
         .fighter-card.is-loser .sprite-bob { animation: none; }
         .result-tag { position: absolute; right: 18px; bottom: -13px; font-size: 12px; font-weight: 800; letter-spacing: 1.5px; padding: 4px 10px; display: none; white-space: nowrap; }
         .fighter-card.is-winner .result-tag { display: block; background: #f2c14e; color: #1a1406; --hi: #ffd978; --lo: #b8862c; --deep: #1b1206; }
@@ -376,6 +376,26 @@
         .pd-1 .pd-step { height: 86px; } .pd-2 .pd-step { height: 62px; } .pd-3 .pd-step { height: 44px; }
         .pd-medal { font-size: 24px; line-height: 1; }
         .pd-place { font-family: var(--pixel); font-size: 14px; color: var(--gold); }
+        /* Tournament rewards: the badge after a name, the champion's golden glow, the Hall of Fame */
+        .fighter-name[data-medal]::after { content: attr(data-medal); margin-left: 8px; }
+        .lb-medal { margin-left: 6px; }
+        .ic-medal { margin-left: 2px; }
+        .ic-medals { color: var(--text2); }
+        .ic-spin { margin-top: 4px; font-size: 12px; font-weight: 700; color: #ffd978; }
+        .fighter-card.champion { --glow: 0 0 26px rgba(242, 193, 78, 0.35); }
+        .fighter-card.champion .drake-sprite { filter: drop-shadow(0 0 3px #ffe08a) drop-shadow(0 0 10px rgba(255, 200, 60, 0.95)) drop-shadow(0 0 18px rgba(242, 193, 78, 0.6)); }
+        .log-countdown.hall { gap: 10px; }
+        .hf-title { font-size: 20px; font-weight: 800; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; }
+        .hf { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+        .hf-row { display: grid; grid-template-columns: 136px 120px repeat(3, minmax(0, 1fr)); align-items: center; gap: 12px; height: 34px; padding: 0 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); font-size: 15px; }
+        .hf-row:first-child { border-color: rgba(242, 193, 78, 0.55); background: rgba(242, 193, 78, 0.08); }
+        .hf-date { color: var(--dim); font-family: var(--pixel); font-size: 12px; white-space: nowrap; }
+        .hf-size { color: var(--muted); white-space: nowrap; }
+        .hf-p { font-weight: 700; white-space: nowrap; overflow: hidden; }
+        .hf-best { font-size: 15px; font-weight: 700; color: #ffd978; white-space: nowrap; overflow: hidden; max-width: 100%; }
+        .hf-card-row { gap: 6px; flex-wrap: wrap; font-size: 12px; }
+        .hf-card-row .hf-date { font-size: 10px; }
+        .info-card.hall-card .ic-sub { font-size: 12px; color: var(--dim); font-weight: 400; }
 
         /* ===== Side column ===== */
         #side { position: absolute; left: 1452px; top: 150px; width: 428px; height: 890px; display: flex; flex-direction: column; gap: 28px; }
@@ -915,6 +935,9 @@
                 type.textContent = tT('podium');
                 plate.textContent = tT('champion', { who: '@' + s.podium[0] });
                 fitText(plate, 11);
+            } else if (s.kind === 'hall') {
+                type.textContent = tT('hall');
+                plate.textContent = tT('tournaments', { n: getHonours().hall.length });
             } else if (s.kind === 'idle') {
                 type.textContent = uk ? 'Арена чекає на бійців' : 'The arena awaits fighters';
                 plate.textContent = uk ? '⏳ Очікування' : '⏳ Waiting';
@@ -1626,6 +1649,7 @@
             fvLogPill();
             fvRepaintCountdown();
             tourneyShowPodium();
+            if (arenaState.kind === 'hall' || (arenaState.kind === 'idle' && fvEl('log-countdown').classList.contains('hall'))) showHallOfFame();
             fvPopulateTestMenu();
         }
 
@@ -2974,21 +2998,25 @@ function drakeSpriteURL(type) {
             const defs = getModifiedDefenses(prog.level, dragon.drakeObj.type, t);
             const lvl = uk ? 'Рівень' : 'Level';
             const levelText = prog.level >= 20 ? `${lvl} 20 (MAX)` : `${lvl} ${prog.level}`;
+            const honours = getHonours(), medal = medalOf(username), [g, s, b] = medalCount(honours, username), spins = honours.spins[username] || 0;
+            const honourRow = g + s + b + spins ? `<div class="ic-row ic-medals">${MEDALS.map((m, i) => `${m}×${[g, s, b][i]}`).join(' ')}${spins ? ` · ${tT('spins', { n: spins })}` : ''}</div>` : '';
             addInfo(`
-                <div class="ic-head"><span style="color: ${userColor || dragon.color};">📊 @${username}</span><span>${dragon.drakeObj.name[currentLang]}</span></div>
+                <div class="ic-head"><span style="color: ${userColor || dragon.color};">📊 @${username}${medal ? ` <span class="ic-medal">${medal}</span>` : ''}</span><span>${dragon.drakeObj.name[currentLang]}</span></div>
                 <div class="ic-row"><span>${levelText}</span><div class="ic-xp"><div style="width: ${xpPct}%;"></div></div><span>${xpPct}%</span></div>
                 <div class="ic-row">❤️ ${hp} HP · 💥 ${crit.critChance}% (x${crit.critPower}) · 🛡️ ${defs.physDef}% · ⚔️ ${stats.wins} / 💀 ${stats.losses}</div>
                 ${t ? `<div class="ic-title" style="color: ${t.color};">${t.icon} ${t.name[currentLang]}${rarityTag(t)}</div><div class="ic-desc">${describeTitleBonus(t)}</div>` : ''}
+                ${honourRow}
             `, 'stat');
         }
 
-        function showTitleRoll(username, userColor, title) {
+        function showTitleRoll(username, userColor, title, spinsLeft = null) {
             const uk = currentLang === 'uk';
             const top = ['legendary', 'mythic', 'meme'].includes(title.rarity);
             addInfo(`
                 <div class="ic-head"><span style="color: ${userColor};">🎲 @${username}</span><span style="font-size: 10px; color: #aaa;">${uk ? 'рулетка титулів' : 'title roulette'}</span></div>
                 <div class="ic-title" style="color: ${title.color};">${title.icon} ${title.name[currentLang]}${rarityTag(title)}</div>
                 <div class="ic-desc">${describeTitleBonus(title)}</div>
+                ${spinsLeft === null ? '' : `<div class="ic-spin">${tT('freeSpin', { n: spinsLeft })}</div>`}
             `, 'ok', top ? 'glow-' + title.rarity : '');
             if (top) {
                 const shout = uk
@@ -3095,6 +3123,7 @@ function drakeSpriteURL(type) {
             }
 
             if (command === '!шанси' || command === '!odds' || command === '!chances') { showOddsCard(); return; }
+            if (command === '!зала' || command === '!hall') { showHallCard(); return; }
 
             const gameCommands = ['!титул', '!title', '!бій', '!battle', '!черга', '!queue', '!стата', '!stats', '!профіль', '!profile', '!прийняти', '!accept', '!відхилити', '!decline'];
             if (gameCommands.includes(command)) {
@@ -3160,8 +3189,10 @@ function drakeSpriteURL(type) {
 
             if (command === '!титул' || command === '!title') {
                 let isValidTitle = isBroadcaster || (REWARD_ID_TITLE !== "PASTE_REWARD_ID_HERE" ? rewardId === REWARD_ID_TITLE : rewardId != null);
+                // Typed in chat with a free spin from a tournament left: that spin pays for it
+                const honours = getHonours(), freeSpin = !isValidTitle && honours.spins[sender] > 0;
 
-                if (!isValidTitle) {
+                if (!isValidTitle && !freeSpin) {
                     let msg = currentLang === 'uk' ?
                         `🛑 <span style="color: ${senderColor};">@${sender}</span>, крутити рулетку титулів можна <b>ТІЛЬКИ</b> за бали каналу!` :
                         `🛑 <span style="color: ${senderColor};">@${sender}</span>, title roulette can <b>ONLY</b> be spun via channel points!`;
@@ -3177,6 +3208,7 @@ function drakeSpriteURL(type) {
                     addInfo(msg, 'warn');
                     return;
                 }
+                if (freeSpin) { honours.spins[sender]--; saveHonours(honours); }
                 const oldTitle = dragon.title;
                 let newTitle = getRandomTitle();
                 dragon.title = newTitle;
@@ -3188,7 +3220,7 @@ function drakeSpriteURL(type) {
                 saveDragonDB(dbUpdate);
                 
                 renderLeaderboard();
-                showTitleRoll(sender, senderColor, newTitle);
+                showTitleRoll(sender, senderColor, newTitle, freeSpin ? honours.spins[sender] : null);
                 return;
             }
 
@@ -3380,9 +3412,9 @@ function drakeSpriteURL(type) {
         // runs; with nobody waiting the result simply stays on screen. !старт / !start (owner or moderator) ends it early.
         let resultHold = null;   // { timer } while the result screen holds the arena
         const arenaBusy = () => isBattleRunning || !!resultHold;
-        function holdResult() {
+        function holdResult(ms = RESULT_HOLD_MS) {
             if (resultHold) clearTimeout(resultHold.timer);
-            resultHold = { timer: setTimeout(endResultHold, RESULT_HOLD_MS) };
+            resultHold = { timer: setTimeout(endResultHold, ms) };
         }
         // Ends the hold now and lets the next fight start; false (nothing happens) when there is no hold
         function endResultHold() {
@@ -3464,7 +3496,10 @@ function drakeSpriteURL(type) {
                   spots: ['{n} місце', '{n} місця', '{n} місць'], qualWon: '🏆 {who} проходить кваліфікацію: далі — {stage}',
                   game: 'Гра {n}', replay: 'перегравання', tbd: '…', qualSlot: 'кваліф. {n}', podium: '🏆 Турнір завершено', champion: '🥇 {who}',
                   won: '🏆 {label}: перемагає {who} ({score})', draw: '🤝 {label}: нічия — гру буде переграно',
-                  matchWon: '🏆 {who} виграє матч {score} ({stage})' },
+                  matchWon: '🏆 {who} виграє матч {score} ({stage})',
+                  hall: '🏛️ Зала слави', hallEmpty: '🏛️ Зала слави поки порожня: її відкриє перший турнір.', hallBest: 'Найбільше перемог: {who} — 🏆×{n}',
+                  players: '{n} учасників', tournaments: 'турнірів: {n}', medals: 'Медалі турнірів', spins: '🎟️ Безкоштовні прокрути титулу: {n}',
+                  freeSpin: '🎟️ Безкоштовний прокрут за турнір · лишилось {n}' },
             en: { name: 'Tournament', signupLine: '🏆 Tournament: sign-up · {n}/{size} · <b>!join</b>', onLine: '🏆 Tournament on · the queue waits',
                   opened: '🏆 <b>Tournament!</b> Sign-up for {size} players is open: type <b>!join</b> (changed your mind? <b>!leave</b>). Everyone fights at level 20; your level shapes the bracket: the highest go straight into the main bracket, the top two into opposite halves.',
                   usage: 'ℹ️ <b>!tournament [4|8|16]</b> opens sign-up, <b>!tournament start</b> closes it (4 players or more), <b>!tournament stop</b> cancels it.',
@@ -3485,7 +3520,10 @@ function drakeSpriteURL(type) {
                   spots: ['{n} spot', '{n} spots', '{n} spots'], qualWon: '🏆 {who} is through the qualifier: next, the {stage}',
                   game: 'Game {n}', replay: 'replay', tbd: '…', qualSlot: 'qualifier {n}', podium: '🏆 Tournament over', champion: '🥇 {who}',
                   won: '🏆 {label}: {who} wins ({score})', draw: '🤝 {label}: a draw — the game will be replayed',
-                  matchWon: '🏆 {who} wins the match {score} ({stage})' },
+                  matchWon: '🏆 {who} wins the match {score} ({stage})',
+                  hall: '🏛️ Hall of Fame', hallEmpty: '🏛️ The Hall of Fame is empty: the first tournament opens it.', hallBest: 'Most wins: {who} — 🏆×{n}',
+                  players: '{n} players', tournaments: 'tournaments: {n}', medals: 'Tournament medals', spins: '🎟️ Free title spins: {n}',
+                  freeSpin: '🎟️ Free spin from a tournament · {n} left' },
         };
         const tT = (key, vars = {}) => TOURNEY_TEXT[currentLang][key].replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '');
         // «5 місць», «1 місце», «2 місця» (English: spot / spots)
@@ -3576,7 +3614,9 @@ function drakeSpriteURL(type) {
         // The arena is free: the next tournament game, or the podium once the final is decided, or (after the podium) the end
         function tourneyNext() {
             const t = tourney;
-            if (t.phase === 'podium') { tourneyEnd(); nextFight(); return; }
+            // After the podium, the Hall of Fame (HALL_MS); after that the tournament is over and it stays on screen
+            if (t.phase === 'podium') { t.phase = 'hall'; tourneySave(); setArenaState({ kind: 'hall' }); showHallOfFame(); holdResult(HALL_MS); return; }
+            if (t.phase === 'hall') { tourneyEnd(); nextFight(); return; }
             if (t.phase === 'ready') {
                 t.phase = 'running';
                 addInfo(tT('begins'), 'ok');
@@ -3623,6 +3663,7 @@ function drakeSpriteURL(type) {
             t.phase = 'podium';
             t.podium = [fin.winner, fin.winner === fin.a ? fin.b : fin.a, t.third.winner];
             tourneySave();
+            tourneyAward(t);
             tourGame = null;
             addLog(`${tT('podium')}: 🥇 @${t.podium[0]} · 🥈 @${t.podium[1]} · 🥉 @${t.podium[2]}`);
             setArenaState({ kind: 'podium', podium: [...t.podium] });
@@ -3657,6 +3698,7 @@ function drakeSpriteURL(type) {
             if (!tourney) return;
             updateQueueUI();
             if (tourney.phase === 'podium') { setArenaState({ kind: 'podium', podium: [...tourney.podium] }); tourneyShowPodium(); holdResult(); }
+            else if (tourney.phase === 'hall') { setArenaState({ kind: 'hall' }); showHallOfFame(); holdResult(HALL_MS); }
             else if (tourneyOn()) nextFight();
         }
 
@@ -3752,7 +3794,7 @@ function drakeSpriteURL(type) {
                 }
                 if (arg === 'стоп' || arg === 'stop') {
                     if (!tourney) addInfo(tT('noTourney'), 'warn');
-                    else if (tourney.phase === 'podium') addInfo(tT('over'), 'warn');
+                    else if (tourney.phase === 'podium' || tourney.phase === 'hall') addInfo(tT('over'), 'warn');
                     else tourneyCancel();
                     return true;
                 }
@@ -3798,6 +3840,78 @@ function drakeSpriteURL(type) {
             return false;
         }
         tourneyLoad();
+
+        /* ===== Tournament rewards: badges, free title spins, medals, the Hall of Fame =====
+           Given once, when the final is decided (tourneyPodium); a cancelled tournament gives nothing. The badges 🏆 🥈 🥉
+           (in the Top, on the arena card, in !стата) belong to the last tournament's podium until the next one ends; the
+           champion's drake also glows gold in fights. Free title spins (3 / 2 / 1) add up; !титул typed in chat uses one
+           (a channel-point redemption doesn't). Medals are counted for good. The Hall of Fame keeps every tournament; it's
+           shown after the podium, on the idle arena and by !зала / !hall. All of it lives under HONOURS_KEY, its own key
+           (no "db" or "stats" in the name), so a ladder wipe keeps it. */
+        const HONOURS_KEY = 'drake_arena_showcase_honours';
+        const TOURNEY_SPINS = [3, 2, 1];       // free title spins for 1st, 2nd and 3rd
+        const MEDALS = ['🏆', '🥈', '🥉'];
+        const HALL_MS = 15000;                 // the Hall of Fame on the arena after the podium (the queue waits for it too)
+        const HALL_ROWS = 5;                   // tournaments shown: the latest first
+        // { holders: [1st, 2nd, 3rd] of the last tournament, medals: { name: [🏆, 🥈, 🥉] }, spins: { name: left },
+        //   hall: [{ date, players, size, podium: [1st, 2nd, 3rd] }] }
+        function getHonours() {
+            let h = null;
+            try { h = JSON.parse(localStorage.getItem(HONOURS_KEY)); } catch (e) {}
+            return { holders: [], medals: {}, spins: {}, hall: [], ...(h || {}) };
+        }
+        function saveHonours(h) { try { localStorage.setItem(HONOURS_KEY, JSON.stringify(h)); } catch (e) {} }
+        // "🏆", "🥈", "🥉" or "" for this player (the last tournament's podium)
+        const medalOf = name => { const i = getHonours().holders.indexOf(name); return i === -1 ? '' : MEDALS[i]; };
+        const medalCount = (h, name) => h.medals[name] || [0, 0, 0];
+        function tourneyAward(t) {
+            const h = getHonours();
+            h.holders = [...t.podium];
+            t.podium.forEach((name, i) => {
+                if (!name) return;
+                const m = medalCount(h, name); m[i]++; h.medals[name] = m;
+                h.spins[name] = (h.spins[name] || 0) + TOURNEY_SPINS[i];
+            });
+            h.hall.push({ date: new Date().toISOString(), players: t.players.length, size: t.bracket, podium: [...t.podium] });
+            saveHonours(h);
+            renderLeaderboard();
+        }
+        // Whoever has won the most tournaments (then more 🥈, then more 🥉); all of them on a full tie
+        function hallBest(h) {
+            const names = Object.keys(h.medals).filter(n => h.medals[n][0] > 0);
+            if (!names.length) return null;
+            const score = n => h.medals[n][0] * 1e6 + h.medals[n][1] * 1e3 + h.medals[n][2];
+            const top = Math.max(...names.map(score));
+            return { names: names.filter(n => score(n) === top), wins: h.medals[names.find(n => score(n) === top)][0] };
+        }
+        const hallDate = iso => new Date(iso).toLocaleDateString(currentLang === 'uk' ? 'uk-UA' : 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const hallWho = name => { const d = getDragonStrict(name); return `<span class="pname" style="color:${nameColor(d ? d.color : '#eef0fa')}">@${name}</span>`; };
+        // The Hall of Fame in the log area: after the podium, and on the idle arena
+        function showHallOfFame() {
+            if (!FV_LIVE) return false;
+            const h = getHonours(), panel = fvEl('log-panel'), box = fvEl('log-countdown');
+            if (!h.hall.length || !panel || !box) return false;
+            fvCountdownToken++;
+            const best = hallBest(h);
+            box.className = 'log-countdown hall';
+            box.innerHTML = `<span class="hf-title">${tT('hall')}</span><div class="hf">`
+                + h.hall.slice(-HALL_ROWS).reverse().map(e => `<div class="hf-row"><span class="hf-date">${hallDate(e.date)}</span><span class="hf-size">${tT('players', { n: e.players })}</span>`
+                    + e.podium.map((n, i) => `<span class="hf-p">${['🥇', '🥈', '🥉'][i]} ${n ? hallWho(n) : '—'}</span>`).join('') + `</div>`).join('')
+                + `</div>` + (best ? `<span class="hf-best">${tT('hallBest', { who: best.names.map(hallWho).join(', '), n: best.wins })}</span>` : '');
+            box.querySelectorAll('.hf-p, .hf-best').forEach(el => fitText(el, 10));
+            panel.classList.add('counting');
+            return true;
+        }
+        // !зала / !hall: the same, as a card in the chat panel
+        function showHallCard() {
+            const h = getHonours();
+            if (!h.hall.length) { addInfo(tT('hallEmpty'), 'note'); return; }
+            const best = hallBest(h);
+            addInfo(`<div class="ic-head"><span>${tT('hall')}</span><span class="ic-sub">${tT('tournaments', { n: h.hall.length })}</span></div>`
+                + h.hall.slice(-HALL_ROWS).reverse().map(e => `<div class="ic-row hf-card-row"><span class="hf-date">${hallDate(e.date)}</span>`
+                    + e.podium.map((n, i) => `<span>${['🥇', '🥈', '🥉'][i]} ${n ? hallWho(n) : '—'}</span>`).join('') + `</div>`).join('')
+                + (best ? `<div class="ic-desc">${tT('hallBest', { who: best.names.map(hallWho).join(', '), n: best.wins })}</div>` : ''), 'stat', 'hall-card');
+        }
 
         function testBattle() {
             if (isBattleRunning) return;
@@ -3910,6 +4024,9 @@ function drakeSpriteURL(type) {
             let nameEl = document.getElementById(`name-${prefix}`);
             nameEl.removeAttribute('data-i18n'); // stop the language switch from resetting it to "Waiting..."
             nameEl.innerText = `@${dragon.name}`;
+            const medal = medalOf(dragon.name);
+            if (nameEl.dataset) { if (medal) nameEl.dataset.medal = medal; else delete nameEl.dataset.medal; }
+            if (card && card.classList) card.classList.toggle('champion', medal === MEDALS[0]);
             nameEl.style.color = nameColor(dragon.color);
             nameEl.classList.add('pname');
 
@@ -4750,7 +4867,7 @@ function drakeSpriteURL(type) {
                 const title = d.title ? ` · ${d.title.icon} ${d.title.name[currentLang]}` : '';
                 return `<li class="lb-row"><span class="lb-rank">${index + 1}</span>` +
                     (sprite ? `<img class="lb-sprite" src="${sprite}" alt="">` : '<span></span>') +
-                    `<div class="lb-id"><span class="lb-name pname" style="color:${nameColor(d.color)}">@${user}</span><span class="lb-sub">${uk ? 'Рівень' : 'Level'} ${lvl}${title}</span></div>` +
+                    `<div class="lb-id"><span class="lb-name pname" style="color:${nameColor(d.color)}">@${user}${medalOf(user) ? `<span class="lb-medal">${medalOf(user)}</span>` : ''}</span><span class="lb-sub">${uk ? 'Рівень' : 'Level'} ${lvl}${title}</span></div>` +
                     `<span class="wl">${st.wins}<i> – </i>${st.losses}</span></li>`;
             }).join('');
             listElement.querySelectorAll('.lb-name, .lb-sub').forEach(el => fitText(el, 9));
@@ -4863,6 +4980,7 @@ function drakeSpriteURL(type) {
             fvLogInit();
             fvPopulateTestMenu();
             fitStage();
+            showHallOfFame();   // the idle arena: the Hall of Fame (once there is one) instead of «Арена готова!»
             tourneyResume();
         }
         document.addEventListener('DOMContentLoaded', initPage);

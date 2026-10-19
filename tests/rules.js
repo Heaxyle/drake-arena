@@ -22,6 +22,9 @@
 //      replayed, the 3rd-place game right before the final, everyone at level 20 with saved levels untouched, no XP and
 //      no change to wins, losses or the Top, the ranked queue paused and duels refused until the tournament is over (a waiting duel
 //      first), and a cancel mid-game
+//   19 tournament rewards: the podium's badges (in the Top and !stats, replaced when the next tournament ends), free
+//      title spins 3 / 2 / 1 (they add up; !title typed in chat uses one, a channel-point redemption doesn't, none left
+//      gets the usual reply), medals that add up, the Hall of Fame (!hall), nothing for a cancelled tournament
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
@@ -52,6 +55,9 @@ eval(gameScript(FILE) + `
     get tourGame() { return typeof tourGame !== 'undefined' ? tourGame : null; },
     get tourney() { return typeof tourney !== 'undefined' ? tourney : undefined; },
     tourneyReset: () => { if (typeof tourney !== 'undefined') { tourney = null; tourGame = null; tourneySave(); } },
+    get honours() { return typeof getHonours === 'function' ? getHonours() : null; },
+    honoursReset: () => { if (typeof HONOURS_KEY !== 'undefined') localStorage.setItem(HONOURS_KEY, 'null'); },
+    get topHtml() { return document.getElementById('leaderboard-list').innerHTML; },
     wrapFinishBattle: f => { const orig = finishBattle; finishBattle = (...a) => orig(...f(...a)); },
     ELEMENT_BASE, getTierMultiplier, renderLeaderboard: () => renderLeaderboard(),
     get topRows() { return [...document.getElementById('leaderboard-list').innerHTML.matchAll(/class="lb-name[^>]*>@([^<]+)</g)].map(m => m[1]); },
@@ -626,6 +632,70 @@ for (const lang of ['en', 'uk']) {
         check(gameOn && gone && after.length === 1 && after[0].ranked && mine() === before,
             '18. !tournament stop mid-game: the tournament is gone, the game counts for nothing (no XP), then the queue carries on', JSON.stringify({ gameOn, gone, fights: fightsStarted }));
         __drain();
+    }
+
+    // 19. Tournament rewards
+    if (G.honours) {
+        fresh(); G.honoursReset();
+        const names = ['ra', 'rb', 'rc', 'rd', 're'];
+        names.forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 3 + i }));
+        // A 4-player tournament where the earlier name in `pri` always wins; returns [1st, 2nd, 3rd]
+        const playTourney = (pri, players) => {
+            G.sayAs('mod1', t('!tournament 4', '!турнір 4'), { mod: true });
+            rig = (a, b) => pri.indexOf(a) < pri.indexOf(b) ? a : b;
+            players.forEach(n => G.say(n, t('!join', '!учасник')));
+            const r0 = G.tourney.rounds[0];
+            __drain();
+            rig = null;
+            const win = m => pri.indexOf(m.a) < pri.indexOf(m.b) ? [m.a, m.b] : [m.b, m.a];
+            const [w1, l1] = win(r0[0]), [w2, l2] = win(r0[1]);
+            const [gold, silver] = win({ a: w1, b: w2 }), [bronze] = win({ a: l1, b: l2 });
+            return [gold, silver, bronze];
+        };
+        const p1 = playTourney(['ra', 'rb', 'rc', 'rd'], ['ra', 'rb', 'rc', 'rd']);
+        let h = G.honours;
+        const spins1 = { ...h.spins };
+        check(JSON.stringify(h.holders) === JSON.stringify(p1) && p1[0] === 'ra' && h.medals.ra.join() === '1,0,0' && h.medals[p1[1]].join() === '0,1,0' && h.medals[p1[2]].join() === '0,0,1'
+            && spins1.ra === 3 && spins1[p1[1]] === 2 && spins1[p1[2]] === 1 && h.hall.length === 1 && h.hall[0].players === 4 && h.hall[0].podium.join() === p1.join(),
+            `19. the podium (🏆 @${p1[0]}, 🥈 @${p1[1]}, 🥉 @${p1[2]}) gets the badges, one medal each, 3 / 2 / 1 free title spins and a Hall of Fame entry`, JSON.stringify(h));
+        G.renderLeaderboard();
+        G.say('ra', t('!stats', '!стата')); const stats = lastInfo();
+        check(G.topHtml.includes('@ra<span class="lb-medal">🏆</span>') && G.topHtml.includes(`@${p1[1]}<span class="lb-medal">🥈</span>`) && !G.topHtml.includes('@re<span')
+            && stats.includes('@ra 🏆') && stats.includes('🏆×1 🥈×0 🥉×0') && /Free title spins: 3|Безкоштовні прокрути титулу: 3/.test(stats),
+            '19. the badges in the Top (🏆 after @ra, 🥈 after the runner-up, none for @re) and in !stats, with the medal count and the spins left', `${stats}`);
+        const titleOf = n => G.getDragonDB()[n].title.id;
+        // !title typed in chat: a free spin pays for it; a channel-point redemption doesn't use one; none left: the usual reply
+        const before = titleOf('ra');
+        let rolled = 0;
+        for (let i = 0; i < 5 && rolled === 0; i++) { G.say('ra', t('!title', '!титул')); if (titleOf('ra') !== before || /Free spin|Безкоштовний прокрут/.test(lastInfo())) rolled++; }
+        const afterFree = G.honours.spins.ra, freeReply = lastInfo();
+        G.sayAs('ra', t('!title', '!титул'), { 'custom-reward-id': 'reward-1' });
+        const afterPoints = G.honours.spins.ra;
+        G.say('re', t('!title', '!титул')); const noSpin = lastInfo();
+        check(afterFree === 2 && /Free spin from a tournament · 2 left|Безкоштовний прокрут за турнір · лишилось 2/.test(freeReply) && afterPoints === 2 && /ONLY|ТІЛЬКИ/.test(noSpin),
+            '19. !title in chat uses a free spin (3 → 2, "2 left" on the roll card); a channel-point !title leaves the spins alone; with none, the usual "channel points only" reply',
+            JSON.stringify({ afterFree, freeReply, afterPoints, noSpin }));
+        // A cancelled tournament gives nothing
+        const h1 = JSON.stringify(G.honours);
+        G.sayAs('mod1', t('!tournament 4', '!турнір 4'), { mod: true });
+        ['ra', 'rb', 'rc', 'rd'].forEach(n => G.say(n, t('!join', '!учасник')));
+        G.sayAs('mod1', t('!tournament stop', '!турнір стоп'), { mod: true });
+        __drain();
+        check(JSON.stringify(G.honours) === h1, '19. a cancelled tournament gives no badges, medals, spins or Hall of Fame entry', JSON.stringify(G.honours));
+        // The next tournament: new badges; medals and spins add up
+        const p2 = playTourney(['re', 'ra', 'rb', 'rc'], ['ra', 'rb', 'rc', 're']);
+        h = G.honours;
+        const raMedals = [0, 1, 2].map(i => (p1[i] === 'ra' ? 1 : 0) + (p2[i] === 'ra' ? 1 : 0));
+        const raSpins = 2 + [3, 2, 1][p2.indexOf('ra')];
+        G.renderLeaderboard();
+        check(JSON.stringify(h.holders) === JSON.stringify(p2) && h.medals.ra.join() === raMedals.join() && h.spins.ra === raSpins && h.hall.length === 2
+            && G.topHtml.includes('@re<span class="lb-medal">🏆</span>') && !G.topHtml.includes('@ra<span class="lb-medal">🏆</span>'),
+            `19. the next tournament (🏆 @${p2[0]}, 🥈 @${p2[1]}, 🥉 @${p2[2]}) takes the badges; @ra's medals add up (${raMedals.join('/')}), and so do the spins (2 left + ${raSpins - 2} = ${raSpins})`,
+            JSON.stringify(h));
+        G.say('viewer', t('!hall', '!зала')); const hall = lastInfo();
+        check(/Hall of Fame|Зала слави/.test(hall) && hall.includes('🥇 @' + p2[0]) && hall.includes('🥇 @' + p1[0]) && hall.indexOf('@' + p2[0]) < hall.indexOf('🥇 @' + p1[0]) && /Most wins|Найбільше перемог/.test(hall),
+            '19. !hall: both tournaments, the latest first, and who has won the most', hall);
+        __drain(); fresh(); G.honoursReset();
     }
 
     // 13. One icon in the opening banner
