@@ -57,11 +57,13 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The 
 | `!title` | `!титул` | Roll a random title *(channel points)* |
 | `!odds` / `!chances` | `!шанси` | Show the title roulette drop chances |
 | `!reroll <color>` | `!рерол <колір>` | Change element and reset to level 1 *(channel points)* |
-| `!start` | `!старт` | End the betting window early *(channel owner and moderators only)* |
+| `!start` | `!старт` | End the betting window early, or the result screen *(channel owner and moderators only)* |
 
 **No rest between fights:** fighters can `!queue`, `!battle` and `!accept` again straight away, even during their own fight. Only two things hold a player back: someone already in the queue can't join it twice, and players whose duel is waiting for the arena are busy until it starts (below).
 
-**Duels during a fight:** `!accept` while the arena is busy doesn't cancel the duel: it waits, and starts about 5 s after the current fight's result, before the ranked queue carries on. Accepting takes both players out of the ranked queue, and until their duel starts both get a short "busy" reply to `!queue`, `!battle` and `!accept`. Only one duel can wait at a time; another `!accept` meanwhile is told to challenge again after the next fight. A `!battle` to a viewer whose duel is waiting is answered straight away ("⏳ @x is waiting for a duel. Challenge them after the next fight.") and opens no challenge.
+**The result screen:** after every fight (ranked, duel or draw) the result stays on screen and the arena stays busy for 20 s (`RESULT_HOLD_MS`). Meanwhile `!queue` only joins the queue and an accepted duel waits, exactly as during a fight; when the 20 s are up, the waiting duel starts first, then the queue. If nobody is waiting, the result simply stays on screen. The channel owner or a moderator can type `!старт` / `!start` to end it early (anyone else's is ignored); the next fight then starts the usual way, with its betting window if that's on. After an accepted `!старт`, further ones are ignored for 5 s, so two people typing it at once can't end the result screen and skip the next betting window in one go. The result tags on the fighter cards: "ПЕРЕМОЖЕЦЬ" / "WINNER" on the winner; "НОКАУТ" / "KNOCKED OUT" on a knocked-out loser, "ПОРАЗКА" / "DEFEAT" on one who lost on HP when time ran out; "НІЧИЯ" / "DRAW" on both cards after a draw.
+
+**Duels during a fight:** `!accept` while the arena is busy doesn't cancel the duel: it waits, and starts when the current fight's result screen ends, before the ranked queue carries on. Accepting takes both players out of the ranked queue, and until their duel starts both get a short "busy" reply to `!queue`, `!battle` and `!accept`. Only one duel can wait at a time; another `!accept` meanwhile is told to challenge again after the next fight. A `!battle` to a viewer whose duel is waiting is answered straight away ("⏳ @x is waiting for a duel. Challenge them after the next fight.") and opens no challenge.
 
 ## How combat works
 

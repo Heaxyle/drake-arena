@@ -74,6 +74,7 @@
         .result-tag { position: absolute; right: 18px; bottom: -13px; font-size: 12px; font-weight: 800; letter-spacing: 1.5px; padding: 4px 10px; display: none; white-space: nowrap; }
         .fighter-card.is-winner .result-tag { display: block; background: #f2c14e; color: #1a1406; --hi: #ffd978; --lo: #b8862c; --deep: #1b1206; }
         .fighter-card.is-loser .result-tag  { display: block; background: #ff5d52; color: #1f0a08; --hi: #ff8a6a; --lo: #a8321f; --deep: #1a0806; }
+        .fighter-card.is-draw .result-tag   { display: block; background: #a9adc4; color: #12131a; --hi: #d6d9ea; --lo: #6c6f80; --deep: #0b0b10; }
         .vs-badge { position: absolute; left: 414px; top: 50%; margin-top: -26px; width: 52px; height: 52px; box-sizing: border-box; background: var(--plate); display: flex; align-items: center; justify-content: center; }
         .vs-badge span { font-family: var(--pixel); font-size: 14px; color: var(--gold); padding-left: 2px; }
 
@@ -786,7 +787,8 @@
         const turnsWordUk = n => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'хід' : (a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'ходи' : 'ходів'); };
         function setArenaState(next) { arenaState = next; renderArenaHeader(); renderResultTags(); }
 
-        // After the fight: the winner's card in gold with "ПЕРЕМОЖЕЦЬ", the loser's greyed with "НОКАУТ"
+        // After the fight: the winner's card in gold with "ПЕРЕМОЖЕЦЬ"; the loser's greyed with "НОКАУТ" (knocked out) or
+        // "ПОРАЗКА" (lost on HP when time ran out); after a draw both cards say "НІЧИЯ"
         function renderResultTags() {
             const uk = currentLang === 'uk', s = arenaState;
             ['p1', 'p2'].forEach(p => {
@@ -795,9 +797,13 @@
                 const name = (document.getElementById(`name-${p}`).textContent || '').replace('@', '');
                 const won = s.kind === 'result' && s.winner && s.winner.name === name;
                 const lost = s.kind === 'result' && s.winner && s.winner.name !== name;
+                const draw = s.kind === 'result' && !s.winner;
                 card.classList.toggle('is-winner', !!won);
                 card.classList.toggle('is-loser', !!lost);
-                tag.textContent = won ? (uk ? 'Переможець' : 'Winner') : (lost ? (uk ? 'Нокаут' : 'Knocked out') : '');
+                card.classList.toggle('is-draw', !!draw);
+                tag.textContent = won ? (uk ? 'Переможець' : 'Winner')
+                    : lost ? (s.ko ? (uk ? 'Нокаут' : 'Knocked out') : (uk ? 'Поразка' : 'Defeat'))
+                    : draw ? (uk ? 'Нічия' : 'Draw') : '';
                 tag.style.textTransform = 'uppercase';
             });
         }
@@ -810,6 +816,9 @@
         const TURN_MS = 4500;                  // one turn (the fight's interval)
         const HIT_DELAY_MS = 600;              // turn step 1 (the attacker lights up) → step 2 (the hit lands)
         const BETTING_WINDOW_MS = 120000;      // the optional betting window before each fight (Test Settings); !старт / !start ends it early
+        const RESULT_HOLD_MS = 20000;          // the result screen: after every fight the arena stays busy this long (!старт / !start ends it early)
+        const START_GUARD_MS = 5000;           // after an accepted !старт / !start, further ones are ignored this long
+        let lastStartAt = -Infinity;
         const BETTING_WINDOW_DEFAULT = false;  // a build with the betting window on by default only changes this
         const BETTING_KEY = 'drake_arena_showcase_betting';
         const SUDDEN_DEATH = { from: 16, perTurn: 0.3 };   // from this turn every hit gets ×(1 + perTurn per turn since)
@@ -2697,10 +2706,16 @@ function drakeSpriteURL(type) {
             const isBroadcaster = (sender === target.replace('#', ''));
             const rewardId = context['custom-reward-id'];
 
-            // The channel owner or a moderator ends the betting window early; anyone else's !старт is ignored
+            // The channel owner or a moderator ends the betting window early, or the result screen's hold (then the next
+            // fight starts the usual way: its betting window opens); anyone else's !старт is ignored. After one, further
+            // !старт are ignored for START_GUARD_MS, so two people typing it at once can't end the hold and then skip the
+            // next betting window in one go
             if (command === '!старт' || command === '!start') {
                 const badges = context.badges || {};
-                if (isBroadcaster || context.mod === true || !!badges.broadcaster || !!badges.moderator) skipBettingWindow();
+                if (!(isBroadcaster || context.mod === true || !!badges.broadcaster || !!badges.moderator)) return;
+                if (Date.now() - lastStartAt < START_GUARD_MS) return;
+                lastStartAt = Date.now();
+                if (!skipBettingWindow()) endResultHold();
                 return;
             }
 
@@ -2861,8 +2876,8 @@ function drakeSpriteURL(type) {
                 let cColor = db[challenger] ? db[challenger].color : '#cccccc';
                 matchmakingQueue = matchmakingQueue.filter(u => u !== sender && u !== challenger);
                 updateQueueUI();
-                // The arena is busy: the duel waits and starts after the current fight
-                if (isBattleRunning) {
+                // The arena is busy (a fight, or its result screen): the duel waits and starts after it
+                if (arenaBusy()) {
                     waitingDuel = { challenger, cColor, accepter: sender, aColor: senderColor };
                     addInfo(currentLang === 'uk'
                         ? `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> приймає виклик <b>@${challenger}</b>! Дуель почнеться після поточного бою.`
@@ -2969,7 +2984,7 @@ function drakeSpriteURL(type) {
         if (client) client.on('message', handleChatMessage);
 
         function checkQueue() {
-            if (isBattleRunning || waitingDuel || matchmakingQueue.length < 2) return;
+            if (arenaBusy() || waitingDuel || matchmakingQueue.length < 2) return;
             
             let idx1 = Math.floor(Math.random() * matchmakingQueue.length);
             let p1Name = matchmakingQueue.splice(idx1, 1)[0];
@@ -3009,9 +3024,26 @@ function drakeSpriteURL(type) {
             fightRecordReset();
             startFight(challenger, cColor, accepter, aColor, false);
         }
-        // 5 s after a fight's result: a duel accepted during the fight goes first, then the ranked queue carries on
+        // The result screen: after every fight (ranked, duel or draw) the arena stays busy for RESULT_HOLD_MS. Meanwhile
+        // !черга only joins the queue and an accepted duel becomes the waiting duel, as during a fight. Then nextFight()
+        // runs; with nobody waiting the result simply stays on screen. !старт / !start (owner or moderator) ends it early.
+        let resultHold = null;   // { timer } while the result screen holds the arena
+        const arenaBusy = () => isBattleRunning || !!resultHold;
+        function holdResult() {
+            if (resultHold) clearTimeout(resultHold.timer);
+            resultHold = { timer: setTimeout(endResultHold, RESULT_HOLD_MS) };
+        }
+        // Ends the hold now and lets the next fight start; false (nothing happens) when there is no hold
+        function endResultHold() {
+            if (!resultHold) return false;
+            clearTimeout(resultHold.timer);
+            resultHold = null;
+            nextFight();
+            return true;
+        }
+        // When the arena is free again: a duel accepted during the fight or its result goes first, then the ranked queue
         function nextFight() {
-            if (isBattleRunning) return;
+            if (arenaBusy()) return;
             if (waitingDuel) { const d = waitingDuel; waitingDuel = null; startDuel(d.challenger, d.cColor, d.accepter, d.aColor); return; }
             checkQueue();
         }
@@ -3838,6 +3870,7 @@ function drakeSpriteURL(type) {
             else { winner = null; looser = null; }
             const fightTurns = arenaState.turn || 0;
             const fvLvl = fvLevels([p1, p2]);
+            const ko = !!winner && (winner === p1 ? p2HP : p1HP) <= 0;
             let fvXp = null;
 
             if (!isRanked) {
@@ -3853,9 +3886,9 @@ function drakeSpriteURL(type) {
                     addLog(msg);
                 }
                 fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: false, turns: fightTurns, xp: null, lvl: null });
-                setArenaState({ kind: 'result', ranked: false, winner, turns: fightTurns });
+                setArenaState({ kind: 'result', ranked: false, winner, turns: fightTurns, ko });
                 isBattleRunning = false;
-                setTimeout(() => { nextFight(); }, 5000);
+                holdResult();
                 return;
             }
 
@@ -3894,10 +3927,10 @@ function drakeSpriteURL(type) {
             updateFighterCard('p2', getDragonStrict(p2.name));
             
             fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: true, turns: fightTurns, xp: fvXp, lvl: fvLvl });
-            setArenaState({ kind: 'result', ranked: true, winner, turns: fightTurns });
+            setArenaState({ kind: 'result', ranked: true, winner, turns: fightTurns, ko });
             isBattleRunning = false;
             renderLeaderboard();
-            setTimeout(() => { nextFight(); }, 5000);
+            holdResult();
         }
 
         function recordStats(username, isWin) {

@@ -33,6 +33,9 @@ eval(gameScript(FILE) + `
     TITLES_DB, DRAKE_TYPES, VIEWER_DRAKE_TYPES, DRAGON_TYPE, EFFECTS, FV_TEXT: typeof FV_TEXT !== 'undefined' ? FV_TEXT : null,
     getMaxHP, getRequiredXP, calculateLevelAndProgress, getDragonDB, saveDragonDB, setStreamerUser,
     say: (user, text, channel) => handleChatMessage('#' + (channel || 'streamchannel'), { username: user, color: '#8ab4f8' }, text, false),
+    sayAs: (user, text, extra) => handleChatMessage('#streamchannel', { username: user, color: '#8ab4f8', ...extra }, text, false),
+    get resultHold() { return typeof resultHold !== 'undefined' ? resultHold : undefined; },
+    resetStartGuard: () => { if (typeof lastStartAt !== 'undefined') lastStartAt = -Infinity; },
     runBattle: (...a) => runBattle(...a), finishBattle: (...a) => finishBattle(...a), checkQueue: () => checkQueue(),
     nextFight: typeof nextFight === 'function' ? () => nextFight() : null,
     fvT: typeof fvT === 'function' ? fvT : null,
@@ -68,6 +71,7 @@ const fresh = () => {
     __drain();
     G.saveDragonDB({}); Object.keys(G.stats).forEach(k => delete G.stats[k]); G.queue = [];
     Object.keys(G.pending).forEach(k => delete G.pending[k]); G.running = false;
+    G.resetStartGuard();
     infos = []; logs = []; fightsStarted = [];
 };
 const make = (name, type, opts = {}) => {
@@ -232,6 +236,72 @@ for (const lang of ['en', 'uk']) {
     const want12 = t('ℹ️ @hinty, to challenge someone type !battle @name.', 'ℹ️ @hinty, щоб кинути виклик, напишіть !бій @нік.');
     check(lastInfo() === want12, `12. "${t('!battle', '!бій')}" with no name (even mid-fight) replies "${want12}"`, lastInfo());
     __drain();
+
+    // 14. The result screen holds the arena (RESULT_HOLD_MS) after every fight; the timer only runs on __drain()
+    {
+        fresh();
+        ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type));
+        const end = (a, b, hpA, hpB, ranked) => { G.running = true; G.finishBattle({ ...G.getDragonDB()[a] }, { ...G.getDragonDB()[b] }, hpA, hpB, ranked); };
+        end('h1', 'h2', 40, 0, true);                              // a ranked fight ends: its result screen holds the arena
+        const held = !!G.resultHold && !G.running;
+        G.say('h3', t('!queue', '!черга')); G.say('h4', t('!queue', '!черга'));
+        const queued = [...G.queue], startedInHold = fightsStarted.length;
+        G.say('h5', t('!battle @h6', '!бій @h6')); G.say('h6', t('!accept', '!прийняти'));
+        const acceptReply = lastInfo(), waiting = G.waitingDuel;
+        check(held && queued.join() === 'h3,h4' && startedInHold === 0 && waiting && waiting.challenger === 'h5' && /after the current fight|після поточного бою/.test(acceptReply),
+            '14. during the result screen two !queue only join the queue and an accepted duel waits, as during a fight', `held ${held}; queue ${queued}; fights ${startedInHold}; reply: ${acceptReply}`);
+        G.say('viewer', t('!start', '!старт'));
+        G.sayAs('vip', t('!start', '!старт'), { badges: { vip: '1' } });
+        const ignored = !!G.resultHold && fightsStarted.length === 0;
+        G.sayAs('mod1', t('!start', '!старт'), { mod: true, badges: { moderator: '1' } });
+        const afterMod = fightsStarted[0];
+        check(ignored && !G.resultHold && afterMod && afterMod.a === 'h5' && afterMod.b === 'h6' && !afterMod.ranked && fightsStarted.length === 1,
+            "14. a viewer's and a VIP's !start are ignored; a moderator's ends the hold and the waiting duel starts first (before the queue)", `ignored ${ignored}; fights ${JSON.stringify(fightsStarted)}`);
+        __drain();                                                  // the duel runs; then its own hold, then the queue
+        const second = fightsStarted[1];
+        check(second && second.ranked && [second.a, second.b].sort().join() === 'h3,h4', '14. after the duel and its hold the ranked queue carries on', JSON.stringify(fightsStarted));
+        __drain();
+        // A friendly draw and a ranked draw hold the arena too
+        for (const ranked of [false, true]) {
+            fresh();
+            ['d1', 'd2', 'd3', 'd4'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i].type));
+            end('d1', 'd2', 30, 30, ranked);
+            G.say('d3', t('!queue', '!черга')); G.say('d4', t('!queue', '!черга'));
+            const during = fightsStarted.length;
+            __drain();
+            check(!!during === false && fightsStarted.length >= 1 && fightsStarted[0].ranked && G.resultHold === null,
+                `14. after a ${ranked ? 'ranked' : 'friendly'} draw the queue waits for the hold, then starts`, JSON.stringify({ during, fights: fightsStarted }));
+        }
+        // The owner's !start with nobody waiting just ends the hold; the result stays and the next two !queue start at once
+        fresh();
+        ['o1', 'o2', 'o3', 'o4'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i].type));
+        end('o1', 'o2', 40, 0, true);
+        G.say('streamchannel', t('!start', '!старт'));
+        const freeAfterOwner = G.resultHold === null && fightsStarted.length === 0 && G.arenaState.kind === 'result';
+        G.say('o3', t('!queue', '!черга')); G.say('o4', t('!queue', '!черга'));
+        check(freeAfterOwner && fightsStarted.length === 1, "14. the channel owner's !start ends the hold; with nobody waiting the result stays, and the queue then starts at once",
+            JSON.stringify({ freeAfterOwner, fights: fightsStarted, kind: G.arenaState.kind }));
+        __drain();
+    }
+
+    // 14b. After an accepted !start, further ones are ignored for 5 s (Node's clock is real: these run within milliseconds)
+    {
+        fresh();
+        ['g1', 'g2', 'g3', 'g4'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i].type));
+        const end = (a, b) => { G.running = true; G.finishBattle({ ...G.getDragonDB()[a] }, { ...G.getDragonDB()[b] }, 40, 0, true); };
+        end('g1', 'g2');
+        G.say('streamchannel', t('!start', '!старт'));             // ends this hold
+        const first = G.resultHold === null;
+        end('g3', 'g4');                                            // another result screen straight away
+        G.sayAs('mod1', t('!start', '!старт'), { mod: true });      // within 5 s of the first: ignored
+        G.say('streamchannel', t('!start', '!старт'));
+        const guarded = !!G.resultHold;
+        G.resetStartGuard();                                        // as if 5 s had passed
+        G.sayAs('mod1', t('!start', '!старт'), { mod: true });
+        check(first && guarded && G.resultHold === null, '14b. after an accepted !start, a moderator\'s and the owner\'s !start within 5 s are ignored; after it, one works again',
+            JSON.stringify({ first, guarded, hold: !!G.resultHold }));
+        __drain();
+    }
 
     // 13. One icon in the opening banner
     const opener = G.TITLES_DB.filter(x => x.mechanic === 'opening_buff' || (x.bonus && x.bonus.mechanic === 'opening_buff'));

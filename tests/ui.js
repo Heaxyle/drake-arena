@@ -317,7 +317,8 @@ async function testVersion(browser, key) {
     await runFight(`ranked fight @${a} vs @${b}`, async () => { await chat(a, '!черга'); await chat(b, '!черга'); }, '05-mid-fight');
     await shot('06-fight-over');
     for (const [challenger, target] of cfg.duels) {
-        await page.clock.runFor(6000);   // let the post-fight queue check pass
+        // Past the result screen's hold, so the duel starts at once (5 s on a page without one, e.g. an older main via UI_FILE)
+        await page.clock.runFor(await page.evaluate(() => typeof RESULT_HOLD_MS === 'number' ? RESULT_HOLD_MS : 5000) + 1000);
         // Switch the page language before each duel, so the card checks (chips, meter row) run in both languages:
         // the Ukrainian text is longer in places
         await page.click('#lang-toggle-btn');
