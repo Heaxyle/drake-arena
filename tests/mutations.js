@@ -200,6 +200,14 @@ const MUTATIONS = [
         "if (tourneyOn() && ['!бій', '!battle', '!прийняти', '!accept'].includes(command)) {", 'if (false) {'],
     ['anyone runs tournaments', "a viewer's !tournament opens sign-up",
         "if (command === '!турнір' || command === '!tournament') {\n                if (!isMod) return true;", "if (command === '!турнір' || command === '!tournament') {"],
+    ['«місць» for any number', 'the qualifier announcement says «за 1 місць» instead of «за 1 місце»',
+        "spots: ['{n} місце', '{n} місця', '{n} місць']", "spots: ['{n} місць', '{n} місць', '{n} місць']"],
+    ['random players skip the qualifier', 'who goes straight into the main bracket is drawn at random, not the earliest registrants',
+        'const names = t.players.map(p => p.name);', 'const names = shuffle(t.players.map(p => p.name));'],
+    ['qualifier best of 3', 'a qualifier is first to 2 like a main-bracket match, not a single game',
+        'const tourneySingle = id => id.q !== undefined || !!id.third;', 'const tourneySingle = id => !!id.third;'],
+    ['qualifier after round 1', 'round-1 matches with both players known are played before the qualifier',
+        'if (q !== -1) return { q };', "if (q !== -1 && t.rounds[0].every(m => !m.a || !m.b || m.winner)) return { q };"],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported

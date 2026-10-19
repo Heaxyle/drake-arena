@@ -91,7 +91,7 @@ let rig = null, tourneyGames = [];
 G.wrapFinishBattle((p1, p2, h1, h2, ranked) => {
     if (!rig || !G.tourGame) return [p1, p2, h1, h2, ranked];
     const w = rig(p1.name, p2.name);
-    tourneyGames.push({ a: p1.name, b: p2.name, w, lv: [G.calculateLevelAndProgress(p1.xp).level, G.calculateLevelAndProgress(p2.xp).level] });
+    tourneyGames.push({ a: p1.name, b: p2.name, w, stage: G.tourGame.stage, lv: [G.calculateLevelAndProgress(p1.xp).level, G.calculateLevelAndProgress(p2.xp).level] });
     return [p1, p2, w === p1.name ? 50 : w ? 0 : 30, w === p2.name ? 50 : w ? 0 : 30, ranked];
 });
 const make = (name, type, opts = {}) => {
@@ -474,6 +474,49 @@ for (const lang of ['en', 'uk']) {
         check(logs.some(l => /Tournament over|Турнір завершено/.test(l) && l.includes('🥇 @' + finalists[0]) && l.includes('🥈 @' + finalists[1]) && l.includes('🥉 @' + thirds[0])),
             `18. the podium: 🥇 @${finalists[0]}, 🥈 @${finalists[1]}, 🥉 @${thirds[0]}`, logs.filter(l => /🥇/.test(l)).join(' | '));
         __drain(); fresh();
+    }
+    // Uneven sign-ups: the main bracket is the largest of 4, 8, 16 that fits; the earliest registrants go straight in,
+    // the latest play single qualifier games for the spots left
+    for (const [n, size, news] of [
+        [5, 4, t('5 players: 3 straight into the semifinals, 2 play a qualifier for 1 spot', '5 учасників: 3 — одразу в півфінал, 2 грають кваліфікацію за 1 місце')],
+        [8, 8, null],
+        [9, 8, t('9 players: 7 straight into the quarterfinals, 2 play a qualifier for 1 spot', '9 учасників: 7 — одразу в чвертьфінал, 2 грають кваліфікацію за 1 місце')],
+        [13, 8, t('13 players: 3 straight into the quarterfinals, 10 play a qualifier for 5 spots', '13 учасників: 3 — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць')],
+        [15, 8, t('15 players: 1 straight into the quarterfinals, 14 play a qualifier for 7 spots', '15 учасників: 1 — одразу в чвертьфінал, 14 грають кваліфікацію за 7 місць')],
+        [16, 16, null]]) {
+        fresh();
+        const names = Array.from({ length: n }, (_, i) => 'u' + String(i + 1).padStart(2, '0'));
+        names.forEach((p, i) => make(p, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 3 }));
+        G.sayAs('mod1', t('!tournament 16', '!турнір 16'), { mod: true });
+        names.forEach(p => G.say(p, t('!join', '!учасник')));
+        tourneyGames = [];
+        rig = (a, b) => a < b ? a : b;   // the earlier name wins: every game decided, no draws
+        G.sayAs('mod1', t('!tournament start', '!турнір старт'), { mod: true });
+        const T = JSON.parse(JSON.stringify(G.tourney));
+        const direct = 2 * size - n, r1 = T.rounds[0].flatMap(m => [m.a, m.b]).filter(Boolean);
+        const qualPlayers = T.qual.flatMap(m => [m.a, m.b]);
+        check(T.bracket === size && T.rounds[0].length === size / 2 && r1.slice().sort().join() === names.slice(0, direct).join()
+            && T.qual.length === (n - direct) / 2 && qualPlayers.slice().sort().join() === names.slice(direct).join()
+            && T.qual.every(m => m.to && !T.rounds[0][m.to.m][m.to.side]) && new Set(T.qual.map(m => m.to.m + m.to.side)).size === T.qual.length,
+            direct === n ? `18. ${n} players: a main bracket of ${size}, everyone straight in, no qualifier`
+                : `18. ${n} players: a main bracket of ${size}; the first ${direct} (in sign-up order) straight in, the last ${n - direct} in ${(n - direct) / 2} qualifier game(s), each winner to a place of its own in round 1`,
+            JSON.stringify({ bracket: T.bracket, r1, qual: T.qual }));
+        check(news ? infos.some(i => i.endsWith(news)) : !infos.some(i => /qualifier|кваліфікацію/.test(i)),
+            news ? `18. ${n} players: the ЧАТ panel says «${news}»` : `18. ${n} players: no qualifier, nothing about one in the ЧАТ panel`, JSON.stringify(infos));
+        __drain();
+        rig = null;
+        const q = T.qual.length, stages = tourneyGames.map(g => g.stage);
+        const qualWinners = T.qual.map(m => m.a < m.b ? m.a : m.b);
+        const firstRound = tourneyGames.filter(g => g.stage === ({ 4: 'sf', 8: 'qf', 16: 'r16' })[size]);
+        const inFirst = [...new Set(firstRound.flatMap(g => [g.a, g.b]))].sort();
+        check(stages.slice(0, q).every(s => s === 'qual') && !stages.slice(q).includes('qual')
+            && tourneyGames.slice(0, q).every((g, i) => [g.a, g.b].sort().join() === [T.qual[i].a, T.qual[i].b].sort().join())
+            && inFirst.join() === [...names.slice(0, direct), ...qualWinners].sort().join() && firstRound.length === size && !G.tourney
+            && logs.some(l => /Tournament over|Турнір завершено/.test(l)),
+            q ? `18. ${n} players: the ${q} qualifier game(s) come first, one game each; round 1 is the ${direct} direct players and the ${q} qualifier winner(s); on to the podium`
+                : `18. ${n} players: round 1 straight away, on to the podium`,
+            JSON.stringify({ stages, inFirst }));
+        fresh();
     }
     {
         // Cancelled in the middle of a game: that game counts for nothing, and the queue and duels are back

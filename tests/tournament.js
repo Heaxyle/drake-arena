@@ -11,9 +11,14 @@
 //      HP) with saved levels untouched; no XP, no wins or losses, the Top unchanged; !черга joins the queue (in order)
 //      and !бій gets a short reply meanwhile; the podium; then the queue and duels carry on, queue order kept
 //   3  A reload in the middle of a match: the tournament resumes at that match and replays the unfinished game
-//   4  Byes (English): 5 players in a bracket of 8, three byes, all in round 1; the English stage names; 9 players in a
-//      bracket of 16 («Round of 16»); !tournament stop during a game's countdown and during sign-up
-//   Screenshots (Ukrainian): tests/screenshots/tournament-signup.png, -bracket.png, -plate.png, -podium.png
+//   4  Uneven sign-ups, the qualifier: 5 players (English, betting window on): a main bracket of 4, the first 3 straight
+//      in, the last 2 in one qualifier game (no betting window, the 10 s countdown, the bracket with its «Qualifier»
+//      column), its winner in the semifinals, then a betting window for game 1 of every later match; the English stage
+//      names. 13 players (Ukrainian): «13 учасників: 3 — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць» in the
+//      ЧАТ panel, the «Кваліфікація» column before the quarterfinals, 5 single games, then the quarterfinals with the 3
+//      direct players and the 5 winners. 9 and 15 players (English), exactly 16 (no qualifier, «Round of 16»), the bracket
+//      inside the countdown; !tournament stop during a game's countdown and during sign-up
+//   Screenshots (Ukrainian): tests/screenshots/tournament-signup.png, -bracket.png, -plate.png, -podium.png, -qualifier.png
 //
 // Usage: npm run test:tournament   (or node tests/tournament.js; TOUR_ONLY=2,3 runs only those sections)
 const fs = require('fs');
@@ -334,59 +339,147 @@ const key = (a, b) => [a, b].sort().join('-');
         await context.close();
     }
 
-    // 4. Byes, English names, a bracket of 16, cancelling
+    // 4. Uneven sign-ups: the qualifier (5 players in English with the betting window on, 13 in Ukrainian, 9 and 15),
+    //    exactly 16, cancelling
     if (run(4)) {
-        console.log('\n[4. byes, English, cancel]');
-        const { page, context, errors } = await open(browser, { lang: 'en' });
-        const players = ['ava', 'ben', 'cleo', 'dan', 'eve', 'finn', 'gus', 'hal', 'ivy'];
-        await register(page, 'en', [...players, 'q1', 'q2']);
-        await mod(page, '!tournament');
-        for (const n of players.slice(0, 5)) await say(page, n, '!join');
-        await mod(page, '!tournament start');
-        const t5 = (await view(page)).tourney;
-        const byes = t5.rounds[0].filter(m => m.bye);
-        const real = t5.rounds[0].filter(m => !m.bye);
-        check(t5.rounds.length === 3 && t5.rounds[0].length === 4 && byes.length === 3 && real.length === 1 && byes.every(m => m.a && !m.b && m.winner === m.a)
-            && t5.rounds[1].filter(m => m.a).length + t5.rounds[1].filter(m => m.b).length === 3,
-            '5 players: a bracket of 8; 3 byes, all in round 1, their players already in the semifinals; one quarterfinal is played', JSON.stringify(t5.rounds));
-        const shown = await page.evaluate(() => ({ byes: [...document.querySelectorAll('#log-countdown .tb-none')].map(e => [e.closest('.tb-col') === document.querySelector('#log-countdown .tb-col'), e.textContent]),
-            cols: [...document.querySelectorAll('#log-countdown .tb-h')].map(h => h.textContent) }));
-        check(shown.byes.filter(b => b[1] === 'bye').length === 3 && shown.byes.filter(b => b[1] === 'bye').every(b => b[0]) && shown.cols.join() === 'Quarterfinal,Semifinal,Final,3rd-place match',
-            `the bracket shows the 3 byes in the first column; columns "${shown.cols.join(' · ')}"`, JSON.stringify(shown));
-        const plates = new Set();
-        await page.evaluate(() => { window.__plan = {}; });   // no plan: the fights decide
-        for (let i = 0; i < 2000; i++) {
-            await page.clock.runFor(5000);
-            const v = await view(page);
-            if (v.kind === 'fight') plates.add(v.plate.replace(/ · \d+:\d+$/, '').replace(/ · Game \d+( \(replay\))?/, ''));
-            if (v.kind === 'podium') break;
+        console.log('\n[4. qualifier: 5 players, English, betting window on]');
+        const players = ['ava', 'ben', 'cleo', 'dan', 'eve', 'finn', 'gus', 'hal', 'ivy', 'jo', 'kai', 'lu', 'max', 'ned', 'oz', 'pia'];
+        const cols = page => page.evaluate(() => [...document.querySelectorAll('#log-countdown .tb-col')].map(c => ({
+            h: c.querySelector('.tb-h').textContent,
+            ms: [...c.querySelectorAll('.tb-ms > .tb-m')].map(m => ({ live: m.classList.contains('live'), won: !!m.querySelector('.tb-p.won'),
+                p: [...m.querySelectorAll('.tb-n')].map(n => n.textContent) })) })));
+        // Every bracket box inside the countdown area, and every name inside its box
+        const fits = page => page.evaluate(() => {
+            const box = document.getElementById('log-countdown').getBoundingClientRect();
+            const inBox = el => { const r = el.getBoundingClientRect(); return r.top >= box.top - 0.5 && r.bottom <= box.bottom + 0.5 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5; };
+            return [...document.querySelectorAll('#log-countdown .tb-m')].every(inBox) && [...document.querySelectorAll('#log-countdown .tb-n')].every(n => n.scrollWidth <= n.clientWidth + 1);
+        });
+        {
+            const { page, context, errors } = await open(browser, { lang: 'en', betting: true });
+            await register(page, 'en', players.slice(0, 5));
+            await mod(page, '!tournament');
+            for (const n of players.slice(0, 5)) await say(page, n, '!join');
+            await mod(page, '!tournament start');
+            await page.clock.runFor(1000);
+            const v = await view(page), t = v.tourney;
+            const r1 = t.rounds[0].flatMap(m => [m.a, m.b]).filter(Boolean).sort();
+            check(t.bracket === 4 && t.rounds.length === 2 && r1.join() === 'ava,ben,cleo' && t.qual.length === 1 && [t.qual[0].a, t.qual[0].b].sort().join() === 'dan,eve',
+                '5 players: a main bracket of 4; @ava, @ben and @cleo (the first three) straight into the semifinals; @dan and @eve (the last two) in the qualifier', JSON.stringify(t));
+            check(v.chat === '🏆 5 players: 3 straight into the semifinals, 2 play a qualifier for 1 spot', `the ЧАТ panel: "${v.chat}"`, v.chat);
+            const start = await page.evaluate(() => window.__starts[window.__starts.length - 1]);
+            const c = await cols(page);
+            check(start.tour.stage === 'qual' && !start.betting && start.total === 10000 && start.bracket && v.plate === '🏆 Tournament · Qualifier 1/1' && v.cdTitle === 'Qualifier 1/1'
+                && c.map(x => x.h).join() === 'Qualifier,Semifinal,Final' && c[0].ms.length === 1 && c[0].ms[0].live && c[1].ms.flatMap(m => m.p).filter(p => p === '…').length === 1,
+                `the qualifier game: no betting window, the 10 s countdown with the bracket, the qualifier its own first column (live), one semifinal place "…"; "${v.plate}"`,
+                JSON.stringify({ start, plate: v.plate, cdTitle: v.cdTitle, c }));
+            const plates = new Set();
+            for (let i = 0; i < 2000; i++) {
+                await page.clock.runFor(5000);
+                const w = await view(page);
+                if (w.kind === 'fight') plates.add(w.plate.replace(/ · \d+:\d+$/, '').replace(/ · Game \d+( \(replay\))?/, ''));
+                if (w.kind === 'podium') break;
+            }
+            const done = (await view(page)).tourney;
+            const starts = await page.evaluate(() => window.__starts.filter(s => s.tour));
+            const qualWinner = done.qual[0].winner;
+            check([...plates].join() === '🏆 Tournament · Qualifier 1/1,🏆 Tournament · Semifinal,🏆 Tournament · 3rd-place match,🏆 Tournament · Final'
+                && done.rounds[0].flatMap(m => [m.a, m.b]).sort().join() === ['ava', 'ben', 'cleo', qualWinner].sort().join()
+                && starts.filter(s => s.tour.stage === 'qual').every(s => !s.betting) && starts.filter(s => s.tour.stage !== 'qual' && s.tour.game === 1 && !s.tour.replay).every(s => s.betting),
+                `English plates: ${[...plates].join(' | ')}; the qualifier's winner (@${qualWinner}) plays the semifinals; game 1 of every later match opens the betting window`,
+                JSON.stringify({ plates: [...plates], starts }));
+            check(!errors.length, 'no page errors', errors.join(' | '));
+            await context.close();
         }
-        const games = await page.evaluate(() => window.__games);
-        check([...plates].join() === '🏆 Tournament · Quarterfinal,🏆 Tournament · Semifinal,🏆 Tournament · 3rd-place match,🏆 Tournament · Final'
-            && games.filter(g => g.stage === 'qf').every(g => g.k === [real[0].a, real[0].b].sort().join('-')),
-            `English plates: ${[...plates].join(' | ')}; only the one real quarterfinal is played`, JSON.stringify([...plates]));
-        await page.clock.runFor(21000);
-        // 9 players: a bracket of 16, then !tournament stop during game 1's countdown
-        await mod(page, '!tournament 16');
-        for (const n of players) await say(page, n, '!join');
-        await mod(page, '!tournament start');
-        await say(page, 'q1', '!queue'); await say(page, 'q2', '!queue');
-        await page.clock.runFor(1000);
-        const t16 = await view(page);
-        check(t16.tourney.rounds[0].length === 8 && t16.tourney.rounds[0].filter(m => m.bye).length === 7 && t16.plate === '🏆 Tournament · Round of 16 · Game 1 · 0:0' && t16.counting && t16.queue.length === 2,
-            `9 players: a bracket of 16 with 7 byes; "${t16.plate}"; the queue waits (2 in it)`, JSON.stringify({ plate: t16.plate, queue: t16.queue }));
-        await mod(page, '!tournament stop');
-        const stopped = await view(page);
-        await page.clock.runFor(1000);
-        const fight = await page.evaluate(() => window.__fights[window.__fights.length - 1]);
-        check(!stopped.tourney && /cancelled/.test(stopped.chat) && stopped.line === 'join the queue: !queue' && fight.ranked && [fight.p1, fight.p2].sort().join() === 'q1,q2' && !(await page.evaluate(k => localStorage.getItem(k), KEY)),
-            '!tournament stop during the countdown: the countdown goes, the line goes, the save goes, and the queue starts at once (@q1 against @q2)', JSON.stringify({ chat: stopped.chat, line: stopped.line, fight }));
-        await mod(page, '!tournament 4');
-        await mod(page, '!tournament stop');
-        const stopped2 = await view(page);
-        check(!stopped2.tourney && stopped2.line === 'join the queue: !queue', '!tournament stop during sign-up: back to normal', JSON.stringify(stopped2.line));
-        check(!errors.length, 'no page errors', errors.join(' | '));
-        await context.close();
+        console.log('\n[4. qualifier: 13 players, Ukrainian]');
+        {
+            const { page, context, errors } = await open(browser, { lang: 'uk' });
+            const ps = players.slice(0, 13);
+            await register(page, 'uk', ps);
+            await mod(page, '!турнір 16');
+            for (const n of ps) await say(page, n, '!учасник');
+            await mod(page, '!турнір старт');
+            await page.clock.runFor(1000);
+            const v = await view(page), t = v.tourney;
+            const c = await cols(page);
+            check(t.bracket === 8 && c[1].ms.flatMap(m => m.p).filter(p => p !== '…').sort().join() === '@ava,@ben,@cleo' && t.qual.length === 5
+                && t.qual.flatMap(m => [m.a, m.b]).sort().join() === ps.slice(3).join(),
+                '13 players: a main bracket of 8; the first 3 straight into the quarterfinals, the other 10 in 5 qualifier games', JSON.stringify(t.qual));
+            check(v.chat === '🏆 13 учасників: 3 — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць', `the ЧАТ panel: «${v.chat}»`, v.chat);
+            check(c.map(x => x.h).join() === 'Кваліфікація,Чвертьфінал,Півфінал,Фінал' && c[0].ms.length === 5 && c[0].ms[0].live && c[1].ms.flatMap(m => m.p).filter(p => p === '…').length === 5
+                && v.plate === '🏆 Турнір · Кваліфікація 1/5' && await fits(page),
+                `the bracket: «Кваліфікація» (5 games, the first live) before the quarterfinals (5 places «…»), all inside the countdown; «${v.plate}»`, JSON.stringify({ c, plate: v.plate }));
+            await shot(page, 'tournament-qualifier.png');
+            // Each qualifier game's first-named player wins: one game each, then the quarterfinals with all 8
+            await page.evaluate(q => { q.forEach(m => { window.__plan[[m.a, m.b].sort().join('-')] = [m.a]; }); }, t.qual);
+            await until(page, () => window.__starts.some(s => s.tour && s.tour.stage === 'qf'), null, { step: 2000 });
+            await page.clock.runFor(1000);
+            const games = await page.evaluate(() => window.__games.map(g => [g.k, g.stage]));
+            const c2 = await cols(page);
+            const qfNames = c2[1].ms.flatMap(m => m.p).map(p => p.slice(1)).sort();
+            check(games.length === 5 && games.every(g => g[1] === 'qual') && c2[0].ms.every(m => m.won) && c2[1].ms[0].live
+                && qfNames.join() === ['ava', 'ben', 'cleo', ...t.qual.map(m => m.a)].sort().join(),
+                `5 qualifier games, one each; then the quarterfinals with the 3 direct players and the 5 winners: ${qfNames.map(n => '@' + n).join(' ')}`, JSON.stringify({ games, c2 }));
+            await mod(page, '!турнір стоп');
+            check(!errors.length, 'no page errors', errors.join(' | '));
+            await context.close();
+        }
+        console.log('\n[4. 9, 15 and 16 players, English; cancel]');
+        {
+            const { page, context, errors } = await open(browser, { lang: 'en' });
+            await register(page, 'en', [...players, 'q1', 'q2']);
+            // 9 players: one qualifier game for the last place; !tournament stop during its countdown
+            await mod(page, '!tournament 16');
+            for (const n of players.slice(0, 9)) await say(page, n, '!join');
+            await mod(page, '!tournament start');
+            const news9 = (await view(page)).chat;
+            await say(page, 'q1', '!queue'); await say(page, 'q2', '!queue');
+            await page.clock.runFor(1000);
+            const v9 = { ...await view(page), chat: news9 };
+            check(v9.tourney.bracket === 8 && v9.tourney.qual.length === 1 && [v9.tourney.qual[0].a, v9.tourney.qual[0].b].sort().join() === 'hal,ivy'
+                && v9.chat === '🏆 9 players: 7 straight into the quarterfinals, 2 play a qualifier for 1 spot'
+                && v9.plate === '🏆 Tournament · Qualifier 1/1' && v9.counting && v9.queue.length === 2,
+                `9 players: @hal and @ivy (the last two) play for the last place; "${v9.chat}"; "${v9.plate}"; the queue waits (2 in it)`, JSON.stringify({ qual: v9.tourney.qual, chat: v9.chat, plate: v9.plate, queue: v9.queue }));
+            await mod(page, '!tournament stop');
+            const stopped = await view(page);
+            await page.clock.runFor(1000);
+            const fight = await page.evaluate(() => window.__fights[window.__fights.length - 1]);
+            check(!stopped.tourney && /cancelled/.test(stopped.chat) && stopped.line === 'join the queue: !queue' && fight.ranked && [fight.p1, fight.p2].sort().join() === 'q1,q2' && !(await page.evaluate(k => localStorage.getItem(k), KEY)),
+                '!tournament stop during the countdown: the countdown goes, the line goes, the save goes, and the queue starts at once (@q1 against @q2)', JSON.stringify({ chat: stopped.chat, line: stopped.line, fight }));
+            await until(page, () => !isBattleRunning && !resultHold, null, { step: 2000 });
+            // 15 players: 7 qualifier games, the biggest qualifier column; all of it fits
+            await mod(page, '!tournament 16');
+            for (const n of players.slice(0, 15)) await say(page, n, '!join');
+            await mod(page, '!tournament start');
+            await page.clock.runFor(1000);
+            const v15 = await view(page), c15 = await cols(page);
+            check(v15.tourney.bracket === 8 && v15.chat === '🏆 15 players: 1 straight into the quarterfinals, 14 play a qualifier for 7 spots'
+                && c15[0].h === 'Qualifier' && c15[0].ms.length === 7 && c15[1].ms.flatMap(m => m.p).filter(p => p !== '…').join() === '@ava' && await fits(page),
+                `15 players: only @ava straight in; 7 qualifier games in their column, all inside the countdown; "${v15.chat}"`, JSON.stringify({ chat: v15.chat, c15 }));
+            // !tournament stop in the middle of a qualifier game: the game is fought to its end, counting for nothing
+            await until(page, () => arenaState.kind === 'fight', null, { step: 500 });
+            const midPlate = (await view(page)).plate, gamesBefore = await page.evaluate(() => window.__games.length);
+            await mod(page, '!tournament stop');
+            await until(page, () => !isBattleRunning && !resultHold, null, { step: 2000 });
+            const after15 = await view(page);
+            const end15 = await page.evaluate(n => ({ finished: window.__games.length === n + 1, aborted: /simulation error/i.test(document.body.innerText) }), gamesBefore);
+            check(midPlate === '🏆 Tournament · Qualifier 1/7' && end15.finished && !end15.aborted && !after15.tourney && !(await page.evaluate(k => localStorage.getItem(k), KEY)) && !errors.length,
+                `!tournament stop during a qualifier game ("${midPlate}"): the game is fought to its end (no "simulation error"), and the tournament is gone`, JSON.stringify({ midPlate, end15, errors }));
+            // 16 players: exactly a bracket of 16, no qualifier (the 16th closes sign-up)
+            await mod(page, '!tournament 16');
+            for (const n of players) await say(page, n, '!join');
+            await page.clock.runFor(1000);
+            const v16 = await view(page), c16 = await cols(page);
+            check(v16.tourney.bracket === 16 && !v16.tourney.qual.length && v16.plate === '🏆 Tournament · Round of 16 · Game 1 · 0:0' && c16[0].h === 'Round of 16' && c16[0].ms.length === 8
+                && !/qualifier/.test(v16.chat) && await fits(page),
+                `16 players: a bracket of 16, no qualifier; "${v16.plate}"`, JSON.stringify({ plate: v16.plate, chat: v16.chat, cols: c16.map(x => x.h) }));
+            await mod(page, '!tournament stop');
+            await mod(page, '!tournament 4');
+            await mod(page, '!tournament stop');
+            const stopped2 = await view(page);
+            check(!stopped2.tourney && stopped2.line === 'join the queue: !queue', '!tournament stop during sign-up: back to normal', JSON.stringify(stopped2.line));
+            check(!errors.length, 'no page errors', errors.join(' | '));
+            await context.close();
+        }
     }
 
     await browser.close();

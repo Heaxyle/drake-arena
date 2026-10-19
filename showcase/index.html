@@ -1396,7 +1396,7 @@
             updateStatusUI(a.name, lv(a), a.drakeObj.type, a.title); updateStatusUI(b.name, lv(b), b.drakeObj.type, b.title);
             const hp = d => getMaxHP(lv(d), d.drakeObj.type, d.title);
             updateUIHP(hp(a), hp(a), hp(b), hp(b));
-            setArenaState({ kind: 'countdown', ranked: isRanked, betting: bets, flipped: false, ends: Date.now() + windowMs, total: windowMs, bracket: !!(opts.tour && opts.bets) });
+            setArenaState({ kind: 'countdown', ranked: isRanked, betting: bets, flipped: false, ends: Date.now() + windowMs, total: windowMs, bracket: !!(opts.tour && (opts.bets || opts.tour.q !== undefined)) });   // a qualifier game shows it too
             fvCountdown(windowMs);
             // The fight starts the normal way (coin flip, then the 4.5 s "першим б'є …" countdown) TURN_MS before the window
             // ends, or at once on a skip: whichever comes first, and only once
@@ -3335,24 +3335,27 @@ function drakeSpriteURL(type) {
         /* ===== Tournament: single elimination, best of 3, everyone at level 20 =====
            The streamer or a moderator opens sign-up (!турнір [4|8|16]); viewers with a drake join (!учасник) or leave
            (!вийти) while it's open, and normal fights carry on. It closes when the bracket is full, or on !турнір старт (at
-           least TOURNEY_MIN players); !турнір стоп cancels at any point. Seeding is random; with 5–7 or 9–15 players the
-           bracket is the next size up and the byes are all in round 1. Every match is first to TOURNEY_WINS games; a drawn
+           least TOURNEY_MIN players); !турнір стоп cancels at any point. The main bracket is the largest of TOURNEY_SIZES
+           that fits; the earliest registrants go straight into it, and with 5–7 or 9–15 players the latest ones play a
+           qualifier (single games, paired at random) for the spots left. The draw is random. Every match is first to TOURNEY_WINS games; a drawn
            game is replayed; the semifinal losers play one game for 3rd place right before the final. Everyone fights as
            level 20 (tourneyFighter) with their own element and title; saved levels, XP, wins, losses and the Top don't
            change. The tournament starts once the arena is free (after the current result screen and a waiting duel);
            meanwhile and until the final is over the ranked queue waits (nextFight) and duels are refused. Game 1 of each
-           match (and the 3rd-place game) opens with the betting window, the bracket shown under its timer; games 2 and 3
-           (and a replayed draw) with a TOURNEY_GAP_MS countdown after the result screen. The state is saved under
+           match (and the 3rd-place game) opens with the betting window, the bracket shown under its timer; qualifier
+           games, games 2 and 3 (and a replayed draw) with a TOURNEY_GAP_MS countdown. The state is saved under
            TOURNEY_KEY after every change, so a reload resumes at the current match and replays an unfinished game. */
         const TOURNEY_KEY = 'drake_arena_showcase_tournament';   // no "db" or "stats" in the name: a ladder wipe keeps it
         const TOURNEY_SIZES = [4, 8, 16], TOURNEY_DEFAULT = 8, TOURNEY_MIN = 4;
         const TOURNEY_WINS = 2;                // first to 2 (best of 3); the 3rd-place game is a single game
         const TOURNEY_GAP_MS = 10000;          // the «Гра 2» countdown before games 2 and 3, after the 20 s result screen
         const TOURNEY_XP = (() => { let x = 0; for (let l = 1; l < 20; l++) x += getRequiredXP(l); return x; })();   // level 20
-        // { phase: 'signup' | 'ready' | 'running' | 'podium', size, players: [{ name, color, drakeObj, title }], rounds: [[match]],
-        //   third: match, game, replay, podium: [1st, 2nd, 3rd] }; match: { a, b, w: [a's wins, b's wins], winner, bye }
+        // { phase: 'signup' | 'ready' | 'running' | 'podium', size (sign-up places), players: [{ name, color, drakeObj, title }],
+        //   bracket (the main bracket's size), qual: [match + to: { m, side }], rounds: [[match]], third: match, game, replay,
+        //   podium: [1st, 2nd, 3rd] }; match: { a, b, w: [a's wins, b's wins], winner }
         let tourney = null;
-        // The tournament game on screen (its countdown, fight and result screen): { r, m, third, stage, a, b, game, replay, score }
+        // The tournament game on screen (its countdown, fight and result screen): { q | r, m | third, stage, a, b, game, replay,
+        // score, of (the number of qualifier games) }
         let tourGame = null;
         const tourneyOn = () => !!tourney && tourney.phase !== 'signup';
 
@@ -3370,8 +3373,11 @@ function drakeSpriteURL(type) {
                   closed: '🏆 Реєстрацію закрито: {n} учасників, сітка на {size}. Турнір почнеться, щойно звільниться арена.',
                   begins: '🏆 <b>Турнір починається!</b> Черга й дуелі чекають до кінця фіналу.', cancelled: '🛑 Турнір скасовано: призів немає, черга й дуелі знову працюють.',
                   over: 'ℹ️ Турнір уже завершено.', duelPaused: '🏆 {who}, зараз триває турнір: дуелі — після фіналу.',
-                  r16: '1/8 фіналу', qf: 'Чвертьфінал', sf: 'Півфінал', third: 'Матч за 3-тє місце', final: 'Фінал',
-                  game: 'Гра {n}', replay: 'перегравання', bye: 'вільний прохід', tbd: '…', podium: '🏆 Турнір завершено', champion: '🥇 {who}',
+                  qual: 'Кваліфікація', r16: '1/8 фіналу', qf: 'Чвертьфінал', sf: 'Півфінал', third: 'Матч за 3-тє місце', final: 'Фінал',
+                  into_r16: '1/8 фіналу', into_qf: 'чвертьфінал', into_sf: 'півфінал',
+                  qualNews: '🏆 {n} учасників: {direct} — одразу в {into}, {q} грають кваліфікацію за {spots}',
+                  spots: ['{n} місце', '{n} місця', '{n} місць'], qualWon: '🏆 {who} проходить кваліфікацію: далі — {stage}',
+                  game: 'Гра {n}', replay: 'перегравання', tbd: '…', podium: '🏆 Турнір завершено', champion: '🥇 {who}',
                   won: '🏆 {label}: перемагає {who} ({score})', draw: '🤝 {label}: нічия — гру буде переграно',
                   matchWon: '🏆 {who} виграє матч {score} ({stage})' },
             en: { name: 'Tournament', signupLine: '🏆 Tournament: sign-up · {n}/{size} · <b>!join</b>', onLine: '🏆 Tournament on · the queue waits',
@@ -3387,12 +3393,20 @@ function drakeSpriteURL(type) {
                   closed: '🏆 Sign-up closed: {n} players, a bracket of {size}. The tournament starts as soon as the arena is free.',
                   begins: '🏆 <b>The tournament begins!</b> The queue and duels wait until the final is over.', cancelled: '🛑 Tournament cancelled: no prizes; the queue and duels are back.',
                   over: 'ℹ️ The tournament is already over.', duelPaused: '🏆 {who}, a tournament is on: duels after the final.',
-                  r16: 'Round of 16', qf: 'Quarterfinal', sf: 'Semifinal', third: '3rd-place match', final: 'Final',
-                  game: 'Game {n}', replay: 'replay', bye: 'bye', tbd: '…', podium: '🏆 Tournament over', champion: '🥇 {who}',
+                  qual: 'Qualifier', r16: 'Round of 16', qf: 'Quarterfinal', sf: 'Semifinal', third: '3rd-place match', final: 'Final',
+                  into_r16: 'round of 16', into_qf: 'quarterfinals', into_sf: 'semifinals',
+                  qualNews: '🏆 {n} players: {direct} straight into the {into}, {q} play a qualifier for {spots}',
+                  spots: ['{n} spot', '{n} spots', '{n} spots'], qualWon: '🏆 {who} is through the qualifier: next, the {stage}',
+                  game: 'Game {n}', replay: 'replay', tbd: '…', podium: '🏆 Tournament over', champion: '🥇 {who}',
                   won: '🏆 {label}: {who} wins ({score})', draw: '🤝 {label}: a draw — the game will be replayed',
                   matchWon: '🏆 {who} wins the match {score} ({stage})' },
         };
         const tT = (key, vars = {}) => TOURNEY_TEXT[currentLang][key].replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '');
+        // «5 місць», «1 місце», «2 місця» (English: spot / spots)
+        const tSpots = n => {
+            const f = TOURNEY_TEXT[currentLang].spots, d = n % 10, dd = n % 100;
+            return f[d === 1 && dd !== 11 ? 0 : d >= 2 && d <= 4 && (dd < 12 || dd > 14) ? 1 : 2].replace('{n}', n);
+        };
 
         function tourneySave() {
             try { if (tourney) localStorage.setItem(TOURNEY_KEY, JSON.stringify(tourney)); else localStorage.removeItem(TOURNEY_KEY); } catch (e) {}
@@ -3407,11 +3421,15 @@ function drakeSpriteURL(type) {
             const d = getDragonStrict(name) || (p ? { name, color: p.color, drakeObj: p.drakeObj, title: p.title, xp: 0 } : null);
             return d ? { ...d, xp: TOURNEY_XP } : null;
         }
-        const tourneyMatch = id => id.third ? tourney.third : tourney.rounds[id.r][id.m];
-        const tourneyStage = id => id.third ? 'third' : ({ 8: 'r16', 4: 'qf', 2: 'sf', 1: 'final' })[tourney.rounds[id.r].length];
-        // The next match to play: round by round; the 3rd-place game right before the final; null when the final is decided
+        const tourneyMatch = id => id.q !== undefined ? tourney.qual[id.q] : id.third ? tourney.third : tourney.rounds[id.r][id.m];
+        const tourneyStage = id => id.q !== undefined ? 'qual' : id.third ? 'third' : ({ 8: 'r16', 4: 'qf', 2: 'sf', 1: 'final' })[tourney.rounds[id.r].length];
+        const tourneySingle = id => id.q !== undefined || !!id.third;   // a qualifier or the 3rd-place game: one game decides it
+        // The next match to play: the qualifier first, then round by round; the 3rd-place game right before the final;
+        // null when the final is decided
         function tourneyNextMatch() {
             const t = tourney, last = t.rounds.length - 1;
+            const q = t.qual.findIndex(x => !x.winner);
+            if (q !== -1) return { q };
             for (let r = 0; r < t.rounds.length; r++) {
                 if (r === last && t.third && !t.third.winner) return { third: true };
                 const m = t.rounds[r].findIndex(x => x.a && x.b && !x.winner);
@@ -3419,32 +3437,40 @@ function drakeSpriteURL(type) {
             }
             return null;
         }
-        // A match's winner moves on (and a semifinal's loser to the 3rd-place game)
+        // A match's winner moves on (a qualifier's to its place in round 1; a semifinal's loser to the 3rd-place game)
         function tourneyAdvance(id, winner, loser) {
             const t = tourney;
+            if (id.q !== undefined) { const to = t.qual[id.q].to; t.rounds[0][to.m][to.side] = winner; return; }
             if (id.third) return;
             if (id.r + 1 < t.rounds.length) t.rounds[id.r + 1][id.m >> 1][id.m % 2 ? 'b' : 'a'] = winner;
             if (id.r === t.rounds.length - 2 && loser) t.third[id.m % 2 ? 'b' : 'a'] = loser;
         }
-        // Sign-up closes: random seeding into the next bracket size up; byes (one per match, spread out) only in round 1
+        // Sign-up closes. The main bracket is the largest of TOURNEY_SIZES that fits; the earliest registrants (in sign-up
+        // order) go straight into it, and the latest pair up in qualifier games for the spots left: 13 players → a bracket
+        // of 8, the first 3 in it, the other 10 in 5 qualifier games. The pairs and the bracket's places are drawn at random.
         function tourneyClose() {
             const t = tourney;
+            const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
             const names = t.players.map(p => p.name);
-            for (let i = names.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [names[i], names[j]] = [names[j], names[i]]; }
-            const size = TOURNEY_SIZES.find(s => s >= names.length), half = size / 2, byes = size - names.length;
-            const byeAt = new Set(Array.from({ length: byes }, (_, k) => Math.floor(k * half / byes)));
+            const size = [...TOURNEY_SIZES].reverse().find(s => s <= names.length), half = size / 2, direct = 2 * size - names.length;
+            const late = shuffle(names.slice(direct));
+            t.qual = [];
+            for (let i = 0; i < late.length; i += 2) t.qual.push({ a: late[i], b: late[i + 1], w: [0, 0], winner: null, to: null });
             t.rounds = [];
             for (let n = half; n >= 1; n /= 2) t.rounds.push(Array.from({ length: n }, () => ({ a: null, b: null, w: [0, 0], winner: null })));
             t.third = { a: null, b: null, w: [0, 0], winner: null };
-            t.rounds[0].forEach((m, i) => {
-                m.a = names.shift();
-                if (byeAt.has(i)) { m.bye = true; m.winner = m.a; tourneyAdvance({ r: 0, m: i }, m.a, null); }
-                else m.b = names.shift();
-            });
+            // Round 1's places: the direct players and the qualifier games' winners (still to come), drawn together
+            const places = shuffle([...names.slice(0, direct), ...t.qual.map((_, q) => ({ q }))]);
+            t.rounds[0].forEach((m, i) => ['a', 'b'].forEach((side, k) => {
+                const p = places[2 * i + k];
+                if (typeof p === 'string') m[side] = p; else t.qual[p.q].to = { m: i, side };
+            }));
+            t.bracket = size;
             t.phase = 'ready'; t.game = 1; t.replay = false;
             tourneySave();
             addInfo(tT('closed', { n: t.players.length, size }), 'ok');
-            addLog(`🏆 ${tT('name')}: ${t.rounds[0].map(m => m.bye ? `@${m.a} (${tT('bye')})` : `@${m.a} — @${m.b}`).join(' · ')}`);
+            if (t.qual.length) addLog(`🏆 ${tT('qual')}: ${t.qual.map(m => `@${m.a} — @${m.b}`).join(' · ')}`);
+            addLog(`🏆 ${tT(tourneyStage({ r: 0 }))}: ${t.rounds[0].map(m => `${m.a ? '@' + m.a : tT('tbd')} — ${m.b ? '@' + m.b : tT('tbd')}`).join(' · ')}`);
             updateQueueUI();
             if (!arenaBusy()) nextFight();
         }
@@ -3452,19 +3478,26 @@ function drakeSpriteURL(type) {
         function tourneyNext() {
             const t = tourney;
             if (t.phase === 'podium') { tourneyEnd(); nextFight(); return; }
-            if (t.phase === 'ready') { t.phase = 'running'; addInfo(tT('begins'), 'ok'); }
+            if (t.phase === 'ready') {
+                t.phase = 'running';
+                addInfo(tT('begins'), 'ok');
+                // «13 учасників: 3 — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць»
+                if (t.qual.length) addInfo(tT('qualNews', { n: t.players.length, direct: t.players.length - 2 * t.qual.length,
+                    into: tT('into_' + tourneyStage({ r: 0 })), q: 2 * t.qual.length, spots: tSpots(t.qual.length) }), 'ok');
+            }
             const id = tourneyNextMatch();
             if (!id) { tourneyPodium(); return; }
             const m = tourneyMatch(id);
-            tourGame = { ...id, stage: tourneyStage(id), a: m.a, b: m.b, game: t.game, replay: !!t.replay, score: [...m.w] };
+            tourGame = { ...id, stage: tourneyStage(id), a: m.a, b: m.b, game: t.game, replay: !!t.replay, score: [...m.w], of: t.qual.length };
             tourneySave();
             isBattleRunning = true;
             updateQueueUI();
             fightRecordReset();
             const a = tourneyFighter(m.a), b = tourneyFighter(m.b);
             addLog(`🏆 ${tourneyLabel(tourGame)}: <span style="color: ${nameColor(a.color)};">@${m.a}</span> — <span style="color: ${nameColor(b.color)};">@${m.b}</span>`);
-            // Game 1 of a match opens with the betting window and the bracket; games 2 and 3 and replays with the short countdown
-            startFight(m.a, a.color, m.b, b.color, false, { tour: tourGame, bets: t.game === 1 && !t.replay });
+            // Game 1 of a match opens with the betting window and the bracket; qualifier games, games 2 and 3 and replays
+            // with the short countdown
+            startFight(m.a, a.color, m.b, b.color, false, { tour: tourGame, bets: t.game === 1 && !t.replay && id.q === undefined });
         }
         // A tournament game ended (finishBattle): the score, or a replay after a draw
         function tourneyResult(winner, loser) {
@@ -3476,11 +3509,12 @@ function drakeSpriteURL(type) {
             m.w[winner === m.a ? 0 : 1]++;
             g.score = [...m.w];
             addLog(tT('won', { label, who: `@${winner}`, score: `${m.w[0]}:${m.w[1]}` }));
-            if (Math.max(...m.w) >= (g.third ? 1 : TOURNEY_WINS)) {
+            if (Math.max(...m.w) >= (tourneySingle(g) ? 1 : TOURNEY_WINS)) {
                 m.winner = winner;
                 tourneyAdvance(g, winner, loser);
                 t.game = 1;
-                if (!g.third) addLog(tT('matchWon', { who: `@${winner}`, score: `${Math.max(...m.w)}:${Math.min(...m.w)}`, stage: tT(g.stage) }));
+                if (g.q !== undefined) addLog(tT('qualWon', { who: `@${winner}`, stage: tT(tourneyStage({ r: 0 })) }));
+                else if (!g.third) addLog(tT('matchWon', { who: `@${winner}`, score: `${Math.max(...m.w)}:${Math.min(...m.w)}`, stage: tT(g.stage) }));
             } else t.game++;
             tourneySave();
         }
@@ -3527,32 +3561,35 @@ function drakeSpriteURL(type) {
             else if (tourneyOn()) nextFight();
         }
 
-        // «Півфінал · Гра 2» (the 3rd-place game is one game: just its name)
+        // «Півфінал · Гра 2»; «Кваліфікація 2/5»; the 3rd-place game is one game: just its name
         function tourneyLabel(g) {
             const stage = tT(g.stage);
+            if (g.q !== undefined) return `${stage} ${g.q + 1}/${g.of}`;   // g.of: the label outlives a cancelled tournament
             return g.third ? stage : `${stage} · ${tT('game', { n: g.game })}${g.replay ? ` (${tT('replay')})` : ''}`;
         }
         // The arena plate: «🏆 Турнір · Півфінал · Гра 2 · 1:0», the score from the left card's side
         function tourneyPlate(g) {
-            if (g.third) return `🏆 ${tT('name')} · ${tourneyLabel(g)}`;
+            if (tourneySingle(g)) return `🏆 ${tT('name')} · ${tourneyLabel(g)}`;
             const flip = fv.p1 && fv.p1.name === g.b;
             return `🏆 ${tT('name')} · ${tourneyLabel(g)} · ${flip ? g.score[1] : g.score[0]}:${flip ? g.score[0] : g.score[1]}`;
         }
-        // The bracket, compact, under the betting window's timer: one column per round (the 3rd-place game under the final)
+        // The bracket, compact, under the betting window's timer: the qualifier (if any) as its own column, then one column
+        // per round (the 3rd-place game under the final)
         function tourneyBracketHtml() {
             const t = tourney;
             if (!t || !t.rounds) return '';
             const cur = tourGame;
-            const who = (n, bye) => n ? `<span class="tb-n pname" style="color:${nameColor(tourneyFighter(n).color)}">@${n}</span>`
-                : `<span class="tb-n tb-none">${bye ? tT('bye') : tT('tbd')}</span>`;
+            const who = n => n ? `<span class="tb-n pname" style="color:${nameColor(tourneyFighter(n).color)}">@${n}</span>`
+                : `<span class="tb-n tb-none">${tT('tbd')}</span>`;
             const match = (m, id) => {
-                const live = cur && !!cur.third === !!id.third && cur.r === id.r && cur.m === id.m;
+                const live = cur && cur.q === id.q && !!cur.third === !!id.third && cur.r === id.r && cur.m === id.m;
                 const started = m.winner || m.w[0] || m.w[1];
-                const row = (n, w) => `<div class="tb-p${m.winner && n && m.winner === n && !m.bye ? ' won' : ''}${m.winner && n && m.winner !== n ? ' out' : ''}">${who(n, m.bye)}<span class="tb-s">${started && !m.bye ? w : ''}</span></div>`;
-                return `<div class="tb-m${live ? ' live' : ''}${m.bye ? ' bye' : ''}">${row(m.a, m.w[0])}${row(m.b, m.w[1])}</div>`;
+                const row = (n, w) => `<div class="tb-p${m.winner && n && m.winner === n ? ' won' : ''}${m.winner && n && m.winner !== n ? ' out' : ''}">${who(n)}<span class="tb-s">${started ? w : ''}</span></div>`;
+                return `<div class="tb-m${live ? ' live' : ''}">${row(m.a, m.w[0])}${row(m.b, m.w[1])}</div>`;
             };
             const last = t.rounds.length - 1;
-            return `<div class="tb">` + t.rounds.map((round, r) => `<div class="tb-col"><div class="tb-h">${tT(tourneyStage({ r }))}</div><div class="tb-ms">`
+            const qual = t.qual.length ? `<div class="tb-col tb-qual"><div class="tb-h">${tT('qual')}</div><div class="tb-ms">${t.qual.map((m, q) => match(m, { q })).join('')}</div></div>` : '';
+            return `<div class="tb">${qual}` + t.rounds.map((round, r) => `<div class="tb-col"><div class="tb-h">${tT(tourneyStage({ r }))}</div><div class="tb-ms">`
                 + round.map((m, i) => match(m, { r, m: i })).join('')
                 + (r === last ? `<div class="tb-h tb-h3">${tT('third')}</div>${match(t.third, { third: true })}` : '') + `</div></div>`).join('') + `</div>`;
         }
