@@ -1,0 +1,395 @@
+// Tournament test: the whole tournament through the chat simulator, on the game clock (Playwright's fake clock), with
+// seeded fights. Game results are set by the test (a hook on finishBattle), so every match goes the way the plan says.
+//   1  Sign-up (both languages): only the streamer or a moderator opens it; the line on the arena «🏆 Турнір: реєстрація
+//      · 5/8 · !учасник»; every refusal in the ЧАТ panel (no tournament, no drake, the White Dragon, already in, the
+//      bracket full); leaving during sign-up and not after; !турнір старт with too few; the 8th player closes it
+//   2  A full 8-player run (Ukrainian, betting window on): it waits for the ranked fight on screen, its result screen and
+//      the duel waiting after it; the betting window with the bracket under its timer before game 1 of every match (the
+//      3rd-place game and the final too); !старт skips it and its 5 s guard holds; games 2 and 3 after the 20 s result
+//      screen and a 10 s «Гра 2» countdown; 2:0 and 2:1 matches, a drawn game replayed; the 3rd-place game right before
+//      the final; the plate «🏆 Турнір · Чвертьфінал · Гра 2 · 1:0» at every stage; everyone at level 20 (cards and
+//      HP) with saved levels untouched; no XP, no wins or losses, the Top unchanged; !черга joins the queue (in order)
+//      and !бій gets a short reply meanwhile; the podium; then the queue and duels carry on, queue order kept
+//   3  A reload in the middle of a match: the tournament resumes at that match and replays the unfinished game
+//   4  Byes (English): 5 players in a bracket of 8, three byes, all in round 1; the English stage names; 9 players in a
+//      bracket of 16 («Round of 16»); !tournament stop during a game's countdown and during sign-up
+//   Screenshots (Ukrainian): tests/screenshots/tournament-signup.png, -bracket.png, -plate.png, -podium.png
+//
+// Usage: npm run test:tournament   (or node tests/tournament.js; TOUR_ONLY=2,3 runs only those sections)
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require('playwright');
+const { pageInit } = require('./page_hooks');
+const { settleArena } = require('./settle');
+
+const ROOT = path.join(__dirname, '..');
+const SHOTS = path.join(__dirname, 'screenshots');
+const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
+const SEED = Number(process.env.UI_SEED || 3);
+const ONLY = (process.env.TOUR_ONLY || '').split(',').filter(Boolean);
+const run = n => !ONLY.length || ONLY.includes(String(n));
+const KEY = 'drake_arena_showcase_tournament';
+
+let failures = 0;
+const fail = msg => { failures++; console.log(`  ✗ ${msg}`); };
+const pass = msg => console.log(`  ✓ ${msg}`);
+const check = (ok, good, bad) => ok ? pass(good) : fail(`${good} — ${bad}`);
+
+async function open(browser, { lang = 'uk', betting = false } = {}) {
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errors.push(m.text()); });
+    await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: '' }));
+    await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
+    await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));
+    await page.addInitScript(pageInit, SEED);
+    await page.addInitScript(on => { if (!sessionStorage.getItem('loaded')) { localStorage.setItem('drake_arena_showcase_betting', on ? '1' : '0'); sessionStorage.setItem('loaded', '1'); } }, betting);
+    await page.addInitScript(installHooks);
+    await page.goto(`${PAGE}?lang=${lang}`);
+    await page.evaluate(() => document.fonts.ready);
+    await settleArena(page);
+    return { page, context, errors };
+}
+
+// In the page, before the game's script: a hook on finishBattle that sets tournament games' results from window.__plan
+// (pair → list of winners, null for a draw), and a record of every tournament game and every startFight
+function installHooks() {
+    window.__plan = {}; window.__played = {}; window.__games = []; window.__starts = [];
+    document.addEventListener('DOMContentLoaded', () => {
+        const fin = window.finishBattle;
+        window.finishBattle = function (p1, p2, h1, h2, ranked) {
+            if (tourGame) {
+                const k = [p1.name, p2.name].sort().join('-');
+                window.__played[k] = (window.__played[k] || 0) + 1;
+                const plan = window.__plan[k], w = plan ? plan[window.__played[k] - 1] : undefined;
+                window.__games.push({ k, w, stage: tourGame.stage, game: tourGame.game, replay: tourGame.replay, t: Date.now(),
+                    lv: [p1, p2].map(f => calculateLevelAndProgress(f.xp).level) });
+                if (w !== undefined) { h1 = w === p1.name ? 50 : w ? 0 : 30; h2 = w === p2.name ? 50 : w ? 0 : 30; }
+            }
+            return fin.call(this, p1, p2, h1, h2, ranked);
+        };
+        const sf = window.startFight;
+        window.startFight = function (a, ac, b, bc, ranked, opts = {}) {
+            const out = sf.call(this, a, ac, b, bc, ranked, opts);
+            window.__starts.push({ a, b, ranked, tour: opts.tour ? { stage: opts.tour.stage, game: opts.tour.game, replay: opts.tour.replay } : null, bets: !!opts.bets,
+                t: Date.now(), kind: arenaState.kind, betting: !!arenaState.betting, total: arenaState.total, bracket: !!arenaState.bracket });
+            return out;
+        };
+    });
+}
+
+const say = (page, user, msg, extra = {}) => page.evaluate(([u, m, e]) => handleChatMessage('#heaxyle', { username: u, color: '#ff7f50', ...e }, m, false), [user, msg, extra]);
+const mod = (page, msg) => say(page, 'mod_anna', msg, { mod: true, badges: { moderator: '1' } });
+const cmd = (lang, uk, en) => lang === 'uk' ? uk : en;
+const COLORS = { uk: ['червоний', 'синій', 'чорний', 'золотий', 'фіолетовий', 'зелений'], en: ['red', 'blue', 'black', 'gold', 'purple', 'green'] };
+async function register(page, lang, names, levels = {}) {
+    for (const [i, n] of names.entries()) await say(page, n, `${cmd(lang, '!дрейк', '!drake')} ${COLORS[lang][i % 6]}`);
+    await page.evaluate(lv => {
+        const db = getDragonDB();
+        Object.entries(lv).forEach(([n, l]) => { let x = 0; for (let k = 1; k < l; k++) x += getRequiredXP(k); db[n].xp = x; db[n].level = l; });
+        saveDragonDB(db); renderLeaderboard();
+    }, levels);
+}
+// What the arena and the chat panel show
+const view = page => page.evaluate(() => {
+    const txt = el => el ? el.textContent.replace(/\s+/g, ' ').trim() : '';
+    return { line: txt(document.getElementById('queue-hint')), plate: txt(document.getElementById('status-plate')), type: txt(document.getElementById('fight-type')),
+        kind: arenaState.kind, counting: document.getElementById('log-panel').classList.contains('counting'), timer: txt(document.getElementById('cd-time')),
+        cdTitle: txt(document.querySelector('#log-countdown .cd-title')), bracket: !!document.querySelector('#log-countdown.with-bracket .tb'),
+        chat: txt(document.querySelector('#info-feed .info-card:not(.howto)')), queue: [...document.querySelectorAll('#queue-list-ui .queue-badge:not(.queue-more)')].map(txt),
+        tourney: tourney ? JSON.parse(JSON.stringify(tourney)) : null, running: isBattleRunning, hold: !!resultHold };
+});
+// Moves the game clock on in steps until cond(arg) is true in the page (or max ms pass); returns the time it took
+async function until(page, cond, arg, { step = 1000, max = 4 * 3600000 } = {}) {
+    for (let t = 0; t <= max; t += step) {
+        if (await page.evaluate(cond, arg)) return t;
+        await page.clock.runFor(step);
+    }
+    throw new Error('timed out waiting for ' + cond.toString().slice(0, 120));
+}
+const shot = async (page, name) => { await settleArena(page); await page.screenshot({ path: path.join(SHOTS, name) }); };
+const key = (a, b) => [a, b].sort().join('-');
+
+(async () => {
+    fs.mkdirSync(SHOTS, { recursive: true });
+    const browser = await chromium.launch();
+
+    // 1. Sign-up
+    if (run(1)) for (const lang of ['uk', 'en']) {
+        console.log(`\n[1. sign-up, ${lang}]`);
+        const { page, context, errors } = await open(browser, { lang });
+        const names = ['sofiia_k', 'bohdan', 'ira_77', 'maks', 'oleh_the_great', 'zoryana', 'taras', 'yana', 'late_viewer'];
+        await register(page, lang, names);
+        await page.evaluate(() => setStreamerUser('streamer_kit'));
+        await say(page, 'streamer_kit', cmd(lang, '!дрейк білий', '!drake white'));
+        await say(page, 'bohdan', cmd(lang, '!учасник', '!join'));
+        const none = (await view(page)).chat;
+        await say(page, 'bohdan', cmd(lang, '!турнір', '!tournament'));
+        const viewerTried = await view(page);
+        await mod(page, cmd(lang, '!турнір', '!tournament'));
+        const opened = await view(page);
+        check(/немає реєстрації|no tournament sign-up/.test(none) && !viewerTried.tourney && opened.tourney && opened.tourney.size === 8
+            && opened.line === cmd(lang, '🏆 Турнір: реєстрація · 0/8 · !учасник', '🏆 Tournament: sign-up · 0/8 · !join'),
+            `a viewer's ${cmd(lang, '!турнір', '!tournament')} does nothing; a moderator's opens sign-up for 8 (the default): "${opened.line}"`, JSON.stringify({ none, viewer: viewerTried.tourney, line: opened.line }));
+        for (const n of names.slice(0, 5)) await say(page, n, cmd(lang, '!учасник', '!join'));
+        const five = await view(page);
+        if (lang === 'uk') await shot(page, 'tournament-signup.png');
+        const replies = {};
+        await say(page, 'ghost_no_drake', cmd(lang, '!учасник', '!join')); replies.noDrake = (await view(page)).chat;
+        await say(page, 'streamer_kit', cmd(lang, '!учасник', '!join')); replies.dragon = (await view(page)).chat;
+        await say(page, 'maks', cmd(lang, '!учасник', '!join')); replies.twice = (await view(page)).chat;
+        await say(page, 'maks', cmd(lang, '!вийти', '!leave')); replies.left = (await view(page)).chat;
+        const four = await view(page);
+        await mod(page, cmd(lang, '!турнір старт', '!tournament start'));   // 4 is enough, but first: 3
+        check(five.line.includes('5/8') && four.line.includes('4/8') && /виходить|leaves/.test(replies.left),
+            `the line counts sign-ups (5/8, and 4/8 after a !${cmd(lang, 'вийти', 'leave')})`, JSON.stringify({ five: five.line, four: four.line }));
+        check(/створіть дрейка|create a drake/.test(replies.noDrake) && /Білий Дракон|White Dragon/.test(replies.dragon) && /вже в турнірі|already in the tournament/.test(replies.twice),
+            'refusals in the ЧАТ panel: no drake yet, the White Dragon, already in', JSON.stringify(replies));
+        // Back to 5 by un-starting: the start above closed it with 4. Use a fresh sign-up for "too few" and "full"
+        const startedWith4 = await view(page);
+        await mod(page, cmd(lang, '!турнір стоп', '!tournament stop'));
+        await page.clock.runFor(1000);
+        await mod(page, cmd(lang, '!турнір 4', '!tournament 4'));
+        for (const n of names.slice(0, 3)) await say(page, n, cmd(lang, '!учасник', '!join'));
+        await mod(page, cmd(lang, '!турнір старт', '!tournament start'));
+        const tooFew = await view(page);
+        await say(page, 'maks', cmd(lang, '!учасник', '!join'));          // the 4th: full, closes by itself
+        const full4 = await view(page);
+        await say(page, 'late_viewer', cmd(lang, '!учасник', '!join')); replies.full = (await view(page)).chat;
+        await say(page, 'bohdan', cmd(lang, '!вийти', '!leave')); replies.noLeave = (await view(page)).chat;
+        check(startedWith4.tourney && startedWith4.tourney.phase !== 'signup' && /Замало|Not enough/.test(tooFew.chat) && tooFew.tourney.phase === 'signup'
+            && full4.tourney.phase !== 'signup' && full4.line === cmd(lang, '🏆 Турнір триває · черга чекає', '🏆 Tournament on · the queue waits'),
+            `${cmd(lang, '!турнір старт', '!tournament start')} closes sign-up with 4, not with 3 ("${tooFew.chat}"); the 4th of 4 closes it by itself; the line then says "${full4.line}"`,
+            JSON.stringify({ started: startedWith4.tourney && startedWith4.tourney.phase, tooFew: tooFew.chat, full: full4.tourney.phase, line: full4.line }));
+        check(/сітка вже заповнена|bracket is full/.test(replies.full) && /лише під час реєстрації|only leave during sign-up/.test(replies.noLeave),
+            'refusals: the bracket full; leaving after sign-up closed', JSON.stringify(replies));
+        check(!errors.length, 'no page errors', errors.join(' | '));
+        await context.close();
+    }
+
+    // 2. A full 8-player run
+    if (run(2)) {
+        console.log('\n[2. a full 8-player run, uk, betting window on]');
+        const { page, context, errors } = await open(browser, { lang: 'uk', betting: true });
+        const players = ['sofiia_k', 'bohdan', 'ira_77', 'maks', 'oleh_the_great', 'zoryana', 'taras', 'yana'];
+        const others = ['r_one', 'r_two', 'duel_a', 'duel_b', 'q_first', 'q_second', 'q_third'];
+        const levels = { sofiia_k: 3, bohdan: 7, ira_77: 12, maks: 1, oleh_the_great: 16, zoryana: 5, taras: 9, yana: 2, q_first: 6, q_second: 6, q_third: 6 };
+        await register(page, 'uk', [...players, ...others], levels);
+        await page.evaluate(() => { playerLeaderboardStats.sofiia_k = { wins: 4, losses: 1 }; playerLeaderboardStats.taras = { wins: 2, losses: 3 }; renderLeaderboard(); });
+        // A ranked fight on screen, and a duel accepted during it
+        await say(page, 'r_one', '!черга'); await say(page, 'r_two', '!черга');
+        await mod(page, '!старт');                                           // skip its betting window
+        await page.clock.runFor(6000);
+        await say(page, 'duel_a', '!бій @duel_b'); await say(page, 'duel_b', '!прийняти');
+        await mod(page, '!турнір');
+        for (const n of players) await say(page, n, '!учасник');           // the 8th closes sign-up
+        const closed = await view(page);
+        const snapshot = () => page.evaluate(ps => ({ db: ps.map(n => [n, getDragonDB()[n].xp, getDragonDB()[n].level]), stats: JSON.stringify(playerLeaderboardStats),
+            top: [...document.querySelectorAll('#leaderboard-list .lb-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()) }), players);
+        check(closed.tourney.phase === 'ready' && closed.running && closed.kind === 'fight', 'the 8th player closes sign-up; the ranked fight on screen carries on',
+            JSON.stringify({ phase: closed.tourney.phase, kind: closed.kind }));
+        // The plan: QF1 2:0, QF2 2:1, QF3 a draw then 2:0, QF4 2:1; SF1 2:0, SF2 2:1; 3rd place; final 2:1
+        const qf = closed.tourney.rounds[0].map(m => [m.a, m.b]);
+        const plan = {
+            [key(...qf[0])]: [qf[0][0], qf[0][0]], [key(...qf[1])]: [qf[1][0], qf[1][1], qf[1][0]],
+            [key(...qf[2])]: [null, qf[2][0], qf[2][0]], [key(...qf[3])]: [qf[3][1], qf[3][0], qf[3][0]],
+            [key(qf[0][0], qf[1][0])]: [qf[0][0], qf[0][0]], [key(qf[2][0], qf[3][0])]: [qf[3][0], qf[2][0], qf[2][0]],
+            [key(qf[1][0], qf[3][0])]: [qf[1][0]], [key(qf[0][0], qf[2][0])]: [qf[2][0], qf[0][0], qf[0][0]],
+        };
+        await page.evaluate(p => { window.__plan = p; }, plan);
+        // The ranked fight ends, then its result screen, then the waiting duel (and its result screen), then the tournament
+        await until(page, () => window.__starts.some(s => s.tour));
+        const order = await page.evaluate(() => window.__fights.map(f => `${[f.p1, f.p2].sort().join('-')}${f.ranked ? ' ranked' : ''}`));
+        const firstStart = await page.evaluate(() => window.__starts.find(s => s.tour));
+        const before = await snapshot();   // the ranked fight and the duel are over: from here only the tournament plays
+        check(order[0] === 'r_one-r_two ranked' && order[1] === 'duel_a-duel_b' && order.length === 2 && firstStart.betting && firstStart.bracket,
+            'the tournament waits for the arena: the ranked fight, its result screen, the duel waiting after it, its result screen; then QF1 game 1 opens with the betting window',
+            JSON.stringify({ order, firstStart }));
+        const bets = await view(page);
+        check(bets.counting && bets.bracket && /^1:5\d$|^2:00$/.test(bets.timer) && bets.plate === '🏆 Турнір · Чвертьфінал · Гра 1 · 0:0' && bets.type === '⏳ Ставки відкрито',
+            `the betting window: the bracket under the timer (${bets.timer}), the plate "${bets.plate}", "${bets.type}" on the left`, JSON.stringify(bets));
+        const bracket = await page.evaluate(() => ({ cols: [...document.querySelectorAll('#log-countdown .tb-col')].map(c => c.querySelector('.tb-h').textContent),
+            names: [...document.querySelectorAll('#log-countdown .tb-col:first-child .tb-n')].map(n => n.textContent), live: document.querySelectorAll('#log-countdown .tb-m.live').length,
+            third: !!document.querySelector('#log-countdown .tb-h3'), cut: [...document.querySelectorAll('#log-countdown .tb-n, #log-countdown .tb-h, #cd-time')].filter(e => e.scrollWidth > e.clientWidth + 1).length,
+            inside: (() => { const box = document.getElementById('log-panel').getBoundingClientRect(); return [...document.querySelectorAll('#log-countdown .tb-m, #cd-time')].every(e => { const r = e.getBoundingClientRect(); return r.top >= box.top && r.bottom <= box.bottom; }); })() }));
+        check(bracket.cols.join() === 'Чвертьфінал,Півфінал,Фінал' && bracket.names.length === 8 && players.every(p => bracket.names.includes('@' + p)) && bracket.live === 1 && bracket.third && !bracket.cut && bracket.inside,
+            'the bracket: quarterfinals, semifinals, the final and the 3rd-place game; all 8 names, the match up next lit, nothing cut off or outside the log area', JSON.stringify(bracket));
+        await shot(page, 'tournament-bracket.png');
+        // !черга and !бій during the tournament
+        await say(page, 'q_first', '!черга'); await say(page, 'q_second', '!черга'); await say(page, 'q_third', '!черга');
+        await say(page, 'q_first', '!бій @q_second'); const duelReply = (await view(page)).chat;
+        const queued = await view(page);
+        check(queued.queue.map(q => q.replace(/\s/g, '')).join() === '1@q_first,2@q_second,3@q_third' && /триває турнір: дуелі — після фіналу/.test(duelReply),
+            '!черга still joins the queue (1 @q_first, 2 @q_second, 3 @q_third); !бій gets "зараз триває турнір: дуелі — після фіналу"', JSON.stringify({ queue: queued.queue, duelReply }));
+        // !старт skips the betting window
+        await mod(page, '!старт');
+        await page.clock.runFor(4500 + 4500 * 3 + 700);
+        const mid = await view(page);
+        const cards = await page.evaluate(() => ['p1', 'p2'].map(p => { const n = document.getElementById(`name-${p}`).textContent.replace('@', ''); const d = getDragonStrict(n);
+            return { n, info: document.getElementById(`info-${p}`).textContent, hp: document.getElementById(`hp-text-${p}`).textContent.split('/')[1], want: getMaxHP(20, d.drakeObj.type, d.title), saved: calculateLevelAndProgress(d.xp).level }; }));
+        check(mid.kind === 'fight' && mid.plate === '🏆 Турнір · Чвертьфінал · Гра 1 · 0:0' && /^⚔️ Хід \d+ \/ 30$/.test(mid.type),
+            `!старт skips the window; mid-fight the plate says "${mid.plate}" and the turn moves to the left ("${mid.type}")`, JSON.stringify(mid));
+        check(cards.every(c => / · Рівень 20$/.test(c.info) && +c.hp === c.want) && cards.some(c => c.saved < 20),
+            `both fight at level 20: ${cards.map(c => `@${c.n} (saved level ${c.saved}) ${c.info.split('·')[1].trim()}, max HP ${c.hp}`).join('; ')}`, JSON.stringify(cards));
+        // Game 1 ends: the 20 s result screen, then the 10 s «Гра 2» countdown (no betting window), then the fight
+        await until(page, () => window.__games.length >= 1, null, { step: 500 });
+        const end1 = await page.evaluate(() => window.__games[0].t);
+        await page.clock.runFor(20000 - 500 + 1500);
+        const cd2 = await view(page);
+        const s2 = await page.evaluate(() => window.__starts.filter(s => s.tour)[1]);
+        check(s2 && s2.t - end1 === 20000 && !s2.betting && s2.total === 10000 && !s2.bracket && cd2.cdTitle === 'Чвертьфінал · Гра 2' && cd2.plate === '🏆 Турнір · Чвертьфінал · Гра 2 · 1:0',
+            `game 2: 20 s after game 1 ends, a 10 s countdown "${cd2.cdTitle}" (no betting window, no bracket); the plate "${cd2.plate}"`, JSON.stringify({ s2, end1, cd2 }));
+        await page.clock.runFor(10000 + 4500 * 4);
+        await shot(page, 'tournament-plate.png');
+        // A second !старт within 5 s of an accepted one is ignored: end a result screen, then try to skip the next betting window
+        await until(page, () => window.__games.length >= 2 && !!resultHold, null, { step: 500 });
+        await mod(page, '!старт');                                           // ends QF1's last result screen: QF2's betting window opens
+        const qf2open = await view(page);
+        await page.clock.runFor(2000);
+        await say(page, 'mod_petro', '!старт', { mod: true });               // 2 s later: ignored
+        const guarded = await view(page);
+        check(qf2open.kind === 'countdown' && qf2open.bracket && guarded.kind === 'countdown' && guarded.bracket,
+            "!старт ends the result screen; a second one 2 s later doesn't skip the next match's betting window (the 5 s guard)", JSON.stringify({ a: qf2open.kind, b: guarded.kind }));
+        // Every later stage: the plate at the first turn of each
+        const plates = {};
+        let screenshotPodium = false;
+        for (let i = 0; i < 2000; i++) {
+            await page.clock.runFor(5000);
+            const v = await view(page);
+            if (v.kind === 'fight' && !plates[v.plate.replace(/ · \d+:\d+$/, '')]) plates[v.plate.replace(/ · \d+:\d+$/, '')] = v.plate;
+            if (v.kind === 'podium') { screenshotPodium = true; break; }
+        }
+        const games = await page.evaluate(() => window.__games);
+        const starts = await page.evaluate(() => window.__starts.filter(s => s.tour));
+        const pairs = [...new Set(games.map(g => g.k))];
+        const count = k => games.filter(g => g.k === k).length;
+        check(pairs.join('|') === Object.keys(plan).join('|'), 'the order: QF1–QF4, SF1, SF2, the 3rd-place game, the final', pairs.join(' | '));
+        check(count(key(...qf[0])) === 2 && count(key(...qf[1])) === 3 && count(key(...qf[2])) === 3 && count(key(...qf[3])) === 3 && count(key(qf[1][0], qf[3][0])) === 1 && count(key(qf[0][0], qf[2][0])) === 3,
+            'first to 2: QF1 2:0 (2 games), QF2 and QF4 2:1 (3), QF3 a draw replayed then 2:0 (3); the 3rd-place game one game; the final 2:1 (3)',
+            JSON.stringify(pairs.map(k => [k, count(k)])));
+        const replay = games.find(g => g.k === key(...qf[2]) && g.replay);
+        check(replay && replay.game === 1, 'the drawn game is replayed as game 1 again ("Гра 1 (перегравання)")', JSON.stringify(games.filter(g => g.k === key(...qf[2]))));
+        const firstOfMatch = starts.filter(s => s.tour.game === 1 && !s.tour.replay), rest = starts.filter(s => !(s.tour.game === 1 && !s.tour.replay));
+        check(firstOfMatch.length === 8 && firstOfMatch.every(s => s.betting && s.bracket) && rest.every(s => !s.betting && s.total === 10000),
+            `the betting window (with the bracket) before game 1 of all 8 matches, the 3rd-place game and the final included; the ${rest.length} other games (and the replay) get the 10 s countdown`,
+            JSON.stringify(starts.map(s => [s.tour.stage, s.tour.game, s.betting, s.total])));
+        check(games.every(g => g.lv[0] === 20 && g.lv[1] === 20), `all ${games.length} games at level 20`, JSON.stringify(games.map(g => g.lv)));
+        const wantPlates = ['🏆 Турнір · Чвертьфінал · Гра 3', '🏆 Турнір · Півфінал · Гра 1', '🏆 Турнір · Півфінал · Гра 2', '🏆 Турнір · Матч за 3-тє місце', '🏆 Турнір · Фінал · Гра 1', '🏆 Турнір · Фінал · Гра 3'];
+        check(wantPlates.every(p => Object.keys(plates).includes(p)), `the plate at every stage: ${Object.values(plates).slice(0, 12).join(' | ')}`, JSON.stringify(Object.keys(plates)));
+        // The podium
+        const podium = await view(page);
+        const pd = await page.evaluate(() => [...document.querySelectorAll('#log-countdown .pd-col')].map(c => ({ name: c.querySelector('.pd-name').textContent, medal: c.querySelector('.pd-medal').textContent, sprite: !!c.querySelector('img.pd-sprite') })));
+        const [gold, silver, bronze] = [qf[0][0], qf[2][0], qf[1][0]];
+        check(screenshotPodium && pd.map(c => c.medal + c.name).join() === `🥈@${silver},🥇@${gold},🥉@${bronze}` && pd.every(c => c.sprite) && podium.type === '🏆 Турнір завершено' && podium.plate === `🥇 @${gold}`,
+            `the podium: 🥇 @${gold}, 🥈 @${silver}, 🥉 @${bronze}, with sprites; "${podium.type}" · "${podium.plate}"`, JSON.stringify({ pd, type: podium.type, plate: podium.plate }));
+        await shot(page, 'tournament-podium.png');
+        const after = await snapshot();
+        check(JSON.stringify(after.db) === JSON.stringify(before.db) && after.stats === before.stats && JSON.stringify(after.top) === JSON.stringify(before.top),
+            'no XP and saved levels untouched for all 8; wins, losses and the Top exactly as before', JSON.stringify({ before, after }));
+        // After the podium's 20 s: the queue (in its order) and duels carry on
+        await page.clock.runFor(20000);
+        const back = await view(page);
+        const nextFight = await page.evaluate(() => window.__starts[window.__starts.length - 1]);
+        await say(page, 'duel_a', '!бій @duel_b'); const challenged = await page.evaluate(() => pendingChallenges.duel_b);
+        check(!back.tourney && back.line === 'стати в чергу: !черга' && nextFight.ranked && [nextFight.a, nextFight.b].join() === 'q_first,q_second'
+            && back.queue.map(q => q.replace(/\s/g, '')).join() === '1@q_third' && challenged === 'duel_a' && !(await page.evaluate(k => localStorage.getItem(k), KEY)),
+            'after the podium: the tournament is gone (its save too); the queue carries on in its order (@q_first against @q_second, @q_third next) and !бій works again',
+            JSON.stringify({ line: back.line, nextFight, queue: back.queue, challenged }));
+        check(!errors.length, 'no page errors', errors.join(' | '));
+        await context.close();
+    }
+
+    // 3. A reload in the middle of a match
+    if (run(3)) {
+        console.log('\n[3. a reload mid-match, uk]');
+        const { page, context, errors } = await open(browser, { lang: 'uk' });
+        const players = ['ania', 'borys', 'vira', 'hlib'];
+        await register(page, 'uk', players, { ania: 4, borys: 8 });
+        await mod(page, '!турнір 4');
+        for (const n of players) await say(page, n, '!учасник');
+        const sf = (await view(page)).tourney.rounds[0].map(m => [m.a, m.b]);
+        const plan = { [key(...sf[0])]: [sf[0][0], sf[0][0]], [key(...sf[1])]: [sf[1][0], sf[1][0], sf[1][0]], [key(sf[0][1], sf[1][1])]: [sf[0][1]], [key(sf[0][0], sf[1][0])]: [sf[0][0], sf[0][0]] };
+        await page.evaluate(p => { window.__plan = p; }, plan);
+        // Into game 2 of the second semifinal (1:0), mid-fight
+        await until(page, k => window.__games.filter(g => g.k === k).length === 1 && arenaState.kind === 'fight' && arenaState.turn >= 3, key(...sf[1]), { step: 1500 });
+        const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)), KEY);
+        const keyOk = !/db|stats/i.test(KEY);
+        await page.reload();
+        await page.evaluate(() => document.fonts.ready);
+        await page.evaluate(p => { window.__plan = p; window.__played = {}; }, { [key(...sf[1])]: [sf[1][0], sf[1][0]], [key(sf[0][1], sf[1][1])]: [sf[0][1]], [key(sf[0][0], sf[1][0])]: [sf[0][0], sf[0][0]] });
+        await page.clock.runFor(1000);
+        const resumed = await view(page);
+        check(keyOk && saved.phase === 'running' && saved.rounds[0][0].winner === sf[0][0] && resumed.tourney && resumed.tourney.rounds[0][0].winner === sf[0][0]
+            && resumed.kind === 'countdown' && /^🏆 Турнір · Півфінал · Гра 2 · (1:0|0:1)$/.test(resumed.plate) && resumed.cdTitle === 'Півфінал · Гра 2',
+            `after a reload: the saved tournament (key "${KEY}", no "db" or "stats" in it) resumes at the second semifinal, game 2 replayed: "${resumed.plate}"`,
+            JSON.stringify({ phase: saved.phase, resumed: { kind: resumed.kind, plate: resumed.plate, cd: resumed.cdTitle } }));
+        await until(page, () => arenaState.kind === 'podium', null, { step: 5000 });
+        const pd = await page.evaluate(() => [...document.querySelectorAll('#log-countdown .pd-name')].map(e => e.textContent));
+        const games = await page.evaluate(() => window.__games.map(g => g.k + ':' + g.game));
+        check(games[0] === key(...sf[1]) + ':2' && pd.join() === [sf[1][0], sf[0][0], sf[0][1]].map(n => '@' + n).join(),
+            'the replayed game counts (the semifinal ends 2:0), and the tournament runs on to its podium', JSON.stringify({ games, pd }));
+        check(!errors.length, 'no page errors', errors.join(' | '));
+        await context.close();
+    }
+
+    // 4. Byes, English names, a bracket of 16, cancelling
+    if (run(4)) {
+        console.log('\n[4. byes, English, cancel]');
+        const { page, context, errors } = await open(browser, { lang: 'en' });
+        const players = ['ava', 'ben', 'cleo', 'dan', 'eve', 'finn', 'gus', 'hal', 'ivy'];
+        await register(page, 'en', [...players, 'q1', 'q2']);
+        await mod(page, '!tournament');
+        for (const n of players.slice(0, 5)) await say(page, n, '!join');
+        await mod(page, '!tournament start');
+        const t5 = (await view(page)).tourney;
+        const byes = t5.rounds[0].filter(m => m.bye);
+        const real = t5.rounds[0].filter(m => !m.bye);
+        check(t5.rounds.length === 3 && t5.rounds[0].length === 4 && byes.length === 3 && real.length === 1 && byes.every(m => m.a && !m.b && m.winner === m.a)
+            && t5.rounds[1].filter(m => m.a).length + t5.rounds[1].filter(m => m.b).length === 3,
+            '5 players: a bracket of 8; 3 byes, all in round 1, their players already in the semifinals; one quarterfinal is played', JSON.stringify(t5.rounds));
+        const shown = await page.evaluate(() => ({ byes: [...document.querySelectorAll('#log-countdown .tb-none')].map(e => [e.closest('.tb-col') === document.querySelector('#log-countdown .tb-col'), e.textContent]),
+            cols: [...document.querySelectorAll('#log-countdown .tb-h')].map(h => h.textContent) }));
+        check(shown.byes.filter(b => b[1] === 'bye').length === 3 && shown.byes.filter(b => b[1] === 'bye').every(b => b[0]) && shown.cols.join() === 'Quarterfinal,Semifinal,Final,3rd-place match',
+            `the bracket shows the 3 byes in the first column; columns "${shown.cols.join(' · ')}"`, JSON.stringify(shown));
+        const plates = new Set();
+        await page.evaluate(() => { window.__plan = {}; });   // no plan: the fights decide
+        for (let i = 0; i < 2000; i++) {
+            await page.clock.runFor(5000);
+            const v = await view(page);
+            if (v.kind === 'fight') plates.add(v.plate.replace(/ · \d+:\d+$/, '').replace(/ · Game \d+( \(replay\))?/, ''));
+            if (v.kind === 'podium') break;
+        }
+        const games = await page.evaluate(() => window.__games);
+        check([...plates].join() === '🏆 Tournament · Quarterfinal,🏆 Tournament · Semifinal,🏆 Tournament · 3rd-place match,🏆 Tournament · Final'
+            && games.filter(g => g.stage === 'qf').every(g => g.k === [real[0].a, real[0].b].sort().join('-')),
+            `English plates: ${[...plates].join(' | ')}; only the one real quarterfinal is played`, JSON.stringify([...plates]));
+        await page.clock.runFor(21000);
+        // 9 players: a bracket of 16, then !tournament stop during game 1's countdown
+        await mod(page, '!tournament 16');
+        for (const n of players) await say(page, n, '!join');
+        await mod(page, '!tournament start');
+        await say(page, 'q1', '!queue'); await say(page, 'q2', '!queue');
+        await page.clock.runFor(1000);
+        const t16 = await view(page);
+        check(t16.tourney.rounds[0].length === 8 && t16.tourney.rounds[0].filter(m => m.bye).length === 7 && t16.plate === '🏆 Tournament · Round of 16 · Game 1 · 0:0' && t16.counting && t16.queue.length === 2,
+            `9 players: a bracket of 16 with 7 byes; "${t16.plate}"; the queue waits (2 in it)`, JSON.stringify({ plate: t16.plate, queue: t16.queue }));
+        await mod(page, '!tournament stop');
+        const stopped = await view(page);
+        await page.clock.runFor(1000);
+        const fight = await page.evaluate(() => window.__fights[window.__fights.length - 1]);
+        check(!stopped.tourney && /cancelled/.test(stopped.chat) && stopped.line === 'join the queue: !queue' && fight.ranked && [fight.p1, fight.p2].sort().join() === 'q1,q2' && !(await page.evaluate(k => localStorage.getItem(k), KEY)),
+            '!tournament stop during the countdown: the countdown goes, the line goes, the save goes, and the queue starts at once (@q1 against @q2)', JSON.stringify({ chat: stopped.chat, line: stopped.line, fight }));
+        await mod(page, '!tournament 4');
+        await mod(page, '!tournament stop');
+        const stopped2 = await view(page);
+        check(!stopped2.tourney && stopped2.line === 'join the queue: !queue', '!tournament stop during sign-up: back to normal', JSON.stringify(stopped2.line));
+        check(!errors.length, 'no page errors', errors.join(' | '));
+        await context.close();
+    }
+
+    await browser.close();
+    console.log(failures ? `\n${failures} tournament check(s) failed.` : '\nAll tournament checks passed.');
+    process.exit(failures ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });

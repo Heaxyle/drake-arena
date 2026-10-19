@@ -324,6 +324,40 @@
         .queue-empty { font-size: 14px; color: var(--dim); white-space: nowrap; }
         .queue-hint { margin-left: auto; font-size: 14px; color: var(--dim); white-space: nowrap; }
         .queue-hint b { color: var(--text); }
+        .queue-hint.tourney { color: var(--gold); font-weight: 700; }
+        .queue-hint.tourney b { color: #fff3c4; }
+        /* Tournament: the bracket under the betting window's timer (the timer in one row on top), and the podium */
+        .log-countdown.with-bracket { justify-content: flex-start; gap: 6px; }
+        .cd-row { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+        .with-bracket .cd-time { font-size: 26px; text-shadow: 0 3px 0 #000; }
+        .with-bracket .cd-bar { width: 180px; }
+        .with-bracket .cd-title { font-size: 16px; }
+        .with-bracket .cd-sub { font-size: 13px; max-width: 100%; overflow: hidden; flex-shrink: 0; }
+        .tb { display: flex; gap: 10px; width: 100%; flex: 1; min-height: 0; }
+        .tb-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+        .tb-h { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: var(--gold); text-transform: uppercase; text-align: center; white-space: nowrap; overflow: hidden; flex-shrink: 0; }
+        .tb-h3 { margin-top: 6px; }
+        .tb-ms { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-around; gap: 3px; }
+        .tb-m { flex-shrink: 0; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.10); border-radius: 2px; }
+        .tb-m.live { border-color: var(--gold); background: rgba(242, 193, 78, 0.12); box-shadow: 0 0 10px rgba(242, 193, 78, 0.25); }
+        .tb-p { display: flex; align-items: center; gap: 6px; height: 14px; line-height: 14px; padding: 0 6px; font-size: 12px; }
+        .tb-n { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; font-weight: 600; }
+        .tb-none { color: var(--dim); font-weight: 400; font-style: italic; }
+        .tb-s { flex-shrink: 0; font-family: var(--pixel); font-size: 9px; color: var(--text); }
+        .tb-p.out { opacity: 0.45; }
+        .tb-p.won .tb-n { font-weight: 800; }
+        .tb-p.won .tb-s { color: var(--gold); }
+        .log-countdown.podium { gap: 10px; }
+        .pd-title { font-size: 20px; font-weight: 800; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; }
+        .pd { display: flex; align-items: flex-end; gap: 22px; }
+        .pd-col { width: 210px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .pd-sprite { width: 96px; height: 72px; image-rendering: pixelated; }
+        .pd-1 .pd-sprite { width: 144px; height: 108px; }
+        .pd-name { max-width: 100%; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; }
+        .pd-step { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--plate); }
+        .pd-1 .pd-step { height: 86px; } .pd-2 .pd-step { height: 62px; } .pd-3 .pd-step { height: 44px; }
+        .pd-medal { font-size: 24px; line-height: 1; }
+        .pd-place { font-family: var(--pixel); font-size: 14px; color: var(--gold); }
 
         /* ===== Side column ===== */
         #side { position: absolute; left: 1452px; top: 150px; width: 428px; height: 890px; display: flex; flex-direction: column; gap: 28px; }
@@ -702,6 +736,11 @@
 
             const hint = document.getElementById('queue-hint');
             if (hint) hint.innerHTML = currentLang === 'uk' ? 'стати в чергу: <b>!черга</b>' : 'join the queue: <b>!queue</b>';
+            // A tournament: its sign-up line (or "on, the queue waits") takes the hint's place, in gold
+            if (hint) {
+                hint.classList.toggle('tourney', !!tourney);
+                if (tourney) hint.innerHTML = tourney.phase === 'signup' ? tT('signupLine', { n: tourney.players.length, size: tourney.size }) : tT('onLine');
+            }
             if (matchmakingQueue.length === 0) {
                 queueContainer.innerHTML = `<span class="queue-empty">${translations[currentLang].queue_empty}</span>`;
                 return;
@@ -805,7 +844,17 @@
             const type = document.getElementById('fight-type'), plate = document.getElementById('status-plate');
             if (!type || !plate) return;
             const fightName = s.ranked ? (uk ? '🏆 Рейтинговий бій' : '🏆 Ranked battle') : (uk ? '🤝 Товариська дуель' : '🤝 Friendly duel');
-            if (s.kind === 'idle') {
+            // A tournament game: the plate says «🏆 Турнір · Півфінал · Гра 2 · 1:0»; the countdown, turn or winner moves to the left
+            if (tourGame && ['countdown', 'fight', 'result'].includes(s.kind)) {
+                plate.textContent = tourneyPlate(tourGame);
+                type.textContent = s.kind === 'countdown' ? fvT(s.betting ? 'plateBets' : 'plateStart')
+                    : s.kind === 'fight' ? (uk ? `⚔️ Хід ${s.turn} / ${MAX_TURNS}` : `⚔️ Turn ${s.turn} / ${MAX_TURNS}`)
+                    : s.winner ? `${uk ? '🏆 Перемога' : '🏆 Victory'} · @${s.winner.name}` : (uk ? '🤝 Нічия' : '🤝 Draw');
+                fitText(plate, 11);
+            } else if (s.kind === 'podium') {
+                type.textContent = tT('podium');
+                plate.textContent = tT('champion', { who: '@' + s.podium[0] });
+            } else if (s.kind === 'idle') {
                 type.textContent = uk ? 'Арена чекає на бійців' : 'The arena awaits fighters';
                 plate.textContent = uk ? '⏳ Очікування' : '⏳ Waiting';
             } else if (s.kind === 'countdown') {
@@ -1118,6 +1167,7 @@
             switch (item.kind) {
                 case 'idle': return translations[currentLang].arena_ready;
                 case 'intro': {
+                    if (tourGame) return `🏆 ${tT('name')} · ${tourneyLabel(tourGame)} · ${drakeIcon(fv.p1.drakeObj)} ${fvWho(fv.p1)} ${fvT('vs')} ${fvWho(fv.p2)} ${drakeIcon(fv.p2.drakeObj)}`;
                     const type = fv.ranked ? (currentLang === 'uk' ? '🏆 Рейтинговий бій' : '🏆 Ranked battle') : (currentLang === 'uk' ? '🤝 Товариська дуель' : '🤝 Friendly duel');
                     return `${type} · ${drakeIcon(fv.p1.drakeObj)} ${fvWho(fv.p1)} ${fvT('vs')} ${fvWho(fv.p2)} ${drakeIcon(fv.p2.drakeObj)}`;
                 }
@@ -1287,18 +1337,36 @@
             const panel = fvEl('log-panel'), box = fvEl('log-countdown');
             if (!panel || !box) return;
             const s = arenaState;
-            const total = s.betting ? BETTING_WINDOW_MS : TURN_MS;
+            const total = s.total || (s.betting ? BETTING_WINDOW_MS : TURN_MS);
             const ends = ms === null ? (s.ends || Date.now()) : Date.now() + ms;
             arenaState.ends = ends;
             const token = ++fvCountdownToken;
             panel.classList.add('counting');
+            // A tournament match's betting window: the timer in one row on top, the bracket below it (built once; the
+            // ticks only move the timer)
+            box.className = s.bracket ? 'log-countdown with-bracket' : 'log-countdown';
             const paint = () => {
                 if (token !== fvCountdownToken || arenaState.kind !== 'countdown') return;
                 const left = Math.max(0, ends - Date.now()), secs = Math.ceil(left / 1000);
-                const sub = s.betting && !s.flipped ? fvT('cdFlip') : fvT('cdFirst', { a: fv.p1 ? fvWho(fv.p1) : '' });
-                box.innerHTML = `<span class="cd-label">${fvT('cdLabel')}</span><span class="cd-time" id="cd-time">${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</span>`
+                const time = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+                const sub = !s.flipped ? fvT('cdFlip') : fvT('cdFirst', { a: fv.p1 ? fvWho(fv.p1) : '' });
+                const title = s.betting ? fvT('cdBets') : tourGame && !s.flipped ? tourneyLabel(tourGame) : fvT('cdStart');
+                if (s.bracket) {
+                    if (box.dataset.token === String(token)) {
+                        fvEl('cd-time').textContent = time;
+                        fvEl('cd-fill').style.transform = `scaleX(${left / total})`;
+                        return;
+                    }
+                    box.dataset.token = token;
+                    box.innerHTML = `<div class="cd-row"><span class="cd-label">${fvT('cdLabel')}</span><span class="cd-time" id="cd-time">${time}</span>`
+                        + `<div class="cd-bar"><div class="px-track"><div class="px-fill cd-fill" id="cd-fill" style="transform:scaleX(${left / total})"></div></div></div>`
+                        + `<span class="cd-title">${title}</span></div><span class="cd-sub">🏆 ${tourneyLabel(tourGame)} · ${sub}</span>${tourneyBracketHtml()}`;
+                    box.querySelectorAll('.tb-n, .tb-h, .cd-sub').forEach(el => fitText(el, 9));
+                    return;
+                }
+                box.innerHTML = `<span class="cd-label">${fvT('cdLabel')}</span><span class="cd-time" id="cd-time">${time}</span>`
                     + `<div class="cd-bar"><div class="px-track"><div class="px-fill cd-fill" id="cd-fill" style="transform:scaleX(${left / total})"></div></div></div>`
-                    + `<span class="cd-title">${s.betting ? fvT('cdBets') : fvT('cdStart')}</span><span class="cd-sub">${sub}</span>`;
+                    + `<span class="cd-title">${title}</span><span class="cd-sub">${sub}</span>`;
             };
             paint();
             const left0 = ends - Date.now(), n = Math.ceil(left0 / 1000);
@@ -1309,13 +1377,18 @@
         // The open betting window's fight, waiting to start (null when there is none): { start }
         let bettingWait = null;
         // Pre-fight betting window: both fighters on their cards, "СТАВКИ ВІДКРИТО", the timer from 2:00
-        function startFight(p1Name, p1Color, p2Name, p2Color, isRanked) {
+        // A tournament game (opts.tour) always waits first: the betting window before game 1 of a match (opts.bets; the
+        // TOURNEY_GAP_MS countdown instead when the betting window is off), the short countdown before games 2 and 3
+        function startFight(p1Name, p1Color, p2Name, p2Color, isRanked, opts = {}) {
             clearForcedCast();
-            if (!FV_LIVE || !bettingWindowOn()) return runBattle(p1Name, p1Color, p2Name, p2Color, isRanked);
-            const show = (n, c) => { const d = getDragonStrict(n) || getDragon(n, c); return { ...d, color: nameColor(d.color) }; };
+            tourGame = opts.tour || null;
+            if (!FV_LIVE || (!opts.tour && !bettingWindowOn())) return runBattle(p1Name, p1Color, p2Name, p2Color, isRanked, { tour: opts.tour });
+            const bets = !opts.tour || (!!opts.bets && bettingWindowOn());
+            const windowMs = bets ? BETTING_WINDOW_MS : TOURNEY_GAP_MS;
+            const show = (n, c) => { const d = (opts.tour && tourneyFighter(n)) || getDragonStrict(n) || getDragon(n, c); return { ...d, color: nameColor(d.color) }; };
             const a = show(p1Name, p1Color), b = show(p2Name, p2Color);
-            playBettingOpened = playNow();
-            fv = { on: false, p1: a, p2: b, ranked: isRanked, betting: true, items: [], stats: {}, rec: null, hold: null, lit: null };
+            if (bets) playBettingOpened = playNow();
+            fv = { on: false, p1: a, p2: b, ranked: isRanked, betting: bets, items: [], stats: {}, rec: null, hold: null, lit: null };
             fvFeedReset();
             fvHead();
             updateFighterCard('p1', a); updateFighterCard('p2', b);
@@ -1323,17 +1396,17 @@
             updateStatusUI(a.name, lv(a), a.drakeObj.type, a.title); updateStatusUI(b.name, lv(b), b.drakeObj.type, b.title);
             const hp = d => getMaxHP(lv(d), d.drakeObj.type, d.title);
             updateUIHP(hp(a), hp(a), hp(b), hp(b));
-            setArenaState({ kind: 'countdown', ranked: isRanked, betting: true, flipped: false, ends: Date.now() + BETTING_WINDOW_MS });
-            fvCountdown(BETTING_WINDOW_MS);
+            setArenaState({ kind: 'countdown', ranked: isRanked, betting: bets, flipped: false, ends: Date.now() + windowMs, total: windowMs, bracket: !!(opts.tour && opts.bets) });
+            fvCountdown(windowMs);
             // The fight starts the normal way (coin flip, then the 4.5 s "першим б'є …" countdown) TURN_MS before the window
             // ends, or at once on a skip: whichever comes first, and only once
             const wait = { start: () => {
                 bettingWait = null;
                 clearTimeout(wait.timer);
-                runBattle(p1Name, p1Color, p2Name, p2Color, isRanked, { betting: true });
+                runBattle(p1Name, p1Color, p2Name, p2Color, isRanked, { betting: bets, tour: opts.tour });
             } };
             bettingWait = wait;
-            wait.timer = setTimeout(wait.start, BETTING_WINDOW_MS - TURN_MS);
+            wait.timer = setTimeout(wait.start, windowMs - TURN_MS);
         }
         // !старт / !start (the channel owner or a moderator) and the test panel's Skip: end the betting window now. Does
         // nothing (returns false) when no fight is waiting for one: none open, or its fight has already started
@@ -1487,6 +1560,7 @@
             fv.items.forEach(fvPaint);
             fvLogPill();
             fvRepaintCountdown();
+            tourneyShowPodium();
             fvPopulateTestMenu();
         }
 
@@ -2905,6 +2979,9 @@ function drakeSpriteURL(type) {
                 return;
             }
 
+            const badges = context.badges || {};
+            if (tourneyCommand(command, args, sender, senderColor, isBroadcaster || context.mod === true || !!badges.broadcaster || !!badges.moderator)) return;
+
             let db = getDragonDB();
 
             // "!battle" with no name: say how to challenge, before any other check
@@ -3043,6 +3120,16 @@ function drakeSpriteURL(type) {
                 
                 renderLeaderboard();
                 showTitleRoll(sender, senderColor, newTitle);
+                return;
+            }
+
+            // During a tournament duels wait until the final is over (a challenge accepted now is dropped)
+            if (tourneyOn() && ['!бій', '!battle', '!прийняти', '!accept'].includes(command)) {
+                if (command === '!прийняти' || command === '!accept') {
+                    if (!pendingChallenges[sender]) return;
+                    clearTimeout(challengeTimeouts[sender]); delete pendingChallenges[sender];
+                }
+                addInfo(tT('duelPaused', { who: `<span style="color: ${senderColor};">@${sender}</span>` }), 'warn');
                 return;
             }
 
@@ -3236,12 +3323,320 @@ function drakeSpriteURL(type) {
             nextFight();
             return true;
         }
-        // When the arena is free again: a duel accepted during the fight or its result goes first, then the ranked queue
+        // When the arena is free again: a duel accepted during the fight or its result goes first, then the tournament
+        // (its next game; the ranked queue waits until it's over), then the ranked queue
         function nextFight() {
             if (arenaBusy()) return;
             if (waitingDuel) { const d = waitingDuel; waitingDuel = null; startDuel(d.challenger, d.cColor, d.accepter, d.aColor); return; }
+            if (tourneyOn()) { tourneyNext(); return; }
             checkQueue();
         }
+
+        /* ===== Tournament: single elimination, best of 3, everyone at level 20 =====
+           The streamer or a moderator opens sign-up (!турнір [4|8|16]); viewers with a drake join (!учасник) or leave
+           (!вийти) while it's open, and normal fights carry on. It closes when the bracket is full, or on !турнір старт (at
+           least TOURNEY_MIN players); !турнір стоп cancels at any point. Seeding is random; with 5–7 or 9–15 players the
+           bracket is the next size up and the byes are all in round 1. Every match is first to TOURNEY_WINS games; a drawn
+           game is replayed; the semifinal losers play one game for 3rd place right before the final. Everyone fights as
+           level 20 (tourneyFighter) with their own element and title; saved levels, XP, wins, losses and the Top don't
+           change. The tournament starts once the arena is free (after the current result screen and a waiting duel);
+           meanwhile and until the final is over the ranked queue waits (nextFight) and duels are refused. Game 1 of each
+           match (and the 3rd-place game) opens with the betting window, the bracket shown under its timer; games 2 and 3
+           (and a replayed draw) with a TOURNEY_GAP_MS countdown after the result screen. The state is saved under
+           TOURNEY_KEY after every change, so a reload resumes at the current match and replays an unfinished game. */
+        const TOURNEY_KEY = 'drake_arena_showcase_tournament';   // no "db" or "stats" in the name: a ladder wipe keeps it
+        const TOURNEY_SIZES = [4, 8, 16], TOURNEY_DEFAULT = 8, TOURNEY_MIN = 4;
+        const TOURNEY_WINS = 2;                // first to 2 (best of 3); the 3rd-place game is a single game
+        const TOURNEY_GAP_MS = 10000;          // the «Гра 2» countdown before games 2 and 3, after the 20 s result screen
+        const TOURNEY_XP = (() => { let x = 0; for (let l = 1; l < 20; l++) x += getRequiredXP(l); return x; })();   // level 20
+        // { phase: 'signup' | 'ready' | 'running' | 'podium', size, players: [{ name, color, drakeObj, title }], rounds: [[match]],
+        //   third: match, game, replay, podium: [1st, 2nd, 3rd] }; match: { a, b, w: [a's wins, b's wins], winner, bye }
+        let tourney = null;
+        // The tournament game on screen (its countdown, fight and result screen): { r, m, third, stage, a, b, game, replay, score }
+        let tourGame = null;
+        const tourneyOn = () => !!tourney && tourney.phase !== 'signup';
+
+        const TOURNEY_TEXT = {
+            uk: { name: 'Турнір', signupLine: '🏆 Турнір: реєстрація · {n}/{size} · <b>!учасник</b>', onLine: '🏆 Турнір триває · черга чекає',
+                  opened: '🏆 <b>Турнір!</b> Реєстрація на {size} місць відкрита: пишіть <b>!учасник</b> (передумали — <b>!вийти</b>).',
+                  usage: 'ℹ️ <b>!турнір [4|8|16]</b> відкриває реєстрацію, <b>!турнір старт</b> закриває її (від 4 учасників), <b>!турнір стоп</b> скасовує турнір.',
+                  busy: '⚠️ Турнір уже йде. Скасувати: <b>!турнір стоп</b>.', joined: '✅ {who} у турнірі! ({n}/{size})', left: '👋 {who} виходить з турніру. ({n}/{size})',
+                  noDrake: '⚠️ {who}, щоб узяти участь у турнірі, спершу створіть дрейка: <b>!дрейк [колір]</b>.',
+                  dragon: '🛑 {who}, Білий Дракон у турнірах не бере участі — це змагання дрейків глядачів.',
+                  inAlready: '⏳ {who}, ви вже в турнірі.', full: '⚠️ {who}, сітка вже заповнена ({size}/{size}).',
+                  noSignup: 'ℹ️ {who}, зараз немає реєстрації на турнір.', closedSignup: '⚠️ {who}, реєстрацію на турнір уже закрито.',
+                  notIn: 'ℹ️ {who}, вас немає серед учасників турніру.', noLeave: '⚠️ {who}, вийти можна лише під час реєстрації.',
+                  tooFew: '⚠️ Замало учасників для турніру: {n}. Потрібно щонайменше {min}.', noTourney: 'ℹ️ Зараз немає турніру.',
+                  closed: '🏆 Реєстрацію закрито: {n} учасників, сітка на {size}. Турнір почнеться, щойно звільниться арена.',
+                  begins: '🏆 <b>Турнір починається!</b> Черга й дуелі чекають до кінця фіналу.', cancelled: '🛑 Турнір скасовано: призів немає, черга й дуелі знову працюють.',
+                  over: 'ℹ️ Турнір уже завершено.', duelPaused: '🏆 {who}, зараз триває турнір: дуелі — після фіналу.',
+                  r16: '1/8 фіналу', qf: 'Чвертьфінал', sf: 'Півфінал', third: 'Матч за 3-тє місце', final: 'Фінал',
+                  game: 'Гра {n}', replay: 'перегравання', bye: 'вільний прохід', tbd: '…', podium: '🏆 Турнір завершено', champion: '🥇 {who}',
+                  won: '🏆 {label}: перемагає {who} ({score})', draw: '🤝 {label}: нічия — гру буде переграно',
+                  matchWon: '🏆 {who} виграє матч {score} ({stage})' },
+            en: { name: 'Tournament', signupLine: '🏆 Tournament: sign-up · {n}/{size} · <b>!join</b>', onLine: '🏆 Tournament on · the queue waits',
+                  opened: '🏆 <b>Tournament!</b> Sign-up for {size} players is open: type <b>!join</b> (changed your mind? <b>!leave</b>).',
+                  usage: 'ℹ️ <b>!tournament [4|8|16]</b> opens sign-up, <b>!tournament start</b> closes it (4 players or more), <b>!tournament stop</b> cancels it.',
+                  busy: '⚠️ A tournament is already on. To cancel it: <b>!tournament stop</b>.', joined: '✅ {who} is in the tournament! ({n}/{size})', left: '👋 {who} leaves the tournament. ({n}/{size})',
+                  noDrake: '⚠️ {who}, to join the tournament, first create a drake: <b>!drake [color]</b>.',
+                  dragon: "🛑 {who}, the White Dragon doesn't play in tournaments — they're for viewers' drakes.",
+                  inAlready: "⏳ {who}, you're already in the tournament.", full: '⚠️ {who}, the bracket is full ({size}/{size}).',
+                  noSignup: "ℹ️ {who}, there's no tournament sign-up right now.", closedSignup: '⚠️ {who}, the tournament sign-up is already closed.',
+                  notIn: "ℹ️ {who}, you're not in the tournament.", noLeave: '⚠️ {who}, you can only leave during sign-up.',
+                  tooFew: '⚠️ Not enough players for a tournament: {n}. It needs at least {min}.', noTourney: "ℹ️ There's no tournament right now.",
+                  closed: '🏆 Sign-up closed: {n} players, a bracket of {size}. The tournament starts as soon as the arena is free.',
+                  begins: '🏆 <b>The tournament begins!</b> The queue and duels wait until the final is over.', cancelled: '🛑 Tournament cancelled: no prizes; the queue and duels are back.',
+                  over: 'ℹ️ The tournament is already over.', duelPaused: '🏆 {who}, a tournament is on: duels after the final.',
+                  r16: 'Round of 16', qf: 'Quarterfinal', sf: 'Semifinal', third: '3rd-place match', final: 'Final',
+                  game: 'Game {n}', replay: 'replay', bye: 'bye', tbd: '…', podium: '🏆 Tournament over', champion: '🥇 {who}',
+                  won: '🏆 {label}: {who} wins ({score})', draw: '🤝 {label}: a draw — the game will be replayed',
+                  matchWon: '🏆 {who} wins the match {score} ({stage})' },
+        };
+        const tT = (key, vars = {}) => TOURNEY_TEXT[currentLang][key].replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '');
+
+        function tourneySave() {
+            try { if (tourney) localStorage.setItem(TOURNEY_KEY, JSON.stringify(tourney)); else localStorage.removeItem(TOURNEY_KEY); } catch (e) {}
+        }
+        function tourneyLoad() {
+            try { const s = JSON.parse(localStorage.getItem(TOURNEY_KEY)); if (s && s.phase) tourney = s; } catch (e) {}
+        }
+        // A player as they fight in the tournament: their saved drake (or, if it's gone, the one they signed up with),
+        // at level 20. A display copy: the save keeps its own level and XP.
+        function tourneyFighter(name) {
+            const p = tourney && tourney.players.find(x => x.name === name);
+            const d = getDragonStrict(name) || (p ? { name, color: p.color, drakeObj: p.drakeObj, title: p.title, xp: 0 } : null);
+            return d ? { ...d, xp: TOURNEY_XP } : null;
+        }
+        const tourneyMatch = id => id.third ? tourney.third : tourney.rounds[id.r][id.m];
+        const tourneyStage = id => id.third ? 'third' : ({ 8: 'r16', 4: 'qf', 2: 'sf', 1: 'final' })[tourney.rounds[id.r].length];
+        // The next match to play: round by round; the 3rd-place game right before the final; null when the final is decided
+        function tourneyNextMatch() {
+            const t = tourney, last = t.rounds.length - 1;
+            for (let r = 0; r < t.rounds.length; r++) {
+                if (r === last && t.third && !t.third.winner) return { third: true };
+                const m = t.rounds[r].findIndex(x => x.a && x.b && !x.winner);
+                if (m !== -1) return { r, m };
+            }
+            return null;
+        }
+        // A match's winner moves on (and a semifinal's loser to the 3rd-place game)
+        function tourneyAdvance(id, winner, loser) {
+            const t = tourney;
+            if (id.third) return;
+            if (id.r + 1 < t.rounds.length) t.rounds[id.r + 1][id.m >> 1][id.m % 2 ? 'b' : 'a'] = winner;
+            if (id.r === t.rounds.length - 2 && loser) t.third[id.m % 2 ? 'b' : 'a'] = loser;
+        }
+        // Sign-up closes: random seeding into the next bracket size up; byes (one per match, spread out) only in round 1
+        function tourneyClose() {
+            const t = tourney;
+            const names = t.players.map(p => p.name);
+            for (let i = names.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [names[i], names[j]] = [names[j], names[i]]; }
+            const size = TOURNEY_SIZES.find(s => s >= names.length), half = size / 2, byes = size - names.length;
+            const byeAt = new Set(Array.from({ length: byes }, (_, k) => Math.floor(k * half / byes)));
+            t.rounds = [];
+            for (let n = half; n >= 1; n /= 2) t.rounds.push(Array.from({ length: n }, () => ({ a: null, b: null, w: [0, 0], winner: null })));
+            t.third = { a: null, b: null, w: [0, 0], winner: null };
+            t.rounds[0].forEach((m, i) => {
+                m.a = names.shift();
+                if (byeAt.has(i)) { m.bye = true; m.winner = m.a; tourneyAdvance({ r: 0, m: i }, m.a, null); }
+                else m.b = names.shift();
+            });
+            t.phase = 'ready'; t.game = 1; t.replay = false;
+            tourneySave();
+            addInfo(tT('closed', { n: t.players.length, size }), 'ok');
+            addLog(`🏆 ${tT('name')}: ${t.rounds[0].map(m => m.bye ? `@${m.a} (${tT('bye')})` : `@${m.a} — @${m.b}`).join(' · ')}`);
+            updateQueueUI();
+            if (!arenaBusy()) nextFight();
+        }
+        // The arena is free: the next tournament game, or the podium once the final is decided, or (after the podium) the end
+        function tourneyNext() {
+            const t = tourney;
+            if (t.phase === 'podium') { tourneyEnd(); nextFight(); return; }
+            if (t.phase === 'ready') { t.phase = 'running'; addInfo(tT('begins'), 'ok'); }
+            const id = tourneyNextMatch();
+            if (!id) { tourneyPodium(); return; }
+            const m = tourneyMatch(id);
+            tourGame = { ...id, stage: tourneyStage(id), a: m.a, b: m.b, game: t.game, replay: !!t.replay, score: [...m.w] };
+            tourneySave();
+            isBattleRunning = true;
+            updateQueueUI();
+            fightRecordReset();
+            const a = tourneyFighter(m.a), b = tourneyFighter(m.b);
+            addLog(`🏆 ${tourneyLabel(tourGame)}: <span style="color: ${nameColor(a.color)};">@${m.a}</span> — <span style="color: ${nameColor(b.color)};">@${m.b}</span>`);
+            // Game 1 of a match opens with the betting window and the bracket; games 2 and 3 and replays with the short countdown
+            startFight(m.a, a.color, m.b, b.color, false, { tour: tourGame, bets: t.game === 1 && !t.replay });
+        }
+        // A tournament game ended (finishBattle): the score, or a replay after a draw
+        function tourneyResult(winner, loser) {
+            const t = tourney, g = tourGame;
+            if (!t || t.phase !== 'running' || !g) return;   // cancelled meanwhile: the game counted for nothing
+            const m = tourneyMatch(g), label = tourneyLabel(g);
+            if (!winner) { t.replay = true; tourneySave(); addLog(tT('draw', { label })); return; }
+            t.replay = false;
+            m.w[winner === m.a ? 0 : 1]++;
+            g.score = [...m.w];
+            addLog(tT('won', { label, who: `@${winner}`, score: `${m.w[0]}:${m.w[1]}` }));
+            if (Math.max(...m.w) >= (g.third ? 1 : TOURNEY_WINS)) {
+                m.winner = winner;
+                tourneyAdvance(g, winner, loser);
+                t.game = 1;
+                if (!g.third) addLog(tT('matchWon', { who: `@${winner}`, score: `${Math.max(...m.w)}:${Math.min(...m.w)}`, stage: tT(g.stage) }));
+            } else t.game++;
+            tourneySave();
+        }
+        // The final is decided: 🥇🥈🥉 on the podium, the arena held like a result screen; then the tournament ends
+        function tourneyPodium() {
+            const t = tourney, fin = t.rounds[t.rounds.length - 1][0];
+            t.phase = 'podium';
+            t.podium = [fin.winner, fin.winner === fin.a ? fin.b : fin.a, t.third.winner];
+            tourneySave();
+            tourGame = null;
+            addLog(`${tT('podium')}: 🥇 @${t.podium[0]} · 🥈 @${t.podium[1]} · 🥉 @${t.podium[2]}`);
+            setArenaState({ kind: 'podium', podium: [...t.podium] });
+            tourneyShowPodium();
+            holdResult();
+        }
+        function tourneyEnd() {
+            tourney = null;
+            tourGame = null;
+            tourneySave();
+            updateQueueUI();
+        }
+        // !турнір стоп: back to normal at once. An open tournament countdown is dropped; a game already being fought
+        // finishes as a game that counts for nothing (no XP, no record), then the queue carries on
+        function tourneyCancel() {
+            tourney = null;
+            tourneySave();
+            if (bettingWait && tourGame) {
+                clearTimeout(bettingWait.timer);
+                bettingWait = null;
+                tourGame = null;
+                isBattleRunning = false;
+                if (FV_LIVE) { const panel = fvEl('log-panel'); if (panel) panel.classList.remove('counting'); }
+                setArenaState({ kind: 'idle' });
+            }
+            addInfo(tT('cancelled'), 'warn');
+            updateQueueUI();
+            nextFight();
+        }
+        // A reload during a tournament: carry on from the saved state (the unfinished game is played again)
+        function tourneyResume() {
+            if (!tourney) return;
+            updateQueueUI();
+            if (tourney.phase === 'podium') { setArenaState({ kind: 'podium', podium: [...tourney.podium] }); tourneyShowPodium(); holdResult(); }
+            else if (tourneyOn()) nextFight();
+        }
+
+        // «Півфінал · Гра 2» (the 3rd-place game is one game: just its name)
+        function tourneyLabel(g) {
+            const stage = tT(g.stage);
+            return g.third ? stage : `${stage} · ${tT('game', { n: g.game })}${g.replay ? ` (${tT('replay')})` : ''}`;
+        }
+        // The arena plate: «🏆 Турнір · Півфінал · Гра 2 · 1:0», the score from the left card's side
+        function tourneyPlate(g) {
+            if (g.third) return `🏆 ${tT('name')} · ${tourneyLabel(g)}`;
+            const flip = fv.p1 && fv.p1.name === g.b;
+            return `🏆 ${tT('name')} · ${tourneyLabel(g)} · ${flip ? g.score[1] : g.score[0]}:${flip ? g.score[0] : g.score[1]}`;
+        }
+        // The bracket, compact, under the betting window's timer: one column per round (the 3rd-place game under the final)
+        function tourneyBracketHtml() {
+            const t = tourney;
+            if (!t || !t.rounds) return '';
+            const cur = tourGame;
+            const who = (n, bye) => n ? `<span class="tb-n pname" style="color:${nameColor(tourneyFighter(n).color)}">@${n}</span>`
+                : `<span class="tb-n tb-none">${bye ? tT('bye') : tT('tbd')}</span>`;
+            const match = (m, id) => {
+                const live = cur && !!cur.third === !!id.third && cur.r === id.r && cur.m === id.m;
+                const started = m.winner || m.w[0] || m.w[1];
+                const row = (n, w) => `<div class="tb-p${m.winner && n && m.winner === n && !m.bye ? ' won' : ''}${m.winner && n && m.winner !== n ? ' out' : ''}">${who(n, m.bye)}<span class="tb-s">${started && !m.bye ? w : ''}</span></div>`;
+                return `<div class="tb-m${live ? ' live' : ''}${m.bye ? ' bye' : ''}">${row(m.a, m.w[0])}${row(m.b, m.w[1])}</div>`;
+            };
+            const last = t.rounds.length - 1;
+            return `<div class="tb">` + t.rounds.map((round, r) => `<div class="tb-col"><div class="tb-h">${tT(tourneyStage({ r }))}</div><div class="tb-ms">`
+                + round.map((m, i) => match(m, { r, m: i })).join('')
+                + (r === last ? `<div class="tb-h tb-h3">${tT('third')}</div>${match(t.third, { third: true })}` : '') + `</div></div>`).join('') + `</div>`;
+        }
+        // 🥈 🥇 🥉 with names and sprites, in the log area
+        function tourneyShowPodium() {
+            if (!FV_LIVE) return;
+            const panel = fvEl('log-panel'), box = fvEl('log-countdown'), s = arenaState;
+            if (!panel || !box || s.kind !== 'podium') return;
+            fvCountdownToken++;
+            const step = (name, place) => {
+                const d = name ? tourneyFighter(name) : null;
+                const sprite = d ? drakeSpriteURL(d.drakeObj.type) : '';
+                return `<div class="pd-col pd-${place}">${sprite ? `<img class="pd-sprite" src="${sprite}" alt="">` : ''}`
+                    + `<span class="pd-name pname" style="color:${d ? nameColor(d.color) : 'inherit'}">${name ? '@' + name : ''}</span>`
+                    + `<div class="pd-step frame-sm"><span class="pd-medal">${['🥇', '🥈', '🥉'][place - 1]}</span><span class="pd-place">${place}</span></div></div>`;
+            };
+            box.className = 'log-countdown podium';
+            box.innerHTML = `<span class="pd-title">${tT('podium')}</span><div class="pd">${step(s.podium[1], 2)}${step(s.podium[0], 1)}${step(s.podium[2], 3)}</div>`;
+            box.querySelectorAll('.pd-name').forEach(el => fitText(el, 10));
+            panel.classList.add('counting');
+        }
+
+        // Chat: !турнір [4|8|16] / старт / стоп (the channel owner or a moderator), !учасник and !вийти (viewers).
+        // Returns true when the message was a tournament command.
+        function tourneyCommand(command, args, sender, senderColor, isMod) {
+            const who = `<span style="color: ${senderColor};">@${sender}</span>`;
+            if (command === '!турнір' || command === '!tournament') {
+                if (!isMod) return true;
+                const arg = args[1];
+                if (arg === 'старт' || arg === 'start') {
+                    if (!tourney) addInfo(tT('noTourney'), 'warn');
+                    else if (tourney.phase !== 'signup') addInfo(tT('busy'), 'warn');
+                    else if (tourney.players.length < TOURNEY_MIN) addInfo(tT('tooFew', { n: tourney.players.length, min: TOURNEY_MIN }), 'warn');
+                    else tourneyClose();
+                    return true;
+                }
+                if (arg === 'стоп' || arg === 'stop') {
+                    if (!tourney) addInfo(tT('noTourney'), 'warn');
+                    else if (tourney.phase === 'podium') addInfo(tT('over'), 'warn');
+                    else tourneyCancel();
+                    return true;
+                }
+                const size = arg === undefined ? TOURNEY_DEFAULT : Number(arg);
+                if (!TOURNEY_SIZES.includes(size)) { addInfo(tT('usage'), 'warn'); return true; }
+                if (tourney) { addInfo(tT('busy'), 'warn'); return true; }
+                tourney = { phase: 'signup', size, players: [] };
+                tourneySave();
+                addInfo(tT('opened', { size }), 'ok');
+                updateQueueUI();
+                return true;
+            }
+            if (command === '!учасник' || command === '!join') {
+                const t = tourney, d = getDragonStrict(sender);
+                if (!t) addInfo(tT('noSignup', { who }), 'warn');
+                else if (t.players.some(p => p.name === sender)) addInfo(tT('inAlready', { who }), 'warn');
+                else if (t.players.length >= t.size) addInfo(tT('full', { who, size: t.size }), 'warn');   // a full bracket closed it
+                else if (t.phase !== 'signup') addInfo(tT('closedSignup', { who }), 'warn');
+                else if (!d) addInfo(tT('noDrake', { who }), 'warn');
+                else if (d.drakeObj && d.drakeObj.type === DRAGON_TYPE) addInfo(tT('dragon', { who }), 'warn');
+                else {
+                    t.players.push({ name: sender, color: d.color, drakeObj: d.drakeObj, title: d.title });
+                    tourneySave();
+                    addInfo(tT('joined', { who, n: t.players.length, size: t.size }), 'ok');
+                    updateQueueUI();
+                    if (t.players.length === t.size) tourneyClose();
+                }
+                return true;
+            }
+            if (command === '!вийти' || command === '!leave') {
+                const t = tourney;
+                if (!t) addInfo(tT('noSignup', { who }), 'warn');
+                else if (!t.players.some(p => p.name === sender)) addInfo(tT('notIn', { who }), 'warn');
+                else if (t.phase !== 'signup') addInfo(tT('noLeave', { who }), 'warn');
+                else {
+                    t.players = t.players.filter(p => p.name !== sender);
+                    tourneySave();
+                    addInfo(tT('left', { who, n: t.players.length, size: t.size }));
+                    updateQueueUI();
+                }
+                return true;
+            }
+            return false;
+        }
+        tourneyLoad();
 
         function testBattle() {
             if (isBattleRunning) return;
@@ -3404,8 +3799,10 @@ function drakeSpriteURL(type) {
                 [p1Name, p2Name] = [p2Name, p1Name];
                 [p1Color, p2Color] = [p2Color, p1Color];
             }
-            let p1 = getDragonStrict(p1Name) || getDragon(p1Name, p1Color);
-            let p2 = getDragonStrict(p2Name) || getDragon(p2Name, p2Color);
+            // A tournament game: both at level 20 (tourneyFighter's copies; the saves keep their own level and XP)
+            tourGame = opts.tour || null;
+            let p1 = (opts.tour ? tourneyFighter(p1Name) : getDragonStrict(p1Name)) || getDragon(p1Name, p1Color);
+            let p2 = (opts.tour ? tourneyFighter(p2Name) : getDragonStrict(p2Name)) || getDragon(p2Name, p2Color);
             playFightStart(p1.name, p2.name, isRanked, opts);
             // Display copies: names drawn in the log and on the cards get a readable brightness (saves are untouched)
             p1 = { ...p1, color: nameColor(p1.color) };
@@ -4070,6 +4467,17 @@ function drakeSpriteURL(type) {
             const ko = !!winner && (winner === p1 ? p2HP : p1HP) <= 0;
             let fvXp = null, fvXpBonus = null;
 
+            // A tournament game: the bracket takes the result (a draw is replayed); no XP, and wins, losses and the Top
+            // stay as they were
+            if (tourGame) {
+                tourneyResult(winner ? winner.name : null, looser ? looser.name : null);
+                fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: false, turns: fightTurns, xp: null, lvl: null });
+                isBattleRunning = false;
+                setArenaState({ kind: 'result', ranked: false, winner, turns: fightTurns, ko });
+                holdResult();
+                return;
+            }
+
             if (!isRanked) {
                 if (!winner) {
                     let msg = currentLang === 'uk' ?
@@ -4291,6 +4699,7 @@ function drakeSpriteURL(type) {
             fvLogInit();
             fvPopulateTestMenu();
             fitStage();
+            tourneyResume();
         }
         document.addEventListener('DOMContentLoaded', initPage);
 

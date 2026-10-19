@@ -18,6 +18,10 @@
 //      players busy meanwhile; a fighter can accept a challenge, or be challenged, while their fight is on
 //   12 "!battle" with no name says how to challenge, before any other check
 //   13 the opening-buff banner shows the title's icon once
+//   18 tournaments: sign-up (the streamer or a moderator opens it; refusals; leaving), first to 2 with a drawn game
+//      replayed, the 3rd-place game right before the final, everyone at level 20 with saved levels untouched, no XP and
+//      no change to wins, losses or the Top, the ranked queue and duels paused until the final is over (a waiting duel
+//      first), and a cancel mid-game
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
@@ -45,6 +49,10 @@ eval(gameScript(FILE) + `
     get waitingDuel() { return typeof waitingDuel !== 'undefined' ? waitingDuel : undefined; },
     get running() { return isBattleRunning; }, set running(v) { isBattleRunning = v; },
     get streamer() { return STREAMER_USER; },
+    get tourGame() { return typeof tourGame !== 'undefined' ? tourGame : null; },
+    get tourney() { return typeof tourney !== 'undefined' ? tourney : undefined; },
+    tourneyReset: () => { if (typeof tourney !== 'undefined') { tourney = null; tourGame = null; tourneySave(); } },
+    wrapFinishBattle: f => { const orig = finishBattle; finishBattle = (...a) => orig(...f(...a)); },
     ELEMENT_BASE, getTierMultiplier, renderLeaderboard: () => renderLeaderboard(),
     get topRows() { return [...document.getElementById('leaderboard-list').innerHTML.matchAll(/class="lb-name[^>]*>@([^<]+)</g)].map(m => m[1]); },
     setLang: l => { currentLang = l; },
@@ -75,8 +83,17 @@ const fresh = () => {
     G.saveDragonDB({}); Object.keys(G.stats).forEach(k => delete G.stats[k]); G.queue = [];
     Object.keys(G.pending).forEach(k => delete G.pending[k]); G.running = false;
     G.resetStartGuard();
+    G.tourneyReset();
     infos = []; logs = []; fightsStarted = [];
 };
+// Tournament games: rig(p1, p2) returns the winner's name or null (a draw); every game's fighters and levels are kept
+let rig = null, tourneyGames = [];
+G.wrapFinishBattle((p1, p2, h1, h2, ranked) => {
+    if (!rig || !G.tourGame) return [p1, p2, h1, h2, ranked];
+    const w = rig(p1.name, p2.name);
+    tourneyGames.push({ a: p1.name, b: p2.name, w, lv: [G.calculateLevelAndProgress(p1.xp).level, G.calculateLevelAndProgress(p2.xp).level] });
+    return [p1, p2, w === p1.name ? 50 : w ? 0 : 30, w === p2.name ? 50 : w ? 0 : 30, ranked];
+});
 const make = (name, type, opts = {}) => {
     const db = G.getDragonDB();
     db[name] = { name, color: '#fff', drakeObj: DRAKE[type], title: opts.title || G.TITLES_DB.find(t => t.rarity === 'common'), xp: xpFor(opts.level || 1), level: opts.level || 1 };
@@ -385,6 +402,95 @@ for (const lang of ['en', 'uk']) {
             '17. the Top by wins − losses: @t2 6–2 and @t1 5–1 and @t3 4–0 (all +4: more wins first), @t5 3–0 L12 before @t4 3–0 L10 (same record: higher level), then @t6 7–6; no streamer, no test fighter',
             order.join());
         G.setStreamerUser(prevStreamer);
+    }
+
+    // 18. Tournaments
+    {
+        fresh();
+        ['ta', 'tb', 'tc', 'td', 'te'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 2 + i * 3 }));
+        G.say('viewer', t('!tournament 4', '!турнір 4'));
+        const viewerIgnored = !G.tourney;
+        G.sayAs('mod1', t('!tournament 4', '!турнір 4'), { mod: true });
+        const opened = G.tourney && G.tourney.phase === 'signup' && G.tourney.size === 4;
+        G.say('ghost', t('!join', '!учасник')); const noDrake = lastInfo();
+        G.setStreamerUser('streamchannel'); make('streamchannel', 'white', { level: 20 });
+        G.say('streamchannel', t('!join', '!учасник')); const dragon = lastInfo();
+        G.say('ta', t('!join', '!учасник')); G.say('ta', t('!join', '!учасник')); const twice = lastInfo();
+        G.say('tb', t('!join', '!учасник')); G.say('tb', t('!leave', '!вийти')); const left = lastInfo();
+        ['tb', 'tc', 'td'].forEach(n => G.say(n, t('!join', '!учасник')));   // the 4th fills the bracket: sign-up closes
+        const closed = G.tourney.phase !== 'signup';
+        G.say('te', t('!join', '!учасник')); const late = lastInfo();
+        G.say('ta', t('!leave', '!вийти')); const noLeave = lastInfo();
+        check(viewerIgnored && opened, "18. a viewer's !tournament does nothing; a moderator's opens sign-up for 4", JSON.stringify(G.tourney));
+        check(/create a drake|створіть дрейка/.test(noDrake) && /White Dragon|Білий Дракон/.test(dragon) && /already in the tournament|вже в турнірі/.test(twice)
+            && /leaves|виходить/.test(left) && closed && /bracket is full|сітка вже заповнена/.test(late) && /only leave during sign-up|лише під час реєстрації/.test(noLeave),
+            '18. refusals: no drake, the White Dragon, already in; leaving during sign-up; the 4th player fills the bracket and closes it ("full" after that); leaving then is refused',
+            JSON.stringify({ noDrake, dragon, twice, left, closed, late, noLeave }));
+        G.setStreamerUser('');
+        __drain(); fresh();
+    }
+    {
+        // A full 4-player run, rigged: every semifinal and final game is decided by the plan below
+        const levels = { ta: 2, tb: 5, tc: 9, td: 14, te: 4, tf: 4 };
+        Object.keys(levels).forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: levels[n] }));
+        G.stats.ta = { wins: 3, losses: 1 };
+        // A duel accepted and two !queue while a fight is on: the duel goes first, the tournament next, the queue last
+        G.running = true;
+        G.say('te', t('!queue', '!черга')); G.say('tf', t('!queue', '!черга'));
+        G.say('ta', t('!battle @tb', '!бій @tb')); G.say('tb', t('!accept', '!прийняти'));
+        G.running = false;
+        G.sayAs('mod1', t('!tournament', '!турнір'), { mod: true });
+        ['ta', 'tb', 'tc', 'td'].forEach(n => G.say(n, t('!join', '!учасник')));
+        G.sayAs('mod1', t('!tournament start', '!турнір старт'), { mod: true });
+        const bracket = G.tourney.rounds[0].map(m => [m.a, m.b]);
+        const key = (a, b) => [a, b].sort().join('-');
+        const sf = bracket.map(p => key(...p));
+        const finalists = [bracket[0][0], bracket[1][0]], thirds = [bracket[0][1], bracket[1][1]];
+        // Semifinal 1: 2:0. Semifinal 2: 2:1 with a draw in game 2 (replayed). 3rd place: one game. Final: 2:1
+        const plan = { [sf[0]]: [bracket[0][0], bracket[0][0]], [sf[1]]: [bracket[1][1], null, bracket[1][0], bracket[1][0]],
+                       [key(...thirds)]: [thirds[0]], [key(...finalists)]: [finalists[1], finalists[0], finalists[0]] };
+        const played = {};
+        const mine = () => JSON.stringify(['ta', 'tb', 'tc', 'td'].map(n => [G.getDragonDB()[n].xp, G.getDragonDB()[n].level, G.stats[n] || null]));
+        const before = mine();
+        tourneyGames = [];
+        rig = (a, b) => { const k = key(a, b); played[k] = (played[k] || 0) + 1; return plan[k][played[k] - 1]; };
+        G.say('tf', t('!battle @te', '!бій @te')); const duelReply = lastInfo();
+        const duelFirst = fightsStarted[0];
+        __drain();
+        rig = null;
+        const order = [...new Set(tourneyGames.map(g => key(g.a, g.b)))];
+        check(duelFirst && !duelFirst.ranked && key(duelFirst.a, duelFirst.b) === 'ta-tb' && /tournament is on|триває турнір/.test(duelReply),
+            '18. a duel accepted before the tournament goes first; a new !battle meanwhile gets the "tournament is on" reply', JSON.stringify({ duelFirst, duelReply }));
+        check(order.join('|') === [sf[0], sf[1], key(...thirds), key(...finalists)].join('|') && played[sf[0]] === 2 && played[sf[1]] === 4 && played[key(...finalists)] === 3,
+            '18. semifinals first to 2 (2:0, and 2:1 with a drawn game replayed), then the 3rd-place game (one game), then the final (2:1)',
+            JSON.stringify({ order, played }));
+        check(tourneyGames.length === 10 && tourneyGames.every(g => g.lv[0] === 20 && g.lv[1] === 20), '18. every tournament game is fought at level 20 (players at levels 2, 5, 9 and 14)',
+            JSON.stringify(tourneyGames.map(g => g.lv)));
+        check(mine() === before, '18. no XP for the players, saved levels untouched, wins and losses (the Top) unchanged', mine() + ' vs ' + before);
+        const ranked = fightsStarted.filter(f => f.ranked);
+        const lastTourney = fightsStarted.map(f => !f.ranked).lastIndexOf(true);
+        check(ranked.length === 1 && [ranked[0].a, ranked[0].b].join() === 'te,tf' && fightsStarted.indexOf(ranked[0]) > lastTourney && !G.tourney,
+            '18. the ranked queue waits for the whole tournament, then carries on in its order (@te, @tf)', JSON.stringify(fightsStarted));
+        check(logs.some(l => /Tournament over|Турнір завершено/.test(l) && l.includes('🥇 @' + finalists[0]) && l.includes('🥈 @' + finalists[1]) && l.includes('🥉 @' + thirds[0])),
+            `18. the podium: 🥇 @${finalists[0]}, 🥈 @${finalists[1]}, 🥉 @${thirds[0]}`, logs.filter(l => /🥇/.test(l)).join(' | '));
+        __drain(); fresh();
+    }
+    {
+        // Cancelled in the middle of a game: that game counts for nothing, and the queue and duels are back
+        ['ca', 'cb', 'cc', 'cd', 'q1', 'q2'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 3 }));
+        const mine = () => JSON.stringify(['ca', 'cb', 'cc', 'cd'].map(n => G.getDragonDB()[n].xp));
+        const before = mine();
+        G.sayAs('mod1', t('!tournament 4', '!турнір 4'), { mod: true });
+        ['ca', 'cb', 'cc', 'cd'].forEach(n => G.say(n, t('!join', '!учасник')));   // full: it starts at once
+        const gameOn = G.running && fightsStarted.length === 1;
+        G.sayAs('mod1', t('!tournament stop', '!турнір стоп'), { mod: true });
+        const gone = !G.tourney && /cancelled|скасовано/.test(lastInfo());
+        G.say('q1', t('!queue', '!черга')); G.say('q2', t('!queue', '!черга'));
+        __drain();
+        const after = fightsStarted.slice(1);
+        check(gameOn && gone && after.length === 1 && after[0].ranked && mine() === before,
+            '18. !tournament stop mid-game: the tournament is gone, the game counts for nothing (no XP), then the queue carries on', JSON.stringify({ gameOn, gone, fights: fightsStarted }));
+        __drain();
     }
 
     // 13. One icon in the opening banner

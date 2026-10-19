@@ -182,6 +182,24 @@ const MUTATIONS = [
         '                if (net) return net;\n', ''],
     ['Top tie: level before wins', 'on equal wins − losses the higher level goes first, not more wins',
         "if ((rb.wins || 0) !== (ra.wins || 0)) return (rb.wins || 0) - (ra.wins || 0);", ''],
+    // Tournaments (caught by rules.js)
+    ['tournament: first to 1', 'a tournament match ends after one won game instead of two',
+        'const TOURNEY_WINS = 2;', 'const TOURNEY_WINS = 1;'],
+    ['a drawn tournament game counts', "a drawn game goes to the match's first-named player instead of being replayed",
+        "if (!winner) { t.replay = true; tourneySave(); addLog(tT('draw', { label })); return; }", 'if (!winner) { winner = m.a; loser = m.b; }'],
+    ['no 3rd-place game', 'the semifinal losers never play for 3rd place',
+        'if (r === last && t.third && !t.third.winner) return { third: true };', ''],
+    ['tournament at saved levels', 'tournament games use the players\' saved levels, not level 20',
+        'return d ? { ...d, xp: TOURNEY_XP } : null;', 'return d;'],
+    ['tournament games give XP', 'a tournament game gives the usual XP and counts as a win and a loss',
+        'tourneyResult(winner ? winner.name : null, looser ? looser.name : null);',
+        'tourneyResult(winner ? winner.name : null, looser ? looser.name : null); if (winner) { addXP(winner.name, 40); addXP(looser.name, 10); recordStats(winner.name, true); recordStats(looser.name, false); }'],
+    ['the queue ignores the tournament', 'ranked fights from the queue go on between tournament games',
+        'if (tourneyOn()) { tourneyNext(); return; }\n            checkQueue();', 'checkQueue();\n            if (tourneyOn() && !arenaBusy()) tourneyNext();'],
+    ['duels during the tournament', '!battle and !accept work as usual while a tournament is on',
+        "if (tourneyOn() && ['!бій', '!battle', '!прийняти', '!accept'].includes(command)) {", 'if (false) {'],
+    ['anyone runs tournaments', "a viewer's !tournament opens sign-up",
+        "if (command === '!турнір' || command === '!tournament') {\n                if (!isMod) return true;", "if (command === '!турнір' || command === '!tournament') {"],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported
