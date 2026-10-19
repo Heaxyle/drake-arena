@@ -14,7 +14,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 - **Chat-request window:** replies to viewers (`!stats` cards, title rolls, warnings) appear in their own panel, separate from the battle log
 - **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 12 buffs/debuffs (one of each per element), class ultimates on an Element Power meter, and a sudden-death phase
 - **Ranked queue** with level-based matchmaking, plus friendly duels that give no XP
-- **Progression:** XP, levels 1–20 and a win/loss leaderboard, saved in `localStorage`
+- **Progression:** XP, levels 1–20 and a win/loss leaderboard (the Top drakes, ordered by wins − losses, then wins, then level; ranked fights only), saved in `localStorage`
 - **Channel-point rewards** for title rolls and element rerolls
 - **1920×1080 overlay** with pixel-art gold frames: the arena and a side column (streamer card, top drakes, chat replies) on the right, the camera column and the strip above the arena left free. Outside OBS the demo controls sit in the camera column and the whole stage scales down to fit the window
 - **Battle log as attack cards:** one row per round, the left fighter's attack on the left and the right fighter's on the right. Each card names the move (from the drake's element, the attack type and its strength), the damage with an arrow toward the target, and what happened in words: blocks, crits (gold cards), armour-piercing, vampire heals, start-of-turn ticks, effects cast, refreshed or replaced. Ultimates get a header strip; sudden death gets a banner and the damage multiplier on each card. The log starts empty for every fight
@@ -50,7 +50,7 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The 
 | English | Українська | What it does |
 |---|---|---|
 | `!drake <color>` | `!дрейк <колір>` | Create your drake: red, blue, black, gold, purple, green (`white` is the streamer's White Dragon) |
-| `!queue` | `!черга` | Join the ranked queue |
+| `!queue` | `!черга` | Join the ranked queue. Whoever has waited longest fights next (#1 on the "Далі в черзі" / "Next in queue" strip), against the closest level among the rest; on a level tie, whoever has waited longer. Joining again puts you at the back |
 | `!battle @name` | `!бій @нік` | Challenge someone to a friendly duel (30 s to answer). One open challenge at a time; `!battle` with no name says how to use it |
 | `!accept` / `!decline` | `!прийняти` / `!відхилити` | Answer a challenge. Accepted during a fight, the duel waits and starts after it |
 | `!stats` / `!profile` | `!стата` / `!профіль` | Level, progress, HP/crit/defense, wins/losses, title and its bonus |
@@ -156,7 +156,7 @@ How ultimates fit with the rest:
 - **Bloom** removes its own debuffs first, then heals instantly, so ☠️ Poison never cuts Bloom's heal. It gives no 💚 Regeneration.
 - **Shadow Theft and Firestorm** each have a damage multiplier in `CLASS_ULTIMATES` (`dmgMult`).
 
-**XP:** win +40, loss +10, draw +10 each (Gold gets its XP bonus on top). A draw is neither a win nor a loss: both records stay as they were. XP only counts in ranked fights. Reaching the next level takes `100 × level^1.4` XP, up to level 20.
+**XP:** win +40, loss +10, draw +10 each (Gold gets its XP bonus on top). **Underdog bonus:** a ranked winner below the loser's level gets +5 XP per level of difference, at most +40, on top of the 40 (levels from before the fight; Gold's bonus applies to the whole amount). The result card shows it, e.g. "+60 XP (+20 за сильнішого суперника)" / "+60 XP (+20 for a stronger opponent)". A draw is neither a win nor a loss: both records stay as they were. XP only counts in ranked fights. Reaching the next level takes `100 × level^1.4` XP, up to level 20.
 
 ## Titles
 

@@ -836,7 +836,7 @@
                   sdBanner: '💀 РАПТОВА СМЕРТЬ з {n}-го ходу · шкода зростає щоходу', timeout: '⏳ ЧАС ВИЙШОВ · ліміт {n} ходів',
                   error: '❌ Помилка симуляції — бій перервано', vs: 'проти', fightStart: '🔔 Бій почався{bets} · 🎲 першим б’є {a}', betsClosed: ' · ставки закрито',
                   opening: '{title}: {who} починає бій з {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
-                  draw: '🤝 НІЧИЯ · {n} {turns}', dmg: 'шкода', biggest: 'найсильніший удар', crits: 'крити', xp: 'досвід', noXp: 'без досвіду', maxLvl: 'макс. рівень',
+                  draw: '🤝 НІЧИЯ · {n} {turns}', dmg: 'шкода', biggest: 'найсильніший удар', crits: 'крити', xp: 'досвід', noXp: 'без досвіду', maxLvl: 'макс. рівень', underdog: '+{n} за сильнішого суперника',
                   cdLabel: 'Старт через', cdBets: 'Ставки відкрито — хто переможе?', cdStart: 'Бій починається!', cdFlip: '🎲 хто б’є першим, вирішить жереб на старті',
                   cdFirst: '🎲 першим б’є {a}', plateBets: '⏳ Ставки відкрито', plateStart: '⏳ Бій починається', levelUp: '⬆️ Новий рівень',
                   reaches: '{who} досягає {n}-го рівня', atkGain: '+{n} до атаки', tierGain: 'стихія сильнішає', meterBtn: '✦ {meter}: {side}',
@@ -850,7 +850,7 @@
                   sdBanner: '💀 SUDDEN DEATH from turn {n} · damage grows every turn', timeout: '⏳ TIME OUT · {n}-turn limit',
                   error: '❌ Simulation error — the fight was stopped', vs: 'vs', fightStart: '🔔 The fight is on{bets} · 🎲 {a} strikes first', betsClosed: ' · bets closed',
                   opening: '{title}: {who} starts with {fx}', knockout: '🏆 KNOCKOUT · {w} wins in {n} {turns}', timeoutWin: '⏳ TIME OUT · {w} wins on HP',
-                  draw: '🤝 DRAW · {n} {turns}', dmg: 'damage', biggest: 'biggest hit', crits: 'crits', xp: 'XP', noXp: 'no XP', maxLvl: 'max level',
+                  draw: '🤝 DRAW · {n} {turns}', dmg: 'damage', biggest: 'biggest hit', crits: 'crits', xp: 'XP', noXp: 'no XP', maxLvl: 'max level', underdog: '+{n} for a stronger opponent',
                   cdLabel: 'Starts in', cdBets: 'Bets are open — who will win?', cdStart: 'The fight is starting!', cdFlip: '🎲 a coin flip at the start decides who strikes first',
                   cdFirst: '🎲 {a} strikes first', plateBets: '⏳ Bets open', plateStart: '⏳ Fight starting', levelUp: '⬆️ Level up',
                   reaches: '{who} reaches level {n}', atkGain: '+{n} attack', tierGain: 'element passive grows', meterBtn: '✦ {meter}: {side}',
@@ -1200,8 +1200,8 @@
             const st = f => d.stats[f.name] || { dmg: 0, max: 0, crits: 0 };
             const xp = f => {
                 if (!d.ranked) return fvT('noXp');
-                const v = d.xp ? d.xp[f.name] : null;
-                return v ? `+${v} XP` : fvT('maxLvl');
+                const v = d.xp ? d.xp[f.name] : null, bonus = d.xpBonus ? d.xpBonus[f.name] : 0;
+                return v ? `+${v} XP${bonus ? ` (${fvT('underdog', { n: bonus })})` : ''}` : fvT('maxLvl');
             };
             const row = (label, fa, fb, cls) => `<span class="lr-a ${cls}">${fa}</span><span class="lr-k">${label}</span><span class="${cls}">${fb}</span>`;
             return `<div class="lr-title">${title}</div><div class="lr-grid">`
@@ -1399,7 +1399,7 @@
                     fvSetCell(slot, { k: 'ko', f: loser });
                 }
             }
-            fvAddItem({ type: 'result', data: { winner: d.winner, loser, ranked: d.ranked, turns: d.turns, timeout: !!(loser && hpOf(loser) > 0), xp: d.xp, stats: fv.stats } });
+            fvAddItem({ type: 'result', data: { winner: d.winner, loser, ranked: d.ranked, turns: d.turns, timeout: !!(loser && hpOf(loser) > 0), xp: d.xp, xpBonus: d.xpBonus, stats: fv.stats } });
             // Level-ups go to the chat panel, with the game's own numbers (max HP and attack from the level)
             if (d.lvl) [d.p1, d.p2].forEach(f => {
                 const saved = getDragonStrict(f.name), before = d.lvl[f.name];
@@ -2343,6 +2343,13 @@ function drakeSpriteURL(type) {
             return db[username];
         }
 
+        // Underdog XP (ranked fights): a winner below the loser's level gets UNDERDOG_XP_PER_LEVEL per level of difference
+        // (both levels from before the fight's XP), at most UNDERDOG_XP_MAX, on top of the usual 40. addXP applies the
+        // Gold passive to the whole amount; level 20 gets nothing
+        const UNDERDOG_XP_PER_LEVEL = 5, UNDERDOG_XP_MAX = 40;
+        function underdogXp(winnerLevel, loserLevel) {
+            return Math.min(UNDERDOG_XP_MAX, UNDERDOG_XP_PER_LEVEL * Math.max(0, loserLevel - winnerLevel));
+        }
         function addXP(username, amount) {
             let db = getDragonDB();
             if (!db[username]) return 0; 
@@ -2986,20 +2993,18 @@ function drakeSpriteURL(type) {
         function checkQueue() {
             if (arenaBusy() || waitingDuel || matchmakingQueue.length < 2) return;
             
-            let idx1 = Math.floor(Math.random() * matchmakingQueue.length);
-            let p1Name = matchmakingQueue.splice(idx1, 1)[0];
+            // Whoever has waited longest fights first (the front of the queue, as the "Далі в черзі" strip numbers it)
+            let p1Name = matchmakingQueue.shift();
 
-            // Pick the opponent with the closest level (random among ties)
+            // The opponent: the closest level among the rest; on a tie, whoever has waited longer (the earlier one)
             const levelOf = (u) => { let d = getDragonStrict(u); return d ? calculateLevelAndProgress(d.xp).level : 1; };
             let p1Level = levelOf(p1Name);
-            let bestDiff = Infinity, candidates = [];
+            let bestDiff = Infinity, best = 0;
             matchmakingQueue.forEach((u, i) => {
                 let diff = Math.abs(levelOf(u) - p1Level);
-                if (diff < bestDiff) { bestDiff = diff; candidates = [i]; }
-                else if (diff === bestDiff) candidates.push(i);
+                if (diff < bestDiff) { bestDiff = diff; best = i; }
             });
-            let idx2 = candidates[Math.floor(Math.random() * candidates.length)];
-            let p2Name = matchmakingQueue.splice(idx2, 1)[0];
+            let p2Name = matchmakingQueue.splice(best, 1)[0];
 
             isBattleRunning = true;
             updateQueueUI();
@@ -3871,7 +3876,7 @@ function drakeSpriteURL(type) {
             const fightTurns = arenaState.turn || 0;
             const fvLvl = fvLevels([p1, p2]);
             const ko = !!winner && (winner === p1 ? p2HP : p1HP) <= 0;
-            let fvXp = null;
+            let fvXp = null, fvXpBonus = null;
 
             if (!isRanked) {
                 if (!winner) {
@@ -3905,12 +3910,16 @@ function drakeSpriteURL(type) {
                 recordStats(winner.name, true);
                 recordStats(looser.name, false);
 
-                let winXP = addXP(winner.name, 40);
+                const levelBefore = f => calculateLevelAndProgress((getDragonStrict(f.name) || {}).xp || 0).level;
+                const bonus = underdogXp(levelBefore(winner), levelBefore(looser));
+                let winXP = addXP(winner.name, 40 + bonus);
                 let loseXP = addXP(looser.name, 10);
                 fvXp = { [winner.name]: winXP, [looser.name]: loseXP };
+                if (bonus && winXP > 0) fvXpBonus = { [winner.name]: bonus };
 
                 let maxLvlText = currentLang === 'uk' ? '(МАХ Рівень)' : '(MAX Level)';
-                let winXpText = winXP > 0 ? `(+${winXP} XP)` : maxLvlText;
+                let bonusText = bonus && winXP > 0 ? `, +${bonus} ${currentLang === 'uk' ? 'за сильнішого суперника' : 'for a stronger opponent'}` : '';
+                let winXpText = winXP > 0 ? `(+${winXP} XP${bonusText})` : maxLvlText;
                 let loseXpText = loseXP > 0 ? `(+${loseXP} XP)` : maxLvlText;
 
                 let msg = currentLang === 'uk' ?
@@ -3926,7 +3935,7 @@ function drakeSpriteURL(type) {
             updateFighterCard('p1', getDragonStrict(p1.name));
             updateFighterCard('p2', getDragonStrict(p2.name));
             
-            fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: true, turns: fightTurns, xp: fvXp, lvl: fvLvl });
+            fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: true, turns: fightTurns, xp: fvXp, xpBonus: fvXpBonus, lvl: fvLvl });
             setArenaState({ kind: 'result', ranked: true, winner, turns: fightTurns, ko });
             isBattleRunning = false;
             renderLeaderboard();
@@ -3955,11 +3964,15 @@ function drakeSpriteURL(type) {
                 listElement.innerHTML = `<li class="lb-empty">${translations[currentLang].no_drakes}</li>`;
                 return;
             }
+            // Wins − losses (ranked fights only); on a tie more wins first, then the higher level
+            const rec = u => playerLeaderboardStats[u] || { wins: 0, losses: 0 };
+            const lvlOf = u => calculateLevelAndProgress(db[u].xp || 0).level;
             allUsers.sort((a, b) => {
-                let winsA = (playerLeaderboardStats[a] && playerLeaderboardStats[a].wins) || 0;
-                let winsB = (playerLeaderboardStats[b] && playerLeaderboardStats[b].wins) || 0;
-                if (winsB !== winsA) return winsB - winsA;
-                return (db[b].level || 1) - (db[a].level || 1);
+                const ra = rec(a), rb = rec(b);
+                const net = ((rb.wins || 0) - (rb.losses || 0)) - ((ra.wins || 0) - (ra.losses || 0));
+                if (net) return net;
+                if ((rb.wins || 0) !== (ra.wins || 0)) return (rb.wins || 0) - (ra.wins || 0);
+                return lvlOf(b) - lvlOf(a);
             });
             listElement.innerHTML = allUsers.slice(0, LB_ROWS).map((user, index) => {
                 const d = db[user], st = playerLeaderboardStats[user] || { wins: 0, losses: 0 };

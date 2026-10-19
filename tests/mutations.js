@@ -167,6 +167,21 @@ const MUTATIONS = [
         'if (command === \'!старт\' || command === \'!start\') {', 'if (command === \'!старт\' || command === \'!start\') { if (!skipBettingWindow()) endResultHold(); return;'],
     ['no !start guard', 'two !start within 5 s both count (the second can skip the betting window the first opened)',
         'if (Date.now() - lastStartAt < START_GUARD_MS) return;', ''],
+    // Ranked play: queue order, underdog XP, the Top (caught by rules.js)
+    ['random first pick back', 'the first fighter is picked at random from the queue, not the longest-waiting one',
+        'let p1Name = matchmakingQueue.shift();', 'let p1Name = matchmakingQueue.splice(Math.floor(Math.random() * matchmakingQueue.length), 1)[0];'],
+    ['a level tie goes to the later one', 'on a level tie the opponent is whoever queued later',
+        'if (diff < bestDiff) { bestDiff = diff; best = i; }', 'if (diff <= bestDiff) { bestDiff = diff; best = i; }'],
+    ['no underdog cap', 'the underdog bonus is not capped at +40',
+        'return Math.min(UNDERDOG_XP_MAX, UNDERDOG_XP_PER_LEVEL * Math.max(0, loserLevel - winnerLevel));', 'return UNDERDOG_XP_PER_LEVEL * Math.max(0, loserLevel - winnerLevel);'],
+    ['bonus to the higher-level winner', 'a winner above the loser\'s level gets the bonus too',
+        'Math.max(0, loserLevel - winnerLevel)', 'Math.abs(loserLevel - winnerLevel)'],
+    ['Gold skips the bonus', 'Gold multiplies only the usual 40, not the bonus',
+        'let winXP = addXP(winner.name, 40 + bonus);', 'let winXP = addXP(winner.name, 40) + bonus;'],
+    ['Top by wins only', 'the Top is ordered by wins, not wins − losses',
+        '                if (net) return net;\n', ''],
+    ['Top tie: level before wins', 'on equal wins − losses the higher level goes first, not more wins',
+        "if ((rb.wins || 0) !== (ra.wins || 0)) return (rb.wins || 0) - (ra.wins || 0);", ''],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported
