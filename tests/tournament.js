@@ -25,7 +25,13 @@
 //      inside the countdown; !tournament stop during a game's countdown and during sign-up; in the middle of a
 //      main-bracket game, game 3, the 3rd-place game and the final (each fought to its end, counting for nothing, as the
 //      play log says, then the queue); refused on the podium
-//   Screenshots (Ukrainian): tests/screenshots/tournament-signup.png, -bracket.png, -plate.png, -podium.png, -qualifier.png
+//   5  Rewards (Ukrainian): the podium's badges in the Top, on the arena cards (the champion's drake glowing gold) and
+//      in !стата; free title spins used by !титул in chat, not by a channel-point redemption, refused with none left;
+//      medals adding up over two tournaments; the Hall of Fame after the podium, on the idle arena after a reload and
+//      as the !зала card; a ladder wipe (every key with "db" or "stats" in its name) leaves the rewards and an open
+//      sign-up alone
+//   Screenshots (Ukrainian): tests/screenshots/tournament-signup.png, -bracket.png, -plate.png, -podium.png, -qualifier.png,
+//   -hall-idle.png (the Hall of Fame on the idle arena), -hall-card.png (the !зала card), -champion.png (badges, glow)
 //
 // Usage: npm run test:tournament   (or node tests/tournament.js; TOUR_ONLY=2,3 runs only those sections)
 const fs = require('fs');
@@ -41,7 +47,7 @@ const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, 
 const SEED = Number(process.env.UI_SEED || 3);
 const ONLY = (process.env.TOUR_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
-const KEY = 'drake_arena_showcase_tournament';
+const KEY = 'drake_arena_showcase_tournament', HONOURS = 'drake_arena_showcase_honours';
 
 let failures = 0;
 const fail = msg => { failures++; console.log(`  ✗ ${msg}`); };
@@ -227,7 +233,7 @@ const key = (a, b) => [a, b].sort().join('-');
         for (const n of players) await say(page, n, '!учасник');           // the 8th closes sign-up
         const closed = await view(page);
         const snapshot = () => page.evaluate(ps => ({ db: ps.map(n => [n, getDragonDB()[n].xp, getDragonDB()[n].level]), stats: JSON.stringify(playerLeaderboardStats),
-            top: [...document.querySelectorAll('#leaderboard-list .lb-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()) }), players);
+            top: [...document.querySelectorAll('#leaderboard-list .lb-row')].map(r => r.textContent.replace(/[🏆🥈🥉]/gu, '').replace(/\s+/g, ' ').trim()) }), players);   // order and records (badges come with the podium)
         check(closed.tourney.phase === 'ready' && closed.running && closed.kind === 'fight', 'the 8th player closes sign-up; the ranked fight on screen carries on',
             JSON.stringify({ phase: closed.tourney.phase, kind: closed.kind }));
         // The plan: QF1 2:0, QF2 2:1, QF3 a draw then 2:0, QF4 2:1; SF1 2:0, SF2 2:1; 3rd place; final 2:1
@@ -344,8 +350,8 @@ const key = (a, b) => [a, b].sort().join('-');
         });
         check(tourLogOk, `the play log: all ${tourLog.length} tournament games with their stage and game number (the replay marked), saved levels, the winner, no XP`,
             JSON.stringify(tourLog.map(e => [e.stage, e.game, e.replay, e.winner, e.result, e.players.map(p => p.level)])));
-        // After the podium's 20 s: the queue (in its order) and duels carry on
-        await page.clock.runFor(20000);
+        // After the podium's 20 s and the Hall of Fame's 15 s: the queue (in its order) and duels carry on
+        await until(page, () => !tourney, null, { step: 500 });
         const back = await view(page);
         const nextFight = await page.evaluate(() => window.__starts[window.__starts.length - 1]);
         await say(page, 'duel_a', '!бій @duel_b'); const challenged = await page.evaluate(() => pendingChallenges.duel_b);
@@ -637,6 +643,87 @@ const key = (a, b) => [a, b].sort().join('-');
             check(!errors.length, 'no page errors', errors.join(' | '));
             await context.close();
         }
+    }
+
+    // 5. Rewards
+    if (run(5)) {
+        console.log('\n[5. rewards, uk]');
+        const { page, context, errors } = await open(browser, { lang: 'uk' });
+        const players = ['ruslana', 'petro', 'marta', 'ostap', 'nadiia'];
+        await register(page, 'uk', players, { ruslana: 6, petro: 4, marta: 9, ostap: 2, nadiia: 3 });
+        await page.evaluate(() => recordStats('petro', true));   // a ladder record, so the wipe has a stats key to remove
+        // A tournament where the earlier name in pri always wins; returns [1st, 2nd, 3rd] as the bracket made them
+        const play = async (pri, who) => {
+            await mod(page, '!турнір 4');
+            for (const n of who) await say(page, n, '!учасник');
+            await page.evaluate(p => { window.__plan = new Proxy({}, { get: (_, k) => { const [a, b] = k.split('-'); const w = p.indexOf(a) < p.indexOf(b) ? a : b; return [w, w, w]; } }); }, pri);
+            await until(page, () => arenaState.kind === 'podium', null, { step: 5000 });
+            return page.evaluate(() => tourney.podium);
+        };
+        const p1 = await play(['ruslana', 'petro', 'marta', 'ostap'], ['ruslana', 'petro', 'marta', 'ostap']);
+        await page.clock.runFor(20000 + 500);                                // the podium's 20 s: then the Hall of Fame
+        const hallScreen = await page.evaluate(() => ({ kind: arenaState.kind, on: document.getElementById('log-countdown').classList.contains('hall') && document.getElementById('log-panel').classList.contains('counting'),
+            rows: [...document.querySelectorAll('#log-countdown .hf-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()), type: document.getElementById('fight-type').textContent, tourney: !!tourney }));
+        await page.clock.runFor(15000 + 500);
+        const afterHall = await page.evaluate(() => ({ kind: arenaState.kind, on: document.getElementById('log-countdown').classList.contains('hall'), tourney: !!tourney }));
+        check(hallScreen.kind === 'hall' && hallScreen.on && hallScreen.tourney && hallScreen.rows.length === 1 && hallScreen.rows[0].includes(`🥇 @${p1[0]}`) && hallScreen.rows[0].includes('4 учасників')
+            && hallScreen.type === '🏛️ Зала слави' && !afterHall.tourney && afterHall.on,
+            `after the podium, the Hall of Fame for 15 s ("${hallScreen.rows[0]}"); then the tournament is over and it stays on the arena`, JSON.stringify({ hallScreen, afterHall }));
+        // Badges: the Top, the arena cards, !стата
+        const top = await page.evaluate(() => [...document.querySelectorAll('#leaderboard-list .lb-row')].map(r => r.querySelector('.lb-name').textContent));
+        check(top.includes(`@${p1[0]}🏆`) && top.includes(`@${p1[1]}🥈`) && top.includes(`@${p1[2]}🥉`) && top.includes('@nadiia'),
+            `the Top: ${top.filter(x => /🏆|🥈|🥉/.test(x)).join(', ')} (no badge for @nadiia)`, JSON.stringify(top));
+        await say(page, p1[0], `!бій @nadiia`); await say(page, 'nadiia', '!прийняти');
+        await page.clock.runFor(4500 + 4500 * 2);
+        const cards = await page.evaluate(() => ['p1', 'p2'].map(p => { const n = document.getElementById(`name-${p}`), c = document.getElementById(`card-${p}`);
+            return { text: n.textContent, medal: getComputedStyle(n, '::after').content, champion: c.classList.contains('champion'), glow: getComputedStyle(c.querySelector('.drake-sprite')).filter }; }));
+        const champ = cards.find(c => c.text === '@' + p1[0]), other = cards.find(c => c.text === '@nadiia');
+        check(champ && other && champ.medal === '"🏆"' && champ.champion && /drop-shadow/.test(champ.glow) && other.medal === 'none' && !other.champion && !/drop-shadow/.test(other.glow),
+            `the arena card: "@${p1[0]}" with 🏆 after the name (the name's text stays the name) and a golden glow on the drake; @nadiia neither`, JSON.stringify(cards));
+        await shot(page, 'tournament-champion.png');
+        await say(page, p1[0], '!стата');
+        const stata = (await view(page)).chat;
+        check(stata.includes(`@${p1[0]} 🏆`) && stata.includes('🏆×1 🥈×0 🥉×0') && stata.includes('Безкоштовні прокрути титулу: 3'),
+            `!стата: "${stata.slice(0, 40)}…" with the badge, "🏆×1 🥈×0 🥉×0" and the 3 free spins`, stata);
+        // Free spins
+        await say(page, p1[0], '!титул'); const spin1 = (await view(page)).chat;
+        await say(page, p1[0], '!титул', { 'custom-reward-id': 'reward-xyz' }); const pts = (await view(page)).chat;
+        const spinsLeft = await page.evaluate(n => getHonours().spins[n], p1[0]);
+        await say(page, 'nadiia', '!титул'); const refused = (await view(page)).chat;
+        check(/Безкоштовний прокрут за турнір · лишилось 2/.test(spin1) && !/Безкоштовний прокрут/.test(pts) && spinsLeft === 2 && /ТІЛЬКИ за бали каналу/.test(refused),
+            '!титул in chat uses a free spin ("лишилось 2"); a channel-point !титул rolls without using one; with none, "ТІЛЬКИ за бали каналу"', JSON.stringify({ spin1, pts, spinsLeft, refused }));
+        // A second tournament: new badges, medals add up
+        await page.clock.runFor(4 * 60000);
+        const p2 = await play(['nadiia', 'ruslana', 'petro', 'marta'], ['ruslana', 'petro', 'marta', 'nadiia']);
+        await page.clock.runFor(20000 + 15000 + 1000);
+        const h = await page.evaluate(() => getHonours());
+        const count = n => [0, 1, 2].map(i => (p1[i] === n ? 1 : 0) + (p2[i] === n ? 1 : 0)).join();
+        check(JSON.stringify(h.holders) === JSON.stringify(p2) && players.every(n => (h.medals[n] || [0, 0, 0]).join() === count(n)) && h.hall.length === 2,
+            `a second tournament (🏆 @${p2[0]}) takes the badges; the medal counts add up: ${players.filter(n => h.medals[n]).map(n => `@${n} ${h.medals[n].join('/')}`).join(', ')}`, JSON.stringify(h));
+        await say(page, 'viewer_x', '!зала');
+        const card = await page.evaluate(() => { const c = document.querySelector('#info-feed .info-card.hall-card'); return c ? { rows: [...c.querySelectorAll('.hf-card-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()), text: c.textContent.replace(/\s+/g, ' ') } : null; });
+        check(card && card.rows.length === 2 && card.rows[0].includes(`🥇 @${p2[0]}`) && card.rows[1].includes(`🥇 @${p1[0]}`) && /Найбільше перемог: .* — 🏆×1/.test(card.text),
+            `!зала (anyone, no drake needed): a card with both tournaments, the latest first, and who has won the most`, JSON.stringify(card));
+        await shot(page, 'tournament-hall-card.png');
+        // The ladder wipe, with a sign-up open; then a reload: the idle arena shows the Hall of Fame
+        await mod(page, '!турнір 8');
+        await say(page, 'ruslana', '!учасник');
+        const wiped = await page.evaluate(() => { const gone = Object.keys(localStorage).filter(k => /db|stats/.test(k)); gone.forEach(k => localStorage.removeItem(k)); return gone; });
+        await page.reload();
+        await page.evaluate(() => document.fonts.ready);
+        await page.clock.runFor(500);
+        await settleArena(page);
+        const after = await page.evaluate(([K, H]) => ({ keys: Object.keys(localStorage), db: Object.keys(getDragonDB()).length, honours: JSON.parse(localStorage.getItem(H)), signup: tourney && tourney.phase, joined: tourney && tourney.players.map(p => p.name),
+            line: document.getElementById('queue-hint').textContent, hall: document.getElementById('log-countdown').classList.contains('hall') && document.getElementById('log-panel').classList.contains('counting'),
+            rows: document.querySelectorAll('#log-countdown .hf-row').length, idle: arenaState.kind, idleBanner: getComputedStyle(document.getElementById('log-feed')).opacity }), [KEY, HONOURS]);
+        check(wiped.includes('drake_arena_showcase_db') && wiped.includes('drake_arena_showcase_stats') && !after.keys.some(k => /db|stats/.test(k)) && after.keys.includes(KEY) && after.keys.includes(HONOURS) && !wiped.includes(KEY) && !wiped.includes(HONOURS) && after.db === 0
+            && JSON.stringify(after.honours) === JSON.stringify(h) && after.signup === 'signup' && after.joined.join() === 'ruslana' && after.line.includes('1/8'),
+            `the ladder wipe removes ${wiped.join(', ')}; after a reload the rewards (badges, medals, spins, Hall of Fame) and the open sign-up (1/8) are all still there`, JSON.stringify({ wiped, after }));
+        check(after.idle === 'idle' && after.hall && after.rows === 2 && after.idleBanner === '0',
+            'the idle arena after the reload: the Hall of Fame (2 tournaments) instead of «Арена готова! Очікування бійців…»', JSON.stringify(after));
+        await shot(page, 'tournament-hall-idle.png');
+        check(!errors.length, 'no page errors', errors.join(' | '));
+        await context.close();
     }
 
     await browser.close();
