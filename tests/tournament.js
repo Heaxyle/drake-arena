@@ -942,10 +942,21 @@ const key = (a, b) => [a, b].sort().join('-');
         // 8. The champion: the banner, confetti, the jump, the crown; then engraved into the Hall of Fame
         await until(page, () => arenaState.kind === 'podium', null, { step: 2000 });
         const champ = await page.evaluate(() => ({ title: document.querySelector('.ts-champ-title') && document.querySelector('.ts-champ-title').textContent,
-            jump: !!document.querySelector('.pd-1 .ts-jump'), crown: !!document.querySelector('.pd-1 .ts-crown-drop'), confetti: document.querySelectorAll('.ts-conf').length, cues: [...showCues] }));
+            jump: !!document.querySelector('.pd-1 .ts-drake.ts-jump'), crown: !!document.querySelector('.pd-1 .ts-drake.ts-jump > .ts-crown'), confetti: document.querySelectorAll('.ts-conf').length, cues: [...showCues] }));
         check(champ.title === 'Чемпіон арени' && champ.jump && champ.crown && champ.confetti === 70 && champ.cues.includes('champion'),
             `the champion: «${champ.title}», the drake's jump onto the top step, the crown, 70 pieces of confetti, the fanfare`, JSON.stringify(champ));
         await settle(3200);
+        // Once landed: the crown on the champion's head anchor, in the same wrapper as the drake (so it bobs with it); its
+        // drop starts only after the jump has ended
+        const onHead = await page.evaluate(() => {
+            const wrap = document.querySelector('.pd-1 .ts-drake'), s = wrap.querySelector('.pd-sprite').getBoundingClientRect(), c = wrap.querySelector('.ts-crown-img').getBoundingClientRect();
+            const type = tourneyFighter(arenaState.podium[0]).drakeObj.type, head = SHOW_HEADS[type], k = s.width / DRAKE_SPRITES[type].rows[0].length;
+            const jump = wrap.getAnimations().find(a => a.animationName === 'ts-jump').effect.getTiming(), drop = wrap.querySelector('.ts-crown-img').getAnimations()[0].effect.getTiming();
+            return { type, k, dy: +(c.bottom - (s.top + head.y * k)).toFixed(2), dx: +((c.left + c.right) / 2 - (s.left + (head.x + 0.5) * k)).toFixed(2),
+                jumpEnds: jump.delay + jump.duration, dropStarts: drop.delay };
+        });
+        check(Math.abs(onHead.dy) <= 2 && Math.abs(onHead.dx) <= 2 && onHead.dropStarts >= onHead.jumpEnds,
+            `the champion's crown (a ${onHead.type} drake at ${onHead.k}×) lands after the jump (${onHead.dropStarts} ms ≥ ${onHead.jumpEnds} ms) and sits on its head anchor (${onHead.dx}, ${onHead.dy} px off)`, JSON.stringify(onHead));
         await shot(page, 'show-champion.png');
         await until(page, () => arenaState.kind === 'hall', null, { step: 1000 });
         const hall = await page.evaluate(() => { const r = document.querySelector('#log-countdown .hf-row'); return { isNew: r.classList.contains('ts-new'), letters: [...r.querySelectorAll('.ts-ch')].map(c => c.textContent).join('') }; });
@@ -1033,6 +1044,40 @@ const key = (a, b) => [a, b].sort().join('-');
             '!турнір стоп on the champion screen and during the Hall of Fame: refused («Турнір уже завершено»); the banner, confetti, frame and engraving carry on',
             JSON.stringify({ sPod, podScreen, podChat, sHall, hallChat, letters }));
         await until(page, () => !tourney, null, { step: 1000 });
+
+        // 11. The crown on every drake: the six on podium steps as drawn (3×, as the champion stands), and mirrored (2×).
+        // For each, the anchor is at the top of the head (the crown's bottom row covers the head's first or second row in that
+        // column, and the head goes on below it), the crown's bottom edge sits on the anchor and its middle on the anchor's
+        // column (within 2 px), on the sprite's pixel grid
+        const crowns = await page.evaluate(() => {
+            const st = document.createElement('div');
+            st.id = 'crown-review';   // no .ts-champ here: the crowns are shown as they are once landed, without the drop
+            st.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:600px;z-index:99;background:#0b0c11;display:grid;grid-template-columns:repeat(6, 1fr);grid-template-rows:56px 330px 214px;align-items:end;justify-items:center';
+            st.innerHTML = `<div style="grid-column:1 / -1;align-self:center;font:800 20px var(--pixel), sans-serif;color:var(--gold);letter-spacing:2px;text-transform:uppercase">${sT('champion')}</div>`;
+            document.body.appendChild(st);
+            const out = [];
+            [false, true].forEach(flip => VIEWER_DRAKE_TYPES.forEach(d => {
+                const col = document.createElement('div');
+                col.className = `pd-col ${flip ? 'pd-2' : 'pd-1'}`;
+                col.innerHTML = `<img class="pd-sprite" src="${drakeSpriteURL(d.type)}" alt=""${flip ? ' style="transform:scaleX(-1)"' : ''}>`
+                    + `<span class="pd-name" style="color:${ELEMENT_COLORS[d.type]}">${d.name[currentLang].replace(/\s*\S+$/u, '')}${flip ? ' ⇆' : ''}</span>`
+                    + (flip ? '' : `<div class="pd-step frame-sm"><span class="pd-medal">🥇</span><span class="pd-place">1</span></div>`);
+                st.appendChild(col);
+                const img = col.querySelector('.pd-sprite'), wrap = showCrown(img, d.type);
+                const s = img.getBoundingClientRect(), c = wrap.querySelector('.ts-crown').getBoundingClientRect();
+                const rows = DRAKE_SPRITES[d.type].rows, W = rows[0].length, k = s.width / W, head = SHOW_HEADS[d.type], x = flip ? W - 1 - head.x : head.x;
+                const onGrid = v => Math.abs(v - Math.round(v)) < 0.01;
+                out.push({ type: d.type, flip, k, dy: +(c.bottom - (s.top + head.y * k)).toFixed(2), dx: +((c.left + c.right) / 2 - (s.left + (x + 0.5) * k)).toFixed(2),
+                    grid: onGrid((c.left - s.left) / k) && onGrid((c.top - s.top) / k), onHead: (top => top >= head.y - 2 && top <= head.y - 1)(rows.findIndex(r => r[head.x] !== '.')) && rows[head.y][head.x] !== '.' });
+            }));
+            return out;
+        });
+        await page.screenshot({ path: path.join(SHOTS, 'show-crowns.png'), clip: { x: 0, y: 0, width: 1920, height: 600 } });
+        await page.evaluate(() => document.getElementById('crown-review').remove());
+        const offHead = crowns.filter(c => !(Math.abs(c.dy) <= 2 && Math.abs(c.dx) <= 2 && c.grid && c.onHead));
+        check(crowns.length === 12 && !offHead.length,
+            `the crown sits on the head anchor of all six drakes, as drawn (3×) and mirrored (2×): ${crowns.map(c => `${c.type}${c.flip ? '⇆' : ''} ${c.dx},${c.dy}`).join(' · ')} px; on the sprite's pixel grid`,
+            JSON.stringify(offHead.length ? offHead : crowns));
         check(!errors.length, 'no page errors', errors.join(' | '));
         await context.close();
     }
