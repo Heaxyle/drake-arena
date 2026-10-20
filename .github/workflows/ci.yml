@@ -32,7 +32,7 @@ jobs:
       - name: UI smoke test
         run: npm run test:ui showcase
 
-      # 1920x1080 layout in both languages: worst-case cards, fonts blocked, OBS mode, demo controls, contrast, result labels
+      # 1920x1080 layout in both languages: worst-case cards, nothing from the network at startup but Twitch chat, OBS mode, demo controls, contrast, result labels
       - name: Layout test
         run: npm run test:layout
 

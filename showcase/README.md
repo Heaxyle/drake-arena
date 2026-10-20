@@ -43,7 +43,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 4. *(Optional)* **Betting window:** tick it in **⚙️ Test Settings** (saved in that browser) and every ranked fight and duel waits 2 minutes first, with "СТАВКИ ВІДКРИТО" / "BETS OPEN" and a 2:00 timer, for running Twitch Predictions on fights. The channel owner or a moderator can type `!старт` / `!start` to end it early (anyone else's is ignored); the fight then starts the usual way, with the coin flip and the 4.5 s countdown. The test panel has a **⏭ Skip the betting window** button that does the same. Test battles keep the short wait. Off by default; a build with it on by default only changes `BETTING_WINDOW_DEFAULT` (the wait itself is `BETTING_WINDOW_MS`).
 5. *(Optional)* Create two channel-point rewards that require text. Paste their IDs into `REWARD_ID_TITLE` and `REWARD_ID_REROLL`. Until you do, any text reward is accepted.
 
-Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js). The overlay never posts to chat. If tmi.js can't load, the page still works offline through the simulator.
+Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js) 1.8.5, embedded in the page. The overlay never posts to chat. At startup it loads nothing from the network but Twitch chat itself: tmi.js and the fonts (Press Start 2P and Rubik, Latin and Cyrillic) are inside `index.html`, so a slow or missing CDN can't hold the overlay up. Without a connection to Twitch the page still works through the simulator.
 
 ## Chat commands
 
@@ -212,6 +212,7 @@ This project went through a QA pass. Each fix was verified by simulating all 36 
 | 15 | Fighter cards switched language only at the next turn | Up to 4.5 s of mixed languages | Both cards are redrawn at once, with their current effects; nothing moves |
 | 16 | Rerolling into the White Dragon said "Level reset to 1!" | Wrong level in the message | It says "Level 20!" |
 | 17 | The opening-buff banner added its own 🌅 before the title's icon | "🌅 🌅 Woke Up Swinging: …" | One icon: the title's |
+| 18 | The page loaded tmi.js from `unpkg.com/tmi.js@latest/dist/tmi.min.js`, a file the latest version (1.8.5, since 2021) doesn't ship: unpkg answered 404 | **Twitch chat never connected** | tmi.js 1.8.5's official browser build is embedded in the page |
 
 ## Project structure
 
@@ -235,3 +236,5 @@ Save data lives in the browser's `localStorage` under the keys `drake_arena_show
 ## Credits
 
 Built with AI assistance (Claude Code); design, testing and balance by Heaxyle.
+
+Embedded in the page: [tmi.js](https://github.com/tmijs/tmi.js) 1.8.5 (MIT), and the fonts [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) and [Rubik](https://fonts.google.com/specimen/Rubik) (SIL Open Font License 1.1). Their licence texts are in [`licenses/`](licenses/).
