@@ -28,8 +28,8 @@
 //   5  Rewards (Ukrainian): the podium's badges in the Top, on the arena cards (the champion's drake glowing gold) and
 //      in !стата; free title spins used by !титул in chat, not by a channel-point redemption, refused with none left;
 //      medals adding up over two tournaments; the Hall of Fame after the podium, on the idle arena after a reload and
-//      as the !зала card; a ladder wipe (every key with "db" or "stats" in its name) leaves the rewards and an open
-//      sign-up alone
+//      as the !зала card; !турнір стоп refused during the Hall of Fame; a ladder wipe (every key with "db" or "stats" in
+//      its name) leaves the rewards and an open sign-up alone
 //   Screenshots (Ukrainian): tests/screenshots/tournament-signup.png, -bracket.png, -plate.png, -podium.png, -qualifier.png,
 //   -hall-idle.png (the Hall of Fame on the idle arena), -hall-card.png (the !зала card), -champion.png (badges, glow)
 //
@@ -664,6 +664,11 @@ const key = (a, b) => [a, b].sort().join('-');
         await page.clock.runFor(20000 + 500);                                // the podium's 20 s: then the Hall of Fame
         const hallScreen = await page.evaluate(() => ({ kind: arenaState.kind, on: document.getElementById('log-countdown').classList.contains('hall') && document.getElementById('log-panel').classList.contains('counting'),
             rows: [...document.querySelectorAll('#log-countdown .hf-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()), type: document.getElementById('fight-type').textContent, tourney: !!tourney }));
+        // !турнір стоп during the Hall of Fame: the tournament is over, so it's refused and the prizes stay
+        await mod(page, '!турнір стоп');
+        const hallStop = await view(page), hallPrizes = await page.evaluate(() => getHonours().hall.length);
+        check(hallStop.tourney && hallStop.tourney.phase === 'hall' && hallStop.kind === 'hall' && /уже завершено/.test(hallStop.chat) && hallPrizes === 1,
+            `!турнір стоп during the Hall of Fame: refused («${hallStop.chat}»), the Hall of Fame stays and so do the prizes`, JSON.stringify({ phase: hallStop.tourney && hallStop.tourney.phase, chat: hallStop.chat, hallPrizes }));
         await page.clock.runFor(15000 + 500);
         const afterHall = await page.evaluate(() => ({ kind: arenaState.kind, on: document.getElementById('log-countdown').classList.contains('hall'), tourney: !!tourney }));
         check(hallScreen.kind === 'hall' && hallScreen.on && hallScreen.tourney && hallScreen.rows.length === 1 && hallScreen.rows[0].includes(`🥇 @${p1[0]}`) && hallScreen.rows[0].includes('4 учасників')
