@@ -98,9 +98,11 @@ With **🎆 Tournament effects** on (Test Settings; on by default), a tournament
 - **Match intro** (2.6 s, over the start of game 1's countdown): both sprites slide in from the sides, with big names and the stage («ПІВФІНАЛ»).
 - **Tournament games:** the arena frame turns championship gold, with pixel laurel corners and a light that runs round it every 8 s; best-of-3 pips under each card, gold for a game that fighter won. Game 3 opens with a «ВИРІШАЛЬНА ГРА» banner, and the frame glows red.
 - **The bracket between matches:** the lines between rounds light up as winners move on, the winner's name slides along to its next slot, eliminated players grey out, and the next match pulses.
-- **The final:** «ФІНАЛ» on the arena's plaque, a pixel crown hovering above it, and the frame pulsing slowly.
+- **The final:** «ФІНАЛ» on the arena's plaque, a pixel crown hovering just under it inside the arena (the strip above the arena stays free), and the frame pulsing slowly.
 - **The champion:** «ЧЕМПІОН АРЕНИ», pixel confetti, the champion's drake jumping onto the top step and a crown dropping onto it; in the Hall of Fame that follows, their name is engraved letter by letter.
 - **Sounds** (🔊 Tournament sounds, off by default): short chiptune cues made with Web Audio, no audio files: a fanfare at the draw, a drumroll before game 3, a fanfare for the champion.
+
+`!турнір стоп` during the draw or a match intro ends them at once (the queue starts straight away); in the middle of a game the show goes at once and the game plays on plainly to its end; on the champion screen and the Hall of Fame after it, the tournament is already over and stop is refused.
 
 Every animation lasts 3 s or less (except the draw and the champion screen) and uses only CSS transforms and opacity. Nothing covers the cards or the log while a game is being fought. The crown, laurel corners, trophy and confetti are pixel art in the drakes' sprite format (`SHOW_SPRITES`). With the effects off, the tournament runs exactly as without them: the same timings, nothing extra on screen. The two settings are saved under `drake_arena_showcase_tourfx` and `drake_arena_showcase_toursound`.
 

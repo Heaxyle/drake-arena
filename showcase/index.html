@@ -413,7 +413,8 @@
         .tsf-laurel { position: absolute; width: 48px; height: 48px; z-index: 1; }
         .tsf-tl { left: -20px; top: -20px; } .tsf-tr { right: -20px; top: -20px; transform: scaleX(-1); }
         .tsf-bl { left: -20px; bottom: -20px; transform: scaleY(-1); } .tsf-br { right: -20px; bottom: -20px; transform: scale(-1, -1); }
-        .tsf-crown { position: absolute; left: 50%; top: -70px; width: 48px; height: 36px; margin-left: -24px; z-index: 2; opacity: 0; transition: opacity 0.6s ease; }
+        /* The final's crown: inside the arena, under the plaque, in the middle of the header row (the strip above stays free) */
+        .tsf-crown { position: absolute; left: 50%; top: 30px; width: 48px; height: 36px; margin-left: -24px; z-index: 2; opacity: 0; transition: opacity 0.6s ease; }
         #arena.ts-final .tsf-crown { opacity: 1; animation: ts-hover 2.4s ease-in-out infinite; }
         @keyframes ts-hover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
         /* Best-of-3 pips in the gap under each card: one per game, gold when this fighter won it */
@@ -3774,6 +3775,7 @@ function drakeSpriteURL(type) {
             showStop();
             tourney = null;
             if (inDraw) setArenaState({ kind: 'idle' });
+            showSync();   // the frame, the final's crown and plaque, game 3's glow and the pips go at once (a game still being fought plays on plainly)
             tourneySave();
             if (bettingWait && tourGame) {
                 clearTimeout(bettingWait.timer);
