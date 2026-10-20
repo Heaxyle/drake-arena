@@ -220,7 +220,7 @@ How ultimates fit with the rest:
 The overlay keeps a record of how people play, so play can be studied (before a season wipe, say). It records silently: nothing on screen, nothing sent anywhere.
 
 - **Every fight:** the date and time; ranked or duel; both players with their level, XP, element and title before it; the winner; KO, time-out or draw (or a simulation error); the turns; the XP each got, with the underdog and Gold parts; when its betting window opened (if it had one) and when the fight started.
-- **Every title roll:** who, the old and the new title, and whether it was paid with channel points or typed by the streamer.
+- **Every title roll:** who, the old and the new title, and how: channel points, a free spin from a tournament, or typed by the streamer.
 - **Every new drake (`!дрейк`) and element change (`!рерол`):** who, which element (and the old one), and the levels lost.
 - **Every `!черга`:** who and when, and their place in the queue, so queue waits can be worked out from the fights that follow.
 - **Every tournament game,** like a fight (`kind: 'tournament'`), plus its stage (`qual`, `r16`, `qf`, `sf`, `third`, `final`), game number and whether it was a replayed draw. The players' level and XP are their saved ones (they fought at level 20, `fightLevel: 20`); no XP. A game fought after `!турнір стоп` is marked `counted: false`.
@@ -239,7 +239,7 @@ The log is in the browser that runs the overlay, which on stream is OBS's. To re
    ```js
    copy(await exportPlayLog())
    ```
-   Everything is now on the clipboard as one JSON: paste it into a file (e.g. `play-log.json`). It holds the log plus a snapshot of the current saves (drakes and stats). Player names are replaced by ids (`p001`, `p002`…); a player keeps the same id in every export. For the Twitch names, use `copy(await exportPlayLog({ names: true }))`.
+   Everything is now on the clipboard as one JSON: paste it into a file (e.g. `play-log.json`). It holds the log plus a snapshot of the current saves (drakes and stats) and the tournament honours (the last podium, medals, free spins left, the Hall of Fame). Player names are replaced by ids (`p001`, `p002`…); a player keeps the same id in every export. For the Twitch names, use `copy(await exportPlayLog({ names: true }))`.
 4. Close OBS and start it normally again: while the port is open, any program on the computer can control OBS's browser sources.
 
 To empty the log (after testing the overlay, say), type `await clearPlayLog()` in the same console. It removes every event and the export ids (the next player is `p001` again) and returns how many events it removed; the saves are untouched. Export first if you want to keep anything.

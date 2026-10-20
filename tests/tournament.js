@@ -699,6 +699,10 @@ const key = (a, b) => [a, b].sort().join('-');
         await say(page, 'nadiia', '!титул'); const refused = (await view(page)).chat;
         check(/Безкоштовний прокрут за турнір · лишилось 2/.test(spin1) && !/Безкоштовний прокрут/.test(pts) && spinsLeft === 2 && /ТІЛЬКИ за бали каналу/.test(refused),
             '!титул in chat uses a free spin ("лишилось 2"); a channel-point !титул rolls without using one; with none, "ТІЛЬКИ за бали каналу"', JSON.stringify({ spin1, pts, spinsLeft, refused }));
+        // The play log: the free spin and the channel-point roll, and nothing for the refused one
+        const rolls = JSON.parse(await page.evaluate(() => exportPlayLog({ names: true }))).events.filter(e => e.type === 'title');
+        check(rolls.length === 2 && rolls.every(r => r.user === p1[0]) && rolls[0].via === 'free' && rolls[1].via === 'points',
+            `the play log: @${p1[0]}'s free spin (via "free"), then the channel-point roll (via "points"); nothing for the refused one`, JSON.stringify(rolls));
         // A second tournament: new badges, medals add up
         await page.clock.runFor(4 * 60000);
         const p2 = await play(['nadiia', 'ruslana', 'petro', 'marta'], ['ruslana', 'petro', 'marta', 'nadiia']);
@@ -707,6 +711,15 @@ const key = (a, b) => [a, b].sort().join('-');
         const count = n => [0, 1, 2].map(i => (p1[i] === n ? 1 : 0) + (p2[i] === n ? 1 : 0)).join();
         check(JSON.stringify(h.holders) === JSON.stringify(p2) && players.every(n => (h.medals[n] || [0, 0, 0]).join() === count(n)) && h.hall.length === 2,
             `a second tournament (🏆 @${p2[0]}) takes the badges; the medal counts add up: ${players.filter(n => h.medals[n]).map(n => `@${n} ${h.medals[n].join('/')}`).join(', ')}`, JSON.stringify(h));
+        // The play log's export carries the honours too, by id like everything else
+        const exp = await page.evaluate(() => exportPlayLog());
+        const ex = JSON.parse(exp), named = JSON.parse(await page.evaluate(() => exportPlayLog({ names: true })));
+        const idOf = Object.fromEntries(Object.keys(named.saves.drakes).map((n, i) => [n, Object.keys(ex.saves.drakes)[i]]));
+        const hx = ex.saves.honours;
+        check(hx && JSON.stringify(named.saves.honours) === JSON.stringify(h) && hx.holders.join() === p2.map(n => idOf[n]).join()
+            && hx.hall.length === 2 && hx.hall[0].podium.join() === p1.map(n => idOf[n]).join() && Object.keys(hx.medals).every(k => /^p\d{3}$/.test(k))
+            && Object.keys(hx.spins).every(k => /^p\d{3}$/.test(k)) && !players.some(n => exp.includes(n)),
+            `the play log export has the honours (the last podium, medals, spins, both Hall of Fame entries), every player as an id, no name left`, JSON.stringify({ hx, idOf }));
         await say(page, 'viewer_x', '!зала');
         const card = await page.evaluate(() => { const c = document.querySelector('#info-feed .info-card.hall-card'); return c ? { rows: [...c.querySelectorAll('.hf-card-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()), text: c.textContent.replace(/\s+/g, ' ') } : null; });
         check(card && card.rows.length === 2 && card.rows[0].includes(`🥇 @${p2[0]}`) && card.rows[1].includes(`🥇 @${p1[0]}`) && /Найбільше перемог: .* — 🏆×1/.test(card.text),
