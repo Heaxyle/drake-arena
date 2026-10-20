@@ -12,7 +12,8 @@
 //      and !бій gets a short reply meanwhile; the podium; then the queue and duels carry on, queue order kept
 //   3  A reload in the middle of a match: the tournament resumes at that match and replays the unfinished game. Then a
 //      reload at every moment (sign-up, the betting window, mid-game, the result screen between games, game 2's
-//      countdown, the 3rd-place game, the final, the podium): picked up at once, run to the end, the queue after it
+//      countdown, the 3rd-place game, the final, the podium; and mid-game with tmi.js never answering):
+//      picked up at once, run to the end, the queue after it
 //   4  Uneven sign-ups, the qualifier: 5 players (English, betting window on): a main bracket of 4, the first 3 straight
 //      in, the last 2 in one qualifier game (no betting window, the 10 s countdown, the bracket with its «Qualifier»
 //      column), its winner in the semifinals, then a betting window for game 1 of every later match; the English stage
@@ -119,6 +120,14 @@ async function until(page, cond, arg, { step = 1000, max = 4 * 3600000 } = {}) {
     throw new Error('timed out waiting for ' + cond.toString().slice(0, 120));
 }
 const shot = async (page, name) => { await settleArena(page); await page.screenshot({ path: path.join(SHOTS, name) }); };
+// After a reload, what the new page found: the saved tournament as it reads it now, what it loaded, the arena's state
+const afterReload = page => page.evaluate(k => {
+    const raw = localStorage.getItem(k);
+    let saved = null;
+    try { saved = raw && JSON.parse(raw); } catch (e) { saved = 'unparsable'; }
+    return { raw: raw ? raw.length + ' chars' : raw, savedPhase: saved && saved.phase, loaded: tourney ? tourney.phase : null, kind: arenaState.kind,
+        running: isBattleRunning, hold: !!resultHold, waiting: !!bettingWait, ready: document.readyState, lang: document.documentElement.lang, now: Date.now() };
+}, KEY);
 // The moments section 3 reloads at: at(state) says when (in the page), expect(after, before) what the arena shows 0.5 s later
 const tourPlate = a => /^🏆 Турнір · /.test(a.plate);
 const RELOAD_PHASES = [
@@ -137,6 +146,10 @@ const RELOAD_PHASES = [
       expect: a => a.kind === 'countdown' && /Фінал · Гра 1/.test(a.plate) },
     { label: 'on the podium', at: () => arenaState.kind === 'podium', podiumBefore: true,
       expect: a => a.kind === 'podium' },
+    // Twitch's library never answers after this reload: the page mustn't wait for it
+    { label: 'in the middle of a game, with tmi.js never answering', hang: true,
+      at: () => tourGame && tourGame.stage === 'sf' && arenaState.kind === 'fight' && arenaState.turn >= 2,
+      expect: a => a.kind === 'countdown' && tourPlate(a) && /Гра 1/.test(a.plate) },
 ];
 const key = (a, b) => [a, b].sort().join('-');
 
@@ -348,11 +361,11 @@ const key = (a, b) => [a, b].sort().join('-');
         await page.evaluate(() => document.fonts.ready);
         await page.evaluate(p => { window.__plan = p; window.__played = {}; }, { [key(...sf[1])]: [sf[1][0], sf[1][0]], [key(sf[0][1], sf[1][1])]: [sf[0][1]], [key(sf[0][0], sf[1][0])]: [sf[0][0], sf[0][0]] });
         await page.clock.runFor(1000);
-        const resumed = await view(page);
+        const resumed = await view(page), diag = await afterReload(page);
         check(keyOk && saved.phase === 'running' && saved.rounds[0][0].winner === sf[0][0] && resumed.tourney && resumed.tourney.rounds[0][0].winner === sf[0][0]
             && resumed.kind === 'countdown' && /^🏆 Турнір · Півфінал · Гра 2 · (1:0|0:1)$/.test(resumed.plate) && resumed.cdTitle === 'Півфінал · Гра 2',
             `after a reload: the saved tournament (key "${KEY}", no "db" or "stats" in it) resumes at the second semifinal, game 2 replayed: "${resumed.plate}"`,
-            JSON.stringify({ phase: saved.phase, resumed: { kind: resumed.kind, plate: resumed.plate, cd: resumed.cdTitle } }));
+            JSON.stringify({ phase: saved.phase, resumed: { kind: resumed.kind, plate: resumed.plate, cd: resumed.cdTitle }, diag, errors }));
         await until(page, () => arenaState.kind === 'podium', null, { step: 5000 });
         const pd = await page.evaluate(() => [...document.querySelectorAll('#log-countdown .pd-name')].map(e => e.textContent));
         const games = await page.evaluate(() => window.__games.map(g => g.k + ':' + g.game));
@@ -376,9 +389,10 @@ const key = (a, b) => [a, b].sort().join('-');
                 await until(r.page, phase.at, null, { step: 250 });
             }
             const before = await r.page.evaluate(() => ({ kind: arenaState.kind, phase: tourney && tourney.phase, games: window.__games.length }));
-            await r.page.reload();
+            if (phase.hang) await r.page.route(/tmi(\.min)?\.js/, () => {});   // left unanswered
+            await r.page.reload({ waitUntil: phase.hang ? 'domcontentloaded' : 'load', timeout: 10000 });
             await r.page.clock.runFor(500);
-            const after = await view(r.page);
+            const after = await view(r.page), diag = await afterReload(r.page);
             await say(r.page, 'q1', '!черга'); await say(r.page, 'q2', '!черга');
             if (phase.signup) for (const n of four.slice(2)) await say(r.page, n, '!учасник');
             let podium = false, ended = false, next = null;
@@ -391,7 +405,7 @@ const key = (a, b) => [a, b].sort().join('-');
             } catch (e) { /* reported below */ }
             check(phase.expect(after, before) && ended && (podium || phase.podiumBefore) && next && !r.errors.length,
                 `a reload ${phase.label}: «${after.plate || after.line}» at once (${after.kind}); the tournament runs on to its podium and ends, then the queue carries on (@q1 against @q2)`,
-                JSON.stringify({ before, after: { kind: after.kind, plate: after.plate, line: after.line, phase: after.tourney && after.tourney.phase }, ended, podium, next, errors: r.errors }));
+                JSON.stringify({ before, after: { kind: after.kind, plate: after.plate, line: after.line, phase: after.tourney && after.tourney.phase }, diag, ended, podium, next, errors: r.errors }));
             await r.context.close();
         }
     }

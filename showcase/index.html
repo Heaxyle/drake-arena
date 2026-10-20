@@ -2937,10 +2937,15 @@ function drakeSpriteURL(type) {
         }
 
         /* --- ІНТЕГРАЦІЯ З TWITCH --- */
-        // If tmi.js can't load (offline), the page still works — Twitch chat just won't connect
-        const client = window.tmi ? new tmi.Client({ channels: [TWITCH_CHANNEL] }) : null;
-        if (client) client.connect().catch(console.error);
-        else console.warn('tmi.js not loaded: Twitch chat disabled');
+        // tmi.js loads on its own (async): chat connects once it's there. If it can't load (offline), the page still works,
+        // Twitch chat just won't connect
+        let client = null;
+        function connectTwitch() {
+            if (client || !window.tmi) return;
+            client = new tmi.Client({ channels: [TWITCH_CHANNEL] });
+            client.on('message', handleChatMessage);
+            client.connect().catch(console.error);
+        }
 
         // The White Dragon is the streamer's alone (STREAMER_USER); anyone else asking for it gets this reply
         function refuseDragon(sender, senderColor) {
@@ -3265,7 +3270,14 @@ function drakeSpriteURL(type) {
                 }, 30000);
             }
         }
-        if (client) client.on('message', handleChatMessage);
+        if (window.tmi) connectTwitch();
+        else if (FV_LIVE) {
+            const tmiScript = document.getElementById('tmi-script');
+            if (tmiScript) {
+                tmiScript.addEventListener('load', () => { connectTwitch(); if (!client) console.warn('tmi.js not loaded: Twitch chat disabled'); });
+                tmiScript.addEventListener('error', () => console.warn('tmi.js not loaded: Twitch chat disabled'));
+            }
+        }
 
         function checkQueue() {
             if (arenaBusy() || waitingDuel || matchmakingQueue.length < 2) return;
