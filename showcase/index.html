@@ -2649,7 +2649,8 @@ function drakeSpriteURL(type) {
         }
         const playXp = (got, base, underdog = 0) => ({ xp: got, base, underdog: got ? underdog : 0, gold: got ? got - base - underdog : 0 });
 
-        // The export: everything on the clipboard as one JSON, the log plus a snapshot of the saves (drakes and stats).
+        // The export: everything on the clipboard as one JSON, the log plus a snapshot of the saves (drakes, stats and the
+        // tournament honours: the last podium, medals, free spins left, the Hall of Fame).
         // Player names become stable ids (p001, p002…, the same in every export) unless called with { names: true }
         async function exportPlayLog({ names = false } = {}) {
             let events = [], logError = null, conn = null;
@@ -2661,7 +2662,7 @@ function drakeSpriteURL(type) {
                     req.onerror = () => reject(req.error);
                 });
             } catch (e) { logError = String(e && e.message || e); }
-            const drakes = getDragonDB(), stats = JSON.parse(localStorage.getItem('drake_arena_showcase_stats')) || {};
+            const drakes = getDragonDB(), stats = JSON.parse(localStorage.getItem('drake_arena_showcase_stats')) || {}, honours = getHonours();
             let id = n => n;
             if (!names) {
                 const ids = new Map();
@@ -2682,6 +2683,7 @@ function drakeSpriteURL(type) {
                 events.forEach(e => { id(e.user); (e.players || []).forEach(p => id(p.name)); id(e.winner); });
                 Object.keys(drakes).sort().forEach(id);
                 Object.keys(stats).sort().forEach(id);
+                [...honours.holders, ...honours.hall.flatMap(e => e.podium), ...Object.keys(honours.medals), ...Object.keys(honours.spins)].forEach(id);
                 if (STREAMER_USER) id(STREAMER_USER);
                 if (conn && fresh.length) {
                     await new Promise(resolve => {
@@ -2702,6 +2704,12 @@ function drakeSpriteURL(type) {
                     streamer: STREAMER_USER ? id(STREAMER_USER) : null,
                     drakes: Object.fromEntries(Object.entries(drakes).map(([n, d]) => [id(n), { ...d, name: id(d.name || n) }])),
                     stats: Object.fromEntries(Object.entries(stats).map(([n, s]) => [id(n), s])),
+                    honours: {
+                        holders: honours.holders.map(id),
+                        medals: Object.fromEntries(Object.entries(honours.medals).map(([n, m]) => [id(n), m])),
+                        spins: Object.fromEntries(Object.entries(honours.spins).map(([n, s]) => [id(n), s])),
+                        hall: honours.hall.map(e => ({ ...e, podium: e.podium.map(id) })),
+                    },
                 },
             };
             return JSON.stringify(out);
@@ -3213,7 +3221,7 @@ function drakeSpriteURL(type) {
                 let newTitle = getRandomTitle();
                 dragon.title = newTitle;
                 playLog('title', { user: sender, from: oldTitle ? oldTitle.id : null, fromRarity: oldTitle ? oldTitle.rarity || null : null,
-                                   to: newTitle.id, toRarity: newTitle.rarity, via: rewardId != null ? 'points' : 'streamer' });
+                                   to: newTitle.id, toRarity: newTitle.rarity, via: freeSpin ? 'free' : rewardId != null ? 'points' : 'streamer' });
                 
                 let dbUpdate = getDragonDB();
                 dbUpdate[sender] = dragon;
