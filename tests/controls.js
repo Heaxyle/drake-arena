@@ -10,6 +10,7 @@
 const path = require('path');
 const { chromium } = require('playwright');
 const { pageInit } = require('./page_hooks');
+const { offTwitch } = require('./no_twitch');
 const { settleArena } = require('./settle');
 
 const FILE = process.env.PAGE_FILE ? path.resolve(process.env.PAGE_FILE) : path.join(__dirname, '..', 'showcase/index.html');
@@ -26,7 +27,7 @@ async function open(browser, lang) {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: '' }));
+    await offTwitch(page);
     await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
     await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));
     await page.addInitScript(pageInit, 3);

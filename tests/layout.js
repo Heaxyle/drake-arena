@@ -1,9 +1,10 @@
 // Layout test for the 1920×1080 overlay (design/redesign-reference.html), in both languages. Opens the page in headless
-// Chromium with a fake tmi.js and a fake clock, like ui.js, and checks:
+// Chromium, kept off Twitch (tests/no_twitch.js) and on a fake clock, like ui.js, and checks:
 //   - worst-case fighter cards (longest name, title, drake name and chips in that language, full meter, Ice Mirror),
 //     a full leaderboard and streamer card: nothing overlaps, overflows its box or gets cut off; every card has its
 //     СИЛА row between the chips and the HP bar (the White Dragon has none)
-//   - the same with Google Fonts blocked, so the fallback font (Segoe UI / system) still fits
+//   - at startup nothing is loaded from the network but Twitch chat (the page's own tmi.js runs, its WebSocket is held so
+//     no live chat gets in), and the embedded fonts draw Latin and Ukrainian (і ї є ґ)
 //   - ?obs: nothing visible in the camera column or the notification strip, transparent background
 //   - without ?obs: the demo controls work and stay inside the camera column; at 1366×768 the whole stage is visible
 //   - the "Як грати" / "How to play" card shows exactly when the chat panel is empty, and lists real commands
@@ -17,13 +18,13 @@ const path = require('path');
 const { chromium } = require('playwright');
 const { settleArena } = require('./settle');
 const { pageInit } = require('./page_hooks');
+const { offTwitch } = require('./no_twitch');
 const SEED = Number(process.env.UI_SEED || 3);   // seeded fights: the same every run
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
-const FAKE_TMI = 'window.tmi = undefined;';   // the page works without Twitch; the chat simulator feeds the same handler
-const FONTS = /fonts\.(googleapis|gstatic)\.com/;
+
 // Regions that must stay empty on stream (from the reference): the camera column and the notification strip
 const CAMERA = { left: 0, top: 0, right: 476, bottom: 1080 };
 const NOTIFY = { left: 500, top: 0, right: 1880, bottom: 118 };
@@ -33,14 +34,13 @@ const fail = msg => { failures++; console.log(`  ✗ ${msg}`); };
 const pass = msg => console.log(`  ✓ ${msg}`);
 const check = (ok, good, bad) => ok ? pass(good) : fail(`${good} — ${bad}`);
 
-async function open(browser, { lang = 'uk', obs = false, width = 1920, height = 1080, blockFonts = false } = {}) {
+async function open(browser, { lang = 'uk', obs = false, width = 1920, height = 1080 } = {}) {
     const context = await browser.newContext({ viewport: { width, height } });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error' && !/net::ERR_FAILED|Failed to load resource/.test(m.text())) errors.push(m.text()); });
-    await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
-    if (blockFonts) await page.route(FONTS, r => r.abort());
+    await offTwitch(page);
     await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
     await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));   // game time only moves when the test moves it
     await page.addInitScript(pageInit, SEED);
@@ -348,18 +348,17 @@ function de2000(c1, c2) {
     return Math.sqrt((dL / Sl) ** 2 + (dC / Sc) ** 2 + (dH / Sh) ** 2 + Rt * (dC / Sc) * (dH / Sh));
 }
 
-async function layoutChecks(browser, lang, blockFonts) {
-    const tag = `[${lang}${blockFonts ? ', Google Fonts blocked' : ''}]`;
-    const { page, context, errors } = await open(browser, { lang, blockFonts });
+async function layoutChecks(browser, lang) {
+    const tag = `[${lang}]`;
+    const { page, context, errors } = await open(browser, { lang });
     const fontsLoaded = await page.evaluate(() => document.fonts.check('16px Rubik') && [...document.fonts].some(f => f.family.includes('Rubik') && f.status === 'loaded'));
-    if (blockFonts) check(!fontsLoaded, `${tag} Rubik really isn't loaded (fallback font in use)`, 'Rubik loaded anyway');
-    else check(fontsLoaded, `${tag} Rubik and Press Start 2P loaded from Google Fonts`, 'Rubik did not load (no network?)');
+    check(fontsLoaded, `${tag} Rubik and Press Start 2P loaded (embedded in the page)`, 'Rubik did not load');
     const worst = await page.evaluate(fillWorstCase);
     await settle(page);
     const problems = await page.evaluate(layoutProblems);
     check(!problems.length, `${tag} worst case fits at 1920×1080: name "${worst.longName}", title "${worst.longTitle}", "${worst.longDrake}", 4 longest chips, full СИЛА + Ice Mirror, 7 leaderboard rows, a stats card`,
         problems.slice(0, 6).join(' | '));
-    await page.screenshot({ path: path.join(SHOTS, `layout-worst-${lang}${blockFonts ? '-nofonts' : ''}.png`) });
+    await page.screenshot({ path: path.join(SHOTS, `layout-worst-${lang}.png`) });
     const pops = await page.evaluate(popPositions);
     check(pops.length === 4 && pops.every(x => x.over), `${tag} hit numbers pop over each card's drake (a hit and a small "back" number on both cards)`, JSON.stringify(pops.filter(x => !x.over)));
     const sides = await page.evaluate(barSides);
@@ -396,15 +395,51 @@ async function layoutChecks(browser, lang, blockFonts) {
     await context.close();
 }
 
+// At startup the overlay loads nothing from the network but Twitch chat: every request is the page itself (file:) or
+// embedded (data:), and the only connection is the WebSocket to Twitch's chat. The page's own tmi.js runs here (no
+// stand-in) and Playwright holds that WebSocket, so it never reaches Twitch and no live chat gets in. And the embedded
+// fonts draw the page's text: Latin and Cyrillic, Ukrainian і ї є ґ included, in both fonts and Rubik's weights
+async function startupNetwork(browser) {
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const page = await context.newPage();
+    const requests = [], sockets = [], errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    context.on('request', r => requests.push(r.url()));
+    await page.routeWebSocket(/./, ws => sockets.push(ws.url()));   // every WebSocket is held here: none reaches a server
+    await page.goto(`${PAGE}?lang=uk`);
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(1500);              // tmi.js opens its connection as the page starts
+    const network = requests.filter(u => !/^(file|data|blob):/.test(u));
+    check(!network.length && sockets.length > 0 && sockets.every(u => /^wss:\/\/irc-ws\.chat\.twitch\.tv(:443)?\/?$/.test(u)) && !errors.length,
+        `at startup nothing comes from the network but Twitch chat: ${requests.length} request(s), all the page itself or embedded; the only connection is Twitch's chat (${[...new Set(sockets)].join(', ')})`,
+        JSON.stringify({ network, sockets, errors }));
+    const fonts = await page.evaluate(async () => {
+        const c = document.createElement('canvas').getContext('2d');
+        const width = (font, text) => { c.font = font; return c.measureText(text).width; };
+        const out = [];
+        for (const [family, weight] of [['Press Start 2P', 400], ['Rubik', 400], ['Rubik', 600], ['Rubik', 800]]) {
+            await document.fonts.load(`${weight} 32px "${family}"`, 'AZaz іїєґ');
+            const own = text => width(`${weight} 32px "${family}", monospace`, text) !== width(`${weight} 32px monospace`, text);
+            out.push({ font: `${family} ${weight}`, latin: own('AZaz'), ukrainian: own('іїєґ'), each: ['і', 'ї', 'є', 'ґ'].every(own) });
+        }
+        return out;
+    });
+    check(fonts.every(f => f.latin && f.ukrainian && f.each),
+        `the embedded fonts draw Latin and Ukrainian (і ї є ґ, each): ${fonts.map(f => f.font).join(', ')}`, JSON.stringify(fonts));
+    await context.close();
+}
+
 (async () => {
     fs.mkdirSync(SHOTS, { recursive: true });
     const browser = await chromium.launch();
     try {
         for (const lang of ['uk', 'en']) {
             console.log(`\nLayout, ${lang}`);
-            await layoutChecks(browser, lang, false);
-            await layoutChecks(browser, lang, true);
+            await layoutChecks(browser, lang);
         }
+
+        console.log('\nStartup: nothing from the network but Twitch chat');
+        await startupNetwork(browser);
 
         console.log('\nOBS mode (?obs)');
         for (const lang of ['uk', 'en']) {

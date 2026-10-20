@@ -25,6 +25,7 @@ const crypto = require('crypto');
 const { chromium } = require('playwright');
 const { pageInit } = require('./page_hooks');
 const { settleArena } = require('./settle');
+const { offTwitch } = require('./no_twitch');   // a stand-in tmi.js: window.__chat types into chat, nothing reaches Twitch
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
@@ -62,22 +63,6 @@ const OLD_SHOWCASE_SAVE = {
     'QA-Tester-Omega': { name: 'QA-Tester-Omega', color: '#00ff7f', drakeObj: { name: { uk: 'Білий Дракон 🐉', en: 'White Dragon 🐉' }, type: 'white' }, xp: 1000000, level: 20, title: { id: 999 } },
 };
 const MIGRATION_EXPECT = { teststreamer: 'white', snowfan: 'green', oldwhite: 'green', redfan: 'red', goldfan: 'gold', 'QA-Tester-Omega': 'green' };
-
-// Stands in for tmi.js: keeps the page's message handler and lets the test "type" into chat
-const FAKE_TMI = `
-window.tmi = { Client: class {
-    constructor(opts) { this.opts = opts || {}; this.handlers = {}; window.__tmiClient = this; }
-    connect() { return Promise.resolve(); }
-    on(ev, fn) { (this.handlers[ev] = this.handlers[ev] || []).push(fn); return this; }
-} };
-window.__chat = (user, message, extra) => {
-    const c = window.__tmiClient;
-    if (!c) throw new Error('page never created a tmi.Client');
-    let ch = (c.opts.channels || ['test'])[0];
-    if (!ch.startsWith('#')) ch = '#' + ch;
-    const ctx = Object.assign({ username: user, 'display-name': user, color: '#8ab4f8' }, extra || {});
-    (c.handlers.message || []).forEach(fn => fn(ch, ctx, message, false));
-};`;
 
 // Runs in the page: positions of both HP bars
 function measureBars() {
@@ -158,7 +143,7 @@ async function testVersion(browser, key) {
     const pageErrors = [];
     page.on('pageerror', e => pageErrors.push(e.message));
     page.on('console', m => { if (m.type() === 'error') pageErrors.push('console.error: ' + m.text()); });
-    await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
+    await offTwitch(page);
     await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
     await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));   // game time only moves when the test moves it
     await page.addInitScript(pageInit, SEED);
@@ -481,7 +466,7 @@ async function testMigration(browser, key) {
     const openWithSave = async save => {
         const page = await context.newPage();
         page.on('pageerror', e => pageErrors.push(e.message));
-        await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
+        await offTwitch(page);
         await page.addInitScript(([dbKey, raw, streamerKey, streamer]) => {
             localStorage.setItem(dbKey, raw);
             localStorage.setItem(streamerKey, streamer);
@@ -551,7 +536,7 @@ async function testStreamerCard(browser, key) {
     for (const lang of ['uk', 'en']) {
         const page = await context.newPage();
         page.on('pageerror', e => pageErrors.push(e.message));
-        await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: FAKE_TMI }));
+        await offTwitch(page);
         await page.addInitScript(([k, u]) => { localStorage.clear(); localStorage.setItem(k, u); }, [cfg.dragon.storageKey, streamer]);
         await page.goto('file:///' + path.join(ROOT, cfg.file).replace(/\\/g, '/') + '?lang=' + lang);
         await page.addStyleTag({ content: 'html { background: #1e1f26; }' });
