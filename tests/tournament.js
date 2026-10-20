@@ -32,6 +32,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 const { pageInit } = require('./page_hooks');
 const { settleArena } = require('./settle');
+const { offTwitch } = require('./no_twitch');   // a stand-in tmi.js: nothing reaches Twitch, no live chat gets in
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
@@ -52,7 +53,7 @@ async function open(browser, { lang = 'uk', betting = false } = {}) {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) errors.push(m.text()); });
-    await page.route(/tmi(\.min)?\.js/, r => r.fulfill({ contentType: 'application/javascript', body: '' }));
+    await offTwitch(page);
     await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
     await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));
     await page.addInitScript(pageInit, SEED);
