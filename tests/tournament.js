@@ -926,6 +926,42 @@ const key = (a, b) => [a, b].sort().join('-');
         const landed = await page.evaluate(() => ({ fly: !!document.querySelector('.ts-fly'), wait: document.querySelectorAll('.ts-wait').length }));
         check(fly && fly.name === '@' + qf[0][0] && /translate\(/.test(fly.transform) && !landed.fly && !landed.wait,
             `@${qf[0][0]} slides along the line to the semifinal, and lands`, JSON.stringify({ fly, landed }));
+        // The plates: every player's slot with its element's stripe, a tiny sprite and a pip per game it takes to win (QF1's
+        // winner with both lit); gold header plates in the pixel font; the winner's name in gold; the final leading into a
+        // trophy; the next match pulsing (a glow, opacity only)
+        const skin = await page.evaluate(() => {
+            const tb = document.querySelector('#log-countdown .ts-tb'), slots = [...tb.querySelectorAll('.tb-p')].filter(p => p.querySelector('.tb-n[data-full]'));
+            const live = tb.querySelector('.tb-m.live'), after = live ? getComputedStyle(live, '::after') : null, won = tb.querySelector('.tb-p.won .tb-n');
+            return {
+                slots: slots.length,
+                plates: slots.filter(p => { const n = p.querySelector('.tb-n').dataset.full.slice(1), d = getDragonStrict(n);
+                    return p.querySelector('img.tb-sp') && p.style.getPropertyValue('--el') === ELEMENT_COLORS[d.drakeObj.type] && p.querySelectorAll('.tb-pips i').length === 2; }).length,
+                wonPips: tb.querySelector('.tb-m[data-id="r0m0"] .tb-p.won .tb-pips') ? tb.querySelectorAll('.tb-m[data-id="r0m0"] .tb-p.won .tb-pips i.on').length : -1,
+                headers: [...tb.querySelectorAll('.tb-h')].every(h => /Press Start/.test(getComputedStyle(h).fontFamily)),
+                wonGold: won ? getComputedStyle(won).color : null, gold: getComputedStyle(document.getElementById('arena')).getPropertyValue('--gold-hi').trim(),
+                trophy: !!tb.querySelector('.tb-mid .tb-trophy img, .tb-last .tb-trophy img'),
+                pulse: after ? [after.animationName, after.content !== 'none'] : null,
+            };
+        });
+        const rgb = h => { const v = parseInt(h.slice(1), 16); return `rgb(${v >> 16}, ${(v >> 8) & 255}, ${v & 255})`; };
+        check(skin.slots >= 8 && skin.plates === skin.slots && skin.wonPips === 2 && skin.headers && skin.wonGold === rgb(skin.gold) && skin.trophy && skin.pulse && skin.pulse[0] === 'tsf-pulse',
+            `the plates: all ${skin.slots} players' slots with their element's stripe, a tiny sprite and 2 pips (QF1's winner with both lit, the name in gold); header plates in the pixel font; a trophy under the final; the next match's glow pulsing`,
+            JSON.stringify(skin));
+        // The light: drawn again with QF1's winner just moved on, a light runs from QF1 along the line to the semifinal slot,
+        // by transform and opacity only
+        await page.evaluate(() => { const t = tourney; const m = t.rounds[0][0]; t.adv = [{ from: { r: 0, m: 0 }, to: { r: 1, m: 0, side: 'a' }, name: m.winner }]; fvRepaintCountdown(); });
+        const light = await page.evaluate(() => {
+            const l = document.querySelector('#log-countdown .ts-light');
+            if (!l || !l.getAnimations) return null;
+            const a = l.getAnimations()[0], frames = a ? a.effect.getKeyframes() : [];
+            if (!frames.length) return { props: [], steps: 0, ends: false };   // a light that doesn't move
+            const tb = document.querySelector('#log-countdown .ts-tb').getBoundingClientRect(), k = tb.width / document.querySelector('#log-countdown .ts-tb').offsetWidth;
+            const end = /translate\(([\d.]+)px, ([\d.]+)px\)/.exec(frames[frames.length - 1].transform), slot = document.querySelector('#log-countdown .tb-m[data-id="r1m0"] .tb-p').getBoundingClientRect();
+            return { props: [...new Set(frames.flatMap(f => Object.keys(f).filter(p => !['offset', 'easing', 'composite', 'computedOffset'].includes(p))))],
+                steps: frames.length, ends: end ? Math.abs(tb.left + end[1] * k - slot.left) <= 2 && Math.abs(tb.top + end[2] * k - (slot.top + slot.height / 2)) <= 2 : false };
+        });
+        check(light && light.props.every(p => p === 'transform' || p === 'opacity') && light.steps >= 4 && light.ends,
+            'a light runs along the winner\'s line from QF1 to their semifinal slot (transform and opacity only)', JSON.stringify(light));
 
         // 7. The final: the plaque says «ФІНАЛ», a crown above the arena, the frame's slow pulse
         await until(page, () => tourGame && tourGame.stage === 'final' && arenaState.kind === 'countdown', null, { step: 2000 });

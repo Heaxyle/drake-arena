@@ -451,14 +451,14 @@
         .ts-over.out { opacity: 0; }
         .ti-stage { font-family: var(--pixel); font-size: 26px; color: var(--gold); text-transform: uppercase; text-shadow: 0 3px 0 #5a3e0c; animation: ts-slam 0.6s ease-out both; }
         .ti-row { display: flex; align-items: center; justify-content: center; gap: 26px; width: 100%; }
-        .ti-side { display: flex; align-items: center; gap: 14px; width: 380px; }
-        .ti-l { justify-content: flex-end; animation: ti-left 0.55s 0.15s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+        .ti-side { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 360px; }
+        .ti-l { animation: ti-left 0.55s 0.15s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
         .ti-r { animation: ti-right 0.55s 0.15s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
         @keyframes ti-left { from { transform: translateX(-460px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes ti-right { from { transform: translateX(460px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .ti-sprite { width: 144px; height: 108px; image-rendering: pixelated; flex-shrink: 0; }
         .ti-l .ti-sprite { transform: scaleX(-1); }
-        .ti-name { font-size: 26px; font-weight: 800; white-space: nowrap; overflow: hidden; max-width: 220px; }
+        .ti-name { display: block; max-width: 100%; font-size: 26px; font-weight: 800; white-space: nowrap; overflow: hidden; text-align: center; }
         .ti-vs { font-family: var(--pixel); font-size: 24px; color: var(--gold); animation: ts-pop 0.45s 0.6s both; }
         .ts-banner .tb-text { font-family: var(--pixel); font-size: 30px; color: #ff6b5a; text-transform: uppercase; text-shadow: 0 0 18px rgba(255, 60, 40, 0.9), 0 3px 0 #4a0e12; animation: ts-slam 0.6s ease-out both; }
         .ts-banner .tb-glow { position: absolute; inset: 0; box-shadow: inset 0 0 60px 10px rgba(255, 60, 40, 0.45); animation: tsf-pulse 1.2s ease-in-out infinite; }
@@ -472,13 +472,40 @@
         .ts-chip.flying { transition: transform 0.5s cubic-bezier(0.3, 0.7, 0.2, 1), opacity 0.2s ease; }
         .ts-chip.landed { opacity: 0; }
         /* The bracket: lines between rounds, lit as winners move on; the winner slides to its next slot; the next match pulses */
-        .ts-tb { position: relative; gap: 18px; }
+        .ts-tb { position: relative; }
+        .ts-tb.tb-one { gap: 18px; } .ts-tb.tb-mirror { gap: 10px; }
+        /* Mirrored: the outer columns hold the most names, so they get the most room */
+        .ts-tb.tb-mirror .tb-col[data-r="0"] { flex-grow: 1.5; } .ts-tb.tb-mirror .tb-col[data-r="2"] { flex-grow: 0.8; }
+        .ts-tb.tb-mirror .tb-mid { flex-basis: 156px; } .ts-tb.tb-mirror .tb-timer .cd-bar { width: 140px; } .ts-tb.tb-mirror .tb-timer .cd-title { max-width: 156px; }
         .ts-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
-        .tsl { fill: none; stroke: rgba(255, 255, 255, 0.14); stroke-width: 2; }
-        .tsl-lit { fill: none; stroke: var(--gold); stroke-width: 2; }
+        .tsl { fill: none; stroke: var(--gold-lo, #8a6a24); stroke-width: 2; shape-rendering: crispEdges; }
+        .tsl-lit { fill: none; stroke: var(--gold-hi, #ffd978); stroke-width: 2; shape-rendering: crispEdges; }
         .tsl-lit.new { animation: ts-fadein 0.6s 0.4s both; }
-        .ts-tb .tb-p.out { opacity: 0.3; filter: grayscale(1); }
-        .ts-tb .tb-m.live { animation: ts-blink 1.4s ease-in-out infinite; }
+        .ts-light { position: absolute; left: 0; top: 0; z-index: 3; width: 6px; height: 6px; margin: -3px 0 0 -3px; background: #fffbe8; box-shadow: 0 0 6px 2px rgba(255, 217, 120, 0.9); pointer-events: none; opacity: 0; }
+        /* The slots as pixel plates: the element's stripe on the edge facing the final, a tiny sprite, the name, the pips */
+        .ts-tb .tb-m { position: relative; background: none; border: 0; box-shadow: none; }
+        .ts-tb .tb-rows { display: flex; flex-direction: column; gap: 2px; }
+        .ts-tb .tb-p { gap: 3px; height: 18px; padding: 0 5px 0 3px; background: #17181f; box-shadow: 0 0 0 1px #0b0906, inset 0 1px 0 rgba(255, 255, 255, 0.07), inset -3px 0 0 var(--el, #2a2c36); }
+        .ts-tb .tb-half-1 .tb-p { padding: 0 3px 0 5px; box-shadow: 0 0 0 1px #0b0906, inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 3px 0 0 var(--el, #2a2c36); }
+        .ts-tb .tb-sp { width: 12px; height: 9px; flex-shrink: 0; image-rendering: pixelated; transform: scaleX(-1); }
+        .ts-tb .tb-half-1 .tb-sp { transform: none; }
+        .ts-tb .tb-s { display: none; }
+        .tb-pips { display: flex; gap: 2px; flex-shrink: 0; }
+        .tb-pips i { width: 4px; height: 4px; background: #2a2c36; box-shadow: 0 0 0 1px #0b0906; }
+        .tb-pips i.on { background: var(--gold-hi, #ffd978); }
+        .ts-tb .tb-h { box-sizing: border-box; align-self: center; max-width: 100%; padding: 3px 5px 2px; font-family: var(--pixel); font-size: 8px; font-weight: 400; letter-spacing: 0.5px; color: #2a1a06;
+            background: var(--gold); box-shadow: 0 0 0 1px #0b0906, inset 0 1px 0 var(--gold-hi, #ffd978), inset 0 -2px 0 var(--gold-lo, #8a6a24); }
+        .ts-tb .tb-h3 { margin-top: 4px; }
+        .ts-tb .tb-qn { color: var(--gold-hi, #ffd978); }
+        .ts-tb .tb-p.won .tb-n { color: var(--gold-hi, #ffd978) !important; font-weight: 800; }
+        .ts-tb .tb-p.out { opacity: 0.35; filter: grayscale(1); }
+        .ts-tb .tb-m.live .tb-p { box-shadow: 0 0 0 1px var(--gold), inset 0 1px 0 rgba(255, 255, 255, 0.07), inset -3px 0 0 var(--el, #2a2c36); }
+        .ts-tb .tb-half-1 .tb-m.live .tb-p { box-shadow: 0 0 0 1px var(--gold), inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 3px 0 0 var(--el, #2a2c36); }
+        .ts-tb .tb-m.live::after { content: ''; position: absolute; inset: -3px; box-shadow: 0 0 10px 2px rgba(255, 217, 120, 0.75); opacity: 0; animation: tsf-pulse 1.4s ease-in-out infinite; pointer-events: none; }
+        /* The final leads into a pixel trophy */
+        .tb-trophy { position: relative; display: flex; justify-content: center; padding-top: 8px; flex-shrink: 0; }
+        .tb-trophy::before { content: ''; position: absolute; top: 0; left: 50%; width: 2px; height: 8px; margin-left: -1px; background: var(--gold); }
+        .tb-cup { width: 28px; height: 32px; image-rendering: pixelated; }
         .ts-tb .tb-n.ts-wait { opacity: 0; transition: opacity 0.2s ease; }
         .ts-fly { position: absolute; z-index: 2; margin-top: -7px; line-height: 14px; white-space: nowrap; overflow: hidden; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
         /* The sign-up board on the free arena */
@@ -495,7 +522,7 @@
         .ts-slot.empty { justify-content: center; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1); color: var(--dim); font-family: var(--pixel); font-size: 10px; }
         .ts-slot-sprite { width: 48px; height: 36px; image-rendering: pixelated; flex-shrink: 0; }
         .ts-board-16 .ts-slot-sprite { width: 40px; height: 30px; }
-        .ts-slot-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; }
+        .ts-slot-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; }
         .tsb-join { font-size: 15px; color: var(--muted); } .tsb-join b { color: var(--gold); }
         .ts-mini { display: inline-block; width: 64px; height: 6px; margin-left: 8px; vertical-align: middle; background: rgba(255, 255, 255, 0.1); box-shadow: 0 0 0 1px #0b0906; overflow: hidden; }
         .ts-mini-fill { display: block; height: 100%; background: var(--gold); transform-origin: left; transition: transform 0.5s ease; }
@@ -1031,8 +1058,8 @@
             });
             document.querySelectorAll('.lb-name, .lb-sub, .sc-name, .sc-sub, .sc-title, .hp-text').forEach(el => fitText(el, 9));
             const cdBox = document.getElementById('log-countdown');
-            if (cdBox && cdBox.querySelector('.tb')) tourneyFitBracket(cdBox);   // its names and headers, measured again in the loaded fonts
-            document.querySelectorAll('#log-countdown .pd-name, .hf-n').forEach(el => fitName(el));
+            if (cdBox && cdBox.querySelector('.tb')) tourneyFitBracket(cdBox);   // its names and header plates, measured again in the loaded fonts
+            document.querySelectorAll('#log-countdown .pd-name, .hf-n, .ts-slot-name, .ts-over .ti-name').forEach(el => fitName(el));
             ['status-p1', 'status-p2'].forEach(id => fitChips(document.getElementById(id)));
             updateQueueUI();
         }
@@ -3899,17 +3926,23 @@ function drakeSpriteURL(type) {
         function tourneyBracketHtml(timer = '') {
             const t = tourney;
             if (!t || !t.rounds) return '';
-            const cur = tourGame, last = t.rounds.length - 1;
+            const cur = tourGame, last = t.rounds.length - 1, fx = showOn();
             const qualFor = (id, side) => id.r === 0 ? t.qual.findIndex(x => x.to && x.to.m === id.m && x.to.side === side) : -1;
+            // With the effects on, each slot is the show's pixel plate: the element's colour (--el) for its stripe, a tiny
+            // sprite, a pip per game it takes to win; and a pixel trophy under the final
+            const trophy = fx ? `<div class="tb-trophy">${showImg('trophy', 'tb-cup')}</div>` : '';
             const who = (n, empty) => n ? `<span class="tb-n pname" data-full="@${n}" style="color:${nameColor(tourneyFighter(n).color)}">@${n}</span>`
                 : `<span class="tb-n tb-none">${empty}</span>`;
             const match = (m, id, key) => {
                 const live = cur && cur.q === id.q && !!cur.third === !!id.third && cur.r === id.r && cur.m === id.m;
                 const started = m.winner || m.w[0] || m.w[1];
+                const need = tourneySingle(id) ? 1 : TOURNEY_WINS;
                 const row = (n, w, side) => {
-                    const q = qualFor(id, side);
-                    return `<div class="tb-p${m.winner && n && m.winner === n ? ' won' : ''}${m.winner && n && m.winner !== n ? ' out' : ''}">`
-                        + `${who(n, q !== -1 ? tT('qualSlot', { n: q + 1 }) : tT('tbd'))}<span class="tb-s">${started ? w : ''}</span></div>`;
+                    const q = qualFor(id, side), f = n ? tourneyFighter(n) : null;
+                    const sprite = fx ? (f ? `<img class="tb-sp" src="${drakeSpriteURL(f.drakeObj.type)}" alt="">` : '<span class="tb-sp"></span>') : '';
+                    const pips = fx ? `<span class="tb-pips">${Array.from({ length: need }, (_, k) => `<i${k < w ? ' class="on"' : ''}></i>`).join('')}</span>` : '';
+                    return `<div class="tb-p${m.winner && n && m.winner === n ? ' won' : ''}${m.winner && n && m.winner !== n ? ' out' : ''}"${fx && f ? ` style="--el:${ELEMENT_COLORS[f.drakeObj.type] || '#4a4a60'}"` : ''}>${sprite}`
+                        + `${who(n, q !== -1 ? tT('qualSlot', { n: q + 1 }) : tT('tbd'))}<span class="tb-s">${started ? w : ''}</span>${pips}</div>`;
                 };
                 return `<div class="tb-m${live ? ' live' : ''}" data-id="${key}">${id.q !== undefined ? `<span class="tb-qn">${id.q + 1}</span>` : ''}`
                     + `<div class="tb-rows">${row(m.a, m.w[0], 'a')}${row(m.b, m.w[1], 'b')}</div></div>`;
@@ -3919,17 +3952,17 @@ function drakeSpriteURL(type) {
             const third = `<div class="tb-h tb-h3">${tT('third')}</div>${match(t.third, { third: true }, 'third')}`;
             const qual = t.qual.length ? `<div class="tb-col tb-qual"><div class="tb-h">${tT('qual')}</div><div class="tb-ms">${t.qual.map((m, q) => match(m, { q }, 'q' + q)).join('')}</div></div>` : '';
             if (!tourneyMirrored()) {
-                return `<div class="tb tb-one">${qual}` + t.rounds.map((round, r) => col(r, ms(r, 0, round.length) + (r === last ? third : ''), r === last ? ' tb-last' : '')).join('') + `</div>`;
+                return `<div class="tb tb-one${fx ? ' ts-tb' : ''}">${qual}` + t.rounds.map((round, r) => col(r, ms(r, 0, round.length) + (r === last ? trophy + third : ''), r === last ? ' tb-last' : '')).join('') + `</div>`;
             }
             const sides = t.rounds.slice(0, last).map((round, r) => [col(r, ms(r, 0, round.length / 2), ' tb-half-0'), col(r, ms(r, round.length / 2, round.length), ' tb-half-1')]);
-            const mid = `<div class="tb-mid" data-r="${last}">${timer ? `<div class="tb-timer">${timer}</div>` : ''}<div class="tb-h">${tT('final')}</div>${ms(last, 0, 1)}${third}</div>`;
-            return `<div class="tb tb-mirror">${qual}${sides.map(s => s[0]).join('')}${mid}${sides.map(s => s[1]).reverse().join('')}</div>`;
+            const mid = `<div class="tb-mid" data-r="${last}">${timer ? `<div class="tb-timer">${timer}</div>` : ''}<div class="tb-h">${tT('final')}</div>${ms(last, 0, 1)}${trophy}${third}</div>`;
+            return `<div class="tb tb-mirror${fx ? ' ts-tb' : ''}">${qual}${sides.map(s => s[0]).join('')}${mid}${sides.map(s => s[1]).reverse().join('')}</div>`;
         }
         // Fits the bracket: its names with fitName (12 px at least, then cut in the middle), its headers and placeholders.
         // The names it had to cut are kept in tourney.cut, so the plate shows them in full during their games
         function tourneyFitBracket(box) {
             if (!box) return;
-            box.querySelectorAll('.tb-h, .tb-none').forEach(el => fitText(el, 9));
+            box.querySelectorAll('.tb-h, .tb-none').forEach(el => fitText(el, el.closest('.ts-tb') && el.classList.contains('tb-h') ? 7 : 9));   // the show's header plates: a pixel font from 8 px
             const cut = [...box.querySelectorAll('.tb-n[data-full]')].filter(el => fitName(el)).map(el => el.dataset.full.slice(1));
             if (tourney && cut.some(n => !(tourney.cut || []).includes(n))) { tourney.cut = [...new Set([...(tourney.cut || []), ...cut])]; tourneySave(); renderArenaHeader(); }
         }
@@ -5394,11 +5427,11 @@ function drakeSpriteURL(type) {
             if (!fv.p1 || !fv.p2) return;
             const side = (f, cls) => {
                 const sprite = `<img class="ti-sprite" src="${drakeSpriteURL(f.drakeObj.type)}" alt="">`, name = `<span class="ti-name pname" style="color:${f.color}">@${f.name}</span>`;
-                return `<div class="ti-side ${cls}">${cls === 'ti-l' ? sprite + name : name + sprite}</div>`;
+                return `<div class="ti-side ${cls}">${sprite + name}</div>`;   // the sprite, the full name under it
             };
             const el = showOverlay('ts-intro', `<span class="ti-stage">${g.q !== undefined ? tourneyLabel(g) : tT(g.stage)}</span>`
                 + `<div class="ti-row">${side(fv.p1, 'ti-l')}<span class="ti-vs">VS</span>${side(fv.p2, 'ti-r')}</div>`, SHOW_INTRO_MS);
-            const fit = () => { if (el) el.querySelectorAll('.ti-name').forEach(n => fitText(n, 14)); };
+            const fit = () => { if (el) el.querySelectorAll('.ti-name').forEach(n => fitName(n)); };
             fit();
             if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);   // right after a reload the font may still be on its way
         }
@@ -5413,13 +5446,14 @@ function drakeSpriteURL(type) {
             setArenaState({ kind: 'draw' });
             box.className = 'log-countdown with-bracket ts-draw';
             box.innerHTML = `<div class="ts-slam">${showImg('trophy', 'ts-trophy')}<span>${sT('drawTitle')}</span>${showImg('trophy', 'ts-trophy')}</div>${tourneyBracketHtml()}`;
-            box.querySelectorAll('.tb-n, .tb-h').forEach(el => fitText(el, 9));
             panel.classList.add('counting');
             const tb = box.querySelector('.tb');
             tb.classList.add('ts-tb');
+            tourneyFitBracket(box);
             showSound('fanfare');
-            const cols = [...tb.querySelectorAll('.tb-col')], qualCol = t.qual.length ? cols[0] : null, first = cols[t.qual.length ? 1 : 0];
-            const slots = [...(qualCol ? qualCol.querySelectorAll('.tb-ms > .tb-m .tb-n') : []), ...[...first.querySelectorAll('.tb-ms > .tb-m .tb-n')].filter(n => n.textContent !== tT('tbd'))];
+            // The names to place: the qualifier's, then round 1's direct places (the chips carry each slot's name as fitted)
+            const slots = [...tb.querySelectorAll('.tb-qual .tb-n[data-full]'), ...[...tb.querySelectorAll('.tb-m[data-id^="r0m"] .tb-n[data-full]')]
+                .sort((a, b) => Number(a.closest('.tb-m').dataset.id.slice(3)) - Number(b.closest('.tb-m').dataset.id.slice(3)))];
             slots.forEach(n => n.classList.add('ts-hide'));
             const base = box.getBoundingClientRect(), k = box.offsetWidth ? base.width / box.offsetWidth : 1;
             const W = box.offsetWidth, H = box.offsetHeight, across = 4, cw = 190, ch = 30, down = Math.ceil(slots.length / across);
@@ -5453,42 +5487,64 @@ function drakeSpriteURL(type) {
             else if (g.r + 1 < t.rounds.length) to = { r: g.r + 1, m: g.m >> 1, side: g.m % 2 ? 'b' : 'a' };
             if (to) { (t.adv = t.adv || []).push({ from, to, name: winner }); tourneySave(); }
         }
-        // The bracket under the countdown: the lines between rounds (lit where a winner moved on), the newest winners
-        // sliding along to their next slot, the losers greyed out, the next match pulsing
+        // The bracket under the countdown: gold stepped lines from each match to its winner's next place (lit once a
+        // winner moved on; in the mirrored layout the qualifier panel has none, its places name their game instead); the
+        // newest winners slide along to their next slot while a light runs down their line; the next match pulses
         function showBracket(box) {
             const t = tourney, tb = box.querySelector('.tb');
             if (!showOn() || !t || !tb) return;
             tb.classList.add('ts-tb');
-            const cols = [...tb.querySelectorAll('.tb-col')], qualCol = t.qual.length ? cols[0] : null, rounds = t.qual.length ? cols.slice(1) : cols;
-            const mEl = id => id.q !== undefined ? qualCol.querySelectorAll('.tb-ms > .tb-m')[id.q] : rounds[id.r].querySelectorAll('.tb-ms > .tb-m')[id.m];
+            const key = id => id.q !== undefined ? 'q' + id.q : id.third ? 'third' : `r${id.r}m${id.m}`;
+            const mEl = id => tb.querySelector(`.tb-m[data-id="${key(id)}"]`);
             const rowEl = id => { const m = mEl(id); return m && m.querySelectorAll('.tb-p')[id.side === 'b' ? 1 : 0]; };
-            const links = [...t.qual.map((m, q) => ({ from: { q }, to: { r: 0, m: m.to.m, side: m.to.side }, lit: !!m.winner })),
+            const mirror = tb.classList.contains('tb-mirror');
+            const links = [...(mirror ? [] : t.qual.map((m, q) => ({ from: { q }, to: { r: 0, m: m.to.m, side: m.to.side }, lit: !!m.winner }))),
                 ...t.rounds.slice(0, -1).flatMap((round, r) => round.map((m, i) => ({ from: { r, m: i }, to: { r: r + 1, m: i >> 1, side: i % 2 ? 'b' : 'a' }, lit: !!m.winner })))];
             const base = tb.getBoundingClientRect(), k = tb.offsetWidth ? base.width / tb.offsetWidth : 1;
-            const pt = (el, right) => { const r = el.getBoundingClientRect(); return { x: ((right ? r.right : r.left) - base.left) / k, y: (r.top + r.height / 2 - base.top) / k }; };
-            const fresh = new Set((t.adv || []).map(a => JSON.stringify(a.from)));
+            const px = v => Math.round(v) + 0.5;   // on the pixel grid: crisp 2 px lines
+            // From the side of the match facing its next place to the side of that place facing back: across, down, across
+            const route = (a, b) => {
+                const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(), right = rb.left >= ra.right - 1;
+                const p = { x: px(((right ? ra.right : ra.left) - base.left) / k), y: px((ra.top + ra.height / 2 - base.top) / k) };
+                const q = { x: px(((right ? rb.left : rb.right) - base.left) / k), y: px((rb.top + rb.height / 2 - base.top) / k) };
+                const xm = px((p.x + q.x) / 2);
+                return [p, { x: xm, y: p.y }, { x: xm, y: q.y }, q];
+            };
+            const d = pts => `M${pts[0].x} ${pts[0].y}H${pts[1].x}V${pts[2].y}H${pts[3].x}`;
+            const fresh = new Set((t.adv || []).map(a => key(a.from)));
             let paths = '';
             links.forEach(l => {
                 const a = mEl(l.from), b = rowEl(l.to);
                 if (!a || !b) return;
-                const p = pt(a, true), q = pt(b, false), xm = (p.x + q.x) / 2;
-                const d = `M${p.x.toFixed(1)} ${p.y.toFixed(1)}H${xm.toFixed(1)}V${q.y.toFixed(1)}H${q.x.toFixed(1)}`;
-                paths += `<path class="tsl" d="${d}"/>` + (l.lit ? `<path class="tsl-lit${fresh.has(JSON.stringify(l.from)) ? ' new' : ''}" d="${d}"/>` : '');
+                const pts = route(a, b);
+                paths += `<path class="tsl" d="${d(pts)}"/>` + (l.lit ? `<path class="tsl-lit${fresh.has(key(l.from)) ? ' new' : ''}" d="${d(pts)}"/>` : '');
             });
             tb.insertAdjacentHTML('beforeend', `<svg class="ts-lines" width="${(base.width / k).toFixed(0)}" height="${(base.height / k).toFixed(0)}">${paths}</svg>`);
             (t.adv || []).forEach((a, i) => {
                 const target = rowEl(a.to), name = target && target.querySelector('.tb-n'), src = mEl(a.from);
-                const srcName = src && [...src.querySelectorAll('.tb-n')].find(n => n.textContent === '@' + a.name);
+                const srcName = src && [...src.querySelectorAll('.tb-n')].find(n => n.dataset.full === '@' + a.name);
                 if (!name || !srcName) return;
-                const s = pt(srcName, false), e = pt(name, false);
+                // The light along the winner's line (transforms only)
+                if (!(mirror && a.from.q !== undefined)) {
+                    const pts = route(src, target), light = document.createElement('span');
+                    light.className = 'ts-light';
+                    tb.appendChild(light);
+                    const at = p => `translate(${p.x}px, ${p.y}px)`;
+                    if (light.animate) light.animate([{ transform: at(pts[0]), opacity: 0 }, { transform: at(pts[0]), opacity: 1, offset: 0.1 },
+                        { transform: at(pts[1]), offset: 0.4 }, { transform: at(pts[2]), offset: 0.7 }, { transform: at(pts[3]), opacity: 1, offset: 0.95 }, { transform: at(pts[3]), opacity: 0 }],
+                        { duration: 1100, delay: 300 + i * 250, fill: 'both' });
+                    setTimeout(() => light.remove(), 1500 + i * 250);
+                }
+                const sr = srcName.getBoundingClientRect(), er = name.getBoundingClientRect();
+                const sx = (sr.left - base.left) / k, sy = (sr.top + sr.height / 2 - base.top) / k, ex = (er.left - base.left) / k, ey = (er.top + er.height / 2 - base.top) / k;
                 const fly = name.cloneNode(true);
                 fly.classList.add('ts-fly');
                 const cs = getComputedStyle(name);   // the copy sits outside its row: take the row's lettering with it
-                fly.style.left = `${s.x}px`; fly.style.top = `${s.y}px`; fly.style.width = `${name.offsetWidth}px`;
-                fly.style.fontSize = cs.fontSize; fly.style.fontWeight = cs.fontWeight;
+                fly.style.left = `${sx}px`; fly.style.top = `${sy}px`; fly.style.width = `${name.offsetWidth}px`;
+                fly.style.fontSize = cs.fontSize; fly.style.fontWeight = cs.fontWeight; fly.style.textAlign = cs.textAlign;
                 tb.appendChild(fly);
                 name.classList.add('ts-wait');
-                setTimeout(() => { fly.style.transform = `translate(${(e.x - s.x).toFixed(1)}px, ${(e.y - s.y).toFixed(1)}px)`; }, 350 + i * 250);
+                setTimeout(() => { fly.style.transform = `translate(${(ex - sx).toFixed(1)}px, ${(ey - sy).toFixed(1)}px)`; }, 350 + i * 250);
                 setTimeout(() => { name.classList.remove('ts-wait'); fly.remove(); }, 1250 + i * 250);
             });
             if (t.adv && t.adv.length) { t.adv = []; tourneySave(); }
@@ -5576,7 +5632,7 @@ function drakeSpriteURL(type) {
                 + `<div class="tsb-bar"><div class="px-track"><div class="px-fill tsb-fill" style="transform:scaleX(${showBoardFrac})"></div></div></div>`
                 + `<div class="tsb-grid">${Array.from({ length: t.size }, (_, i) => slot(t.players[i], i)).join('')}</div>`
                 + `<span class="tsb-join">${sT('boardJoin')}</span>`;
-            box.querySelectorAll('.ts-slot-name').forEach(el => fitText(el, 9));
+            box.querySelectorAll('.ts-slot-name').forEach(el => fitName(el));
             panel.classList.add('counting');
             showBoardNames = names;
             showBoardFrac = n / t.size;
