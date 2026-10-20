@@ -391,10 +391,12 @@
         .hf-row:first-child { border-color: rgba(242, 193, 78, 0.55); background: rgba(242, 193, 78, 0.08); }
         .hf-date { color: var(--dim); font-family: var(--pixel); font-size: 12px; white-space: nowrap; }
         .hf-size { color: var(--muted); white-space: nowrap; }
-        .hf-p { font-weight: 700; white-space: nowrap; overflow: hidden; }
-        .hf-best { font-size: 15px; font-weight: 700; color: #ffd978; white-space: nowrap; overflow: hidden; max-width: 100%; }
-        .hf-card-row { gap: 6px; flex-wrap: wrap; font-size: 12px; }
-        .hf-card-row .hf-date { font-size: 10px; }
+        .hf-p { display: flex; align-items: center; gap: 5px; min-width: 0; font-weight: 700; white-space: nowrap; }
+        .hf-n { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+        .hf-best { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; color: #ffd978; white-space: nowrap; max-width: 100%; min-width: 0; }
+        .hf-best > span:not(.hf-n) { flex-shrink: 0; }
+        .info-card .hf-card-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 8px; font-size: 13px; }
+        .info-card .hf-card-row .hf-date { grid-column: 1 / -1; font-size: 9px; }
         .info-card.hall-card .ic-sub { font-size: 12px; color: var(--dim); font-weight: 400; }
 
         /* ===== Side column ===== */
@@ -889,7 +891,7 @@
             document.querySelectorAll('.lb-name, .lb-sub, .sc-name, .sc-sub, .sc-title, .hp-text').forEach(el => fitText(el, 9));
             const cdBox = document.getElementById('log-countdown');
             if (cdBox && cdBox.querySelector('.tb')) tourneyFitBracket(cdBox);   // its names and headers, measured again in the loaded fonts
-            document.querySelectorAll('#log-countdown .pd-name').forEach(el => fitName(el));
+            document.querySelectorAll('#log-countdown .pd-name, .hf-n').forEach(el => fitName(el));
             ['status-p1', 'status-p2'].forEach(id => fitChips(document.getElementById(id)));
             updateQueueUI();
         }
@@ -2984,6 +2986,7 @@ function drakeSpriteURL(type) {
                 card.classList.add('fading');
                 setTimeout(() => { if (card.remove) card.remove(); renderHowTo(); }, 900);
             }, INFO_LIFETIME_MS[kind] || 25000);
+            return card;
         }
 
         function rarityTag(title) {
@@ -3893,7 +3896,11 @@ function drakeSpriteURL(type) {
             return { names: names.filter(n => score(n) === top), wins: h.medals[names.find(n => score(n) === top)][0] };
         }
         const hallDate = iso => new Date(iso).toLocaleDateString(currentLang === 'uk' ? 'uk-UA' : 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        const hallWho = name => { const d = getDragonStrict(name); return `<span class="pname" style="color:${nameColor(d ? d.color : '#eef0fa')}">@${name}</span>`; };
+        // A name in the Hall of Fame: its own box (.hf-n), fitted with fitName (12 px at least, then cut in the middle)
+        const hallWho = name => { const d = getDragonStrict(name); return `<span class="hf-n pname" data-full="@${name}" style="color:${nameColor(d ? d.color : '#eef0fa')}">@${name}</span>`; };
+        const hallPlace = (n, i) => `<span class="hf-p"><span>${["🥇", "🥈", "🥉"][i]}</span> ${n ? hallWho(n) : "<span>—</span>"}</span>`;
+        // «Найбільше перемог: @a @b — 🏆×2», with each name in its own box
+        const hallBestHtml = best => { const [pre, post] = tT('hallBest', { who: '\u0000', n: best.wins }).split('\u0000'); return `<span>${pre.trim()}</span> ${best.names.map(hallWho).join('<span class="hf-sep">·</span>')} <span>${post.trim()}</span>`; };
         // The Hall of Fame in the log area: after the podium, and on the idle arena
         function showHallOfFame() {
             if (!FV_LIVE) return false;
@@ -3904,9 +3911,9 @@ function drakeSpriteURL(type) {
             box.className = 'log-countdown hall';
             box.innerHTML = `<span class="hf-title">${tT('hall')}</span><div class="hf">`
                 + h.hall.slice(-HALL_ROWS).reverse().map(e => `<div class="hf-row"><span class="hf-date">${hallDate(e.date)}</span><span class="hf-size">${tT('players', { n: e.players })}</span>`
-                    + e.podium.map((n, i) => `<span class="hf-p">${['🥇', '🥈', '🥉'][i]} ${n ? hallWho(n) : '—'}</span>`).join('') + `</div>`).join('')
-                + `</div>` + (best ? `<span class="hf-best">${tT('hallBest', { who: best.names.map(hallWho).join(', '), n: best.wins })}</span>` : '');
-            box.querySelectorAll('.hf-p, .hf-best').forEach(el => fitText(el, 10));
+                    + e.podium.map(hallPlace).join('') + `</div>`).join('')
+                + `</div>` + (best ? `<span class="hf-best">${hallBestHtml(best)}</span>` : '');
+            box.querySelectorAll('.hf-n').forEach(el => fitName(el));
             panel.classList.add('counting');
             return true;
         }
@@ -3915,10 +3922,11 @@ function drakeSpriteURL(type) {
             const h = getHonours();
             if (!h.hall.length) { addInfo(tT('hallEmpty'), 'note'); return; }
             const best = hallBest(h);
-            addInfo(`<div class="ic-head"><span>${tT('hall')}</span><span class="ic-sub">${tT('tournaments', { n: h.hall.length })}</span></div>`
+            const card = addInfo(`<div class="ic-head"><span>${tT('hall')}</span><span class="ic-sub">${tT('tournaments', { n: h.hall.length })}</span></div>`
                 + h.hall.slice(-HALL_ROWS).reverse().map(e => `<div class="ic-row hf-card-row"><span class="hf-date">${hallDate(e.date)}</span>`
-                    + e.podium.map((n, i) => `<span>${['🥇', '🥈', '🥉'][i]} ${n ? hallWho(n) : '—'}</span>`).join('') + `</div>`).join('')
-                + (best ? `<div class="ic-desc">${tT('hallBest', { who: best.names.map(hallWho).join(', '), n: best.wins })}</div>` : ''), 'stat', 'hall-card');
+                    + e.podium.map(hallPlace).join('') + `</div>`).join('')
+                + (best ? `<div class="ic-desc hf-best">${hallBestHtml(best)}</div>` : ''), 'stat', 'hall-card');
+            if (card) card.querySelectorAll('.hf-n').forEach(el => fitName(el));
         }
 
         function testBattle() {

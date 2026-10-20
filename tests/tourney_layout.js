@@ -6,6 +6,9 @@
 //   bracket    the betting window of a round-1 match, with finished matches (a winner, a loser) and the live one
 //   plate      that match being fought: the plate shows the cut names in full on a second line
 //   podium     the podium with three worst-case names
+//   hall       the Hall of Fame on the arena: five tournaments with worst-case podiums, two players tied for most wins
+//              (both on its most-wins line)
+//   hall card  the same as the !зала card in the chat panel
 // and checks each the same way (tourneyScreenProblems): every name at 12 px or more, cut in the middle rather than
 // squeezed, never wider than its box; different names never drawn the same; nothing outside the log area, no two
 // blocks overlapping; the plate inside the header, clear of the fight type, nothing in it overflowing.
@@ -26,7 +29,7 @@ function tourneyScreenProblems() {
     const box = document.getElementById('log-countdown'), panel = R(document.getElementById('log-panel'));
     // Names: 12 px at least, cut rather than squeezed, inside their box; different names never drawn the same
     const drawn = new Map();
-    document.querySelectorAll('#log-countdown .tb-n[data-full], #log-countdown .pd-name, #log-countdown [data-name]').forEach(e => {
+    document.querySelectorAll('#log-countdown .tb-n[data-full], #log-countdown .pd-name, #log-countdown [data-name], #log-countdown .hf-n, #info-feed .hall-card .hf-n').forEach(e => {
         if (!shown(e)) return;
         const px = parseFloat(getComputedStyle(e).fontSize), full = e.dataset.full || e.dataset.name || e.textContent;
         if (px < 12) out.push(`${label(e)} at ${px} px`);
@@ -42,12 +45,20 @@ function tourneyScreenProblems() {
         // Everything inside the log area
         box.querySelectorAll('*').forEach(e => { if (shown(e) && !e.closest('svg') && !inside(R(e), panel)) out.push(`${label(e)} outside the log area`); });
         // No two blocks overlapping (one inside the other doesn't count)
-        const blocks = [...box.querySelectorAll('.tb-m, .tb-h, .tb-timer, .cd-row, .cd-sub, .pd-col, .pd-title')].filter(shown);
+        const blocks = [...box.querySelectorAll('.tb-m, .tb-h, .tb-timer, .cd-row, .cd-sub, .pd-col, .pd-title, .hf-title, .hf-row, .hf-p, .hf-best, .hf-best > *')].filter(shown);
         for (let i = 0; i < blocks.length; i++) for (let j = i + 1; j < blocks.length; j++) {
             const a = blocks[i], b = blocks[j];
             if (!a.contains(b) && !b.contains(a) && overlap(R(a), R(b))) out.push(`${label(a)} overlaps ${label(b)}`);
         }
     }
+    // The !зала card: inside the chat panel, everything in it inside the card, its places not overlapping
+    document.querySelectorAll('#info-feed .hall-card').forEach(card => {
+        const c = R(card), feed = R(document.getElementById('info-feed'));
+        if (!inside(c, feed)) out.push('the !зала card sticks out of the chat panel');
+        card.querySelectorAll('*').forEach(e => { if (shown(e) && !inside(R(e), c)) out.push(`${label(e)} outside the !зала card`); });
+        const cells = [...card.querySelectorAll('.hf-card-row > *, .hf-best > *')].filter(shown);
+        for (let i = 0; i < cells.length; i++) for (let j = i + 1; j < cells.length; j++) if (overlap(R(cells[i]), R(cells[j]))) out.push(`${label(cells[i])} overlaps ${label(cells[j])}`);
+    });
     // The arena header: the plate inside it and clear of the fight type, nothing in either wider than its box
     const plate = document.getElementById('status-plate'), type = document.getElementById('fight-type'), head = plate.parentElement;
     if (!inside(R(plate), R(head))) out.push('the plate sticks out of the header');
@@ -129,6 +140,21 @@ async function tourneyScreens(page, lang, n, shot) {
     await resumeWith(page, ns => { tourney.phase = 'podium'; tourney.podium = ns; }, names.slice(0, 3));
     if (await until(page, () => arenaState.kind === 'podium', 20)) await look('podium');
     else results.push(['podium', ['no podium']]);
+    // The Hall of Fame: five tournaments with the worst-case names on every podium; two of them tied for most wins
+    await resumeWith(page, ns => {
+        const [a, b, c, d] = ns, h = getHonours();
+        h.hall = [[a, b, c], [b, a, d], [a, c, b], [b, d, a], [c, a, b]].map((podium, i) => ({ date: new Date(Date.UTC(2026, 0, 1 + i)).toISOString(), players: 16, size: 16, podium }));
+        h.medals = { [a]: [2, 1, 0], [b]: [2, 1, 0], [c]: [1, 1, 1], [d]: [0, 2, 1] };   // @a and @b tied: both on the most-wins line
+        saveHonours(h);
+        tourney.phase = 'hall';
+    }, names.slice(0, 4));
+    // Both tied players on the most-wins line
+    const bestOn = async (sel, at) => { const k = await page.evaluate(q => document.querySelectorAll(q).length, sel); if (k !== 2) results[results.length - 1][1].push(`${k} name(s) on the ${at} most-wins line, not the 2 tied`); };
+    if (await until(page, () => arenaState.kind === 'hall', 20)) { await look('hall'); await bestOn('#log-countdown .hf-best .hf-n', 'arena'); }
+    else results.push(['hall', ['no Hall of Fame']]);
+    await page.evaluate(lang => window.__chat('viewer_x', lang === 'uk' ? '!зала' : '!hall'), lang);
+    await look('hall card');
+    await bestOn('#info-feed .hall-card .hf-best .hf-n', 'card');
     return results;
 }
 
