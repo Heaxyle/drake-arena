@@ -13,7 +13,8 @@
 //      highest levels in opposite halves (announced); every game in the play log with its stage and game number
 //   3  A reload in the middle of a match: the tournament resumes at that match and replays the unfinished game. Then a
 //      reload at every moment (sign-up, the betting window, mid-game, the result screen between games, game 2's
-//      countdown, the 3rd-place game, the final, the podium, the Hall of Fame): picked up at once, run to the end, the queue after it.
+//      countdown, the 3rd-place game, the final, the podium, the Hall of Fame; with the effects on, the draw and a match intro): picked up at once, run to the end,
+//      the queue after it.
 //      The watchdog: a reload with the resume skipped; within 5 s it starts the next game itself (its console.error is
 //      expected there and nowhere else)
 //   4  Uneven sign-ups, the qualifier: 5 players (English, betting window on, all level 1): a main bracket of 4, the
@@ -171,6 +172,12 @@ const RELOAD_PHASES = [
       expect: a => a.kind === 'podium' },
     { label: 'during the Hall of Fame', at: () => arenaState.kind === 'hall', podiumBefore: true,
       expect: a => a.kind === 'hall' },
+    // With the tournament effects on: the draw is already over in the save (it's only a show), so the first game starts;
+    // an intro's game is replayed, intro and all
+    { label: 'during the draw (effects on)', fx: true, at: () => arenaState.kind === 'draw',
+      expect: a => a.kind === 'countdown' && tourPlate(a) && /Гра 1/.test(a.plate) },
+    { label: 'during a match intro (effects on)', fx: true, at: () => !!document.querySelector('.ts-intro'),
+      expect: a => a.kind === 'countdown' && tourPlate(a) && /Гра 1/.test(a.plate) },
 ];
 const key = (a, b) => [a, b].sort().join('-');
 
@@ -420,7 +427,7 @@ const key = (a, b) => [a, b].sort().join('-');
         // the same on any machine: the arena picks the tournament up at once (nothing waits for fonts, Twitch or real
         // time), it runs to its podium and ends, and then the queue, paused all along, carries on
         for (const phase of RELOAD_PHASES) {
-            const r = await open(browser, { lang: 'uk', betting: !!phase.betting });
+            const r = await open(browser, { lang: 'uk', betting: !!phase.betting, fx: !!phase.fx });
             const four = ['ania', 'borys', 'vira', 'hlib'];
             await register(r.page, 'uk', [...four, 'q1', 'q2']);
             await mod(r.page, '!турнір 4');
