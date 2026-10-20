@@ -3,7 +3,8 @@
 // For each size (4, 8, 16 players; 13 and 15 with a qualifier) it plays through the game's own sign-up, then fast-
 // forwards the saved tournament (results filled in, then a reload: the game resumes from it) to reach each screen:
 //   board      the show's sign-up board, one place short of full (effects on)
-//   draw       the show's draw, every name in its slot (effects on)
+//   draw       the show's draw at its end (effects on): every card (a slot's plate) landed, within 2 px of its slot, no two
+//              overlapping (tourneyDrawProblems); with the effects off there is no draw
 //   intro      the show's versus splash before game 1 of the first match: the two names in full (effects on)
 //   qualifier  the first qualifier game's countdown, with the bracket (13 and 15 players)
 //   bracket    the betting window of a round-1 match, with finished matches (a winner, a loser) and the live one
@@ -49,7 +50,7 @@ function tourneyScreenProblems() {
         // (the falling confetti is clipped by its own layer, which is checked)
         box.querySelectorAll('*').forEach(e => { if (shown(e) && !e.closest('svg') && !e.closest('.ts-confetti > *') && !inside(R(e), panel)) out.push(`${label(e)} outside the log area`); });
         // No two blocks overlapping (one inside the other doesn't count)
-        const blocks = [...box.querySelectorAll('.tb-m, .tb-h, .tb-timer, .tb-trophy, .cd-row, .cd-sub, .pd-col, .pd-title, .hf-title, .hf-row, .hf-p, .hf-best, .hf-best > *, .ts-slot, .tsb-head, .tsb-bar, .tsb-join, .ts-slam')].filter(shown);
+        const blocks = [...box.querySelectorAll('.tb-m, .tb-p, .tb-h, .tb-timer, .tb-trophy, .cd-row, .cd-sub, .pd-col, .pd-title, .hf-title, .hf-row, .hf-p, .hf-best, .hf-best > *, .ts-slot, .tsb-head, .tsb-bar, .tsb-join, .ts-slam')].filter(shown);
         for (let i = 0; i < blocks.length; i++) for (let j = i + 1; j < blocks.length; j++) {
             const a = blocks[i], b = blocks[j];
             if (!a.contains(b) && !b.contains(a) && overlap(R(a), R(b))) out.push(`${label(a)} overlaps ${label(b)}`);
@@ -76,6 +77,29 @@ function tourneyScreenProblems() {
     [plate, type, ...plate.querySelectorAll('.pl-label, .pl-names')].forEach(e => { if (shown(e) && tooWide(e)) out.push(`${label(e)} wider than its box`); });
     plate.querySelectorAll('.pl-names').forEach(e => { if (parseFloat(getComputedStyle(e).fontSize) < 12) out.push(`${label(e)} under 12 px`); });
     return [...new Set(out)];
+}
+
+// In the page, at the end of the show's draw: what's wrong with its cards (the slots' plates). Each must have landed, sit
+// on its slot within 2 px (its position measured with and without its transform) and overlap no other card
+function tourneyDrawProblems() {
+    const out = [], cards = [...document.querySelectorAll('#log-countdown .ts-draw .tb-p.ts-card, #log-countdown.ts-draw .tb-p.ts-card')];
+    if (!cards.length) return ['no cards in the draw'];
+    const rects = cards.map(c => {
+        const moved = c.getBoundingClientRect(), t = c.style.transform;
+        c.style.transition = 'none'; c.style.transform = 'none';
+        const home = c.getBoundingClientRect();
+        c.style.transform = t; c.style.transition = '';
+        const name = (c.querySelector('.tb-n') || {}).textContent;
+        if (!c.classList.contains('landed')) out.push(`${name} hasn't landed`);
+        const off = Math.max(Math.abs(moved.left - home.left), Math.abs(moved.top - home.top), Math.abs(moved.width - home.width), Math.abs(moved.height - home.height));
+        if (off > 2) out.push(`${name} ${off.toFixed(1)} px off its slot`);
+        return { name, r: moved };
+    });
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i].r, b = rects[j].r;
+        if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5) out.push(`${rects[i].name} overlaps ${rects[j].name}`);
+    }
+    return out;
 }
 
 // Plays the sign-up through chat: n drakes with the worst-case names (levels 1–6), sign-up, everyone joins, the
@@ -130,8 +154,15 @@ async function tourneyScreens(page, lang, n, shot) {
     const names = await signUp(page, lang, n, show ? async () => { await page.clock.runFor(1000); await look('board', 800); } : null);
     if (show) {
         // The draw: every name landed in its slot (the names fly in from 2.9 s; 7.5 s in all)
-        if (await until(page, () => arenaState.kind === 'draw', 20)) { await page.clock.runFor(6500); await look('draw'); }
-        else results.push(['draw', ['no draw']]);
+        // The cards fly home by 6.5 s (CSS transitions run on real time: give them 0.9 s); the draw ends at 7.5 s
+        if (await until(page, () => arenaState.kind === 'draw', 20)) {
+            await page.clock.runFor(6500);
+            await look('draw', 900);
+            results[results.length - 1][1].push(...await page.evaluate(tourneyDrawProblems));
+        } else results.push(['draw', ['no draw']]);
+    } else {
+        // Effects off: no draw, the first game's countdown straight away
+        if (await page.evaluate(() => arenaState.kind === 'draw' || !!document.querySelector('.ts-card'))) results.push(['no draw (effects off)', ['a draw with the effects off']]);
     }
     if (await page.evaluate(() => tourney.qual.length)) {
         if (await until(page, () => arenaState.kind === 'countdown' && !!arenaState.bracket && tourGame && tourGame.q !== undefined && !document.querySelector('#log-panel .ts-over'))) await look('qualifier');
@@ -152,6 +183,26 @@ async function tourneyScreens(page, lang, n, shot) {
             const full = await page.evaluate(() => [...document.querySelectorAll('#log-panel .ts-intro .ti-name')].map(e => [e.textContent, e.dataset.full]));
             const last = results[results.length - 1][1];
             full.forEach(([text, f]) => { if (text !== f) last.push(`the versus splash cut ${f} to ${text}`); });
+            // Each side: the drake on top, its name centred under it on the same centre line (2 px), the pair centred in
+            // its half of the row (the VS between the halves); the drakes facing each other (the left one mirrored)
+            last.push(...await page.evaluate(() => {
+                const out = [], R = e => e.getBoundingClientRect(), mid = r => (r.left + r.right) / 2;
+                const row = document.querySelector('#log-panel .ts-intro .ti-row'), vs = row && row.querySelector('.ti-vs');
+                if (!row || !vs) return ['no versus row'];
+                const halves = { 'ti-l': [R(row).left, R(vs).left], 'ti-r': [R(vs).right, R(row).right] };
+                ['ti-l', 'ti-r'].forEach(side => {
+                    const s = row.querySelector('.' + side), img = s && s.querySelector('.ti-sprite'), name = s && s.querySelector('.ti-name');
+                    if (!img || !name) { out.push(`${side}: no sprite or name`); return; }
+                    const a = R(img), b = R(name), gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+                    const half = (halves[side][0] + halves[side][1] + (side === 'ti-l' ? -gap : gap)) / 2;
+                    if (Math.abs(mid(a) - mid(b)) > 2) out.push(`${side}: sprite and name ${Math.abs(mid(a) - mid(b)).toFixed(1)} px off one centre line`);
+                    if (b.top < a.bottom - 0.5) out.push(`${side}: the name isn't under the drake`);
+                    if (Math.abs(mid(a) - half) > 2) out.push(`${side}: the pair ${Math.abs(mid(a) - half).toFixed(1)} px off the centre of its half`);
+                });
+                const l = getComputedStyle(row.querySelector('.ti-l .ti-sprite')).transform, r = getComputedStyle(row.querySelector('.ti-r .ti-sprite')).transform;
+                if (!/^matrix\(-1/.test(l) || /^matrix\(-1/.test(r)) out.push(`the drakes don't face each other (${l} / ${r})`);
+                return out;
+            }));
             if (full.length !== 2) last.push(`${full.length} names on the versus splash`);
         } else results.push(['intro', ['no versus splash']]);
     }
@@ -188,4 +239,4 @@ async function tourneyScreens(page, lang, n, shot) {
     return results;
 }
 
-module.exports = { tourneyScreens, tourneyScreenProblems, tourneyNames, WORST, SIZES, signUp, until, resumeWith };
+module.exports = { tourneyScreens, tourneyScreenProblems, tourneyDrawProblems, tourneyNames, WORST, SIZES, signUp, until, resumeWith };

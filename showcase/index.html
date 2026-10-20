@@ -450,8 +450,9 @@
         .ts-over { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(6, 7, 11, 0.97); pointer-events: none; transition: opacity 0.35s ease; overflow: hidden; }
         .ts-over.out { opacity: 0; }
         .ti-stage { font-family: var(--pixel); font-size: 26px; color: var(--gold); text-transform: uppercase; text-shadow: 0 3px 0 #5a3e0c; animation: ts-slam 0.6s ease-out both; }
-        .ti-row { display: flex; align-items: center; justify-content: center; gap: 26px; width: 100%; }
-        .ti-side { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 360px; }
+        /* Each side: the drake on top, its full name centred under it; each pair centred in its half (VS in between) */
+        .ti-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 26px; width: 100%; }
+        .ti-side { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
         .ti-l { animation: ti-left 0.55s 0.15s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
         .ti-r { animation: ti-right 0.55s 0.15s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
         @keyframes ti-left { from { transform: translateX(-460px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -465,12 +466,10 @@
         .ts-banner .tb-sub { font-size: 16px; font-weight: 700; color: #ffd0c8; animation: ts-fadein 0.4s 0.5s both; }
         /* The draw: the title slams in, the names shuffle in the middle, then fly into their bracket slots */
         .ts-slam { display: flex; align-items: center; justify-content: center; gap: 14px; font-family: var(--pixel); font-size: 20px; color: var(--gold); text-transform: uppercase; text-shadow: 0 3px 0 #5a3e0c; flex-shrink: 0; animation: ts-slam 0.7s ease-out both; }
-        .ts-draw .tb-n.ts-hide { opacity: 0; }
-        .ts-draw .tb-n { transition: opacity 0.2s ease; }
-        .ts-chip { position: absolute; left: 0; top: 0; z-index: 3; font-size: 13px; font-weight: 800; line-height: 14px; white-space: nowrap; padding: 2px 6px; background: rgba(23, 18, 10, 0.95); box-shadow: 0 0 0 1px rgba(242, 193, 78, 0.5);
-            transition: transform 0.18s ease, opacity 0.2s ease; animation: ts-fadein 0.3s 0.8s both; }
-        .ts-chip.flying { transition: transform 0.5s cubic-bezier(0.3, 0.7, 0.2, 1), opacity 0.2s ease; }
-        .ts-chip.landed { opacity: 0; }
+        /* The draw's cards: the slots' own plates, lifted above the bracket while they shuffle and fly home */
+        .ts-draw .tb-p.ts-card { position: relative; z-index: 3; transition: transform 0.18s ease; animation: ts-fadein 0.3s 0.8s backwards; }
+        .ts-draw .tb-p.ts-card.flying { transition: transform 0.5s cubic-bezier(0.3, 0.7, 0.2, 1); }
+        .ts-draw .tb-p.ts-card.landed { z-index: auto; }
         /* The bracket: lines between rounds, lit as winners move on; the winner slides to its next slot; the next match pulses */
         .ts-tb { position: relative; }
         .ts-tb.tb-one { gap: 18px; } .ts-tb.tb-mirror { gap: 10px; }
@@ -5451,29 +5450,27 @@ function drakeSpriteURL(type) {
             tb.classList.add('ts-tb');
             tourneyFitBracket(box);
             showSound('fanfare');
-            // The names to place: the qualifier's, then round 1's direct places (the chips carry each slot's name as fitted)
-            const slots = [...tb.querySelectorAll('.tb-qual .tb-n[data-full]'), ...[...tb.querySelectorAll('.tb-m[data-id^="r0m"] .tb-n[data-full]')]
-                .sort((a, b) => Number(a.closest('.tb-m').dataset.id.slice(3)) - Number(b.closest('.tb-m').dataset.id.slice(3)))];
-            slots.forEach(n => n.classList.add('ts-hide'));
-            const base = box.getBoundingClientRect(), k = box.offsetWidth ? base.width / box.offsetWidth : 1;
-            const W = box.offsetWidth, H = box.offsetHeight, across = 4, cw = 190, ch = 30, down = Math.ceil(slots.length / across);
-            const cell = i => ({ x: W / 2 - across * cw / 2 + (i % across) * cw + 10, y: H / 2 - down * ch / 2 + Math.floor(i / across) * ch + 24 });
-            const place = (c, p) => { c.style.transform = `translate(${p.x}px, ${p.y}px)`; };
-            const chips = slots.map((n, i) => {
-                const c = document.createElement('span');
-                c.className = 'ts-chip pname'; c.textContent = n.textContent; c.style.color = n.style.color;
-                box.appendChild(c); place(c, cell(i));
-                return c;
-            });
-            let order = chips.map((_, i) => i);
-            for (let s = 0; s < 8; s++) setTimeout(() => { if (!alive()) return; order = showShuffle(order); chips.forEach((c, i) => place(c, cell(order[i]))); }, 1200 + s * 200);
-            const step = Math.min(220, 3000 / Math.max(1, slots.length));
-            slots.forEach((n, i) => setTimeout(() => {
+            // The cards are the slots' own plates (the qualifier's, then round 1's direct places): each is moved by a transform
+            // into a grid in the middle, shuffled, then slides back to translate(0, 0), so it lands exactly on its slot, the
+            // same size and lettering, in either layout
+            const cards = [...tb.querySelectorAll('.tb-qual .tb-p'), ...[...tb.querySelectorAll('.tb-m[data-id^="r0m"] .tb-p')]
+                .sort((a, b) => Number(a.closest('.tb-m').dataset.id.slice(3)) - Number(b.closest('.tb-m').dataset.id.slice(3)))]
+                .filter(p => p.querySelector('.tb-n[data-full]'));
+            const base = tb.getBoundingClientRect(), k = tb.offsetWidth ? base.width / tb.offsetWidth : 1;
+            const home = cards.map(p => { const r = p.getBoundingClientRect(); return { x: (r.left - base.left) / k, y: (r.top - base.top) / k, w: r.width / k, h: r.height / k }; });
+            const cw = Math.max(...home.map(h => h.w)) + 8, ch = Math.max(...home.map(h => h.h)) + 6;
+            const W = tb.offsetWidth, H = tb.offsetHeight, across = Math.max(1, Math.min(cards.length, Math.floor(W / cw))), down = Math.ceil(cards.length / across);
+            const cell = i => ({ x: (W - across * cw) / 2 + 4 + (i % across) * cw, y: (H - down * ch) / 2 + 3 + Math.floor(i / across) * ch });
+            const place = (i, at) => { const c = cell(at); cards[i].style.transform = `translate(${(c.x - home[i].x).toFixed(1)}px, ${(c.y - home[i].y).toFixed(1)}px)`; };
+            cards.forEach((c, i) => { c.classList.add('ts-card'); place(i, i); });
+            let order = cards.map((_, i) => i);
+            for (let s = 0; s < 8; s++) setTimeout(() => { if (!alive()) return; order = showShuffle(order); cards.forEach((c, i) => place(i, order[i])); }, 1200 + s * 200);
+            const step = Math.min(220, 3000 / Math.max(1, cards.length));
+            cards.forEach((c, i) => setTimeout(() => {
                 if (!alive()) return;
-                const r = n.getBoundingClientRect();
-                chips[i].classList.add('flying');
-                place(chips[i], { x: (r.left - base.left) / k - 6, y: (r.top - base.top) / k - 2 });
-                setTimeout(() => { if (!alive()) return; n.classList.remove('ts-hide'); chips[i].classList.add('landed'); }, 520);
+                c.classList.add('flying');
+                c.style.transform = 'translate(0px, 0px)';
+                setTimeout(() => { if (alive()) c.classList.add('landed'); }, 520);
             }, 2900 + i * step));
         }
 

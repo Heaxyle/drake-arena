@@ -42,6 +42,7 @@ const { pageInit } = require('./page_hooks');
 const { settleArena } = require('./settle');
 const { offTwitch } = require('./no_twitch');   // a stand-in tmi.js: nothing reaches Twitch, no live chat gets in
 const { storageSettled } = require('./storage_sync');   // before a reload: the game's own save has reached the browser
+const { tourneyDrawProblems } = require('./tourney_layout');
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
@@ -79,7 +80,6 @@ async function open(browser, { lang = 'uk', betting = false, fx = false, sound =
         q.delete('setup');
         history.replaceState(null, '', location.pathname + '?' + q);
     }, [betting, fx, sound]);
-
     await page.addInitScript(installHooks);
     await page.goto(`${PAGE}?lang=${lang}&setup`);
     await page.evaluate(() => document.fonts.ready);
@@ -856,19 +856,24 @@ const key = (a, b) => [a, b].sort().join('-');
         // From here (the seeding is done) to the first game, nothing may draw from the game's random numbers
         const closeAt = await page.evaluate(() => { window.__rnd = 0; const r = Math.random; Math.random = function () { window.__rnd++; return r.apply(this, arguments); }; return Date.now(); });
         const d0 = await looks();
-        const draw0 = await page.evaluate(() => ({ title: document.querySelector('.ts-slam').textContent, chips: document.querySelectorAll('.ts-chip').length,
-            hidden: document.querySelectorAll('.tb-n.ts-hide').length, header: document.getElementById('status-plate').textContent }));
-        check(d0.kind === 'draw' && d0.cls.includes('ts-on') && draw0.title === 'Турнір Дрейк-Арени' && draw0.chips === 8 && draw0.hidden === 8 && /Жеребкування/.test(draw0.header) && d0.cues.includes('fanfare'),
-            `the draw: «${draw0.title}» slams in, 8 names in the middle, the 8 slots still empty; «${draw0.header}» on the plate; the fanfare`, JSON.stringify({ d0, draw0 }));
+        // The cards are the 8 slots' own plates, lifted off their slots into the middle
+        const draw0 = await page.evaluate(() => ({ title: document.querySelector('.ts-slam').textContent, cards: document.querySelectorAll('.tb-p.ts-card').length,
+            away: [...document.querySelectorAll('.tb-p.ts-card')].filter(c => !/^translate\(0px, 0px\)$|^$/.test(c.style.transform)).length, header: document.getElementById('status-plate').textContent }));
+        check(d0.kind === 'draw' && d0.cls.includes('ts-on') && draw0.title === 'Турнір Дрейк-Арени' && draw0.cards === 8 && draw0.away === 8 && /Жеребкування/.test(draw0.header) && d0.cues.includes('fanfare'),
+            `the draw: «${draw0.title}» slams in, the 8 cards (the slots' own plates) in the middle, off their slots; «${draw0.header}» on the plate; the fanfare`, JSON.stringify({ d0, draw0 }));
         await page.clock.runFor(4200);
         await settle(600);
         await shot(page, 'show-draw.png');
-        await page.clock.runFor(2700);
-        const drawn = await page.evaluate(() => ({ hidden: document.querySelectorAll('.tb-n.ts-hide').length, started: window.__starts.filter(s => s.tour).length, rnd: window.__rnd }));
+        await page.clock.runFor(2300);
+        await settle(900);   // the last cards' flight home (a CSS transition: real time)
+        const drawn = await page.evaluate(() => ({ landed: document.querySelectorAll('.tb-p.ts-card.landed').length, started: window.__starts.filter(s => s.tour).length, rnd: window.__rnd }));
+        const drawProblems = await page.evaluate(tourneyDrawProblems);
+        await page.clock.runFor(400);
         await until(page, () => window.__starts.some(s => s.tour), null, { step: 100 });
         const first = await page.evaluate(() => window.__starts.find(s => s.tour));
-        check(drawn.hidden === 0 && !drawn.started && drawn.rnd === 0 && first.t - closeAt === 7500,
-            `every name is in its slot before the draw ends, and the draw's shuffles took no game random numbers; the first game's countdown starts ${first.t - closeAt} ms after sign-up closed (the draw, 7.5 s)`, JSON.stringify({ drawn, wait: first.t - closeAt }));
+        check(drawn.landed === 8 && !drawProblems.length && !drawn.started && drawn.rnd === 0 && first.t - closeAt === 7500,
+            `before the draw ends every card has landed on its own slot (within 2 px, none overlapping), and the draw's shuffles took no game random numbers; the first game's countdown starts ${first.t - closeAt} ms after sign-up closed (the draw, 7.5 s)`,
+            JSON.stringify({ drawn, drawProblems, wait: first.t - closeAt }));
 
         // 3. The match intro over the start of game 1's countdown
         const qf = (await view(page)).tourney.rounds[0].map(m => [m.a, m.b]);
