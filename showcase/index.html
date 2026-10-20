@@ -482,10 +482,19 @@
         /* The champion: confetti, the jump onto the top step, the crown, the banner */
         .ts-champ .pd-col { position: relative; }
         .ts-champ-title { font-size: 22px; }
-        .ts-jump { animation: ts-jump 1.1s 0.5s cubic-bezier(0.3, 0.6, 0.4, 1) both; }
+        /* The champion: the drake and its crown in one wrapper (.ts-drake), so the crown moves with the jump and the idle bob;
+           the crown lands after the jump (which ends at 1.6 s) */
+        .ts-drake { position: relative; display: block; }
+        .ts-drake > .pd-sprite { display: block; }
+        .ts-drake.ts-jump { animation: ts-jump 1.1s 0.5s cubic-bezier(0.3, 0.6, 0.4, 1) both, ts-idle 2.4s 2.6s ease-in-out infinite; }
+        @keyframes ts-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        .ts-crown { position: absolute; z-index: 2; pointer-events: none; }
+        .ts-crown.flip { transform: scaleX(-1); }
+        .ts-crown-img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+        .ts-champ .ts-crown-img { animation: ts-drop 0.6s 1.7s cubic-bezier(0.5, 0, 0.6, 1.4) both; }
         @keyframes ts-jump { 0% { transform: translate(-300px, 150px); opacity: 0; } 12% { opacity: 1; } 55% { transform: translate(-110px, -90px); } 85% { transform: translate(0, 6px); } 100% { transform: translate(0, 0); opacity: 1; } }
-        .ts-crown-drop { position: absolute; left: 50%; top: -18px; width: 48px; height: 36px; margin-left: -34px; z-index: 2; animation: ts-drop 0.7s 1.8s cubic-bezier(0.5, 0, 0.6, 1.4) both; }
-        @keyframes ts-drop { from { transform: translateY(-240px); opacity: 0; } 40% { opacity: 1; } to { transform: translateY(0); opacity: 1; } }
+
+        @keyframes ts-drop { from { transform: translateY(-60px); opacity: 0; } 40% { opacity: 1; } to { transform: translateY(0); opacity: 1; } }   /* from just above the head: it stays in the podium area */
         .ts-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
         .ts-conf { position: absolute; top: 0; width: 8px; height: 8px; animation: ts-fall 3s linear infinite both; }
         .ts-confettiB { width: 4px; height: 12px; } .ts-confettiC { width: 12px; height: 12px; } .ts-confettiD { width: 12px; height: 8px; }
@@ -5134,6 +5143,15 @@ function drakeSpriteURL(type) {
                 '..aaaaaaaaaa..',
             ] },
             // Confetti pieces: a square, a strip, a plus and a twist (coloured by SHOW_CONFETTI's palettes)
+            // The small crown a champion wears: three points, a red and a blue gem, outlined so it shows on the gold drake too
+            headCrown: { pal: ['#2a1a06', '#b07a1c', '#f2c14e', '#fff3c4', '#e0452f', '#3b8fe8'], rows: [
+                '.a..a..a.',
+                'adaadaada',
+                'acccdccca',
+                'acecfceca',
+                'abbbbbbba',
+                '.aaaaaaa.',
+            ] },
             confettiA: { pal: ['#fff3c4', '#f2c14e'], rows: ['ab', 'bb'] },
             confettiB: { pal: ['#fff3c4', '#f2c14e'], rows: ['a', 'b', 'b'] },
             confettiC: { pal: ['#fff3c4', '#f2c14e'], rows: ['.b.', 'bab', '.b.'] },
@@ -5385,8 +5403,9 @@ function drakeSpriteURL(type) {
             box.classList.add('ts-champ');
             const title = box.querySelector('.pd-title');
             if (title) title.outerHTML = `<div class="ts-slam ts-champ-title">${showImg('trophy', 'ts-trophy')}<span>${sT('champion')}</span>${showImg('trophy', 'ts-trophy')}</div>`;
-            const sprite = box.querySelector('.pd-1 .pd-sprite');
-            if (sprite) { sprite.classList.add('ts-jump'); sprite.insertAdjacentHTML('afterend', showImg('crown', 'ts-crown-drop')); }
+            const sprite = box.querySelector('.pd-1 .pd-sprite'), champ = tourneyFighter(arenaState.podium[0]);
+            const drake = sprite && champ && showCrown(sprite, champ.drakeObj.type);
+            if (drake) drake.classList.add('ts-jump');
             const shapes = ['confettiA', 'confettiB', 'confettiC', 'confettiD'];
             let html = '';
             for (let i = 0; i < 70; i++) {
@@ -5397,6 +5416,28 @@ function drakeSpriteURL(type) {
             box.insertAdjacentHTML('beforeend', `<div class="ts-confetti">${html}</div>`);
             showSound('champion');
         }
+        // Where the crown sits on each viewer drake, in sprite pixels of the sprite as drawn (facing left): x is the column
+        // the crown is centred on, y the line its bottom edge sits on, so its bottom row covers the top row of the skull,
+        // in front of the horns and crests
+        const SHOW_HEADS = { red: { x: 12, y: 4 }, blue: { x: 10, y: 4 }, black: { x: 11, y: 5 }, gold: { x: 12, y: 4 }, purple: { x: 12, y: 4 }, green: { x: 10, y: 4 } };
+        // Crowns a drake sprite element: it goes into a wrapper (.ts-drake) with the crown, so the crown moves with whatever
+        // moves the drake. The crown is scaled like the sprite (its screen pixels per sprite pixel) and placed on whole sprite
+        // pixels; a mirrored sprite (a negative scaleX) gets its anchor and the crown mirrored too. Returns the wrapper, or
+        // null for a drake without a head anchor (the White Dragon)
+        function showCrown(sprite, type) {
+            const spr = DRAKE_SPRITES[type], head = SHOW_HEADS[type], crown = SHOW_SPRITES.headCrown;
+            if (!spr || !head || !sprite.offsetWidth) return null;
+            const W = spr.rows[0].length, cw = crown.rows[0].length, ch = crown.rows.length, k = sprite.offsetWidth / W;
+            const flip = /^matrix\(-/.test(getComputedStyle(sprite).transform);
+            const x = flip ? W - 1 - head.x : head.x;
+            const wrap = document.createElement('span');
+            wrap.className = 'ts-drake';
+            sprite.replaceWith(wrap);
+            wrap.appendChild(sprite);
+            wrap.insertAdjacentHTML('beforeend', `<span class="ts-crown${flip ? ' flip' : ''}" style="left:${(x - (cw - 1) / 2) * k}px;top:${(head.y - ch) * k}px;width:${cw * k}px;height:${ch * k}px">${showImg('headCrown', 'ts-crown-img')}</span>`);
+            return wrap;
+        }
+
         // The Hall of Fame right after the podium: the new champion's name engraved letter by letter
         function showEngrave() {
             if (!showOn()) return;
