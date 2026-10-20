@@ -413,23 +413,24 @@ const key = (a, b) => [a, b].sort().join('-');
             const w = await open(browser, { lang: 'uk' });
             const four = ['ania', 'borys', 'vira', 'hlib'];
             await register(w.page, 'uk', [...four, 'q1', 'q2']);
-            await w.page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => { if (sessionStorage.getItem('skipResume')) window.tourneyResume = () => {}; }));
+            await w.page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => {
+                if (new URLSearchParams(location.search).has('skipresume')) { window.tourneyResume = () => {}; window.__resumeSkipped = true; }
+            }));
             await mod(w.page, '!турнір 4');
             for (const n of four) await say(w.page, n, '!учасник');
             await until(w.page, () => tourGame && arenaState.kind === 'fight' && arenaState.turn >= 2, null, { step: 250 });
-            await w.page.evaluate(() => sessionStorage.setItem('skipResume', '1'));
-            await w.page.reload();
+            await w.page.goto(`${PAGE}?lang=uk&skipresume`);   // the reload, with the flag in the URL (it can't get lost)
             const t0 = await w.page.evaluate(() => Date.now());
             await w.page.clock.runFor(1000);
-            const stalled = await view(w.page), errorsAtStall = w.errors.length;
+            const stalled = await view(w.page), errorsAtStall = w.errors.length, skipped = await w.page.evaluate(() => !!window.__resumeSkipped);
             let took = Infinity;   // stays so if nothing restarts it within 20 s
             try { took = await until(w.page, () => arenaState.kind === 'countdown' && !!tourGame, null, { step: 250, max: 20000 }) + 1000; } catch (e) { /* reported below */ }
             const restarted = await view(w.page);
             const dog = w.errors.filter(e => /Tournament watchdog/.test(e)), others = w.errors.filter(e => !/Tournament watchdog/.test(e));
-            check(stalled.kind === 'idle' && stalled.tourney && stalled.tourney.phase === 'running' && !errorsAtStall
+            check(skipped && stalled.kind === 'idle' && stalled.tourney && stalled.tourney.phase === 'running' && !errorsAtStall
                 && took <= 5000 && restarted.kind === 'countdown' && tourPlate(restarted) && dog.length === 1 && !others.length,
                 `the watchdog: after a reload with the resume skipped, the arena sits idle with the tournament running; ${took / 1000} s later the watchdog starts the game again («${restarted.plate}») and says so once with console.error`,
-                JSON.stringify({ stalled: { kind: stalled.kind, phase: stalled.tourney && stalled.tourney.phase }, took, restarted: restarted.plate, dog, others, t0 }));
+                JSON.stringify({ skipped, stalled: { kind: stalled.kind, phase: stalled.tourney && stalled.tourney.phase }, took, restarted: restarted.plate, dog, others, t0 }));
             await w.context.close();
         }
     }
