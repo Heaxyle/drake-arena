@@ -13,7 +13,7 @@
 //      highest levels in opposite halves (announced); every game in the play log with its stage and game number
 //   3  A reload in the middle of a match: the tournament resumes at that match and replays the unfinished game. Then a
 //      reload at every moment (sign-up, the betting window, mid-game, the result screen between games, game 2's
-//      countdown, the 3rd-place game, the final, the podium): picked up at once, run to the end, the queue after it.
+//      countdown, the 3rd-place game, the final, the podium, the Hall of Fame): picked up at once, run to the end, the queue after it.
 //      The watchdog: a reload with the resume skipped; within 5 s it starts the next game itself (its console.error is
 //      expected there and nowhere else)
 //   4  Uneven sign-ups, the qualifier: 5 players (English, betting window on, all level 1): a main bracket of 4, the
@@ -155,6 +155,8 @@ const RELOAD_PHASES = [
       expect: a => a.kind === 'countdown' && /Фінал · Гра 1/.test(a.plate) },
     { label: 'on the podium', at: () => arenaState.kind === 'podium', podiumBefore: true,
       expect: a => a.kind === 'podium' },
+    { label: 'during the Hall of Fame', at: () => arenaState.kind === 'hall', podiumBefore: true,
+      expect: a => a.kind === 'hall' },
 ];
 const key = (a, b) => [a, b].sort().join('-');
 
