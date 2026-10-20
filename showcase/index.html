@@ -333,20 +333,38 @@
         .with-bracket .cd-bar { width: 180px; }
         .with-bracket .cd-title { font-size: 16px; }
         .with-bracket .cd-sub { font-size: 13px; max-width: 100%; overflow: hidden; flex-shrink: 0; }
-        .tb { display: flex; gap: 10px; width: 100%; flex: 1; min-height: 0; }
+        /* One-sided (rounds left to right) or mirrored (two halves meeting at the final in the middle, the timer above
+           it); the qualifier as a panel of its own on the left */
+        .tb { display: flex; gap: 12px; width: 100%; flex: 1; min-height: 0; }
         .tb-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+        .tb-qual { flex: 0 0 150px; }
+        .tb-mirror { gap: 8px; }
+        .tb-mid { flex: 0 0 172px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+        .tb-timer { display: flex; flex-direction: column; align-items: center; margin-bottom: 4px; }
+        .tb-timer .cd-row { flex-direction: column; gap: 4px; }
+        .tb-timer .cd-bar { width: 160px; }
+        .tb-timer .cd-title { font-size: 13px; line-height: 16px; max-width: 172px; white-space: normal; text-align: center; }
+        .tb-timer .cd-label { font-size: 11px; letter-spacing: 2px; }
         .tb-h { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: var(--gold); text-transform: uppercase; text-align: center; white-space: nowrap; overflow: hidden; flex-shrink: 0; }
         .tb-h3 { margin-top: 6px; }
         .tb-ms { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-around; gap: 3px; }
-        .tb-m { flex-shrink: 0; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.10); border-radius: 2px; }
+        .tb-m { flex-shrink: 0; display: flex; align-items: center; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.10); border-radius: 2px; }
         .tb-m.live { border-color: var(--gold); background: rgba(242, 193, 78, 0.12); box-shadow: 0 0 10px rgba(242, 193, 78, 0.25); }
-        .tb-p { display: flex; align-items: center; gap: 6px; height: 14px; line-height: 14px; padding: 0 6px; font-size: 12px; }
+        .tb-rows { flex: 1; min-width: 0; }
+        .tb-qn { flex-shrink: 0; width: 16px; text-align: center; font-family: var(--pixel); font-size: 8px; color: var(--gold); }
+        .tb-p { display: flex; align-items: center; gap: 6px; height: 17px; line-height: 17px; padding: 0 6px; font-size: 13px; }
+        .tb-half-1 .tb-p { flex-direction: row-reverse; }
+        .tb-half-1 .tb-n { text-align: right; }
         .tb-n { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; font-weight: 600; }
-        .tb-none { color: var(--dim); font-weight: 400; font-style: italic; }
+        .tb-none { color: var(--dim); font-weight: 400; font-style: italic; font-size: 12px; }
         .tb-s { flex-shrink: 0; font-family: var(--pixel); font-size: 9px; color: var(--text); }
         .tb-p.out { opacity: 0.45; }
         .tb-p.won .tb-n { font-weight: 800; }
         .tb-p.won .tb-s { color: var(--gold); }
+        /* During a tournament game whose names the bracket had to cut, the plate shows them in full on a second line */
+        #status-plate.two { flex-direction: column; align-items: flex-end; gap: 0; padding: 3px 12px; max-width: 600px; }
+        #status-plate.two .pl-label { display: block; max-width: 100%; overflow: hidden; font-size: 13px; line-height: 16px; }
+        #status-plate.two .pl-names { display: block; max-width: 100%; overflow: hidden; font-size: 13px; line-height: 16px; text-transform: none; color: var(--text); }
         .log-countdown.podium { gap: 10px; }
         .pd-title { font-size: 20px; font-weight: 800; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; }
         .pd { display: flex; align-items: flex-end; gap: 22px; }
@@ -804,6 +822,33 @@
                 el.innerHTML = `<span class="squeeze" style="transform: scaleX(${k})">${el.innerHTML}</span>`;
             }
         }
+        // A player's name on a tournament screen: it shrinks to fit (never below minPx, 12 px by default, so it stays
+        // readable on stream), and only then is cut in the middle with an ellipsis that keeps its end (@the_real_sl…dy_123),
+        // so names that differ only at the end stay apart. The full name stays in data-full. Returns true when it was cut
+        function fitName(el, minPx = 12) {
+            if (!el || !el.style) return false;
+            const full = el.dataset.full || el.textContent;
+            el.dataset.full = full;
+            el.textContent = full;
+            el.classList.remove('cut');
+            el.style.fontSize = '';
+            if (!el.clientWidth) return false;
+            const over = () => el.scrollWidth > el.clientWidth + 0.5;
+            let size = parseFloat(getComputedStyle(el).fontSize);
+            while (over() && size > minPx) { size = Math.max(minPx, size - 0.5); el.style.fontSize = size + 'px'; }
+            if (!over()) return false;
+            const at = full.startsWith('@') ? '@' : '', body = full.slice(at.length);
+            const cutTo = k => { const tail = Math.max(3, Math.floor(k * 0.4)); return at + body.slice(0, k - tail) + '…' + body.slice(body.length - tail); };
+            let lo = 4, hi = body.length - 1, best = cutTo(4);
+            while (lo <= hi) {
+                const k = (lo + hi) >> 1;
+                el.textContent = cutTo(k);
+                if (over()) hi = k - 1; else { best = el.textContent; lo = k + 1; }
+            }
+            el.textContent = best;
+            el.classList.add('cut');
+            return true;
+        }
         // The chips on one card shrink together: each is fitted, then all take the smallest size
         function fitChips(container) {
             if (!container || !container.querySelectorAll) return;
@@ -822,6 +867,7 @@
                 fitText(document.getElementById(`info-${p}`), 10);
             });
             document.querySelectorAll('.lb-name, .lb-sub, .sc-name, .sc-sub, .sc-title, .hp-text').forEach(el => fitText(el, 9));
+            document.querySelectorAll('#log-countdown .tb-n[data-full], #log-countdown .pd-name').forEach(el => fitName(el));
             ['status-p1', 'status-p2'].forEach(id => fitChips(document.getElementById(id)));
             updateQueueUI();
         }
@@ -845,15 +891,28 @@
             if (!type || !plate) return;
             const fightName = s.ranked ? (uk ? '🏆 Рейтинговий бій' : '🏆 Ranked battle') : (uk ? '🤝 Товариська дуель' : '🤝 Friendly duel');
             // A tournament game: the plate says «🏆 Турнір · Півфінал · Гра 2 · 1:0»; the countdown, turn or winner moves to the left
+            plate.classList.remove('two');
             if (tourGame && ['countdown', 'fight', 'result'].includes(s.kind)) {
-                plate.textContent = tourneyPlate(tourGame);
                 type.textContent = s.kind === 'countdown' ? fvT(s.betting ? 'plateBets' : 'plateStart')
                     : s.kind === 'fight' ? (uk ? `⚔️ Хід ${s.turn} / ${MAX_TURNS}` : `⚔️ Turn ${s.turn} / ${MAX_TURNS}`)
                     : s.winner ? `${uk ? '🏆 Перемога' : '🏆 Victory'} · @${s.winner.name}` : (uk ? '🤝 Нічия' : '🤝 Draw');
-                fitText(plate, 11);
+                fitText(type, 10);
+                // A name the bracket had to cut: both names in full under the label, as on the cards (left, then right)
+                const g = tourGame, cut = (tourney && tourney.cut) || [];
+                if (cut.includes(g.a) || cut.includes(g.b)) {
+                    const flip = fv.p1 && fv.p1.name === g.b;
+                    const nm = n => { const f = tourneyFighter(n); return `<span class="pname" style="color:${nameColor(f ? f.color : '#e8eaf2')}">@${n}</span>`; };
+                    plate.classList.add('two');
+                    plate.innerHTML = `<span class="pl-label">${tourneyPlate(g)}</span><span class="pl-names">${flip ? `${nm(g.b)} — ${nm(g.a)}` : `${nm(g.a)} — ${nm(g.b)}`}</span>`;
+                    plate.querySelectorAll('.pl-label, .pl-names').forEach(el => fitText(el, 11));
+                } else {
+                    plate.textContent = tourneyPlate(g);
+                    fitText(plate, 11);
+                }
             } else if (s.kind === 'podium') {
                 type.textContent = tT('podium');
                 plate.textContent = tT('champion', { who: '@' + s.podium[0] });
+                fitText(plate, 11);
             } else if (s.kind === 'idle') {
                 type.textContent = uk ? 'Арена чекає на бійців' : 'The arena awaits fighters';
                 plate.textContent = uk ? '⏳ Очікування' : '⏳ Waiting';
@@ -1358,10 +1417,14 @@
                         return;
                     }
                     box.dataset.token = token;
-                    box.innerHTML = `<div class="cd-row"><span class="cd-label">${fvT('cdLabel')}</span><span class="cd-time" id="cd-time">${time}</span>`
+                    // One-sided: the timer in a row on top; mirrored: above the final, in the middle of the bracket
+                    const row = `<div class="cd-row"><span class="cd-label">${fvT('cdLabel')}</span><span class="cd-time" id="cd-time">${time}</span>`
                         + `<div class="cd-bar"><div class="px-track"><div class="px-fill cd-fill" id="cd-fill" style="transform:scaleX(${left / total})"></div></div></div>`
-                        + `<span class="cd-title">${title}</span></div><span class="cd-sub">🏆 ${tourneyLabel(tourGame)} · ${sub}</span>${tourneyBracketHtml()}`;
-                    box.querySelectorAll('.tb-n, .tb-h, .cd-sub').forEach(el => fitText(el, 9));
+                        + `<span class="cd-title">${title}</span></div>`;
+                    const subLine = `<span class="cd-sub">🏆 ${tourneyLabel(tourGame)} · ${sub}</span>`;
+                    box.innerHTML = tourneyMirrored() ? subLine + tourneyBracketHtml(row) : row + subLine + tourneyBracketHtml();
+                    box.querySelectorAll('.cd-sub').forEach(el => fitText(el, 9));
+                    tourneyFitBracket(box);
                     return;
                 }
                 box.innerHTML = `<span class="cd-label">${fvT('cdLabel')}</span><span class="cd-time" id="cd-time">${time}</span>`
@@ -3397,7 +3460,7 @@ function drakeSpriteURL(type) {
                   qualNews: '🏆 {n} учасників: {direct} з найвищим рівнем — одразу в {into}, {q} грають кваліфікацію за {spots}',
                   seeds: '🏆 Найвищі рівні — {a} і {b}: вони в різних половинах сітки й можуть зустрітися лише у фіналі.',
                   spots: ['{n} місце', '{n} місця', '{n} місць'], qualWon: '🏆 {who} проходить кваліфікацію: далі — {stage}',
-                  game: 'Гра {n}', replay: 'перегравання', tbd: '…', podium: '🏆 Турнір завершено', champion: '🥇 {who}',
+                  game: 'Гра {n}', replay: 'перегравання', tbd: '…', qualSlot: 'кваліф. {n}', podium: '🏆 Турнір завершено', champion: '🥇 {who}',
                   won: '🏆 {label}: перемагає {who} ({score})', draw: '🤝 {label}: нічия — гру буде переграно',
                   matchWon: '🏆 {who} виграє матч {score} ({stage})' },
             en: { name: 'Tournament', signupLine: '🏆 Tournament: sign-up · {n}/{size} · <b>!join</b>', onLine: '🏆 Tournament on · the queue waits',
@@ -3418,7 +3481,7 @@ function drakeSpriteURL(type) {
                   qualNews: '🏆 {n} players: {direct} with the highest levels straight into the {into}, {q} play a qualifier for {spots}',
                   seeds: '🏆 The highest levels, {a} and {b}, are in opposite halves of the bracket: they can only meet in the final.',
                   spots: ['{n} spot', '{n} spots', '{n} spots'], qualWon: '🏆 {who} is through the qualifier: next, the {stage}',
-                  game: 'Game {n}', replay: 'replay', tbd: '…', podium: '🏆 Tournament over', champion: '🥇 {who}',
+                  game: 'Game {n}', replay: 'replay', tbd: '…', qualSlot: 'qualifier {n}', podium: '🏆 Tournament over', champion: '🥇 {who}',
                   won: '🏆 {label}: {who} wins ({score})', draw: '🤝 {label}: a draw — the game will be replayed',
                   matchWon: '🏆 {who} wins the match {score} ({stage})' },
         };
@@ -3606,25 +3669,50 @@ function drakeSpriteURL(type) {
             const flip = fv.p1 && fv.p1.name === g.b;
             return `🏆 ${tT('name')} · ${tourneyLabel(g)} · ${flip ? g.score[1] : g.score[0]}:${flip ? g.score[0] : g.score[1]}`;
         }
-        // The bracket, compact, under the betting window's timer: the qualifier (if any) as its own column, then one column
-        // per round (the 3rd-place game under the final)
-        function tourneyBracketHtml() {
+        // The bracket, compact, with the betting window's timer. Two layouts (TOURNEY_MIRROR, by the main bracket's size):
+        // one-sided, the rounds left to right with the final last (the 3rd-place game under it) and the timer in a row
+        // above; or mirrored, like esports brackets, the two halves meeting at the final in the middle (each column half
+        // as tall), the timer above the final (timer: its HTML). The qualifier is a panel of its own on the left, its
+        // games numbered, and a round-1 place still to be won names its game («кваліф. 2»). Every match carries its id
+        // (data-id: q0, r1m2, third) and every name its full text (data-full), for tourneyFitBracket and the show
+        const TOURNEY_MIRROR = { 4: false, 8: false, 16: true };
+        const tourneyMirrored = () => !!tourney && !!TOURNEY_MIRROR[tourney.bracket];
+        function tourneyBracketHtml(timer = '') {
             const t = tourney;
             if (!t || !t.rounds) return '';
-            const cur = tourGame;
-            const who = n => n ? `<span class="tb-n pname" style="color:${nameColor(tourneyFighter(n).color)}">@${n}</span>`
-                : `<span class="tb-n tb-none">${tT('tbd')}</span>`;
-            const match = (m, id) => {
+            const cur = tourGame, last = t.rounds.length - 1;
+            const qualFor = (id, side) => id.r === 0 ? t.qual.findIndex(x => x.to && x.to.m === id.m && x.to.side === side) : -1;
+            const who = (n, empty) => n ? `<span class="tb-n pname" data-full="@${n}" style="color:${nameColor(tourneyFighter(n).color)}">@${n}</span>`
+                : `<span class="tb-n tb-none">${empty}</span>`;
+            const match = (m, id, key) => {
                 const live = cur && cur.q === id.q && !!cur.third === !!id.third && cur.r === id.r && cur.m === id.m;
                 const started = m.winner || m.w[0] || m.w[1];
-                const row = (n, w) => `<div class="tb-p${m.winner && n && m.winner === n ? ' won' : ''}${m.winner && n && m.winner !== n ? ' out' : ''}">${who(n)}<span class="tb-s">${started ? w : ''}</span></div>`;
-                return `<div class="tb-m${live ? ' live' : ''}">${row(m.a, m.w[0])}${row(m.b, m.w[1])}</div>`;
+                const row = (n, w, side) => {
+                    const q = qualFor(id, side);
+                    return `<div class="tb-p${m.winner && n && m.winner === n ? ' won' : ''}${m.winner && n && m.winner !== n ? ' out' : ''}">`
+                        + `${who(n, q !== -1 ? tT('qualSlot', { n: q + 1 }) : tT('tbd'))}<span class="tb-s">${started ? w : ''}</span></div>`;
+                };
+                return `<div class="tb-m${live ? ' live' : ''}" data-id="${key}">${id.q !== undefined ? `<span class="tb-qn">${id.q + 1}</span>` : ''}`
+                    + `<div class="tb-rows">${row(m.a, m.w[0], 'a')}${row(m.b, m.w[1], 'b')}</div></div>`;
             };
-            const last = t.rounds.length - 1;
-            const qual = t.qual.length ? `<div class="tb-col tb-qual"><div class="tb-h">${tT('qual')}</div><div class="tb-ms">${t.qual.map((m, q) => match(m, { q })).join('')}</div></div>` : '';
-            return `<div class="tb">${qual}` + t.rounds.map((round, r) => `<div class="tb-col"><div class="tb-h">${tT(tourneyStage({ r }))}</div><div class="tb-ms">`
-                + round.map((m, i) => match(m, { r, m: i })).join('')
-                + (r === last ? `<div class="tb-h tb-h3">${tT('third')}</div>${match(t.third, { third: true })}` : '') + `</div></div>`).join('') + `</div>`;
+            const ms = (r, from, to) => t.rounds[r].slice(from, to).map((m, i) => match(m, { r, m: from + i }, `r${r}m${from + i}`)).join('');
+            const col = (r, inner, cls = '') => `<div class="tb-col${cls}" data-r="${r}"><div class="tb-h">${tT(tourneyStage({ r }))}</div><div class="tb-ms">${inner}</div></div>`;
+            const third = `<div class="tb-h tb-h3">${tT('third')}</div>${match(t.third, { third: true }, 'third')}`;
+            const qual = t.qual.length ? `<div class="tb-col tb-qual"><div class="tb-h">${tT('qual')}</div><div class="tb-ms">${t.qual.map((m, q) => match(m, { q }, 'q' + q)).join('')}</div></div>` : '';
+            if (!tourneyMirrored()) {
+                return `<div class="tb tb-one">${qual}` + t.rounds.map((round, r) => col(r, ms(r, 0, round.length) + (r === last ? third : ''), r === last ? ' tb-last' : '')).join('') + `</div>`;
+            }
+            const sides = t.rounds.slice(0, last).map((round, r) => [col(r, ms(r, 0, round.length / 2), ' tb-half-0'), col(r, ms(r, round.length / 2, round.length), ' tb-half-1')]);
+            const mid = `<div class="tb-mid" data-r="${last}">${timer ? `<div class="tb-timer">${timer}</div>` : ''}<div class="tb-h">${tT('final')}</div>${ms(last, 0, 1)}${third}</div>`;
+            return `<div class="tb tb-mirror">${qual}${sides.map(s => s[0]).join('')}${mid}${sides.map(s => s[1]).reverse().join('')}</div>`;
+        }
+        // Fits the bracket: its names with fitName (12 px at least, then cut in the middle), its headers and placeholders.
+        // The names it had to cut are kept in tourney.cut, so the plate shows them in full during their games
+        function tourneyFitBracket(box) {
+            if (!box) return;
+            box.querySelectorAll('.tb-h, .tb-none').forEach(el => fitText(el, 9));
+            const cut = [...box.querySelectorAll('.tb-n[data-full]')].filter(el => fitName(el)).map(el => el.dataset.full.slice(1));
+            if (tourney && cut.some(n => !(tourney.cut || []).includes(n))) { tourney.cut = [...new Set([...(tourney.cut || []), ...cut])]; tourneySave(); renderArenaHeader(); }
         }
         // 🥈 🥇 🥉 with names and sprites, in the log area
         function tourneyShowPodium() {
@@ -3641,7 +3729,7 @@ function drakeSpriteURL(type) {
             };
             box.className = 'log-countdown podium';
             box.innerHTML = `<span class="pd-title">${tT('podium')}</span><div class="pd">${step(s.podium[1], 2)}${step(s.podium[0], 1)}${step(s.podium[2], 3)}</div>`;
-            box.querySelectorAll('.pd-name').forEach(el => fitText(el, 10));
+            box.querySelectorAll('.pd-name').forEach(el => fitName(el));
             panel.classList.add('counting');
         }
 

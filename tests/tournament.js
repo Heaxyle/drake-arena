@@ -460,7 +460,8 @@ const key = (a, b) => [a, b].sort().join('-');
         const cols = page => page.evaluate(() => [...document.querySelectorAll('#log-countdown .tb-col')].map(c => ({
             h: c.querySelector('.tb-h').textContent,
             ms: [...c.querySelectorAll('.tb-ms > .tb-m')].map(m => ({ live: m.classList.contains('live'), won: !!m.querySelector('.tb-p.won'),
-                p: [...m.querySelectorAll('.tb-n')].map(n => n.textContent) })) })));
+                p: [...m.querySelectorAll('.tb-n')].map(n => n.classList.contains('tb-none') ? '…' : n.textContent),   // a place still to be won: «…»
+                raw: [...m.querySelectorAll('.tb-n')].map(n => n.textContent) })) })));
         // Every bracket box inside the countdown area, and every name inside its box
         const fits = page => page.evaluate(() => {
             const box = document.getElementById('log-countdown').getBoundingClientRect();
@@ -482,7 +483,8 @@ const key = (a, b) => [a, b].sort().join('-');
             const start = await page.evaluate(() => window.__starts[window.__starts.length - 1]);
             const c = await cols(page);
             check(start.tour.stage === 'qual' && !start.betting && start.total === 10000 && start.bracket && v.plate === '🏆 Tournament · Qualifier 1/1' && v.cdTitle === 'Qualifier 1/1'
-                && c.map(x => x.h).join() === 'Qualifier,Semifinal,Final' && c[0].ms.length === 1 && c[0].ms[0].live && c[1].ms.flatMap(m => m.p).filter(p => p === '…').length === 1,
+                && c.map(x => x.h).join() === 'Qualifier,Semifinal,Final' && c[0].ms.length === 1 && c[0].ms[0].live && c[1].ms.flatMap(m => m.p).filter(p => p === '…').length === 1
+                && c[1].ms.flatMap(m => m.raw).includes('qualifier 1'),
                 `the qualifier game: no betting window, the 10 s countdown with the bracket, the qualifier its own first column (live), one semifinal place "…"; "${v.plate}"`,
                 JSON.stringify({ start, plate: v.plate, cdTitle: v.cdTitle, c }));
             const plates = new Set();
@@ -582,9 +584,12 @@ const key = (a, b) => [a, b].sort().join('-');
             for (const n of players) await say(page, n, '!join');
             await page.clock.runFor(1000);
             const v16 = await view(page), c16 = await cols(page);
-            check(v16.tourney.bracket === 16 && !v16.tourney.qual.length && v16.plate === '🏆 Tournament · Round of 16 · Game 1 · 0:0' && c16[0].h === 'Round of 16' && c16[0].ms.length === 8
-                && !/qualifier/.test(v16.chat) && await fits(page),
-                `16 players: a bracket of 16, no qualifier; "${v16.plate}"`, JSON.stringify({ plate: v16.plate, chat: v16.chat, cols: c16.map(x => x.h) }));
+            const mid16 = await page.evaluate(() => { const m = document.querySelector('#log-countdown .tb-mirror .tb-mid'); return m ? { h: m.querySelector('.tb-h').textContent, timer: !!m.querySelector('.tb-timer #cd-time'), matches: m.querySelectorAll('.tb-m').length } : null; });
+            check(v16.tourney.bracket === 16 && !v16.tourney.qual.length && v16.plate === '🏆 Tournament · Round of 16 · Game 1 · 0:0'
+                && c16.map(x => x.h).join() === 'Round of 16,Quarterfinal,Semifinal,Semifinal,Quarterfinal,Round of 16' && c16[0].ms.length === 4 && c16[5].ms.length === 4
+                && mid16 && mid16.h === 'Final' && mid16.timer && mid16.matches === 2 && !/qualifier/.test(v16.chat) && await fits(page),
+                `16 players: a bracket of 16, no qualifier, mirrored: two halves of 4 round-of-16 matches meeting at the final in the middle (the timer above it, the 3rd-place game under it); "${v16.plate}"`,
+                JSON.stringify({ plate: v16.plate, chat: v16.chat, cols: c16.map(x => `${x.h} ${x.ms.length}`), mid16 }));
             await mod(page, '!tournament stop');
             await mod(page, '!tournament 4');
             await mod(page, '!tournament stop');
