@@ -2937,15 +2937,10 @@ function drakeSpriteURL(type) {
         }
 
         /* --- ІНТЕГРАЦІЯ З TWITCH --- */
-        // tmi.js loads on its own (async): chat connects once it's there. If it can't load (offline), the page still works,
-        // Twitch chat just won't connect
-        let client = null;
-        function connectTwitch() {
-            if (client || !window.tmi) return;
-            client = new tmi.Client({ channels: [TWITCH_CHANNEL] });
-            client.on('message', handleChatMessage);
-            client.connect().catch(console.error);
-        }
+        // If tmi.js can't load (offline), the page still works — Twitch chat just won't connect
+        const client = window.tmi ? new tmi.Client({ channels: [TWITCH_CHANNEL] }) : null;
+        if (client) client.connect().catch(console.error);
+        else console.warn('tmi.js not loaded: Twitch chat disabled');
 
         // The White Dragon is the streamer's alone (STREAMER_USER); anyone else asking for it gets this reply
         function refuseDragon(sender, senderColor) {
@@ -3204,7 +3199,7 @@ function drakeSpriteURL(type) {
                     `⏳ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> став у чергу на рейтинговий бій! (У черзі: ${matchmakingQueue.length})` :
                     `⏳ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> joined ranked queue! (In queue: ${matchmakingQueue.length})`;
                 addInfo(msg);
-                checkQueue();
+                nextFight();   // not checkQueue(): during a tournament the queue waits, whatever state the arena is in
                 return;
             }
 
@@ -3270,14 +3265,7 @@ function drakeSpriteURL(type) {
                 }, 30000);
             }
         }
-        if (window.tmi) connectTwitch();
-        else if (FV_LIVE) {
-            const tmiScript = document.getElementById('tmi-script');
-            if (tmiScript) {
-                tmiScript.addEventListener('load', () => { connectTwitch(); if (!client) console.warn('tmi.js not loaded: Twitch chat disabled'); });
-                tmiScript.addEventListener('error', () => console.warn('tmi.js not loaded: Twitch chat disabled'));
-            }
-        }
+        if (client) client.on('message', handleChatMessage);
 
         function checkQueue() {
             if (arenaBusy() || waitingDuel || matchmakingQueue.length < 2) return;
@@ -3343,6 +3331,19 @@ function drakeSpriteURL(type) {
             if (tourneyOn()) { tourneyNext(); return; }
             checkQueue();
         }
+        // Tournament watchdog: while a tournament is on, something always follows on the arena (a game, the podium), so
+        // it never sits free for long. If it has been free for TOURNEY_WATCHDOG_MS anyway, a step failed to call
+        // nextFight(): call it, and say so with console.error (the browser tests fail on any console error, so they notice).
+        // Browser only: the Node tests run their timers to the end instead
+        const TOURNEY_WATCHDOG_MS = 5000;
+        let tourneyFreeSince = Date.now();
+        if (FV_LIVE) setInterval(() => {
+            if (!tourneyOn() || arenaBusy() || bettingWait) { tourneyFreeSince = Date.now(); return; }
+            if (Date.now() - tourneyFreeSince < TOURNEY_WATCHDOG_MS) return;
+            console.error(`Tournament watchdog: the arena sat free for ${TOURNEY_WATCHDOG_MS / 1000} s during a tournament; starting the next game`);
+            tourneyFreeSince = Date.now();
+            nextFight();
+        }, 1000);
 
         /* ===== Tournament: single elimination, best of 3, everyone at level 20 =====
            The streamer or a moderator opens sign-up (!турнір [4|8|16]); viewers with a drake join (!учасник) or leave

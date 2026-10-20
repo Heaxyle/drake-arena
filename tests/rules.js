@@ -60,6 +60,8 @@ eval(gameScript(FILE) + `
     wrapRunBattle: f => { const orig = runBattle; runBattle = (...a) => { f(...a); return orig(...a); }; },
     wrapAddInfo: f => { const orig = addInfo; addInfo = (html, ...r) => { f(html); return orig(html, ...r); }; },
     wrapAddLog: f => { const orig = addLog; addLog = t => { orig(t); f(t); }; },
+    // The next fight turn throws (inside the fight loop's try), as a simulation error would
+    failNextTurn: () => { const orig = fvTurnEnd; fvTurnEnd = function () { fvTurnEnd = orig; throw new Error('forced by a test'); }; },
 };`);
 console.warn = _warn;
 const G = globalThis.__game;
@@ -74,7 +76,9 @@ const DRAKE = Object.fromEntries(G.DRAKE_TYPES.map(d => [d.type, d]));
 
 let infos = [], logs = [], fightsStarted = [];
 G.wrapAddInfo(h => infos.push(strip(h)));
-G.wrapAddLog(t => logs.push(strip(t)));
+// onSimError: run once, right when a "simulation error" is logged (inside the fight loop's catch, before its 2 s nextFight)
+let onSimError = null;
+G.wrapAddLog(t => { logs.push(strip(t)); if (onSimError && /simulation error|помилка симуляції/i.test(strip(t))) { const f = onSimError; onSimError = null; f(); } });
 G.wrapRunBattle((a, ac, b, bc, ranked) => fightsStarted.push({ a, b, ranked }));
 const lastInfo = () => infos[infos.length - 1] || '';
 // A clean slate: no saves, stats, queue, challenges or fight
@@ -517,6 +521,30 @@ for (const lang of ['en', 'uk']) {
                 : `18. ${n} players: round 1 straight away, on to the podium`,
             JSON.stringify({ stages, inFirst }));
         fresh();
+    }
+    {
+        // A simulation error in a tournament game: for 2 s the arena is free before the next fight. Two !queue in that
+        // moment only join the queue (it goes through nextFight, which runs the tournament): no ranked fight starts, the
+        // tournament game comes next, and the queue waits for the whole tournament
+        fresh();
+        ['ea', 'eb', 'ec', 'ed', 'q1', 'q2'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 3 }));
+        G.sayAs('mod1', t('!tournament 4', '!турнір 4'), { mod: true });
+        ['ea', 'eb', 'ec', 'ed'].forEach(n => G.say(n, t('!join', '!учасник')));   // full: the first game starts
+        const first = fightsStarted[0];
+        let atError = null;
+        onSimError = () => {
+            G.say('q1', t('!queue', '!черга')); G.say('q2', t('!queue', '!черга'));
+            atError = { fights: fightsStarted.length, queue: [...G.queue], last: fightsStarted[fightsStarted.length - 1] };
+        };
+        G.failNextTurn();
+        __drain();
+        const ranked = fightsStarted.filter(f => f.ranked), lastTourney = fightsStarted.map(f => !f.ranked).lastIndexOf(true);
+        check(first && !first.ranked && atError && atError.fights === 2 && !atError.last.ranked && [atError.last.a, atError.last.b].sort().join() === [first.a, first.b].sort().join()
+            && atError.queue.join() === 'q1,q2' && ranked.length === 1 && fightsStarted.indexOf(ranked[0]) > lastTourney && !G.tourney,
+            '18. a simulation error in a tournament game, then two !queue at once: no ranked fight; the same tournament game is played again next, and the queue (@q1, @q2) waits for the end of the tournament',
+            JSON.stringify({ first, atError, fights: fightsStarted }));
+        onSimError = null;
+        __drain(); fresh();
     }
     {
         // Cancelled in the middle of a game: that game counts for nothing, and the queue and duels are back

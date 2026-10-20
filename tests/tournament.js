@@ -12,8 +12,9 @@
 //      and !бій gets a short reply meanwhile; the podium; then the queue and duels carry on, queue order kept
 //   3  A reload in the middle of a match: the tournament resumes at that match and replays the unfinished game. Then a
 //      reload at every moment (sign-up, the betting window, mid-game, the result screen between games, game 2's
-//      countdown, the 3rd-place game, the final, the podium; and mid-game with tmi.js never answering):
-//      picked up at once, run to the end, the queue after it
+//      countdown, the 3rd-place game, the final, the podium): picked up at once, run to the end, the queue after it.
+//      The watchdog: a reload with the resume skipped; within 5 s it starts the next game itself (its console.error is
+//      expected there and nowhere else)
 //   4  Uneven sign-ups, the qualifier: 5 players (English, betting window on): a main bracket of 4, the first 3 straight
 //      in, the last 2 in one qualifier game (no betting window, the 10 s countdown, the bracket with its «Qualifier»
 //      column), its winner in the semifinals, then a betting window for game 1 of every later match; the English stage
@@ -146,10 +147,6 @@ const RELOAD_PHASES = [
       expect: a => a.kind === 'countdown' && /Фінал · Гра 1/.test(a.plate) },
     { label: 'on the podium', at: () => arenaState.kind === 'podium', podiumBefore: true,
       expect: a => a.kind === 'podium' },
-    // Twitch's library never answers after this reload: the page mustn't wait for it
-    { label: 'in the middle of a game, with tmi.js never answering', hang: true,
-      at: () => tourGame && tourGame.stage === 'sf' && arenaState.kind === 'fight' && arenaState.turn >= 2,
-      expect: a => a.kind === 'countdown' && tourPlate(a) && /Гра 1/.test(a.plate) },
 ];
 const key = (a, b) => [a, b].sort().join('-');
 
@@ -389,8 +386,7 @@ const key = (a, b) => [a, b].sort().join('-');
                 await until(r.page, phase.at, null, { step: 250 });
             }
             const before = await r.page.evaluate(() => ({ kind: arenaState.kind, phase: tourney && tourney.phase, games: window.__games.length }));
-            if (phase.hang) await r.page.route(/tmi(\.min)?\.js/, () => {});   // left unanswered
-            await r.page.reload({ waitUntil: phase.hang ? 'domcontentloaded' : 'load', timeout: 10000 });
+            await r.page.reload();
             await r.page.clock.runFor(500);
             const after = await view(r.page), diag = await afterReload(r.page);
             await say(r.page, 'q1', '!черга'); await say(r.page, 'q2', '!черга');
@@ -407,6 +403,33 @@ const key = (a, b) => [a, b].sort().join('-');
                 `a reload ${phase.label}: «${after.plate || after.line}» at once (${after.kind}); the tournament runs on to its podium and ends, then the queue carries on (@q1 against @q2)`,
                 JSON.stringify({ before, after: { kind: after.kind, plate: after.plate, line: after.line, phase: after.tourney && after.tourney.phase }, diag, ended, podium, next, errors: r.errors }));
             await r.context.close();
+        }
+
+        // The watchdog. A stall forced on purpose: a reload mid-game with the resume skipped (tourneyResume replaced by a
+        // no-op just before the page starts up), so the tournament is saved as running but nothing restarts it. Within
+        // 5 s the watchdog starts the next game itself, with one console.error, the one place that error is expected
+        {
+            const w = await open(browser, { lang: 'uk' });
+            const four = ['ania', 'borys', 'vira', 'hlib'];
+            await register(w.page, 'uk', [...four, 'q1', 'q2']);
+            await w.page.addInitScript(() => document.addEventListener('DOMContentLoaded', () => { if (sessionStorage.getItem('skipResume')) window.tourneyResume = () => {}; }));
+            await mod(w.page, '!турнір 4');
+            for (const n of four) await say(w.page, n, '!учасник');
+            await until(w.page, () => tourGame && arenaState.kind === 'fight' && arenaState.turn >= 2, null, { step: 250 });
+            await w.page.evaluate(() => sessionStorage.setItem('skipResume', '1'));
+            await w.page.reload();
+            const t0 = await w.page.evaluate(() => Date.now());
+            await w.page.clock.runFor(1000);
+            const stalled = await view(w.page), errorsAtStall = w.errors.length;
+            let took = Infinity;   // stays so if nothing restarts it within 20 s
+            try { took = await until(w.page, () => arenaState.kind === 'countdown' && !!tourGame, null, { step: 250, max: 20000 }) + 1000; } catch (e) { /* reported below */ }
+            const restarted = await view(w.page);
+            const dog = w.errors.filter(e => /Tournament watchdog/.test(e)), others = w.errors.filter(e => !/Tournament watchdog/.test(e));
+            check(stalled.kind === 'idle' && stalled.tourney && stalled.tourney.phase === 'running' && !errorsAtStall
+                && took <= 5000 && restarted.kind === 'countdown' && tourPlate(restarted) && dog.length === 1 && !others.length,
+                `the watchdog: after a reload with the resume skipped, the arena sits idle with the tournament running; ${took / 1000} s later the watchdog starts the game again («${restarted.plate}») and says so once with console.error`,
+                JSON.stringify({ stalled: { kind: stalled.kind, phase: stalled.tourney && stalled.tourney.phase }, took, restarted: restarted.plate, dog, others, t0 }));
+            await w.context.close();
         }
     }
 

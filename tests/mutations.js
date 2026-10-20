@@ -208,6 +208,8 @@ const MUTATIONS = [
         'const tourneySingle = id => id.q !== undefined || !!id.third;', 'const tourneySingle = id => !!id.third;'],
     ['qualifier after round 1', 'round-1 matches with both players known are played before the qualifier',
         'if (q !== -1) return { q };', "if (q !== -1 && t.rounds[0].every(m => !m.a || !m.b || m.winner)) return { q };"],
+    ['!queue starts ranked fights directly', '!queue calls checkQueue() itself, so after a simulation error during a tournament a ranked fight starts',
+        'nextFight();   // not checkQueue(): during a tournament the queue waits', 'checkQueue();   // not checkQueue(): during a tournament the queue waits'],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported
