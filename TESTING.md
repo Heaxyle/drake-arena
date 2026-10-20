@@ -3,7 +3,7 @@
 Drake Arena is a single HTML file with no build step, so the tests work on that file as it is. The testing has two layers:
 
 1. **Effect rules, ultimates, game rules and balance simulation** (`tests/effects.js`, `tests/ultimates.js`, `tests/rules.js`, `tests/balance.js` + `tests/sim_harness.js`) run the real game code in Node. The effect, ultimate and rules tests check the buff/debuff, meter, ultimate, chat and fight rules; the balance sim plays thousands of fights. Together they answer: *do the rules work as written, is the game fair, and does combat ever crash?*
-2. **UI smoke test, layout test and fight view test** (`tests/ui.js`, `tests/layout.js`, `tests/fightview.js`) open the page in headless Chromium, play it through fake chat and check the layout, the battle log and the turn animation. They answer: *does it work and look right on stream?*
+2. **UI smoke test, layout test and fight view test** (`tests/ui.js`, `tests/layout.js`, `tests/fightview.js`) open the page in headless Chromium, play it through fake chat and check the layout, the battle log and the turn animation. They answer: *does it work and look right on stream?* The play log test (`tests/playlog.js`) checks what the game records about play and its export.
 
 Both run in CI (`.github/workflows/ci.yml`) on every pull request and on every push to `main`, so each PR update runs CI once.
 
@@ -25,7 +25,9 @@ flowchart TD
     V -->|a check failed| X
     V -->|all checks passed| K["Layer 2: controls test<br/>npm run test:controls"]
     K -->|a check failed| X
-    K -->|all checks passed| P[CI passes]
+    K -->|all checks passed| PL["Layer 2: play log test<br/>npm run test:playlog"]
+    PL -->|a check failed| X
+    PL -->|all checks passed| P[CI passes]
     E -.->|always| S[Upload tests/screenshots<br/>as a build artifact]
     X -.-> S
 ```
@@ -466,6 +468,28 @@ Text that is still too wide at its smallest allowed size is squeezed sideways (`
 | The Test Settings drake and title drop-downs switch language while the panel is closed and while it's open, keeping the picks | Old-language names after a switch with the panel closed |
 | Switching language during a fight redraws both fighter cards at once (title, info line, stats, chips, the СИЛА / POWER label), with the same HP and meter, and every card block where it was | Cards in the old language until the next turn, or the switch moving things |
 
+## Layer 2: play log test
+
+`playlog.js` checks the [play log](showcase/README.md#play-log): the record of fights, title rolls, element changes and `!черга` that the game keeps in IndexedDB, and `exportPlayLog()`. Like `ui.js` it plays through fake chat with seeded fights on the paused game clock, so every time in the log is exact.
+
+| Check | What it catches |
+|---|---|
+| A run through chat (three `!дрейк`, a `!титул` for channel points, `!черга` twice from one player, then a second player, a ranked fight with the betting window on, a duel with it off, a `!рерол` at level 5) leaves exactly those events in the log, in order | Events missing, doubled or out of order |
+| New drakes and the element change: who, the element (and the old one), the levels lost (5 → 1) | A reroll logged without what it cost |
+| The title roll: who, the old and the new title as the saves have them, channel points | Wrong titles, or a paid roll logged as the streamer's |
+| `!черга`: who and when (3 s apart on the game clock), the repeat marked as not joined, places in the queue | Queue waits that can't be worked out |
+| The ranked fight (level 2 against level 1, an underdog win for the Gold drake): both fighters' level, XP, element and title from *before* it; the winner, KO, the turns as the arena showed them; the XP each got exactly as the saves changed, split into base, underdog (5) and Gold (23) | Fighters recorded after the fight, a result that doesn't match the arena, XP parts missing or wrong |
+| The betting window's opening (at the second `!черга`), the fight's start 115.5 s later, its end after that | Lost or wrong times |
+| The duel: no betting window, no XP, its winner and turns | Duels not logged, or logged with XP |
+| A time-out and a draw, through the game's `finishBattle` (the seeded fights all end in a KO): the one with more HP wins on a time-out; a draw gives 10 XP each | Wrong result labels |
+| Nothing of the log on the page, no network request, no page errors | A visible or networked log |
+| The export is valid JSON with the log and the saves (drakes and stats); every player is an id (`p001`…): the log's in the order they first played, then a player only in the saves; no name anywhere in the text | Names leaking into the export |
+| The same ids in a second export and after a reload, where a new player gets the next id and the saves-only player keeps theirs; `{ names: true }` keeps the names | Ids that change between exports |
+| `clearPlayLog()` removes every event and the export ids and says how many events it removed; the saves are untouched, and the next new player is `p001` again | A clear that leaves events or old ids behind, or touches the saves |
+| IndexedDB failing (`indexedDB.open` throws; every write throws): the ranked fight plays out exactly as with a working log (the same fight events), no page errors, and the export still works, reporting the failed writes | Logging that can break a fight |
+
+The test also had to fail on 16 broken versions of the log: a missing queue join, no Gold part, no underdog part, the betting window's time lost, fighters taken after the fight, KO and time-out swapped, duels not logged, no levels lost, a paid title roll logged as the streamer's, names left in the saves, ids not kept between exports, a failed write left unhandled, IndexedDB opened outside the guard during a fight, and a `clearPlayLog` that keeps the events, keeps the ids, or wipes the saves too.
+
 ## Layer 2: fight view test
 
 `fightview.js` checks the battle log, the turn animation, the ultimates, the countdown and the result card (`design/redesign-reference.html`), in **both languages**, with seeded fights and the paused clock. The test steps the clock to exact turn times: a turn's step 1 is the turn's tick (the attacker lights up), step 2 is 0.6 s later (the hit lands).
@@ -523,6 +547,7 @@ npm run balance                        # quick per-element check (same as balanc
 npm run test:ui showcase               # UI smoke test + screenshots in tests/screenshots/
 npm run test:layout                    # 1920×1080 layout test, both languages
 npm run test:controls                 # the test menu's picker and drop-downs, the language switch during a fight
+npm run test:playlog                   # the play log: what fights, title rolls, rerolls and !черга record; the export
 npm run test:fightview                 # battle log, turns, ultimates, countdown, result, both languages (slow: plays dozens of fights)
 UI_FILE=main.html node tests/ui.js showcase   # same flow on another copy of the page: compare the fingerprint
 

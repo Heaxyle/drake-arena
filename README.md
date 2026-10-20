@@ -8,8 +8,8 @@ A Twitch chat mini-game that runs as an OBS browser-source overlay. Viewers crea
 
 ![Drake Arena screenshot](showcase/screenshot.png)
 
-- **[Game guide](showcase/README.md)**: setup, chat commands, combat rules, titles
-- **[Testing](TESTING.md)**: balance simulation, UI smoke test, layout test, fight view test, CI pipeline
+- **[Game guide](showcase/README.md)**: setup, chat commands, combat rules, titles, and [exporting the play log](showcase/README.md#play-log)
+- **[Testing](TESTING.md)**: balance simulation, UI smoke test, layout test, fight view test, play log test, CI pipeline
 
 ## Testing
 
@@ -22,5 +22,6 @@ CI runs all of these on every pull request except the multi-seed check, which is
 - **[Layout and contrast checks](TESTING.md#layer-2-layout-test)** at 1920×1080 in Ukrainian and English, with worst-case names, and a check that at startup the overlay loads nothing from the network but Twitch chat
 - **[Seeded UI tests](TESTING.md#layer-2-ui-smoke-test)** drive the overlay through fake chat in headless Chromium; a fight fingerprint shows visual changes leave fights alone
 - **[Visual review sheets](TESTING.md#layer-2-fight-view-test)**: every fighter card and log card in both languages, committed as images
+- **[Play log test](TESTING.md#layer-2-play-log-test)**: what the game records about each fight, title roll, element change and `!черга`, the export with ids instead of names, and fights carrying on when IndexedDB fails
 
 Built with AI assistance (Claude Code); design, testing and balance by Heaxyle.
