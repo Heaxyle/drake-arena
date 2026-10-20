@@ -929,8 +929,14 @@ const key = (a, b) => [a, b].sort().join('-');
         check(fin.over.join() === 'ts-intro' && /Фінал/.test(fin.overText) && finF.plaque === 'ФІНАЛ' && finF.cls.includes('ts-final') && !finF.over.length && coverF.all,
             `the final: its intro («${fin.overText.slice(0, 40)}…»), «${finF.plaque}» on the plaque, the crown and the pulsing frame; nothing over the cards or the log`, JSON.stringify({ fin, finF }));
         await settle(1500);
-        const crownOn = await page.evaluate(() => getComputedStyle(document.querySelector('.tsf-crown')).opacity);
-        check(crownOn === '1', 'the crown above the arena in the final', crownOn);
+        const crown = await page.evaluate(() => {
+            const r = s => document.querySelector(s).getBoundingClientRect(), c = r('.tsf-crown'), a = r('#arena');
+            const hit = (x, y) => !(x.right <= y.left || y.right <= x.left || x.bottom <= y.top || y.bottom <= x.top);
+            return { opacity: getComputedStyle(document.querySelector('.tsf-crown')).opacity, inside: c.top >= a.top && c.bottom <= a.bottom && c.left >= a.left && c.right <= a.right,
+                clear: ['.plaque', '#status-plate', '#fight-type', '.fighters-box'].filter(s => hit(c, r(s))), top: Math.round(c.top - a.top) };
+        });
+        check(crown.opacity === '1' && crown.inside && !crown.clear.length,
+            `the final's crown: shown, inside the arena (${crown.top} px below its top edge; the strip above stays free), clear of the plaque, the header and the cards`, JSON.stringify(crown));
         await shot(page, 'show-final.png');
 
         // 8. The champion: the banner, confetti, the jump, the crown; then engraved into the Hall of Fame
@@ -961,6 +967,72 @@ const key = (a, b) => [a, b].sort().join('-');
         check(offStart.tour && offStart.t === offClose && !off.cls.length && !off.over.length && !off.box.includes('ts-'),
             'with the effects off: the first game starts the moment sign-up closes (no draw), and none of the show appears', JSON.stringify({ off, offStart, offClose }));
         await mod(page, '!турнір стоп');
+
+        // 10. Stopping with the effects on: during the draw and a match intro (they go, and the queue starts at once), in
+        // the middle of game 3 and the final (the show goes at once; the game plays on plainly to its end), and on the
+        // champion screen and the Hall of Fame after it (refused: they carry on)
+        await page.evaluate(() => setShowFx(true));
+        const four = players.slice(0, 4);
+        const start4 = async plan => {
+            await until(page, () => !isBattleRunning && !resultHold, null, { step: 2000 });
+            await mod(page, '!турнір 4');
+            for (const n of four) await say(page, n, '!учасник');
+            const [[a, b], [c, d]] = (await view(page)).tourney.rounds[0].map(m => [m.a, m.b]);
+            await page.evaluate(p => { window.__plan = p; window.__played = {}; }, plan ? plan(a, b, c, d) : {});
+        };
+        const shown = () => page.evaluate(() => ({ cls: [...document.getElementById('arena').classList].filter(c => c.startsWith('ts-')), over: document.querySelectorAll('.ts-over').length,
+            box: document.getElementById('log-countdown').className, plaque: document.querySelector('.plaque-text').textContent, kind: arenaState.kind, hold: !!resultHold, tourney: !!tourney,
+            last: window.__fights[window.__fights.length - 1], now: Date.now() }));
+        const stopNow = async () => { await mod(page, '!турнір стоп'); return shown(); };
+        // During the draw
+        await start4();
+        await say(page, 'r_one', '!черга'); await say(page, 'r_two', '!черга');   // they wait: the draw holds the arena
+        await page.clock.runFor(2000);
+        const inDraw = await shown(), sDraw = await stopNow();
+        check(inDraw.kind === 'draw' && !sDraw.tourney && sDraw.kind !== 'draw' && !sDraw.cls.length && !sDraw.box.includes('ts-draw') && !sDraw.hold
+            && sDraw.last.ranked && [sDraw.last.p1, sDraw.last.p2].sort().join() === 'r_one,r_two' && sDraw.last.t === sDraw.now,
+            '!турнір стоп during the draw: the draw and its hold go at once, the frame goes, and the queue starts that moment (@r_one against @r_two)', JSON.stringify({ inDraw: inDraw.kind, sDraw }));
+        // During a match intro
+        await start4();
+        await page.clock.runFor(7600);
+        await say(page, 'r_one', '!черга'); await say(page, 'r_two', '!черга');
+        const inIntro = await shown(), sIntro = await stopNow();
+        check(inIntro.over === 1 && inIntro.kind === 'countdown' && !sIntro.tourney && !sIntro.over && !sIntro.cls.length
+            && sIntro.last.ranked && [sIntro.last.p1, sIntro.last.p2].sort().join() === 'r_one,r_two' && sIntro.last.t === sIntro.now,
+            '!турнір стоп during a match intro: the intro, its countdown and the frame go at once, and the queue starts that moment', JSON.stringify({ inIntro: inIntro.over, sIntro }));
+        // In the middle of game 3, and of the final
+        const midGame = async (label, plan, when, extra) => {
+            await start4(plan);
+            await until(page, when, null, { step: 500 });
+            const before = await shown(), games = await page.evaluate(() => window.__games.length);
+            const s = await stopNow();
+            await until(page, () => !isBattleRunning && arenaState.kind === 'result', null, { step: 250 });
+            const end = await page.evaluate(n => ({ games: window.__games.length - n, aborted: /simulation error/i.test(document.body.innerText),
+                cls: [...document.getElementById('arena').classList].filter(c => c.startsWith('ts-')), hall: getHonours().hall.length }), games);
+            check(extra(before) && !s.tourney && s.kind === 'fight' && !s.cls.length && s.plaque === 'ДРЕЙК-АРЕНА' && end.games === 1 && !end.aborted && !end.cls.length && !errors.length,
+                `!турнір стоп in the middle of ${label}: the frame, glow, pips (and the final's crown and «ФІНАЛ») go at once; the game plays on plainly to its end, counting for nothing`,
+                JSON.stringify({ before: before.cls, s, end, errors }));
+            return end;
+        };
+        await midGame('game 3', (a, b) => ({ [key(a, b)]: [a, b, a] }), () => tourGame && tourGame.game === 3 && arenaState.kind === 'fight', b => b.cls.includes('ts-decider'));
+        const hallBefore = await page.evaluate(() => getHonours().hall.length);
+        const finStop = await midGame('the final', (a, b, c, d) => ({ [key(a, b)]: [a, a], [key(c, d)]: [c, c], [key(b, d)]: [b] }),
+            () => tourGame && tourGame.stage === 'final' && arenaState.kind === 'fight', b => b.cls.includes('ts-final') && b.plaque === 'ФІНАЛ');
+        check(finStop.hall === hallBefore, 'a final stopped midway: no podium, no prizes, no Hall of Fame entry', JSON.stringify({ hallBefore, after: finStop.hall }));
+        // On the champion screen, and the Hall of Fame after it: refused
+        await start4((a, b, c, d) => ({ [key(a, b)]: [a, a], [key(c, d)]: [c, c], [key(b, d)]: [b], [key(a, c)]: [a, a] }));
+        await until(page, () => arenaState.kind === 'podium', null, { step: 1000 });
+        const sPod = await stopNow();
+        const podChat = (await view(page)).chat;
+        const podScreen = await page.evaluate(() => ({ title: !!document.querySelector('.ts-champ-title'), confetti: document.querySelectorAll('.ts-conf').length }));
+        await until(page, () => arenaState.kind === 'hall', null, { step: 1000 });
+        const sHall = await stopNow();
+        const hallChat = (await view(page)).chat, letters = await page.evaluate(() => document.querySelectorAll('#log-countdown .ts-ch').length);
+        check(sPod.tourney && sPod.kind === 'podium' && sPod.cls.includes('ts-on') && podScreen.title && podScreen.confetti === 70 && /уже завершено/.test(podChat)
+            && sHall.tourney && sHall.kind === 'hall' && /уже завершено/.test(hallChat) && letters > 0,
+            '!турнір стоп on the champion screen and during the Hall of Fame: refused («Турнір уже завершено»); the banner, confetti, frame and engraving carry on',
+            JSON.stringify({ sPod, podScreen, podChat, sHall, hallChat, letters }));
+        await until(page, () => !tourney, null, { step: 1000 });
         check(!errors.length, 'no page errors', errors.join(' | '));
         await context.close();
     }
