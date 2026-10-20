@@ -157,8 +157,9 @@ const MUTATIONS = [
     ['no hold after a friendly fight', 'the next fight starts as soon as a duel or a friendly draw ends',
         "setArenaState({ kind: 'result', ranked: false, winner, turns: fightTurns, ko });\n                isBattleRunning = false;\n                holdResult();",
         "setArenaState({ kind: 'result', ranked: false, winner, turns: fightTurns, ko });\n                isBattleRunning = false;\n                nextFight();"],
-    ['the queue ignores the hold', 'two !queue during the result screen start a fight at once',
-        'if (arenaBusy() || waitingDuel || matchmakingQueue.length < 2) return;', 'if (isBattleRunning || waitingDuel || matchmakingQueue.length < 2) return;'],
+    // !queue goes through nextFight(), which checks arenaBusy() before checkQueue() does: the hold lives in arenaBusy()
+    ['the queue ignores the hold', 'the result screen no longer keeps the arena busy, so two !queue during it start a fight at once',
+        'const arenaBusy = () => isBattleRunning || !!resultHold;', 'const arenaBusy = () => isBattleRunning;'],
     ['an accepted duel ignores the hold', 'a duel accepted during the result screen starts at once',
         '// The arena is busy (a fight, or its result screen): the duel waits and starts after it\n                if (arenaBusy()) {', '// The arena is busy (a fight, or its result screen): the duel waits and starts after it\n                if (isBattleRunning) {'],
     ['!start can\'t end the hold', "a moderator's !start during the result screen does nothing",

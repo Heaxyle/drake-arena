@@ -192,7 +192,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 63 | `!battle` opens a challenge to a viewer whose duel is waiting | `rules.js` 11 | `reply: ⚔️ @d3 challenges @d1 to a Friendly Duel!` |
 | 64 | No hold after a ranked fight: the next fight or duel starts as soon as it ends | `rules.js` 14 (8 checks) | `held false; queue ; fights 1` |
 | 65 | No hold after a duel or a friendly draw | `rules.js` 14 (2 checks) | `after a friendly draw the queue waits for the hold, then starts — {"during":1,…}` |
-| 66 | The queue ignores the hold: two `!queue` during the result screen start a fight at once | `rules.js` 14 (10 checks) | `held true; queue ; fights 1` |
+| 66 | The queue ignores the hold: the result screen no longer keeps the arena busy (`arenaBusy()`, which both `nextFight()` and `checkQueue()` check), so two `!queue` during it start a fight at once | `rules.js` 14 (10 checks) | `held true; queue ; fights 1` |
 | 67 | A duel accepted during the result screen starts at once | `rules.js` 14 (4 checks) | `held true; queue h3,h4; fights 0` (no waiting duel) |
 | 68 | A moderator's `!start` during the result screen does nothing | `rules.js` 14 (4 checks) | `ignored true; fights …` (the waiting duel never starts) |
 | 69 | Anyone's `!start` ends the result screen | `rules.js` 14 (2 checks) | `ignored false` |
