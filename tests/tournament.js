@@ -17,7 +17,9 @@
 //      names. 13 players (Ukrainian): «13 учасників: 3 — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць» in the
 //      ЧАТ panel, the «Кваліфікація» column before the quarterfinals, 5 single games, then the quarterfinals with the 3
 //      direct players and the 5 winners. 9 and 15 players (English), exactly 16 (no qualifier, «Round of 16»), the bracket
-//      inside the countdown; !tournament stop during a game's countdown and during sign-up
+//      inside the countdown; !tournament stop during a game's countdown and during sign-up; in the middle of a
+//      main-bracket game, game 3, the 3rd-place game and the final (each fought to its end, counting for nothing, then
+//      the queue); refused on the podium
 //   Screenshots (Ukrainian): tests/screenshots/tournament-signup.png, -bracket.png, -plate.png, -podium.png, -qualifier.png
 //
 // Usage: npm run test:tournament   (or node tests/tournament.js; TOUR_ONLY=2,3 runs only those sections)
@@ -477,6 +479,47 @@ const key = (a, b) => [a, b].sort().join('-');
             await mod(page, '!tournament stop');
             const stopped2 = await view(page);
             check(!stopped2.tourney && stopped2.line === 'join the queue: !queue', '!tournament stop during sign-up: back to normal', JSON.stringify(stopped2.line));
+
+            // Stopping in the middle of a game (a main-bracket game, game 3, the 3rd-place game, the final): the tournament,
+            // its line and its save go at once; the game is fought to its end and counts for nothing; after its result
+            // screen the queue carries on. Each from a 4-player tournament whose results follow a plan
+            const four = players.slice(0, 4);
+            const newFour = async plan => {
+                await until(page, () => !isBattleRunning && !resultHold, null, { step: 2000 });
+                await mod(page, '!tournament 4');
+                for (const n of four) await say(page, n, '!join');
+                const [[a, b], [c, d]] = (await view(page)).tourney.rounds[0].map(m => [m.a, m.b]);
+                await page.evaluate(p => { window.__plan = p; window.__played = {}; }, plan(a, b, c, d));
+            };
+            const stopDuring = async (label, plan, when) => {
+                await newFour(plan);
+                await until(page, when, null, { step: 500 });
+                await say(page, 'q1', '!queue'); await say(page, 'q2', '!queue');
+                const before = await page.evaluate(() => ({ games: window.__games.length, fights: window.__fights.length, plate: document.getElementById('status-plate').textContent }));
+                await mod(page, '!tournament stop');
+                const at = await view(page);
+                await until(page, () => !isBattleRunning && arenaState.kind === 'result', null, { step: 250 });
+                const ended = await page.evaluate(() => ({ games: window.__games.length, kind: arenaState.kind, aborted: /simulation error/i.test(document.body.innerText), t: Date.now() }));
+                await until(page, n => window.__fights.length > n, before.fights, { step: 250 });
+                const next = await page.evaluate(() => window.__fights[window.__fights.length - 1]);
+                check(!at.tourney && /cancelled/.test(at.chat) && at.kind === 'fight' && at.line === 'join the queue: !queue' && !(await page.evaluate(k => localStorage.getItem(k), KEY))
+                    && ended.games === before.games + 1 && ended.kind === 'result' && !ended.aborted
+                    && next.ranked && [next.p1, next.p2].sort().join() === 'q1,q2' && next.t - ended.t >= 18000 && next.t - ended.t <= 20000 && !errors.length,
+                    `!tournament stop during ${label} («${before.plate}»): the tournament goes at once; the game is fought to its end (no "simulation error") and counts for nothing; after its 20 s result screen the queue carries on (@q1 against @q2)`,
+                    JSON.stringify({ at: { kind: at.kind, chat: at.chat, line: at.line }, before, ended, next, errors }));
+            };
+            await stopDuring('a main-bracket game', () => ({}), () => tourGame && tourGame.stage === 'sf' && arenaState.kind === 'fight');
+            await stopDuring('game 3', (a, b) => ({ [key(a, b)]: [a, b, a] }), () => tourGame && tourGame.game === 3 && arenaState.kind === 'fight');
+            await stopDuring('the 3rd-place game', (a, b, c, d) => ({ [key(a, b)]: [a, a], [key(c, d)]: [c, c] }), () => tourGame && tourGame.third && arenaState.kind === 'fight');
+            await stopDuring('the final', (a, b, c, d) => ({ [key(a, b)]: [a, a], [key(c, d)]: [c, c], [key(b, d)]: [b] }), () => tourGame && tourGame.stage === 'final' && arenaState.kind === 'fight');
+            // On the podium the tournament is over: stop is refused, the podium stays
+            await newFour((a, b, c, d) => ({ [key(a, b)]: [a, a], [key(c, d)]: [c, c], [key(b, d)]: [b], [key(a, c)]: [a, a] }));
+            await until(page, () => arenaState.kind === 'podium', null, { step: 1000 });
+            await mod(page, '!tournament stop');
+            const pod = await view(page);
+            check(pod.tourney && pod.tourney.phase === 'podium' && pod.kind === 'podium' && /already over/.test(pod.chat),
+                `!tournament stop on the podium: refused ("${pod.chat}"), the podium stays`, JSON.stringify({ phase: pod.tourney && pod.tourney.phase, kind: pod.kind, chat: pod.chat }));
+            await until(page, () => !tourney, null, { step: 1000 });
             check(!errors.length, 'no page errors', errors.join(' | '));
             await context.close();
         }
