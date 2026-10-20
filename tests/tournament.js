@@ -10,7 +10,9 @@
 //      the final; the plate «🏆 Турнір · Чвертьфінал · Гра 2 · 1:0» at every stage; everyone at level 20 (cards and
 //      HP) with saved levels untouched; no XP, no wins or losses, the Top unchanged; !черга joins the queue (in order)
 //      and !бій gets a short reply meanwhile; the podium; then the queue and duels carry on, queue order kept
-//   3  A reload in the middle of a match: the tournament resumes at that match and replays the unfinished game
+//   3  A reload in the middle of a match: the tournament resumes at that match and replays the unfinished game. Then a
+//      reload at every moment (sign-up, the betting window, mid-game, the result screen between games, game 2's
+//      countdown, the 3rd-place game, the final, the podium): picked up at once, run to the end, the queue after it
 //   4  Uneven sign-ups, the qualifier: 5 players (English, betting window on): a main bracket of 4, the first 3 straight
 //      in, the last 2 in one qualifier game (no betting window, the 10 s countdown, the bracket with its «Qualifier»
 //      column), its winner in the semifinals, then a betting window for game 1 of every later match; the English stage
@@ -117,6 +119,25 @@ async function until(page, cond, arg, { step = 1000, max = 4 * 3600000 } = {}) {
     throw new Error('timed out waiting for ' + cond.toString().slice(0, 120));
 }
 const shot = async (page, name) => { await settleArena(page); await page.screenshot({ path: path.join(SHOTS, name) }); };
+// The moments section 3 reloads at: at(state) says when (in the page), expect(after, before) what the arena shows 0.5 s later
+const tourPlate = a => /^🏆 Турнір · /.test(a.plate);
+const RELOAD_PHASES = [
+    { label: 'during sign-up', signup: true, expect: a => a.tourney && a.tourney.phase === 'signup' && a.line === '🏆 Турнір: реєстрація · 2/4 · !учасник' },
+    { label: 'during the betting window', betting: true, at: () => arenaState.kind === 'countdown' && arenaState.betting,
+      expect: a => a.kind === 'countdown' && tourPlate(a) && /Гра 1/.test(a.plate) },
+    { label: 'in the middle of a game', at: () => tourGame && tourGame.stage === 'sf' && arenaState.kind === 'fight' && arenaState.turn >= 2,
+      expect: a => a.kind === 'countdown' && tourPlate(a) && /Гра 1/.test(a.plate) },
+    { label: 'on the result screen between games', at: () => arenaState.kind === 'result' && tourney && tourney.phase === 'running' && window.__games.length === 1,
+      expect: a => a.kind === 'countdown' && tourPlate(a) && /Гра 2 · (1:0|0:1)/.test(a.plate) },
+    { label: "during game 2's 10 s countdown", at: () => arenaState.kind === 'countdown' && tourGame && tourGame.game === 2,
+      expect: a => a.kind === 'countdown' && tourPlate(a) && /Гра 2/.test(a.plate) },
+    { label: 'in the middle of the 3rd-place game', at: () => tourGame && tourGame.third && arenaState.kind === 'fight',
+      expect: a => a.kind === 'countdown' && /Матч за 3-тє місце/.test(a.plate) },
+    { label: 'in the middle of the final', at: () => tourGame && tourGame.stage === 'final' && arenaState.kind === 'fight',
+      expect: a => a.kind === 'countdown' && /Фінал · Гра 1/.test(a.plate) },
+    { label: 'on the podium', at: () => arenaState.kind === 'podium', podiumBefore: true,
+      expect: a => a.kind === 'podium' },
+];
 const key = (a, b) => [a, b].sort().join('-');
 
 (async () => {
@@ -339,6 +360,40 @@ const key = (a, b) => [a, b].sort().join('-');
             'the replayed game counts (the semifinal ends 2:0), and the tournament runs on to its podium', JSON.stringify({ games, pd }));
         check(!errors.length, 'no page errors', errors.join(' | '));
         await context.close();
+
+        // A reload at every moment of a tournament (an OBS source can reload at any time), each on the game clock so it's
+        // the same on any machine: the arena picks the tournament up at once (nothing waits for fonts, Twitch or real
+        // time), it runs to its podium and ends, and then the queue, paused all along, carries on
+        for (const phase of RELOAD_PHASES) {
+            const r = await open(browser, { lang: 'uk', betting: !!phase.betting });
+            const four = ['ania', 'borys', 'vira', 'hlib'];
+            await register(r.page, 'uk', [...four, 'q1', 'q2']);
+            await mod(r.page, '!турнір 4');
+            for (const n of phase.signup ? four.slice(0, 2) : four) await say(r.page, n, '!учасник');
+            if (!phase.signup) {
+                const [[a, b], [c, d]] = (await view(r.page)).tourney.rounds[0].map(m => [m.a, m.b]);
+                await r.page.evaluate(p => { window.__plan = p; }, { [key(a, b)]: [a, a], [key(c, d)]: [c, c], [key(b, d)]: [b], [key(a, c)]: [a, a] });
+                await until(r.page, phase.at, null, { step: 250 });
+            }
+            const before = await r.page.evaluate(() => ({ kind: arenaState.kind, phase: tourney && tourney.phase, games: window.__games.length }));
+            await r.page.reload();
+            await r.page.clock.runFor(500);
+            const after = await view(r.page);
+            await say(r.page, 'q1', '!черга'); await say(r.page, 'q2', '!черга');
+            if (phase.signup) for (const n of four.slice(2)) await say(r.page, n, '!учасник');
+            let podium = false, ended = false, next = null;
+            try {
+                await until(r.page, () => { if (arenaState.kind === 'podium') window.__sawPodium = true; return !tourney; }, null, { step: 500, max: 3 * 3600000 });
+                podium = await r.page.evaluate(() => !!window.__sawPodium || (getComputedStyle(document.body) && false));
+                ended = true;
+                await until(r.page, () => window.__fights.some(f => f.ranked && [f.p1, f.p2].sort().join() === 'q1,q2'), null, { step: 500, max: 120000 });
+                next = await r.page.evaluate(() => window.__fights.find(f => f.ranked));
+            } catch (e) { /* reported below */ }
+            check(phase.expect(after, before) && ended && (podium || phase.podiumBefore) && next && !r.errors.length,
+                `a reload ${phase.label}: «${after.plate || after.line}» at once (${after.kind}); the tournament runs on to its podium and ends, then the queue carries on (@q1 against @q2)`,
+                JSON.stringify({ before, after: { kind: after.kind, plate: after.plate, line: after.line, phase: after.tourney && after.tourney.phase }, ended, podium, next, errors: r.errors }));
+            await r.context.close();
+        }
     }
 
     // 4. Uneven sign-ups: the qualifier (5 players in English with the betting window on, 13 in Ukrainian, 9 and 15),
