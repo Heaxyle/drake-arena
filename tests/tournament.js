@@ -9,21 +9,22 @@
 //      screen and a 10 s «Гра 2» countdown; 2:0 and 2:1 matches, a drawn game replayed; the 3rd-place game right before
 //      the final; the plate «🏆 Турнір · Чвертьфінал · Гра 2 · 1:0» at every stage; everyone at level 20 (cards and
 //      HP) with saved levels untouched; no XP, no wins or losses, the Top unchanged; !черга joins the queue (in order)
-//      and !бій gets a short reply meanwhile; the podium; then the queue and duels carry on, queue order kept
+//      and !бій gets a short reply meanwhile; the podium; then the queue and duels carry on, queue order kept. The two
+//      highest levels in opposite halves (announced); every game in the play log with its stage and game number
 //   3  A reload in the middle of a match: the tournament resumes at that match and replays the unfinished game. Then a
 //      reload at every moment (sign-up, the betting window, mid-game, the result screen between games, game 2's
 //      countdown, the 3rd-place game, the final, the podium): picked up at once, run to the end, the queue after it.
 //      The watchdog: a reload with the resume skipped; within 5 s it starts the next game itself (its console.error is
 //      expected there and nowhere else)
-//   4  Uneven sign-ups, the qualifier: 5 players (English, betting window on): a main bracket of 4, the first 3 straight
-//      in, the last 2 in one qualifier game (no betting window, the 10 s countdown, the bracket with its «Qualifier»
-//      column), its winner in the semifinals, then a betting window for game 1 of every later match; the English stage
-//      names. 13 players (Ukrainian): «13 учасників: 3 — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць» in the
-//      ЧАТ panel, the «Кваліфікація» column before the quarterfinals, 5 single games, then the quarterfinals with the 3
+//   4  Uneven sign-ups, the qualifier: 5 players (English, betting window on, all level 1): a main bracket of 4, the
+//      first 3 straight in, the last 2 in one qualifier game (no betting window, the 10 s countdown, the bracket with its
+//      «Qualifier» column), its winner in the semifinals, then a betting window for game 1 of every later match; the
+//      English stage names. 13 players (Ukrainian): «13 учасників: 3 з найвищим рівнем — одразу в чвертьфінал, 10 грають
+//      кваліфікацію за 5 місць» in the ЧАТ panel, the «Кваліфікація» column before the quarterfinals, 5 single games, then the quarterfinals with the 3
 //      direct players and the 5 winners. 9 and 15 players (English), exactly 16 (no qualifier, «Round of 16»), the bracket
 //      inside the countdown; !tournament stop during a game's countdown and during sign-up; in the middle of a
-//      main-bracket game, game 3, the 3rd-place game and the final (each fought to its end, counting for nothing, then
-//      the queue); refused on the podium
+//      main-bracket game, game 3, the 3rd-place game and the final (each fought to its end, counting for nothing, as the
+//      play log says, then the queue); refused on the podium
 //   Screenshots (Ukrainian): tests/screenshots/tournament-signup.png, -bracket.png, -plate.png, -podium.png, -qualifier.png
 //
 // Usage: npm run test:tournament   (or node tests/tournament.js; TOUR_ONLY=2,3 runs only those sections)
@@ -231,6 +232,11 @@ const key = (a, b) => [a, b].sort().join('-');
             JSON.stringify({ phase: closed.tourney.phase, kind: closed.kind }));
         // The plan: QF1 2:0, QF2 2:1, QF3 a draw then 2:0, QF4 2:1; SF1 2:0, SF2 2:1; 3rd place; final 2:1
         const qf = closed.tourney.rounds[0].map(m => [m.a, m.b]);
+        // Level shapes the bracket: the two highest (@oleh_the_great 16, @ira_77 12) in opposite halves
+        const half = n => Math.floor(qf.findIndex(m => m.includes(n)) / 2);
+        const seedsLine = '🏆 Найвищі рівні — @oleh_the_great і @ira_77: вони в різних половинах сітки й можуть зустрітися лише у фіналі.';
+        check(half('oleh_the_great') !== half('ira_77') && closed.chat === seedsLine,
+            `the two highest levels in opposite halves of the bracket; the ЧАТ panel: «${closed.chat}»`, JSON.stringify({ qf, chat: closed.chat }));
         const plan = {
             [key(...qf[0])]: [qf[0][0], qf[0][0]], [key(...qf[1])]: [qf[1][0], qf[1][1], qf[1][0]],
             [key(...qf[2])]: [null, qf[2][0], qf[2][0]], [key(...qf[3])]: [qf[3][1], qf[3][0], qf[3][0]],
@@ -327,6 +333,17 @@ const key = (a, b) => [a, b].sort().join('-');
         const after = await snapshot();
         check(JSON.stringify(after.db) === JSON.stringify(before.db) && after.stats === before.stats && JSON.stringify(after.top) === JSON.stringify(before.top),
             'no XP and saved levels untouched for all 8; wins, losses and the Top exactly as before', JSON.stringify({ before, after }));
+        // The play log: every tournament game with its stage and game number (a replay marked), the players' saved levels
+        // (they fought at level 20), the winner, no XP
+        const tourLog = JSON.parse(await page.evaluate(() => exportPlayLog({ names: true }))).events.filter(e => e.kind === 'tournament');
+        const tourLogOk = tourLog.length === games.length && tourLog.every((e, i) => {
+            const g = games[i];
+            return e.stage === g.stage && e.game === g.game && e.replay === !!g.replay && e.fightLevel === 20 && e.counted === true && (starts[i].betting ? !!e.bettingOpened : e.bettingOpened === null)
+                && [e.players[0].name, e.players[1].name].sort().join('-') === g.k && e.winner === (g.w || null) && e.result === (g.w ? 'ko' : 'draw')
+                && e.players.every(p => p.level === levels[p.name] && p.got === null);
+        });
+        check(tourLogOk, `the play log: all ${tourLog.length} tournament games with their stage and game number (the replay marked), saved levels, the winner, no XP`,
+            JSON.stringify(tourLog.map(e => [e.stage, e.game, e.replay, e.winner, e.result, e.players.map(p => p.level)])));
         // After the podium's 20 s: the queue (in its order) and duels carry on
         await page.clock.runFor(20000);
         const back = await view(page);
@@ -461,7 +478,7 @@ const key = (a, b) => [a, b].sort().join('-');
             const r1 = t.rounds[0].flatMap(m => [m.a, m.b]).filter(Boolean).sort();
             check(t.bracket === 4 && t.rounds.length === 2 && r1.join() === 'ava,ben,cleo' && t.qual.length === 1 && [t.qual[0].a, t.qual[0].b].sort().join() === 'dan,eve',
                 '5 players: a main bracket of 4; @ava, @ben and @cleo (the first three) straight into the semifinals; @dan and @eve (the last two) in the qualifier', JSON.stringify(t));
-            check(v.chat === '🏆 5 players: 3 straight into the semifinals, 2 play a qualifier for 1 spot', `the ЧАТ panel: "${v.chat}"`, v.chat);
+            check(v.chat === '🏆 5 players: 3 with the highest levels straight into the semifinals, 2 play a qualifier for 1 spot', `the ЧАТ panel: "${v.chat}"`, v.chat);
             const start = await page.evaluate(() => window.__starts[window.__starts.length - 1]);
             const c = await cols(page);
             check(start.tour.stage === 'qual' && !start.betting && start.total === 10000 && start.bracket && v.plate === '🏆 Tournament · Qualifier 1/1' && v.cdTitle === 'Qualifier 1/1'
@@ -500,7 +517,7 @@ const key = (a, b) => [a, b].sort().join('-');
             check(t.bracket === 8 && c[1].ms.flatMap(m => m.p).filter(p => p !== '…').sort().join() === '@ava,@ben,@cleo' && t.qual.length === 5
                 && t.qual.flatMap(m => [m.a, m.b]).sort().join() === ps.slice(3).join(),
                 '13 players: a main bracket of 8; the first 3 straight into the quarterfinals, the other 10 in 5 qualifier games', JSON.stringify(t.qual));
-            check(v.chat === '🏆 13 учасників: 3 — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць', `the ЧАТ panel: «${v.chat}»`, v.chat);
+            check(v.chat === '🏆 13 учасників: 3 з найвищим рівнем — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць', `the ЧАТ panel: «${v.chat}»`, v.chat);
             check(c.map(x => x.h).join() === 'Кваліфікація,Чвертьфінал,Півфінал,Фінал' && c[0].ms.length === 5 && c[0].ms[0].live && c[1].ms.flatMap(m => m.p).filter(p => p === '…').length === 5
                 && v.plate === '🏆 Турнір · Кваліфікація 1/5' && await fits(page),
                 `the bracket: «Кваліфікація» (5 games, the first live) before the quarterfinals (5 places «…»), all inside the countdown; «${v.plate}»`, JSON.stringify({ c, plate: v.plate }));
@@ -532,7 +549,7 @@ const key = (a, b) => [a, b].sort().join('-');
             await page.clock.runFor(1000);
             const v9 = { ...await view(page), chat: news9 };
             check(v9.tourney.bracket === 8 && v9.tourney.qual.length === 1 && [v9.tourney.qual[0].a, v9.tourney.qual[0].b].sort().join() === 'hal,ivy'
-                && v9.chat === '🏆 9 players: 7 straight into the quarterfinals, 2 play a qualifier for 1 spot'
+                && v9.chat === '🏆 9 players: 7 with the highest levels straight into the quarterfinals, 2 play a qualifier for 1 spot'
                 && v9.plate === '🏆 Tournament · Qualifier 1/1' && v9.counting && v9.queue.length === 2,
                 `9 players: @hal and @ivy (the last two) play for the last place; "${v9.chat}"; "${v9.plate}"; the queue waits (2 in it)`, JSON.stringify({ qual: v9.tourney.qual, chat: v9.chat, plate: v9.plate, queue: v9.queue }));
             await mod(page, '!tournament stop');
@@ -548,7 +565,7 @@ const key = (a, b) => [a, b].sort().join('-');
             await mod(page, '!tournament start');
             await page.clock.runFor(1000);
             const v15 = await view(page), c15 = await cols(page);
-            check(v15.tourney.bracket === 8 && v15.chat === '🏆 15 players: 1 straight into the quarterfinals, 14 play a qualifier for 7 spots'
+            check(v15.tourney.bracket === 8 && v15.chat === '🏆 15 players: 1 with the highest levels straight into the quarterfinals, 14 play a qualifier for 7 spots'
                 && c15[0].h === 'Qualifier' && c15[0].ms.length === 7 && c15[1].ms.flatMap(m => m.p).filter(p => p !== '…').join() === '@ava' && await fits(page),
                 `15 players: only @ava straight in; 7 qualifier games in their column, all inside the countdown; "${v15.chat}"`, JSON.stringify({ chat: v15.chat, c15 }));
             // !tournament stop in the middle of a qualifier game: the game is fought to its end, counting for nothing
@@ -578,6 +595,7 @@ const key = (a, b) => [a, b].sort().join('-');
             // its line and its save go at once; the game is fought to its end and counts for nothing; after its result
             // screen the queue carries on. Each from a 4-player tournament whose results follow a plan
             const four = players.slice(0, 4);
+            const TOURNEY_STAGE_EN = { sf: 'Semifinal', third: '3rd-place match', final: 'Final', qf: 'Quarterfinal', qual: 'Qualifier', r16: 'Round of 16' };
             const newFour = async plan => {
                 await until(page, () => !isBattleRunning && !resultHold, null, { step: 2000 });
                 await mod(page, '!tournament 4');
@@ -594,13 +612,15 @@ const key = (a, b) => [a, b].sort().join('-');
                 const at = await view(page);
                 await until(page, () => !isBattleRunning && arenaState.kind === 'result', null, { step: 250 });
                 const ended = await page.evaluate(() => ({ games: window.__games.length, kind: arenaState.kind, aborted: /simulation error/i.test(document.body.innerText), t: Date.now() }));
+                // The play log has the game, marked as counting for nothing
+                const logged = await page.evaluate(async () => JSON.parse(await exportPlayLog({ names: true })).events.filter(e => e.kind === 'tournament').pop());
                 await until(page, n => window.__fights.length > n, before.fights, { step: 250 });
                 const next = await page.evaluate(() => window.__fights[window.__fights.length - 1]);
                 check(!at.tourney && /cancelled/.test(at.chat) && at.kind === 'fight' && at.line === 'join the queue: !queue' && !(await page.evaluate(k => localStorage.getItem(k), KEY))
-                    && ended.games === before.games + 1 && ended.kind === 'result' && !ended.aborted
+                    && ended.games === before.games + 1 && ended.kind === 'result' && !ended.aborted && logged && logged.counted === false && before.plate.includes(TOURNEY_STAGE_EN[logged.stage])
                     && next.ranked && [next.p1, next.p2].sort().join() === 'q1,q2' && next.t - ended.t >= 18000 && next.t - ended.t <= 20000 && !errors.length,
-                    `!tournament stop during ${label} («${before.plate}»): the tournament goes at once; the game is fought to its end (no "simulation error") and counts for nothing; after its 20 s result screen the queue carries on (@q1 against @q2)`,
-                    JSON.stringify({ at: { kind: at.kind, chat: at.chat, line: at.line }, before, ended, next, errors }));
+                    `!tournament stop during ${label} («${before.plate}»): the tournament goes at once; the game is fought to its end (no "simulation error") and counts for nothing (so the play log says); after its 20 s result screen the queue carries on (@q1 against @q2)`,
+                    JSON.stringify({ at: { kind: at.kind, chat: at.chat, line: at.line }, before, ended, logged, next, errors }));
             };
             await stopDuring('a main-bracket game', () => ({}), () => tourGame && tourGame.stage === 'sf' && arenaState.kind === 'fight');
             await stopDuring('game 3', (a, b) => ({ [key(a, b)]: [a, b, a] }), () => tourGame && tourGame.game === 3 && arenaState.kind === 'fight');

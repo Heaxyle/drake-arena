@@ -479,14 +479,14 @@ for (const lang of ['en', 'uk']) {
             `18. the podium: 🥇 @${finalists[0]}, 🥈 @${finalists[1]}, 🥉 @${thirds[0]}`, logs.filter(l => /🥇/.test(l)).join(' | '));
         __drain(); fresh();
     }
-    // Uneven sign-ups: the main bracket is the largest of 4, 8, 16 that fits; the earliest registrants go straight in,
-    // the latest play single qualifier games for the spots left
+    // Uneven sign-ups: the main bracket is the largest of 4, 8, 16 that fits; the highest levels go straight in (here
+    // everyone is level 3, so sign-up order decides), the rest play single qualifier games for the spots left
     for (const [n, size, news] of [
-        [5, 4, t('5 players: 3 straight into the semifinals, 2 play a qualifier for 1 spot', '5 учасників: 3 — одразу в півфінал, 2 грають кваліфікацію за 1 місце')],
+        [5, 4, t('5 players: 3 with the highest levels straight into the semifinals, 2 play a qualifier for 1 spot', '5 учасників: 3 з найвищим рівнем — одразу в півфінал, 2 грають кваліфікацію за 1 місце')],
         [8, 8, null],
-        [9, 8, t('9 players: 7 straight into the quarterfinals, 2 play a qualifier for 1 spot', '9 учасників: 7 — одразу в чвертьфінал, 2 грають кваліфікацію за 1 місце')],
-        [13, 8, t('13 players: 3 straight into the quarterfinals, 10 play a qualifier for 5 spots', '13 учасників: 3 — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць')],
-        [15, 8, t('15 players: 1 straight into the quarterfinals, 14 play a qualifier for 7 spots', '15 учасників: 1 — одразу в чвертьфінал, 14 грають кваліфікацію за 7 місць')],
+        [9, 8, t('9 players: 7 with the highest levels straight into the quarterfinals, 2 play a qualifier for 1 spot', '9 учасників: 7 з найвищим рівнем — одразу в чвертьфінал, 2 грають кваліфікацію за 1 місце')],
+        [13, 8, t('13 players: 3 with the highest levels straight into the quarterfinals, 10 play a qualifier for 5 spots', '13 учасників: 3 з найвищим рівнем — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць')],
+        [15, 8, t('15 players: 1 with the highest levels straight into the quarterfinals, 14 play a qualifier for 7 spots', '15 учасників: 1 з найвищим рівнем — одразу в чвертьфінал, 14 грають кваліфікацію за 7 місць')],
         [16, 16, null]]) {
         fresh();
         const names = Array.from({ length: n }, (_, i) => 'u' + String(i + 1).padStart(2, '0'));
@@ -503,7 +503,7 @@ for (const lang of ['en', 'uk']) {
             && T.qual.length === (n - direct) / 2 && qualPlayers.slice().sort().join() === names.slice(direct).join()
             && T.qual.every(m => m.to && !T.rounds[0][m.to.m][m.to.side]) && new Set(T.qual.map(m => m.to.m + m.to.side)).size === T.qual.length,
             direct === n ? `18. ${n} players: a main bracket of ${size}, everyone straight in, no qualifier`
-                : `18. ${n} players: a main bracket of ${size}; the first ${direct} (in sign-up order) straight in, the last ${n - direct} in ${(n - direct) / 2} qualifier game(s), each winner to a place of its own in round 1`,
+                : `18. ${n} players, all level 3: a main bracket of ${size}; the first ${direct} (sign-up order breaks the tie) straight in, the last ${n - direct} in ${(n - direct) / 2} qualifier game(s), each winner to a place of its own in round 1`,
             JSON.stringify({ bracket: T.bracket, r1, qual: T.qual }));
         check(news ? infos.some(i => i.endsWith(news)) : !infos.some(i => /qualifier|кваліфікацію/.test(i)),
             news ? `18. ${n} players: the ЧАТ panel says «${news}»` : `18. ${n} players: no qualifier, nothing about one in the ЧАТ panel`, JSON.stringify(infos));
@@ -520,6 +520,70 @@ for (const lang of ['en', 'uk']) {
             q ? `18. ${n} players: the ${q} qualifier game(s) come first, one game each; round 1 is the ${direct} direct players and the ${q} qualifier winner(s); on to the podium`
                 : `18. ${n} players: round 1 straight away, on to the podium`,
             JSON.stringify({ stages, inFirst }));
+        fresh();
+    }
+    // Level shapes the bracket. Where each player is: their place in round 1 (0 … size-1), directly or through their
+    // qualifier game; the half is the place's first or second half
+    const placeIn = (T, who) => {
+        const i = T.rounds[0].findIndex(m => m.a === who || m.b === who);
+        if (i !== -1) return 2 * i + (T.rounds[0][i].b === who ? 1 : 0);
+        const q = T.qual.find(m => m.a === who || m.b === who);
+        return q ? 2 * q.to.m + (q.to.side === 'b' ? 1 : 0) : -1;
+    };
+    const halfOf = (T, who) => Math.floor(placeIn(T, who) / (T.bracket / 2));
+    {
+        // 9 players, levels shuffled against sign-up order, a tie at the cut: the 7 highest straight in, the tie (level 2)
+        // to the earlier sign-up; the two highest (@v05 15, @v08 12) in opposite halves; the higher level wins every game,
+        // so they meet in the final
+        fresh();
+        const lv = { v01: 2, v02: 2, v03: 9, v04: 4, v05: 15, v06: 4, v07: 1, v08: 12, v09: 4 };
+        const names = Object.keys(lv);
+        names.forEach((p, i) => make(p, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: lv[p] }));
+        G.sayAs('mod1', t('!tournament 16', '!турнір 16'), { mod: true });
+        names.forEach(p => G.say(p, t('!join', '!учасник')));
+        tourneyGames = [];
+        rig = (a, b) => lv[a] > lv[b] || (lv[a] === lv[b] && a < b) ? a : b;
+        G.sayAs('mod1', t('!tournament start', '!турнір старт'), { mod: true });
+        const T = JSON.parse(JSON.stringify(G.tourney));
+        const r1 = T.rounds[0].flatMap(m => [m.a, m.b]).filter(Boolean).sort(), qualPlayers = T.qual.flatMap(m => [m.a, m.b]).sort();
+        check(r1.join() === 'v01,v03,v04,v05,v06,v08,v09' && qualPlayers.join() === 'v02,v07',
+            '18. 9 players at levels 1–15: the 7 highest straight into the main bracket (@v01 before @v02 at level 2: sign-up order breaks the tie), @v02 and @v07 in the qualifier',
+            JSON.stringify({ r1, qualPlayers }));
+        const seedsLine = t('The highest levels, @v05 and @v08, are in opposite halves of the bracket: they can only meet in the final.',
+            'Найвищі рівні — @v05 і @v08: вони в різних половинах сітки й можуть зустрітися лише у фіналі.');
+        check(halfOf(T, 'v05') !== halfOf(T, 'v08') && infos.some(i => i.endsWith(seedsLine)),
+            `18. @v05 (15) and @v08 (12) in opposite halves; the ЧАТ panel says «${seedsLine}»`, JSON.stringify({ halves: [halfOf(T, 'v05'), halfOf(T, 'v08')], infos }));
+        __drain();
+        rig = null;
+        const fin = tourneyGames.filter(g => g.stage === 'final');
+        check(fin.length >= 1 && fin.every(g => [g.a, g.b].sort().join() === 'v05,v08') && tourneyGames.every(g => g.lv[0] === 20 && g.lv[1] === 20)
+            && logs.some(l => /🥇 @v05/.test(l) && /🥈 @v08/.test(l)),
+            '18. the higher level winning every game, they meet only in the final; every game still at level 20', JSON.stringify({ fin, podium: logs.filter(l => /🥇/.test(l)) }));
+        fresh();
+    }
+    {
+        // Every draw: the two highest levels in opposite halves, in brackets of 4, 8 and 16, with and without a qualifier
+        // (with 15 the second highest is in the qualifier: their game's place is in the other half). The two highest
+        // signed up last, so sign-up order alone would put them in the qualifier
+        const bad = [];
+        let draws = 0;
+        for (const n of [4, 5, 8, 9, 13, 15, 16]) {
+            for (let k = 0; k < 8; k++) {
+                fresh();
+                const names = Array.from({ length: n }, (_, i) => 'w' + String(i + 1).padStart(2, '0'));
+                names.forEach((p, i) => make(p, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: i === n - 1 ? 18 : i === n - 2 ? 17 : 1 + (i % 5) }));
+                G.sayAs('mod1', t('!tournament 16', '!турнір 16'), { mod: true });
+                names.forEach(p => G.say(p, t('!join', '!учасник')));
+                G.sayAs('mod1', t('!tournament start', '!турнір старт'), { mod: true });
+                const T = JSON.parse(JSON.stringify(G.tourney));
+                const top = names[n - 1], second = names[n - 2];
+                const directTop = T.rounds[0].some(m => m.a === top || m.b === top);
+                if (!directTop || halfOf(T, top) === halfOf(T, second) || placeIn(T, second) === -1 || T.seeds.join() !== [top, second].join()) bad.push({ n, k, T: { r1: T.rounds[0], qual: T.qual, seeds: T.seeds } });
+                draws++;
+                G.sayAs('mod1', t('!tournament stop', '!турнір стоп'), { mod: true });
+            }
+        }
+        check(!bad.length, `18. ${draws} draws (4–16 players): the highest level always straight in, the two highest always in opposite halves`, JSON.stringify(bad.slice(0, 2)));
         fresh();
     }
     {
