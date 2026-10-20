@@ -8,7 +8,7 @@
 //  1b  The endings the seeded fights don't reach, through finishBattle: a time-out (both standing) and a draw
 //   2  The export: valid JSON with the log and the saves (drakes and stats); player names replaced by ids p001… everywhere
 //      (no name left in the text; a player only in the saves too), the same ids in a second export and after a reload;
-//      { names: true } keeps the names
+//      { names: true } keeps the names. clearPlayLog() empties the log and the ids and leaves the saves
 //   3  A failing IndexedDB (open throws; or every write throws): the fights finish exactly as without the log (same
 //      fight events), no page errors, and the export still works, reporting the failed writes
 // Usage: node tests/playlog.js
@@ -177,6 +177,19 @@ async function run() {
             'the same ids in a second export and after a reload: zed keeps p004, and a new player in the log gets p005', JSON.stringify({ last: afterReload.events[ev.length] }));
         const named = JSON.parse(await exportLog(page, { names: true }));
         check(named.names === 'twitch' && named.events[0].user === 'alice' && named.saves.drakes.alice, '{ names: true } keeps the Twitch names', JSON.stringify(named.events[0]));
+
+        // clearPlayLog(): the log and the ids go, the saves stay; the next player is p001 again
+        const savesBefore = await saves(page);
+        const removed = await page.evaluate(() => clearPlayLog());
+        const cleared = JSON.parse(await exportLog(page, { names: true }));   // { names: true }: an export by id would hand out ids again
+        await chat(page, 'erin', '!дрейк фіолетовий');
+        const fresh = JSON.parse(await exportLog(page));
+        const savesAfter = await saves(page);
+        delete savesAfter.erin;
+        check(removed === ev.length + 1 && cleared.events.length === 0 && JSON.stringify(savesAfter) === JSON.stringify(savesBefore)
+            && fresh.events.length === 1 && fresh.events[0].user === 'p001' && fresh.saves.drakes.p001.name === 'p001' && Object.keys(fresh.saves.drakes).length === 6,
+            `clearPlayLog() empties the log (${removed} events) and the ids, the saves untouched; the next new player is p001`,
+            JSON.stringify({ removed, left: cleared.events.length, next: fresh.events[0], drakes: Object.keys(fresh.saves.drakes) }));
         await a.context.close();
 
         // The endings the seeded fights don't reach: the game's own finishBattle with both still standing (a time-out) and

@@ -215,6 +215,8 @@ The log is in the browser that runs the overlay, which on stream is OBS's. To re
    Everything is now on the clipboard as one JSON: paste it into a file (e.g. `play-log.json`). It holds the log plus a snapshot of the current saves (drakes and stats). Player names are replaced by ids (`p001`, `p002`…); a player keeps the same id in every export. For the Twitch names, use `copy(await exportPlayLog({ names: true }))`.
 4. Close OBS and start it normally again: while the port is open, any program on the computer can control OBS's browser sources.
 
+To empty the log (after testing the overlay, say), type `await clearPlayLog()` in the same console. It removes every event and the export ids (the next player is `p001` again) and returns how many events it removed; the saves are untouched. Export first if you want to keep anything.
+
 ## Bugs found and fixed
 
 This project went through a QA pass. Each fix was verified by simulating all 36 element matchups plus targeted command scenarios.
@@ -255,7 +257,7 @@ Everything is in `index.html`:
 - `addInfo`, `showStatsCard`, `showTitleRoll`, `showOddsCard`: the chat-request window
 - The fight view (`fvBegin`, `fvTurn`, `fvStep1`, `fvStep2`, `fvFinish`, `fvCardHtml`, `fvCountdown`, `startFight`): the battle log cards, the turn animation, the countdown and the result card. Visual only: the fight records what each turn did (no rolls), and the view draws it. `MOVE_NAMES` holds the move names (element × attack type × strength, both languages). `addLog` is now the fight's hidden text record, which the balance sims and tests read
 - `renderLeaderboard`, `updateFighterCard`, `updateStatusUI`: UI rendering; `renderStreamerCard`, `renderHowTo`, `setArenaState` (the header), `renderResultTags` (winner/loser cards); `nameColor` (minimum name brightness), `fitText` (shrinks long text), `fitStage` (scales the stage outside OBS)
-- `playLog`, `playFightStart` / `playFightEnd`, `exportPlayLog`: the [play log](#play-log) (IndexedDB) and its export
+- `playLog`, `playFightStart` / `playFightEnd`, `exportPlayLog`, `clearPlayLog`: the [play log](#play-log) (IndexedDB), its export and emptying it
 - `migrateOldSaves`, the chat simulator and page init are at the end of the script
 
 Save data lives in the browser's `localStorage` under the keys `drake_arena_showcase_db` and `drake_arena_showcase_stats` (plus `drake_arena_showcase_streamer` for the Test Settings streamer). To reset, clear site data (which deletes the [play log](#play-log) too). Saves from older versions are upgraded automatically on load: titles keep their ID and pick up the new names and bonuses. `'white'` used to be the viewers' White Drake, so any White Drake that doesn't belong to the streamer becomes a Green Drake with the same stats and XP, and title 999 is re-rolled on anything that isn't the dragon. The upgrade is idempotent: running it again changes nothing.

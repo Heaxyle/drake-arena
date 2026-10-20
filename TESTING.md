@@ -485,9 +485,10 @@ Text that is still too wide at its smallest allowed size is squeezed sideways (`
 | Nothing of the log on the page, no network request, no page errors | A visible or networked log |
 | The export is valid JSON with the log and the saves (drakes and stats); every player is an id (`p001`…): the log's in the order they first played, then a player only in the saves; no name anywhere in the text | Names leaking into the export |
 | The same ids in a second export and after a reload, where a new player gets the next id and the saves-only player keeps theirs; `{ names: true }` keeps the names | Ids that change between exports |
+| `clearPlayLog()` removes every event and the export ids and says how many events it removed; the saves are untouched, and the next new player is `p001` again | A clear that leaves events or old ids behind, or touches the saves |
 | IndexedDB failing (`indexedDB.open` throws; every write throws): the ranked fight plays out exactly as with a working log (the same fight events), no page errors, and the export still works, reporting the failed writes | Logging that can break a fight |
 
-The test also had to fail on 13 broken versions of the log: a missing queue join, no Gold part, no underdog part, the betting window's time lost, fighters taken after the fight, KO and time-out swapped, duels not logged, no levels lost, a paid title roll logged as the streamer's, names left in the saves, ids not kept between exports, a failed write left unhandled, and IndexedDB opened outside the guard during a fight.
+The test also had to fail on 16 broken versions of the log: a missing queue join, no Gold part, no underdog part, the betting window's time lost, fighters taken after the fight, KO and time-out swapped, duels not logged, no levels lost, a paid title roll logged as the streamer's, names left in the saves, ids not kept between exports, a failed write left unhandled, IndexedDB opened outside the guard during a fight, and a `clearPlayLog` that keeps the events, keeps the ids, or wipes the saves too.
 
 ## Layer 2: fight view test
 

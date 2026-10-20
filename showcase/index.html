@@ -2539,6 +2539,21 @@ function drakeSpriteURL(type) {
             };
             return JSON.stringify(out);
         }
+        // Empties the log (after testing, say): every event, and the export ids, so the next real player is p001 again.
+        // From the console: await clearPlayLog(). Returns how many events it removed
+        async function clearPlayLog() {
+            const conn = await playLogOpen();
+            const removed = await new Promise((resolve, reject) => {
+                const tx = conn.transaction(['events', 'ids'], 'readwrite');
+                const count = tx.objectStore('events').count();
+                tx.objectStore('events').clear();
+                tx.objectStore('ids').clear();
+                tx.oncomplete = () => resolve(count.result);
+                tx.onerror = tx.onabort = () => reject(tx.error);
+            });
+            playLogFailed = 0;
+            return removed;
+        }
 
         // ===== ELEMENT BALANCE =====
         // Element base (from level 1) + bonus per level tier: [1-4, 5-9, 10-14, 15-19, 20]
