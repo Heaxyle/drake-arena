@@ -1314,6 +1314,7 @@
             if (!FV_LIVE || !bettingWindowOn()) return runBattle(p1Name, p1Color, p2Name, p2Color, isRanked);
             const show = (n, c) => { const d = getDragonStrict(n) || getDragon(n, c); return { ...d, color: nameColor(d.color) }; };
             const a = show(p1Name, p1Color), b = show(p2Name, p2Color);
+            playBettingOpened = playNow();
             fv = { on: false, p1: a, p2: b, ranked: isRanked, betting: true, items: [], stats: {}, rec: null, hold: null, lit: null };
             fvFeedReset();
             fvHead();
@@ -2415,6 +2416,130 @@ function drakeSpriteURL(type) {
             return finalAmount;
         }
 
+        // ===== PLAY LOG =====
+        // How people actually play, kept for study: every fight, title roll, new drake or element change and !черга, with
+        // the time. Silent (nothing on screen, no network), in IndexedDB rather than localStorage (the saves live there,
+        // and it holds only about 5 MB), under a name with no "db" or "stats" in it, so a ladder wipe keeps it. Logging
+        // never affects the game: it draws no random numbers, nothing waits for it, and every failure is swallowed and
+        // counted (playLogFailed; the export reports it). From the console: copy(await exportPlayLog())
+        const PLAY_LOG_NAME = 'drake_arena_showcase_playlog';
+        let playLogConn = null, playLogFailed = 0;
+        let playFight = null;          // the fight on the arena: its start, logged with its end
+        let playBettingOpened = null;  // when the betting window of the fight about to start opened
+        const playNow = () => new Date().toISOString();
+        function playLogOpen() {
+            if (!playLogConn) {
+                playLogConn = new Promise((resolve, reject) => {
+                    const req = indexedDB.open(PLAY_LOG_NAME, 1);
+                    req.onupgradeneeded = () => {
+                        req.result.createObjectStore('events', { autoIncrement: true });
+                        req.result.createObjectStore('ids');   // player name → export id (p001…), kept so ids stay the same between exports
+                    };
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                    req.onblocked = () => reject(new Error('blocked'));
+                });
+                playLogConn.catch(() => { playLogConn = null; });   // try again on the next write
+            }
+            return playLogConn;
+        }
+        function playLog(type, data) {
+            try {
+                if (typeof indexedDB === 'undefined') return;   // Node (the sims and rule tests)
+                const event = { t: playNow(), type, ...data };
+                playLogOpen().then(conn => new Promise((resolve, reject) => {
+                    const tx = conn.transaction('events', 'readwrite');
+                    tx.objectStore('events').add(event);
+                    tx.oncomplete = resolve;
+                    tx.onerror = tx.onabort = () => reject(tx.error);
+                })).catch(() => { playLogFailed++; });
+            } catch (e) { playLogFailed++; }
+        }
+        // A fighter as they go in: level, XP, element and title before the fight
+        function playFighter(name) {
+            const d = getDragonStrict(name);
+            if (!d) return { name };
+            return { name, level: calculateLevelAndProgress(d.xp).level, xp: d.xp, element: d.drakeObj && d.drakeObj.type,
+                     title: d.title ? d.title.id : null, rarity: d.title ? d.title.rarity || null : null };
+        }
+        function playFightStart(p1Name, p2Name, isRanked, opts) {
+            try {
+                playFight = { kind: isRanked ? 'ranked' : 'duel', bettingOpened: opts.betting ? playBettingOpened : null, started: playNow(),
+                              players: [playFighter(p1Name), playFighter(p2Name)] };
+            } catch (e) { playFight = null; }
+            playBettingOpened = null;
+        }
+        // The fight's end: result 'ko' / 'timeout' / 'draw' (or 'error' for a simulation error), the winner, the turns, and
+        // per player the XP got: { xp, base, underdog, gold } (gold: what the Gold passive added; xp 0 at level 20), null in a duel
+        function playFightEnd(end, xp) {
+            try {
+                const f = playFight;
+                playFight = null;
+                if (!f) return;
+                f.players.forEach(p => { p.got = xp ? xp[p.name] || null : null; });
+                playLog('fight', { ...f, ended: playNow(), ...end });
+            } catch (e) { playLogFailed++; }
+        }
+        const playXp = (got, base, underdog = 0) => ({ xp: got, base, underdog: got ? underdog : 0, gold: got ? got - base - underdog : 0 });
+
+        // The export: everything on the clipboard as one JSON, the log plus a snapshot of the saves (drakes and stats).
+        // Player names become stable ids (p001, p002…, the same in every export) unless called with { names: true }
+        async function exportPlayLog({ names = false } = {}) {
+            let events = [], logError = null, conn = null;
+            try {
+                conn = await playLogOpen();
+                events = await new Promise((resolve, reject) => {
+                    const req = conn.transaction('events').objectStore('events').getAll();
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            } catch (e) { logError = String(e && e.message || e); }
+            const drakes = getDragonDB(), stats = JSON.parse(localStorage.getItem('drake_arena_showcase_stats')) || {};
+            let id = n => n;
+            if (!names) {
+                const ids = new Map();
+                if (conn) {
+                    await new Promise(resolve => {
+                        const req = conn.transaction('ids').objectStore('ids').openCursor();
+                        req.onsuccess = () => { const c = req.result; if (c) { ids.set(c.key, c.value); c.continue(); } else resolve(); };
+                        req.onerror = () => resolve();
+                    });
+                }
+                const fresh = [];
+                id = n => {
+                    if (n == null || n === '') return n;
+                    if (!ids.has(n)) { ids.set(n, 'p' + String(ids.size + 1).padStart(3, '0')); fresh.push(n); }
+                    return ids.get(n);
+                };
+                // New ids in the order players first appear: the log first, then the saves
+                events.forEach(e => { id(e.user); (e.players || []).forEach(p => id(p.name)); id(e.winner); });
+                Object.keys(drakes).sort().forEach(id);
+                Object.keys(stats).sort().forEach(id);
+                if (STREAMER_USER) id(STREAMER_USER);
+                if (conn && fresh.length) {
+                    await new Promise(resolve => {
+                        try {
+                            const tx = conn.transaction('ids', 'readwrite');
+                            fresh.forEach(n => tx.objectStore('ids').put(ids.get(n), n));
+                            tx.oncomplete = tx.onerror = tx.onabort = () => resolve();
+                        } catch (e) { resolve(); }
+                    });
+                }
+            }
+            const out = {
+                format: 'drake-arena-play-log', version: 1, exported: playNow(), names: names ? 'twitch' : 'ids',
+                failedWrites: playLogFailed, logError,
+                events: events.map(e => ({ ...e, ...(e.user !== undefined && { user: id(e.user) }), ...(e.winner !== undefined && { winner: id(e.winner) }),
+                                           ...(e.players && { players: e.players.map(p => ({ ...p, name: id(p.name) })) }) })),
+                saves: {
+                    streamer: STREAMER_USER ? id(STREAMER_USER) : null,
+                    drakes: Object.fromEntries(Object.entries(drakes).map(([n, d]) => [id(n), { ...d, name: id(d.name || n) }])),
+                    stats: Object.fromEntries(Object.entries(stats).map(([n, s]) => [id(n), s])),
+                },
+            };
+            return JSON.stringify(out);
+        }
+
         // ===== ELEMENT BALANCE =====
         // Element base (from level 1) + bonus per level tier: [1-4, 5-9, 10-14, 15-19, 20]
         const ELEMENT_BASE = { redCrit: 13, redPower: 0.35, blueDef: 8, blueReflect: 11, blackBlock: 3, blackChance: 18, goldXp: 50, goldOneHp: 7, purpleEff: 25, purpleChance: 20, greenHp: 22 };
@@ -2794,6 +2919,7 @@ function drakeSpriteURL(type) {
                     dbUpdate[sender] = dragon;
                     saveDragonDB(dbUpdate);
                     renderLeaderboard();
+                    playLog('drake', { user: sender, element: chosen.type, levelLost: 0 });
                     let msg = currentLang === 'uk' ?
                         `🐉 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> успішно створив бійця! Стихія: <b>${dragon.drakeObj.name[currentLang]}</b>!` :
                         `🐉 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> successfully created a fighter! Element: <b>${dragon.drakeObj.name[currentLang]}</b>!`;
@@ -2839,7 +2965,9 @@ function drakeSpriteURL(type) {
                 let chosen = drakeByWord(args[1]);
                 if (chosen && chosen.type === DRAGON_TYPE && !isStreamer(sender)) { refuseDragon(sender, senderColor); return; }
                 if (chosen) {
+                    const wasNew = !db[sender];
                     let dragon = getDragon(sender, senderColor); 
+                    const fromType = dragon.drakeObj.type, levelBefore = calculateLevelAndProgress(dragon.xp).level;
                     dragon.drakeObj = chosen;
                     if (chosen.type === DRAGON_TYPE) makeDragon(dragon);
                     else {
@@ -2853,6 +2981,9 @@ function drakeSpriteURL(type) {
                     saveDragonDB(dbUpdate);
                     
                     renderLeaderboard();
+                    const levelAfter = calculateLevelAndProgress(dragon.xp).level;
+                    playLog('element', { user: sender, from: wasNew ? null : fromType, element: chosen.type, levelBefore: wasNew ? null : levelBefore,
+                                         levelLost: wasNew ? 0 : Math.max(0, levelBefore - levelAfter) });
                     let msg = currentLang === 'uk' ?
                         `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> ПЕРЕРОДИВСЯ! Нова стихія: <b>${dragon.drakeObj.name[currentLang]}</b>. ${chosen.type === DRAGON_TYPE ? `Рівень ${calculateLevelAndProgress(dragon.xp).level}!` : 'Рівень скинуто до 1!'}` :
                         `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> REBORN! New element: <b>${dragon.drakeObj.name[currentLang]}</b>. ${chosen.type === DRAGON_TYPE ? `Level ${calculateLevelAndProgress(dragon.xp).level}!` : 'Level reset to 1!'}`;
@@ -2885,8 +3016,11 @@ function drakeSpriteURL(type) {
                     addInfo(msg, 'warn');
                     return;
                 }
+                const oldTitle = dragon.title;
                 let newTitle = getRandomTitle();
                 dragon.title = newTitle;
+                playLog('title', { user: sender, from: oldTitle ? oldTitle.id : null, fromRarity: oldTitle ? oldTitle.rarity || null : null,
+                                   to: newTitle.id, toRarity: newTitle.rarity, via: rewardId != null ? 'points' : 'streamer' });
                 
                 let dbUpdate = getDragonDB();
                 dbUpdate[sender] = dragon;
@@ -2949,6 +3083,7 @@ function drakeSpriteURL(type) {
 
             if (command === '!черга' || command === '!queue') {
                 if (matchmakingQueue.includes(sender)) {
+                    playLog('queue', { user: sender, joined: false, position: matchmakingQueue.indexOf(sender) + 1 });
                     let msg = currentLang === 'uk' ?
                         `⏳ <span style="color: ${senderColor};">@${sender}</span>, ви вже в черзі!` :
                         `⏳ <span style="color: ${senderColor};">@${sender}</span>, you are already in queue!`;
@@ -2956,6 +3091,7 @@ function drakeSpriteURL(type) {
                     return;
                 }
                 matchmakingQueue.push(sender);
+                playLog('queue', { user: sender, joined: true, position: matchmakingQueue.length });
                 updateQueueUI();
                 let msg = currentLang === 'uk' ?
                     `⏳ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> став у чергу на рейтинговий бій! (У черзі: ${matchmakingQueue.length})` :
@@ -3255,6 +3391,7 @@ function drakeSpriteURL(type) {
             }
             let p1 = getDragonStrict(p1Name) || getDragon(p1Name, p1Color);
             let p2 = getDragonStrict(p2Name) || getDragon(p2Name, p2Color);
+            playFightStart(p1.name, p2.name, isRanked, opts);
             // Display copies: names drawn in the log and on the cards get a readable brightness (saves are untouched)
             p1 = { ...p1, color: nameColor(p1.color) };
             p2 = { ...p2, color: nameColor(p2.color) };
@@ -3816,6 +3953,7 @@ function drakeSpriteURL(type) {
                     clearInterval(battleInterval);
                     isBattleRunning = false;
                     fvAbort();
+                    playFightEnd({ result: 'error', winner: null, turns: turn, error: String(error && error.message) }, null);
                     let errorMsg = currentLang === 'uk' ?
                         `❌ <span style="color: #ff4141; font-weight: bold;">Критична помилка симуляції:</span> ${error.message}. Бій перервано!` :
                         `❌ <span style="color: #ff4141; font-weight: bold;">Critical simulation error:</span> ${error.message}. Battle aborted!`;
@@ -3929,6 +4067,7 @@ function drakeSpriteURL(type) {
                         `🤝 <b>Friendly battle finished!</b> Winner: <span style="color: ${winner.color}; font-weight: bold;">@${winner.name}</span>! <i>(XP and stats unchanged)</i>`;
                     addLog(msg);
                 }
+                playFightEnd({ result: !winner ? 'draw' : ko ? 'ko' : 'timeout', winner: winner ? winner.name : null, turns: fightTurns }, null);
                 fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: false, turns: fightTurns, xp: null, lvl: null });
                 setArenaState({ kind: 'result', ranked: false, winner, turns: fightTurns, ko });
                 isBattleRunning = false;
@@ -3936,10 +4075,12 @@ function drakeSpriteURL(type) {
                 return;
             }
 
+            let playGot;
             if (!winner) {
                 let added1 = addXP(p1.name, 10);
                 let added2 = addXP(p2.name, 10);
                 fvXp = { [p1.name]: added1, [p2.name]: added2 };
+                playGot = { [p1.name]: playXp(added1, 10), [p2.name]: playXp(added2, 10) };
                 // A draw is neither a win nor a loss: the record stays as it was
                 let msg = currentLang === 'uk' ?
                     `🤝 Нічия між <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> та <span style="color: ${p2.color}; font-weight: bold;">@${p2.name}</span>! (+${added1}/${added2} XP)` :
@@ -3954,6 +4095,7 @@ function drakeSpriteURL(type) {
                 let winXP = addXP(winner.name, 40 + bonus);
                 let loseXP = addXP(looser.name, 10);
                 fvXp = { [winner.name]: winXP, [looser.name]: loseXP };
+                playGot = { [winner.name]: playXp(winXP, 40, bonus), [looser.name]: playXp(loseXP, 10) };
                 if (bonus && winXP > 0) fvXpBonus = { [winner.name]: bonus };
 
                 let maxLvlText = currentLang === 'uk' ? '(МАХ Рівень)' : '(MAX Level)';
@@ -3974,6 +4116,7 @@ function drakeSpriteURL(type) {
             updateFighterCard('p1', getDragonStrict(p1.name));
             updateFighterCard('p2', getDragonStrict(p2.name));
             
+            playFightEnd({ result: !winner ? 'draw' : ko ? 'ko' : 'timeout', winner: winner ? winner.name : null, turns: fightTurns }, playGot);
             fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: true, turns: fightTurns, xp: fvXp, xpBonus: fvXpBonus, lvl: fvLvl });
             setArenaState({ kind: 'result', ranked: true, winner, turns: fightTurns, ko });
             isBattleRunning = false;

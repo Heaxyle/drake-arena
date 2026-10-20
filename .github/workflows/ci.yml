@@ -44,6 +44,10 @@ jobs:
       - name: Controls test
         run: npm run test:controls
 
+      # The play log: what fights, title rolls, element changes and !черга record, the export (ids, not names), a failing IndexedDB
+      - name: Play log test
+        run: npm run test:playlog
+
       # Upload even when a test fails: the screenshots are how you see what went wrong
       - name: Upload screenshots
         if: always()
