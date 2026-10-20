@@ -14,7 +14,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 - **Chat-request window:** replies to viewers (`!stats` cards, title rolls, warnings) appear in their own panel, separate from the battle log
 - **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 12 buffs/debuffs (one of each per element), class ultimates on an Element Power meter, and a sudden-death phase
 - **Ranked queue** with level-based matchmaking, plus friendly duels that give no XP
-- **Tournaments:** single elimination with a main bracket of 4, 8 or 16 drakes (level decides who goes straight in and keeps the two highest apart until the final; the rest play a qualifier), best of 3, everyone at level 20; a bracket during the betting window, the score on the arena plate, a podium at the end (see [below](#tournaments))
+- **Tournaments:** single elimination with a main bracket of 4, 8 or 16 drakes (level decides who goes straight in and keeps the two highest apart until the final; the rest play a qualifier), best of 3, everyone at level 20; a bracket during the betting window, the score on the arena plate, a podium at the end, and prizes: badges, free title spins, medals and a Hall of Fame (see [below](#tournaments))
 - **Progression:** XP, levels 1–20 and a win/loss leaderboard (the Top drakes, ordered by wins − losses, then wins, then level; ranked fights only), saved in `localStorage`
 - **Channel-point rewards** for title rolls and element rerolls
 - **1920×1080 overlay** with pixel-art gold frames: the arena and a side column (streamer card, top drakes, chat replies) on the right, the camera column and the strip above the arena left free. Outside OBS the demo controls sit in the camera column and the whole stage scales down to fit the window
@@ -55,12 +55,13 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js) 1.8.5
 | `!battle @name` | `!бій @нік` | Challenge someone to a friendly duel (30 s to answer). One open challenge at a time; `!battle` with no name says how to use it |
 | `!accept` / `!decline` | `!прийняти` / `!відхилити` | Answer a challenge. Accepted during a fight, the duel waits and starts after it |
 | `!stats` / `!profile` | `!стата` / `!профіль` | Level, progress, HP/crit/defense, wins/losses, title and its bonus |
-| `!title` | `!титул` | Roll a random title *(channel points)* |
+| `!title` | `!титул` | Roll a random title *(channel points, or a free spin from a tournament)* |
 | `!odds` / `!chances` | `!шанси` | Show the title roulette drop chances |
 | `!reroll <color>` | `!рерол <колір>` | Change element and reset to level 1 *(channel points)* |
 | `!start` | `!старт` | End the betting window early, or the result screen *(channel owner and moderators only)* |
 | `!tournament [4\|8\|16]` | `!турнір [4\|8\|16]` | Open tournament sign-up for up to 4, 8 or 16 players (8 if no number). `!tournament start` / `!турнір старт` closes it early (4 players or more), `!tournament stop` / `!турнір стоп` cancels the tournament at any point *(channel owner and moderators only)* |
 | `!join` / `!leave` | `!учасник` / `!вийти` | Join the open tournament sign-up, or leave it while it's still open |
+| `!hall` | `!зала` | The Hall of Fame: the last 5 tournaments and whoever has won the most |
 
 **No rest between fights:** fighters can `!queue`, `!battle` and `!accept` again straight away, even during their own fight. Only two things hold a player back: someone already in the queue can't join it twice, and players whose duel is waiting for the arena are busy until it starts (below).
 
@@ -78,6 +79,15 @@ The channel owner or a moderator opens sign-up with `!турнір` / `!tourname
 - **The queue and duels wait:** during the tournament `!черга` / `!queue` still joins the queue, in order, but ranked fights wait until the final is over; `!бій` / `!battle` (and `!прийняти` / `!accept` on an older challenge) get a short "a tournament is on" reply. Both carry on after the podium.
 - **On screen:** the arena plate says «🏆 Турнір · Півфінал · Гра 2 · 1:0» / "🏆 Tournament · Semifinal · Game 2 · 1:0" (stages: «1/8 фіналу», «Чвертьфінал», «Півфінал», «Матч за 3-тє місце», «Фінал»; the score from the left card's side; a qualifier game says «🏆 Турнір · Кваліфікація 2/5»); the countdown, the turn or the winner moves to the left of the header. The bracket shows the qualifier as its own column («Кваліфікація» / "Qualifier") before the main bracket, whose places still to be won read «…». After the final, a podium 🥈 🥇 🥉 with names and sprites holds the arena for 20 s.
 - **Saved:** the tournament (players, bracket, results, the current score) lives under its own `localStorage` key, `drake_arena_showcase_tournament` (no "db" or "stats" in the name, so a line that wipes the ladder keys leaves it alone). If the page reloads mid-tournament, it resumes at the current match and replays an unfinished game.
+
+**Prizes**, given when the final is decided (a cancelled tournament gives nothing):
+
+- **Badges** 🏆 / 🥈 / 🥉 next to the name in the Top, on the arena card and in `!стата` / `!stats`, until the next tournament ends. The champion's drake also glows gold in fights.
+- **Free title spins:** 3 / 2 / 1. With a spin left, `!титул` / `!title` typed in chat uses one (no channel points needed); with none, it gets the usual "channel points only" reply. Channel-point redemptions work as before and don't use spins. Spins add up over tournaments; `!стата` shows how many are left.
+- **Medals** that never reset, in `!стата`: 🏆×2 🥈×1 🥉×0.
+- **Hall of Fame:** every tournament (date, number of players, 1st, 2nd, 3rd). It's shown on the arena for 15 s after the podium (and stays there until the next fight), on the idle arena instead of «Арена готова! Очікування бійців…» once there's at least one entry, and by `!зала` / `!hall` as a card in the chat panel (the last 5 tournaments and whoever has won the most).
+
+Medals, spins and the Hall of Fame live under their own key, `drake_arena_showcase_honours`, also without "db" or "stats" in the name, so a ladder wipe keeps them.
 
 **Duels during a fight:** `!accept` while the arena is busy doesn't cancel the duel: it waits, and starts when the current fight's result screen ends, before the ranked queue carries on. Accepting takes both players out of the ranked queue, and until their duel starts both get a short "busy" reply to `!queue`, `!battle` and `!accept`. Only one duel can wait at a time; another `!accept` meanwhile is told to challenge again after the next fight. A `!battle` to a viewer whose duel is waiting is answered straight away ("⏳ @x is waiting for a duel. Challenge them after the next fight.") and opens no challenge.
 
@@ -210,7 +220,7 @@ How ultimates fit with the rest:
 The overlay keeps a record of how people play, so play can be studied (before a season wipe, say). It records silently: nothing on screen, nothing sent anywhere.
 
 - **Every fight:** the date and time; ranked or duel; both players with their level, XP, element and title before it; the winner; KO, time-out or draw (or a simulation error); the turns; the XP each got, with the underdog and Gold parts; when its betting window opened (if it had one) and when the fight started.
-- **Every title roll:** who, the old and the new title, and whether it was paid with channel points or typed by the streamer.
+- **Every title roll:** who, the old and the new title, and how: channel points, a free spin from a tournament, or typed by the streamer.
 - **Every new drake (`!дрейк`) and element change (`!рерол`):** who, which element (and the old one), and the levels lost.
 - **Every `!черга`:** who and when, and their place in the queue, so queue waits can be worked out from the fights that follow.
 - **Every tournament game,** like a fight (`kind: 'tournament'`), plus its stage (`qual`, `r16`, `qf`, `sf`, `third`, `final`), game number and whether it was a replayed draw. The players' level and XP are their saved ones (they fought at level 20, `fightLevel: 20`); no XP. A game fought after `!турнір стоп` is marked `counted: false`.
@@ -229,7 +239,7 @@ The log is in the browser that runs the overlay, which on stream is OBS's. To re
    ```js
    copy(await exportPlayLog())
    ```
-   Everything is now on the clipboard as one JSON: paste it into a file (e.g. `play-log.json`). It holds the log plus a snapshot of the current saves (drakes and stats). Player names are replaced by ids (`p001`, `p002`…); a player keeps the same id in every export. For the Twitch names, use `copy(await exportPlayLog({ names: true }))`.
+   Everything is now on the clipboard as one JSON: paste it into a file (e.g. `play-log.json`). It holds the log plus a snapshot of the current saves (drakes and stats) and the tournament honours (the last podium, medals, free spins left, the Hall of Fame). Player names are replaced by ids (`p001`, `p002`…); a player keeps the same id in every export. For the Twitch names, use `copy(await exportPlayLog({ names: true }))`.
 4. Close OBS and start it normally again: while the port is open, any program on the computer can control OBS's browser sources.
 
 To empty the log (after testing the overlay, say), type `await clearPlayLog()` in the same console. It removes every event and the export ids (the next player is `p001` again) and returns how many events it removed; the saves are untouched. Export first if you want to keep anything.
@@ -270,6 +280,7 @@ Everything is in `index.html`:
 - `handleChatMessage`: command parsing, shared by Twitch and the simulator
 - `EFFECTS`, `EFFECT_CAST`: the 12 buffs/debuffs (icon, names, description, what counts them down, numbers) and the cast rules; `getCastChance` is the cast chance
 - `CLASS_ULTIMATES`, `METER`: the six class ultimates (icon, names, numbers, description) and the Element Power meter; `ultimateFor`, `describeUltimate`, `renderPowerMeter` (the meter row on the fighter cards)
+- `getHonours`, `tourneyAward`, `medalOf`, `showHallOfFame`, `showHallCard`: tournament prizes (badges, spins, medals, the Hall of Fame)
 - `tourney*` (`tourneyCommand`, `tourneyClose`, `tourneyNext`, `tourneyResult`, `tourneyPodium`, `tourneyFighter`, `tourneyBracketHtml`): tournaments; `TOURNEY_TEXT` holds their words in both languages
 - `checkQueue`, `runBattle`, `pickEffect`, `applyEffect`, `finishBattle`: matchmaking and the combat loop (`applyEffect` handles refresh, replacement, Dispel and immunity; `runBattle` fills the meter and plays the ultimates)
 - `addInfo`, `showStatsCard`, `showTitleRoll`, `showOddsCard`: the chat-request window
@@ -278,7 +289,7 @@ Everything is in `index.html`:
 - `playLog`, `playFightStart` / `playFightEnd`, `exportPlayLog`, `clearPlayLog`: the [play log](#play-log) (IndexedDB), its export and emptying it
 - `migrateOldSaves`, the chat simulator and page init are at the end of the script
 
-Save data lives in the browser's `localStorage` under the keys `drake_arena_showcase_db` and `drake_arena_showcase_stats` (plus `drake_arena_showcase_streamer` for the Test Settings streamer, and `drake_arena_showcase_tournament` while a tournament is on). To reset, clear site data (which deletes the [play log](#play-log) too). Saves from older versions are upgraded automatically on load: titles keep their ID and pick up the new names and bonuses. `'white'` used to be the viewers' White Drake, so any White Drake that doesn't belong to the streamer becomes a Green Drake with the same stats and XP, and title 999 is re-rolled on anything that isn't the dragon. The upgrade is idempotent: running it again changes nothing.
+Save data lives in the browser's `localStorage` under the keys `drake_arena_showcase_db` and `drake_arena_showcase_stats` (plus `drake_arena_showcase_streamer` for the Test Settings streamer, `drake_arena_showcase_tournament` while a tournament is on, and `drake_arena_showcase_honours` for tournament prizes). To reset, clear site data (which deletes the [play log](#play-log) too). Saves from older versions are upgraded automatically on load: titles keep their ID and pick up the new names and bonuses. `'white'` used to be the viewers' White Drake, so any White Drake that doesn't belong to the streamer becomes a Green Drake with the same stats and XP, and title 999 is re-rolled on anything that isn't the dragon. The upgrade is idempotent: running it again changes nothing.
 
 ## Credits
 

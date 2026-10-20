@@ -220,6 +220,17 @@ const MUTATIONS = [
     ['a qualifier seed left anywhere', "when the second highest level is in the qualifier, their game's place can be in the top seed's half",
         "const placeOf = who => places.findIndex(p => p === who || (typeof p === 'object' && [t.qual[p.q].a, t.qual[p.q].b].includes(who)));",
         'const placeOf = who => places.indexOf(who);'],
+    // Tournament rewards (caught by rules.js)
+    ['channel points use up free spins', 'a channel-point !title also spends a free spin',
+        'freeSpin = !isValidTitle && honours.spins[sender] > 0;', 'freeSpin = honours.spins[sender] > 0;'],
+    ['free rolls without a spin', '!title typed in chat rolls a title even with no free spin left',
+        'freeSpin = !isValidTitle && honours.spins[sender] > 0;', 'freeSpin = !isValidTitle;'],
+    ['medals reset every tournament', "a player's medal count starts again at each tournament",
+        'const m = medalCount(h, name); m[i]++; h.medals[name] = m;', 'const m = [0, 0, 0]; m[i]++; h.medals[name] = m;'],
+    ['spins replaced, not added', "a new tournament's spins replace the ones still left",
+        'h.spins[name] = (h.spins[name] || 0) + TOURNEY_SPINS[i];', 'h.spins[name] = TOURNEY_SPINS[i];'],
+    ['badges kept for good', 'the first podium keeps the badges after the next tournament ends',
+        'h.holders = [...t.podium];', 'h.holders = h.holders.length ? h.holders : [...t.podium];'],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported
