@@ -47,6 +47,9 @@ jobs:
       # The play log: what fights, title rolls, element changes and !черга record, the export (ids, not names), a failing IndexedDB
       - name: Play log test
         run: npm run test:playlog
+      # Sign-up, a whole 8-player tournament, a reload mid-match, byes and cancel, on the fake clock
+      - name: Tournament test
+        run: npm run test:tournament
 
       # Upload even when a test fails: the screenshots are how you see what went wrong
       - name: Upload screenshots

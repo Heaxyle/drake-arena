@@ -16,6 +16,7 @@
     "test:fightview": "node tests/fightview.js",
     "test:controls": "node tests/controls.js",
     "test:playlog": "node tests/playlog.js",
+    "test:tournament": "node tests/tournament.js",
     "test:balance-gate": "node tests/balance.js matrix 1500 20 --seed 12345 --bounds 40,60",
     "balance:check": "node tests/balance_check.js"
   },
