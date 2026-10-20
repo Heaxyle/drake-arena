@@ -43,7 +43,8 @@ const { offTwitch } = require('./no_twitch');   // a stand-in tmi.js: nothing re
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
-const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
+// TOUR_FILE=<another index.html> runs the test against that page instead (the effects-off timeline is compared that way)
+const PAGE = 'file:///' + (process.env.TOUR_FILE ? path.resolve(process.env.TOUR_FILE) : path.join(ROOT, 'showcase/index.html')).replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
 const ONLY = (process.env.TOUR_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
@@ -54,7 +55,8 @@ const fail = msg => { failures++; console.log(`  ✗ ${msg}`); };
 const pass = msg => console.log(`  ✓ ${msg}`);
 const check = (ok, good, bad) => ok ? pass(good) : fail(`${good} — ${bad}`);
 
-async function open(browser, { lang = 'uk', betting = false } = {}) {
+// Sections 1–5 run with the tournament effects off (so their timings are the tournament's own); section 6 turns them on
+async function open(browser, { lang = 'uk', betting = false, fx = false, sound = false } = {}) {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await context.newPage();
     const errors = [];
@@ -64,7 +66,13 @@ async function open(browser, { lang = 'uk', betting = false } = {}) {
     await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
     await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));
     await page.addInitScript(pageInit, SEED);
-    await page.addInitScript(on => { if (!sessionStorage.getItem('loaded')) { localStorage.setItem('drake_arena_showcase_betting', on ? '1' : '0'); sessionStorage.setItem('loaded', '1'); } }, betting);
+    await page.addInitScript(([on, fx, sound]) => {
+        if (sessionStorage.getItem('loaded')) return;
+        localStorage.setItem('drake_arena_showcase_betting', on ? '1' : '0');
+        localStorage.setItem('drake_arena_showcase_tourfx', fx ? '1' : '0');
+        localStorage.setItem('drake_arena_showcase_toursound', sound ? '1' : '0');
+        sessionStorage.setItem('loaded', '1');
+    }, [betting, fx, sound]);
     await page.addInitScript(installHooks);
     await page.goto(`${PAGE}?lang=${lang}`);
     await page.evaluate(() => document.fonts.ready);
@@ -361,6 +369,10 @@ const key = (a, b) => [a, b].sort().join('-');
             && back.queue.map(q => q.replace(/\s/g, '')).join() === '1@q_third' && challenged === 'duel_a' && !(await page.evaluate(k => localStorage.getItem(k), KEY)),
             'after the podium: the tournament is gone (its save too); the queue carries on in its order (@q_first against @q_second, @q_third next) and !бій works again',
             JSON.stringify({ line: back.line, nextFight, queue: back.queue, challenged }));
+        // The run's timeline: when every fight started (game clock), with the tournament's stage and game. With the
+        // effects off it must match the page without the show (TOUR_FILE=<that page> TOUR_ONLY=2 prints its own)
+        const timeline = await page.evaluate(() => window.__starts.map(s => [s.t, s.a, s.b, s.tour && s.tour.stage, s.tour && s.tour.game]));
+        console.log(`  · timeline (effects off): ${require('crypto').createHash('sha256').update(JSON.stringify(timeline)).digest('hex').slice(0, 16)} (${timeline.length} fights)`);
         check(!errors.length, 'no page errors', errors.join(' | '));
         await context.close();
     }
@@ -742,6 +754,198 @@ const key = (a, b) => [a, b].sort().join('-');
         check(after.idle === 'idle' && after.hall && after.rows === 2 && after.idleBanner === '0',
             'the idle arena after the reload: the Hall of Fame (2 tournaments) instead of «Арена готова! Очікування бійців…»', JSON.stringify(after));
         await shot(page, 'tournament-hall-idle.png');
+        check(!errors.length, 'no page errors', errors.join(' | '));
+        await context.close();
+    }
+
+    // 6. The show: the tournament with its effects on (Ukrainian, sounds on)
+    if (run(6)) {
+        console.log('\n[6. the show: effects on, uk]');
+        const { page, context, errors } = await open(browser, { lang: 'uk', fx: true, sound: true });
+        const players = ['sofiia_k', 'bohdan', 'ira_77', 'maks', 'oleh_the_great', 'zoryana', 'taras', 'yana'];
+        await register(page, 'uk', [...players, 'r_one', 'r_two']);
+        // The show's state: arena classes, overlays, the pips, what's in the log area; and where things are
+        const looks = () => page.evaluate(() => {
+            const arena = document.getElementById('arena'), box = document.getElementById('log-countdown');
+            const txt = el => el ? el.textContent.replace(/\s+/g, ' ').trim() : '';
+            const pips = id => [...document.querySelectorAll(`#${id} .ts-pip`)].map(p => p.className.replace('ts-pip', '').trim() || '·');
+            return { kind: arenaState.kind, cls: [...arena.classList].filter(c => c.startsWith('ts-')), box: box.className,
+                over: [...document.querySelectorAll('.ts-over')].map(o => o.className.replace('ts-over', '').trim()),
+                overText: txt(document.querySelector('.ts-over')), pips: [pips('ts-pips-p1'), pips('ts-pips-p2')], plaque: txt(document.querySelector('.plaque-text')),
+                cues: [...showCues], left: fv.p1 && fv.p1.name, right: fv.p2 && fv.p2.name };
+        });
+        // Long finite animations running now (ms): the frame's loops are endless and don't count
+        const longAnims = () => page.evaluate(() => document.getAnimations().map(a => a.effect.getComputedTiming()).filter(t => Number.isFinite(t.endTime) && t.endTime > 3000).map(t => t.endTime));
+        // While a game is fought: nothing of the show over the cards or the log (what's at their centre and corners is theirs)
+        const uncovered = () => page.evaluate(() => {
+            // The show's layers don't take the mouse (pointer-events: none), so hit-testing would look through them: let it see them
+            const probe = document.createElement('style');
+            probe.textContent = '.ts-over, .ts-over *, #ts-frame, #ts-frame *, .ts-pips, .ts-pips * { pointer-events: auto !important; }';
+            document.head.appendChild(probe);
+            const pts = [];
+            ['card-p1', 'card-p2', 'log-panel'].forEach(id => {
+                const r = document.getElementById(id).getBoundingClientRect();
+                [[0.5, 0.5], [0.05, 0.05], [0.95, 0.95], [0.05, 0.95], [0.95, 0.05]].forEach(([x, y]) => {
+                    const el = document.elementFromPoint(r.left + r.width * x, r.top + r.height * y);
+                    pts.push(!!el && !!el.closest('#' + id) && !el.closest('.ts-over, #ts-frame'));
+                });
+            });
+            const gap = [document.querySelector('.fighters-box').getBoundingClientRect().bottom, document.getElementById('log-panel').getBoundingClientRect().top];
+            const pipsIn = [...document.querySelectorAll('.ts-pips')].every(p => { const r = p.getBoundingClientRect(); return r.top >= gap[0] && r.bottom <= gap[1]; });
+            probe.remove();
+            return { all: pts.every(Boolean), pipsIn };
+        });
+        const settle = ms => page.waitForTimeout(ms);   // CSS animations run on real time, not the game clock
+
+        // A regular fight: none of the show
+        await say(page, 'r_one', '!черга'); await say(page, 'r_two', '!черга');
+        await until(page, () => arenaState.kind === 'fight', null, { step: 500 });
+        const plain = await looks();
+        check(!plain.cls.length && !plain.over.length && !(await page.evaluate(() => !!document.getElementById('ts-frame'))),
+            'a regular fight: no championship frame, no pips, no overlay', JSON.stringify(plain));
+        await until(page, () => !isBattleRunning && !resultHold, null, { step: 2000 });
+
+        // 1. The sign-up board on the free arena
+        await mod(page, '!турнір');
+        for (const n of players.slice(0, 5)) await say(page, n, '!учасник');
+        await page.clock.runFor(100);
+        const board = await page.evaluate(() => ({ box: document.getElementById('log-countdown').className, counting: document.getElementById('log-panel').classList.contains('counting'),
+            slots: document.querySelectorAll('.ts-slot').length, filled: [...document.querySelectorAll('.ts-slot:not(.empty) .ts-slot-name')].map(n => n.textContent),
+            sprites: document.querySelectorAll('.ts-slot-sprite').length, pop: [...document.querySelectorAll('.ts-slot.pop .ts-slot-name')].map(n => n.textContent),
+            count: document.querySelector('.tsb-count').textContent, bar: document.querySelector('.tsb-fill').style.transform, mini: !!document.querySelector('#queue-hint .ts-mini') }));
+        check(board.box.includes('ts-board') && board.counting && board.slots === 8 && board.filled.join() === players.slice(0, 5).map(n => '@' + n).join() && board.sprites === 5
+            && board.pop.join() === '@oleh_the_great' && board.count === '5/8' && board.bar === 'scaleX(0.625)' && board.mini,
+            `the sign-up board: 8 slots, 5 filled with sprite and name in sign-up order, the newest (@oleh_the_great) popping in, "5/8" and its bar; a small bar on the strip`, JSON.stringify(board));
+        await settle(700);
+        await shot(page, 'show-signup.png');
+        // A regular fight during sign-up takes the log area as usual; the board comes back on the free arena
+        await say(page, 'r_one', '!черга'); await say(page, 'r_two', '!черга');
+        await until(page, () => arenaState.kind === 'fight', null, { step: 500 });
+        await say(page, players[5], '!учасник');   // a join during the fight: the fight's log stays
+        const during = await looks();
+        await until(page, () => !isBattleRunning && !resultHold, null, { step: 2000 });
+        await page.clock.runFor(100);
+        const back = await looks();
+        check(!during.cls.length && !during.box.includes('ts-board') && back.box.includes('ts-board'),
+            'a regular fight during sign-up looks as always (no board, no frame, also when someone joins meanwhile); after it the board is back', JSON.stringify({ during, back: back.box }));
+
+        // 2. The draw: the 8th player closes sign-up; the draw holds the arena SHOW_DRAW_MS, then the first game
+        for (const n of players.slice(6)) await say(page, n, '!учасник');
+        // From here (the seeding is done) to the first game, nothing may draw from the game's random numbers
+        const closeAt = await page.evaluate(() => { window.__rnd = 0; const r = Math.random; Math.random = function () { window.__rnd++; return r.apply(this, arguments); }; return Date.now(); });
+        const d0 = await looks();
+        const draw0 = await page.evaluate(() => ({ title: document.querySelector('.ts-slam').textContent, chips: document.querySelectorAll('.ts-chip').length,
+            hidden: document.querySelectorAll('.tb-n.ts-hide').length, header: document.getElementById('status-plate').textContent }));
+        check(d0.kind === 'draw' && d0.cls.includes('ts-on') && draw0.title === 'Турнір Дрейк-Арени' && draw0.chips === 8 && draw0.hidden === 8 && /Жеребкування/.test(draw0.header) && d0.cues.includes('fanfare'),
+            `the draw: «${draw0.title}» slams in, 8 names in the middle, the 8 slots still empty; «${draw0.header}» on the plate; the fanfare`, JSON.stringify({ d0, draw0 }));
+        await page.clock.runFor(4200);
+        await settle(600);
+        await shot(page, 'show-draw.png');
+        await page.clock.runFor(2700);
+        const drawn = await page.evaluate(() => ({ hidden: document.querySelectorAll('.tb-n.ts-hide').length, started: window.__starts.filter(s => s.tour).length, rnd: window.__rnd }));
+        await until(page, () => window.__starts.some(s => s.tour), null, { step: 100 });
+        const first = await page.evaluate(() => window.__starts.find(s => s.tour));
+        check(drawn.hidden === 0 && !drawn.started && drawn.rnd === 0 && first.t - closeAt === 7500,
+            `every name is in its slot before the draw ends, and the draw's shuffles took no game random numbers; the first game's countdown starts ${first.t - closeAt} ms after sign-up closed (the draw, 7.5 s)`, JSON.stringify({ drawn, wait: first.t - closeAt }));
+
+        // 3. The match intro over the start of game 1's countdown
+        const qf = (await view(page)).tourney.rounds[0].map(m => [m.a, m.b]);
+        await page.evaluate(q => { const key = (a, b) => [a, b].sort().join('-'); q.forEach(([a, b], i) => { window.__plan[key(a, b)] = i === 0 ? [a, b, a] : [a, a]; }); }, qf);
+        const i0 = await looks();
+        const introLong = await longAnims();
+        check(i0.over.join() === 'ts-intro' && i0.overText.includes('Чвертьфінал') && i0.overText.includes('@' + i0.left) && i0.overText.includes('@' + i0.right) && !introLong.length,
+            `game 1's intro: «${i0.overText}» (sprites sliding in from both sides), no animation longer than 3 s`, JSON.stringify({ i0, introLong }));
+        await settle(900);
+        await shot(page, 'show-intro.png');
+        await page.clock.runFor(2700);
+        const i1 = await looks();
+        check(!i1.over.length && i1.kind === 'countdown', 'the intro is gone after 2.6 s; the countdown carries on', JSON.stringify(i1));
+
+        // 4. During the game: the frame, the pips, nothing over the cards or the log
+        await until(page, () => arenaState.kind === 'fight', null, { step: 500 });
+        const f1 = await looks(), cover = await uncovered();
+        const laurels = await page.evaluate(() => document.querySelectorAll('#ts-frame .tsf-laurel').length);
+        check(f1.cls.includes('ts-on') && f1.cls.includes('ts-pipson') && laurels === 4 && f1.pips.every(p => p.join() === 'now,·,·') && !f1.over.length && cover.all && cover.pipsIn,
+            'game 1: the championship frame (4 laurel corners), 3 pips under each card (the first blinking), nothing over the cards or the log; the pips sit in the gap below the cards', JSON.stringify({ f1, cover }));
+        await until(page, () => window.__starts.filter(s => s.tour).length >= 2 && arenaState.kind === 'fight', null, { step: 1000 });
+        await settle(800);
+        const crownOff = await page.evaluate(() => getComputedStyle(document.querySelector('.tsf-crown')).opacity);
+        check(crownOff === '0', 'no crown before the final', crownOff);
+        await shot(page, 'show-game.png');
+
+        // 5. Game 3: the «ВИРІШАЛЬНА ГРА» banner and the drumroll, then the red glow
+        await until(page, () => window.__starts.filter(s => s.tour).length >= 3, null, { step: 500 });
+        const g3 = await looks(), g3Long = await longAnims();
+        const aLeft = g3.left === qf[0][0];
+        check(g3.over.join() === 'ts-banner' && /Вирішальна гра/.test(g3.overText) && /1:1/.test(g3.overText) && g3.cues.includes('drum') && g3.cls.includes('ts-decider')
+            && g3.pips[0].join() === (aLeft ? 'won,lost,now' : 'lost,won,now') && g3.pips[1].join() === (aLeft ? 'lost,won,now' : 'won,lost,now') && !g3Long.length,
+            `game 3: «${g3.overText}», the drumroll, the red glow; pips ${g3.pips[0].join(' ')} | ${g3.pips[1].join(' ')}`, JSON.stringify({ g3, g3Long }));
+        await settle(800);
+        await shot(page, 'show-decider.png');
+        await until(page, () => arenaState.kind === 'fight', null, { step: 500 });
+        const g3f = await looks(), cover3 = await uncovered();
+        check(!g3f.over.length && g3f.cls.includes('ts-decider') && cover3.all, 'game 3 itself: the red glow on the frame, the banner gone, nothing over the cards or the log', JSON.stringify(g3f));
+
+        // 6. The bracket between matches: QF1's winner slides on to the semifinal, its line lights up, the next match pulses
+        await until(page, () => window.__starts.filter(s => s.tour).length >= 4, null, { step: 500 });
+        await page.clock.runFor(2700);   // past QF2's intro
+        const br = await page.evaluate(() => ({ lines: document.querySelectorAll('#log-countdown .tsl').length, lit: document.querySelectorAll('#log-countdown .tsl-lit').length,
+            fresh: document.querySelectorAll('#log-countdown .tsl-lit.new').length, out: [...document.querySelectorAll('#log-countdown .tb-p.out .tb-n')].map(n => n.textContent),
+            live: !!document.querySelector('#log-countdown .ts-tb .tb-m.live') }));
+        check(br.lines === 6 && br.lit === 1 && br.fresh === 1 && br.out.join() === '@' + qf[0][1] && br.live,
+            `the bracket: 6 lines (4 quarterfinals → 2 semifinals → the final), QF1's lit; @${qf[0][1]} greyed out; the next match pulsing`, JSON.stringify(br));
+        // Its slide: shown again from the start (a language switch redraws it; the slide is only for the first showing)
+        await page.evaluate(() => { const t = tourney; const m = t.rounds[0][0]; t.adv = [{ from: { r: 0, m: 0 }, to: { r: 1, m: 0, side: 'a' }, name: m.winner }]; fvRepaintCountdown(); });
+        await page.clock.runFor(400);
+        const fly = await page.evaluate(() => { const f = document.querySelector('.ts-fly'); return f ? { name: f.textContent, transform: f.style.transform } : null; });
+        await settle(450);
+        await shot(page, 'show-bracket.png');
+        await page.clock.runFor(1000);
+        const landed = await page.evaluate(() => ({ fly: !!document.querySelector('.ts-fly'), wait: document.querySelectorAll('.ts-wait').length }));
+        check(fly && fly.name === '@' + qf[0][0] && /translate\(/.test(fly.transform) && !landed.fly && !landed.wait,
+            `@${qf[0][0]} slides along the line to the semifinal, and lands`, JSON.stringify({ fly, landed }));
+
+        // 7. The final: the plaque says «ФІНАЛ», a crown above the arena, the frame's slow pulse
+        await until(page, () => tourGame && tourGame.stage === 'final' && arenaState.kind === 'countdown', null, { step: 2000 });
+        const fin = await looks();
+        await page.clock.runFor(2700);
+        await until(page, () => arenaState.kind === 'fight', null, { step: 500 });
+        const finF = await looks(), coverF = await uncovered();
+        check(fin.over.join() === 'ts-intro' && /Фінал/.test(fin.overText) && finF.plaque === 'ФІНАЛ' && finF.cls.includes('ts-final') && !finF.over.length && coverF.all,
+            `the final: its intro («${fin.overText.slice(0, 40)}…»), «${finF.plaque}» on the plaque, the crown and the pulsing frame; nothing over the cards or the log`, JSON.stringify({ fin, finF }));
+        await settle(1500);
+        const crownOn = await page.evaluate(() => getComputedStyle(document.querySelector('.tsf-crown')).opacity);
+        check(crownOn === '1', 'the crown above the arena in the final', crownOn);
+        await shot(page, 'show-final.png');
+
+        // 8. The champion: the banner, confetti, the jump, the crown; then engraved into the Hall of Fame
+        await until(page, () => arenaState.kind === 'podium', null, { step: 2000 });
+        const champ = await page.evaluate(() => ({ title: document.querySelector('.ts-champ-title') && document.querySelector('.ts-champ-title').textContent,
+            jump: !!document.querySelector('.pd-1 .ts-jump'), crown: !!document.querySelector('.pd-1 .ts-crown-drop'), confetti: document.querySelectorAll('.ts-conf').length, cues: [...showCues] }));
+        check(champ.title === 'Чемпіон арени' && champ.jump && champ.crown && champ.confetti === 70 && champ.cues.includes('champion'),
+            `the champion: «${champ.title}», the drake's jump onto the top step, the crown, 70 pieces of confetti, the fanfare`, JSON.stringify(champ));
+        await settle(3200);
+        await shot(page, 'show-champion.png');
+        await until(page, () => arenaState.kind === 'hall', null, { step: 1000 });
+        const hall = await page.evaluate(() => { const r = document.querySelector('#log-countdown .hf-row'); return { isNew: r.classList.contains('ts-new'), letters: [...r.querySelectorAll('.ts-ch')].map(c => c.textContent).join('') }; });
+        const champion = (await view(page)).tourney.podium[0];
+        check(hall.isNew && hall.letters === '@' + champion, `the Hall of Fame: «${hall.letters}» engraved letter by letter in the newest row`, JSON.stringify(hall));
+        await settle(2800);
+        await shot(page, 'show-hall.png');
+        await until(page, () => !tourney, null, { step: 1000 });
+        const after = await looks();
+        check(!after.cls.includes('ts-on') && !after.over.length, 'after the Hall of Fame: the frame goes, the arena is back to normal', JSON.stringify(after));
+
+        // 9. The setting off: no draw (the first game starts as sign-up closes) and none of the show
+        await page.evaluate(() => setShowFx(false));
+        await mod(page, '!турнір 4');
+        for (const n of players.slice(0, 4)) await say(page, n, '!учасник');
+        const offClose = await page.evaluate(() => Date.now());
+        await page.clock.runFor(100);
+        const off = await looks(), offStart = await page.evaluate(() => window.__starts[window.__starts.length - 1]);
+        check(offStart.tour && offStart.t === offClose && !off.cls.length && !off.over.length && !off.box.includes('ts-'),
+            'with the effects off: the first game starts the moment sign-up closes (no draw), and none of the show appears', JSON.stringify({ off, offStart, offClose }));
+        await mod(page, '!турнір стоп');
         check(!errors.length, 'no page errors', errors.join(' | '));
         await context.close();
     }

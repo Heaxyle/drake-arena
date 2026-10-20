@@ -377,6 +377,122 @@
         .hf-best { font-size: 15px; font-weight: 700; color: #ffd978; white-space: nowrap; overflow: hidden; max-width: 100%; }
         .hf-card-row { gap: 6px; flex-wrap: wrap; font-size: 12px; }
         .hf-card-row .hf-date { font-size: 10px; }
+
+        /* ===== Tournament show (tournaments only; transforms and opacity only) ===== */
+        .ts-px { image-rendering: pixelated; }
+        .ts-trophy { width: 28px; height: 32px; flex-shrink: 0; }
+        @keyframes ts-slam { 0% { transform: scale(3); opacity: 0; } 55% { opacity: 1; } 75% { transform: scale(0.92); } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes ts-fadein { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes ts-pop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes ts-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes tsf-pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+        /* The championship frame: an overlay on the arena's edge (under the content), laurel corners, a light sweep */
+        #ts-frame { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s ease; }
+        #arena.ts-on #ts-frame { opacity: 1; }
+        .tsf-glow, .tsf-pulse, .tsf-red { position: absolute; inset: 0; }
+        .tsf-glow { box-shadow: inset 0 0 0 3px rgba(255, 217, 120, 0.9), inset 0 0 18px 2px rgba(242, 193, 78, 0.3), 0 0 20px 2px rgba(242, 193, 78, 0.35); }
+        .tsf-pulse { opacity: 0; box-shadow: inset 0 0 0 4px #fff0b0, inset 0 0 18px 4px rgba(255, 217, 120, 0.5), 0 0 34px 8px rgba(255, 217, 120, 0.55); }
+        #arena.ts-final .tsf-pulse { animation: tsf-pulse 3.2s ease-in-out infinite; }
+        .tsf-red { opacity: 0; box-shadow: inset 0 0 0 4px #ff5a4a, inset 0 0 18px 4px rgba(255, 60, 40, 0.5), 0 0 30px 6px rgba(255, 60, 40, 0.5); }
+        #arena.ts-decider .tsf-red { animation: tsf-pulse 1.6s ease-in-out infinite; }
+        .tsf-edge { position: absolute; overflow: hidden; }
+        .tsf-top { left: 0; right: 0; top: -8px; height: 8px; } .tsf-bottom { left: 0; right: 0; bottom: -8px; height: 8px; }
+        .tsf-left { top: 0; bottom: 0; left: -8px; width: 8px; } .tsf-right { top: 0; bottom: 0; right: -8px; width: 8px; }
+        .tsf-sweep { position: absolute; opacity: 0.95; }
+        .tsf-top .tsf-sweep, .tsf-bottom .tsf-sweep { top: 0; bottom: 0; left: 0; width: 160px; background: linear-gradient(90deg, transparent, #fffbe8, transparent); transform: translateX(-200px); }
+        .tsf-left .tsf-sweep, .tsf-right .tsf-sweep { left: 0; right: 0; top: 0; height: 160px; background: linear-gradient(180deg, transparent, #fffbe8, transparent); transform: translateY(-200px); }
+        /* Once round the frame (top, right, bottom, left: 3 s), then 5 s of rest */
+        #arena.ts-on .tsf-top .tsf-sweep { animation: tsf-x 8s linear infinite; }
+        #arena.ts-on .tsf-right .tsf-sweep { animation: tsf-y 8s linear infinite; }
+        #arena.ts-on .tsf-bottom .tsf-sweep { animation: tsf-xr 8s linear infinite; }
+        #arena.ts-on .tsf-left .tsf-sweep { animation: tsf-yr 8s linear infinite; }
+        @keyframes tsf-x { 0% { transform: translateX(-200px); } 9.4%, 100% { transform: translateX(940px); } }
+        @keyframes tsf-y { 0%, 9.4% { transform: translateY(-200px); } 18.8%, 100% { transform: translateY(910px); } }
+        @keyframes tsf-xr { 0%, 18.8% { transform: translateX(940px); } 28.1%, 100% { transform: translateX(-200px); } }
+        @keyframes tsf-yr { 0%, 28.1% { transform: translateY(910px); } 37.5%, 100% { transform: translateY(-200px); } }
+        .tsf-laurel { position: absolute; width: 48px; height: 48px; z-index: 1; }
+        .tsf-tl { left: -20px; top: -20px; } .tsf-tr { right: -20px; top: -20px; transform: scaleX(-1); }
+        .tsf-bl { left: -20px; bottom: -20px; transform: scaleY(-1); } .tsf-br { right: -20px; bottom: -20px; transform: scale(-1, -1); }
+        .tsf-crown { position: absolute; left: 50%; top: -70px; width: 48px; height: 36px; margin-left: -24px; z-index: 2; opacity: 0; transition: opacity 0.6s ease; }
+        #arena.ts-final .tsf-crown { opacity: 1; animation: ts-hover 2.4s ease-in-out infinite; }
+        @keyframes ts-hover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        /* Best-of-3 pips in the gap under each card: one per game, gold when this fighter won it */
+        .ts-pips { position: absolute; top: calc(100% + 3px); width: 404px; display: flex; justify-content: center; gap: 10px; opacity: 0; transition: opacity 0.4s ease; pointer-events: none; }
+        #ts-pips-p1 { left: 0; } #ts-pips-p2 { right: 0; }
+        #arena.ts-pipson .ts-pips { opacity: 1; }
+        .ts-pip { width: 8px; height: 8px; background: #1c1e27; box-shadow: 0 0 0 2px #0b0906, inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+        .ts-pip.won { background: var(--gold-hi); box-shadow: 0 0 0 2px #0b0906, inset -2px -2px 0 0 var(--gold-lo); }
+        .ts-pip.lost { background: #4a4c58; }
+        .ts-pip.now { animation: ts-blink 1s ease-in-out infinite; box-shadow: 0 0 0 2px #0b0906, inset 0 0 0 2px var(--gold); }
+        .ts-pip.pop { animation: ts-pop 0.5s ease-out both; }
+        /* Overlays in the log area before a game (never during one): the match intro and the «ВИРІШАЛЬНА ГРА» banner */
+        .ts-over { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(6, 7, 11, 0.97); pointer-events: none; transition: opacity 0.35s ease; overflow: hidden; }
+        .ts-over.out { opacity: 0; }
+        .ti-stage { font-family: var(--pixel); font-size: 26px; color: var(--gold); text-transform: uppercase; text-shadow: 0 3px 0 #5a3e0c; animation: ts-slam 0.6s ease-out both; }
+        .ti-row { display: flex; align-items: center; justify-content: center; gap: 26px; width: 100%; }
+        .ti-side { display: flex; align-items: center; gap: 14px; width: 380px; }
+        .ti-l { justify-content: flex-end; animation: ti-left 0.55s 0.15s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+        .ti-r { animation: ti-right 0.55s 0.15s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+        @keyframes ti-left { from { transform: translateX(-460px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes ti-right { from { transform: translateX(460px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .ti-sprite { width: 144px; height: 108px; image-rendering: pixelated; flex-shrink: 0; }
+        .ti-l .ti-sprite { transform: scaleX(-1); }
+        .ti-name { font-size: 26px; font-weight: 800; white-space: nowrap; overflow: hidden; max-width: 220px; }
+        .ti-vs { font-family: var(--pixel); font-size: 24px; color: var(--gold); animation: ts-pop 0.45s 0.6s both; }
+        .ts-banner .tb-text { font-family: var(--pixel); font-size: 30px; color: #ff6b5a; text-transform: uppercase; text-shadow: 0 0 18px rgba(255, 60, 40, 0.9), 0 3px 0 #4a0e12; animation: ts-slam 0.6s ease-out both; }
+        .ts-banner .tb-glow { position: absolute; inset: 0; box-shadow: inset 0 0 60px 10px rgba(255, 60, 40, 0.45); animation: tsf-pulse 1.2s ease-in-out infinite; }
+        .ts-banner .tb-sub { font-size: 16px; font-weight: 700; color: #ffd0c8; animation: ts-fadein 0.4s 0.5s both; }
+        /* The draw: the title slams in, the names shuffle in the middle, then fly into their bracket slots */
+        .ts-slam { display: flex; align-items: center; justify-content: center; gap: 14px; font-family: var(--pixel); font-size: 20px; color: var(--gold); text-transform: uppercase; text-shadow: 0 3px 0 #5a3e0c; flex-shrink: 0; animation: ts-slam 0.7s ease-out both; }
+        .ts-draw .tb-n.ts-hide { opacity: 0; }
+        .ts-draw .tb-n { transition: opacity 0.2s ease; }
+        .ts-chip { position: absolute; left: 0; top: 0; z-index: 3; font-size: 13px; font-weight: 800; line-height: 14px; white-space: nowrap; padding: 2px 6px; background: rgba(23, 18, 10, 0.95); box-shadow: 0 0 0 1px rgba(242, 193, 78, 0.5);
+            transition: transform 0.18s ease, opacity 0.2s ease; animation: ts-fadein 0.3s 0.8s both; }
+        .ts-chip.flying { transition: transform 0.5s cubic-bezier(0.3, 0.7, 0.2, 1), opacity 0.2s ease; }
+        .ts-chip.landed { opacity: 0; }
+        /* The bracket: lines between rounds, lit as winners move on; the winner slides to its next slot; the next match pulses */
+        .ts-tb { position: relative; gap: 18px; }
+        .ts-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+        .tsl { fill: none; stroke: rgba(255, 255, 255, 0.14); stroke-width: 2; }
+        .tsl-lit { fill: none; stroke: var(--gold); stroke-width: 2; }
+        .tsl-lit.new { animation: ts-fadein 0.6s 0.4s both; }
+        .ts-tb .tb-p.out { opacity: 0.3; filter: grayscale(1); }
+        .ts-tb .tb-m.live { animation: ts-blink 1.4s ease-in-out infinite; }
+        .ts-tb .tb-n.ts-wait { opacity: 0; transition: opacity 0.2s ease; }
+        .ts-fly { position: absolute; z-index: 2; margin-top: -7px; line-height: 14px; white-space: nowrap; overflow: hidden; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* The sign-up board on the free arena */
+        .ts-board { justify-content: flex-start; gap: 12px; padding-top: 6px; }
+        .tsb-head { display: flex; align-items: center; gap: 12px; }
+        .tsb-title { font-family: var(--pixel); font-size: 16px; color: var(--gold); text-transform: uppercase; }
+        .tsb-count { font-family: var(--pixel); font-size: 16px; color: var(--text); }
+        .tsb-bar { width: 420px; } .tsb-bar .px-fill { transform-origin: left; transition: transform 0.6s ease; background: var(--gold); }
+        .tsb-grid { display: grid; grid-template-columns: repeat(4, 196px); gap: 8px 12px; }
+        .ts-board-16 .tsb-grid { gap: 6px 12px; }
+        .ts-slot { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px; background: rgba(255, 255, 255, 0.05); box-shadow: 0 0 0 1px rgba(242, 193, 78, 0.35); }
+        .ts-board-16 .ts-slot { height: 36px; }
+        .ts-slot.pop { animation: ts-pop 0.5s ease-out both; }
+        .ts-slot.empty { justify-content: center; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1); color: var(--dim); font-family: var(--pixel); font-size: 10px; }
+        .ts-slot-sprite { width: 48px; height: 36px; image-rendering: pixelated; flex-shrink: 0; }
+        .ts-board-16 .ts-slot-sprite { width: 40px; height: 30px; }
+        .ts-slot-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; }
+        .tsb-join { font-size: 15px; color: var(--muted); } .tsb-join b { color: var(--gold); }
+        .ts-mini { display: inline-block; width: 64px; height: 6px; margin-left: 8px; vertical-align: middle; background: rgba(255, 255, 255, 0.1); box-shadow: 0 0 0 1px #0b0906; overflow: hidden; }
+        .ts-mini-fill { display: block; height: 100%; background: var(--gold); transform-origin: left; transition: transform 0.5s ease; }
+        /* The champion: confetti, the jump onto the top step, the crown, the banner */
+        .ts-champ .pd-col { position: relative; }
+        .ts-champ-title { font-size: 22px; }
+        .ts-jump { animation: ts-jump 1.1s 0.5s cubic-bezier(0.3, 0.6, 0.4, 1) both; }
+        @keyframes ts-jump { 0% { transform: translate(-300px, 150px); opacity: 0; } 12% { opacity: 1; } 55% { transform: translate(-110px, -90px); } 85% { transform: translate(0, 6px); } 100% { transform: translate(0, 0); opacity: 1; } }
+        .ts-crown-drop { position: absolute; left: 50%; top: -18px; width: 48px; height: 36px; margin-left: -34px; z-index: 2; animation: ts-drop 0.7s 1.8s cubic-bezier(0.5, 0, 0.6, 1.4) both; }
+        @keyframes ts-drop { from { transform: translateY(-240px); opacity: 0; } 40% { opacity: 1; } to { transform: translateY(0); opacity: 1; } }
+        .ts-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+        .ts-conf { position: absolute; top: 0; width: 8px; height: 8px; animation: ts-fall 3s linear infinite both; }
+        .ts-confettiB { width: 4px; height: 12px; } .ts-confettiC { width: 12px; height: 12px; } .ts-confettiD { width: 12px; height: 8px; }
+        @keyframes ts-fall { from { transform: translateY(-30px) rotate(0deg); } to { transform: translateY(420px) rotate(600deg); } }
+        /* The Hall of Fame: the new champion's name engraved letter by letter */
+        .hf-row.ts-new .pname { text-shadow: 0 0 10px rgba(255, 217, 120, 0.8); }
+        .ts-ch { display: inline-block; animation: ts-engrave 0.35s ease-out both; }
+        @keyframes ts-engrave { from { transform: translateY(-8px) scale(1.8); opacity: 0; } to { transform: none; opacity: 1; } }
         .info-card.hall-card .ic-sub { font-size: 12px; color: var(--dim); font-weight: 400; }
 
         /* ===== Side column ===== */
@@ -504,6 +620,13 @@
                 <strong style="color: #ffd978;" data-i18n="label_betting">Betting window</strong></label>
                 <span style="color: var(--dim);" data-i18n="betting_hint">every fight waits 2 min first (for Twitch Predictions); the channel owner or a moderator can type !start to begin early; test battles don't wait</span>
                 <button class="test-btn secondary" onclick="skipBettingWindow()" id="debug-skip-bets" data-i18n="btn_skip_bets">⏭ Skip the betting window</button>
+            </div>
+            <div class="debug-col">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"><input type="checkbox" id="debug-tourfx" onchange="setShowFx(this.checked)">
+                <strong style="color: #ffd978;" data-i18n="label_tourfx">Tournament effects</strong></label>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"><input type="checkbox" id="debug-toursound" onchange="setShowSound(this.checked)">
+                <strong style="color: #ffd978;" data-i18n="label_toursound">Tournament sounds</strong></label>
+                <span style="color: var(--dim);" data-i18n="tourfx_hint">the draw, match intros, the championship frame, confetti; sounds are short chiptune cues</span>
             </div>
             <div class="debug-col">
                 <strong style="color: #bfe9ff;" data-i18n="label_streamer">Streamer:</strong>
@@ -669,6 +792,9 @@
                 label_streamer: "Стрімер:",
                 streamer_hint: "лише цей користувач може обрати 🐉 Білого Дракона (порожньо = ніхто)",
                 label_force_cast: "Наступний удар накладає:",
+                label_tourfx: "🎆 Ефекти турніру",
+                label_toursound: "🔊 Звуки турніру",
+                tourfx_hint: "жеребкування, заставки матчів, рамка чемпіонату, конфеті; без них турнір іде так само (лише без жеребкування на екрані); звуки — короткі чіптюн-сигнали",
                 label_betting: "Вікно ставок",
                 betting_hint: "кожен бій чекає 2 хв (для передбачень Twitch); власник каналу або модератор може написати !старт, щоб почати раніше; тестові бої не чекають",
                 btn_skip_bets: "⏭ Пропустити вікно ставок",
@@ -701,6 +827,9 @@
                 label_streamer: "Streamer:",
                 streamer_hint: "only this user can pick the 🐉 White Dragon (empty = nobody)",
                 label_force_cast: "Next hit casts:",
+                label_tourfx: "🎆 Tournament effects",
+                label_toursound: "🔊 Tournament sounds",
+                tourfx_hint: "the draw, match intros, the championship frame, confetti; without them the tournament runs the same (just no draw on screen); sounds are short chiptune cues",
                 label_betting: "Betting window",
                 betting_hint: "every fight waits 2 min first (for Twitch Predictions); the channel owner or a moderator can type !start to begin early; test battles don't wait",
                 btn_skip_bets: "⏭ Skip the betting window",
@@ -760,7 +889,9 @@
             if (hint) {
                 hint.classList.toggle('tourney', !!tourney);
                 if (tourney) hint.innerHTML = tourney.phase === 'signup' ? tT('signupLine', { n: tourney.players.length, size: tourney.size }) : tT('onLine');
+                showStrip(hint);
             }
+            showBoardSync();
             if (matchmakingQueue.length === 0) {
                 queueContainer.innerHTML = `<span class="queue-empty">${translations[currentLang].queue_empty}</span>`;
                 return;
@@ -871,6 +1002,9 @@
                     : s.kind === 'fight' ? (uk ? `⚔️ Хід ${s.turn} / ${MAX_TURNS}` : `⚔️ Turn ${s.turn} / ${MAX_TURNS}`)
                     : s.winner ? `${uk ? '🏆 Перемога' : '🏆 Victory'} · @${s.winner.name}` : (uk ? '🤝 Нічия' : '🤝 Draw');
                 fitText(plate, 11);
+            } else if (s.kind === 'draw') {
+                type.textContent = `🏆 ${tT('name')}`;
+                plate.textContent = sT('drawPlate');
             } else if (s.kind === 'podium') {
                 type.textContent = tT('podium');
                 plate.textContent = tT('champion', { who: '@' + s.podium[0] });
@@ -896,7 +1030,7 @@
             type.style.textTransform = 'uppercase';
         }
         const turnsWordUk = n => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'хід' : (a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'ходи' : 'ходів'); };
-        function setArenaState(next) { arenaState = next; renderArenaHeader(); renderResultTags(); }
+        function setArenaState(next) { arenaState = next; renderArenaHeader(); renderResultTags(); showSync(); }
 
         // After the fight: the winner's card in gold with "ПЕРЕМОЖЕЦЬ"; the loser's greyed with "НОКАУТ" (knocked out) or
         // "ПОРАЗКА" (lost on HP when time ran out); after a draw both cards say "НІЧИЯ"
@@ -1385,6 +1519,7 @@
                         + `<div class="cd-bar"><div class="px-track"><div class="px-fill cd-fill" id="cd-fill" style="transform:scaleX(${left / total})"></div></div></div>`
                         + `<span class="cd-title">${title}</span></div><span class="cd-sub">🏆 ${tourneyLabel(tourGame)} · ${sub}</span>${tourneyBracketHtml()}`;
                     box.querySelectorAll('.tb-n, .tb-h, .cd-sub').forEach(el => fitText(el, 9));
+                    showBracket(box);
                     return;
                 }
                 box.innerHTML = `<span class="cd-label">${fvT('cdLabel')}</span><span class="cd-time" id="cd-time">${time}</span>`
@@ -1421,6 +1556,7 @@
             updateUIHP(hp(a), hp(a), hp(b), hp(b));
             setArenaState({ kind: 'countdown', ranked: isRanked, betting: bets, flipped: false, ends: Date.now() + windowMs, total: windowMs, bracket: !!(opts.tour && (opts.bets || opts.tour.q !== undefined)) });   // a qualifier game shows it too
             fvCountdown(windowMs);
+            if (opts.tour) showGameStart(opts.tour);   // the match intro, or game 3's banner (tournament effects)
             // The fight starts the normal way (coin flip, then the 4.5 s "першим б'є …" countdown) TURN_MS before the window
             // ends, or at once on a skip: whichever comes first, and only once
             const wait = { start: () => {
@@ -1585,6 +1721,8 @@
             fvRepaintCountdown();
             tourneyShowPodium();
             if (arenaState.kind === 'hall' || (arenaState.kind === 'idle' && fvEl('log-countdown').classList.contains('hall'))) showHallOfFame();
+            showSync();
+            showBoardSync(true);
             fvPopulateTestMenu();
         }
 
@@ -1614,6 +1752,9 @@
             ['p1', 'p2'].forEach(p => { const b = fvEl(`debug-meter-${p}`); if (b) b.textContent = fvT('meterBtn', { meter: METER.short[currentLang], side: fvT(p === 'p1' ? 'left' : 'right') }); });
             const box = fvEl('debug-betting');
             if (box) box.checked = bettingWindowOn();
+            const fx = fvEl('debug-tourfx'), snd = fvEl('debug-toursound');
+            if (fx) fx.checked = showFxSetting();
+            if (snd) snd.checked = showSoundOn();
         }
 
         if (FV_LIVE) ['updateUIHP', 'updateFighterCard', 'updateStatusUI', 'setArenaState', 'flashSpriteHit', 'renderLeaderboard'].forEach(fvHoldable);
@@ -3374,6 +3515,7 @@ function drakeSpriteURL(type) {
             if (waitingDuel) { const d = waitingDuel; waitingDuel = null; startDuel(d.challenger, d.cColor, d.accepter, d.aColor); return; }
             if (tourneyOn()) { tourneyNext(); return; }
             checkQueue();
+            showBoardSync();   // nothing started: the sign-up board (while one is open) on the free arena
         }
         // Tournament watchdog: while a tournament is on, something always follows on the arena (a game, the podium), so
         // it never sits free for long. If it has been free for TOURNEY_WATCHDOG_MS anyway, a step failed to call
@@ -3557,7 +3699,7 @@ function drakeSpriteURL(type) {
         function tourneyNext() {
             const t = tourney;
             // After the podium, the Hall of Fame (HALL_MS); after that the tournament is over and it stays on screen
-            if (t.phase === 'podium') { t.phase = 'hall'; tourneySave(); setArenaState({ kind: 'hall' }); showHallOfFame(); holdResult(HALL_MS); return; }
+            if (t.phase === 'podium') { t.phase = 'hall'; tourneySave(); setArenaState({ kind: 'hall' }); showHallOfFame(); showEngrave(); holdResult(HALL_MS); return; }
             if (t.phase === 'hall') { tourneyEnd(); nextFight(); return; }
             if (t.phase === 'ready') {
                 t.phase = 'running';
@@ -3565,6 +3707,9 @@ function drakeSpriteURL(type) {
                 // «13 учасників: 3 — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць»
                 if (t.qual.length) addInfo(tT('qualNews', { n: t.players.length, direct: t.players.length - 2 * t.qual.length,
                     into: tT('into_' + tourneyStage({ r: 0 })), q: 2 * t.qual.length, spots: tSpots(t.qual.length) }), 'ok');
+                // Tournament effects: the draw on screen first (SHOW_DRAW_MS, held like a result screen, so !старт cuts it
+                // short), then the first game
+                if (showOn()) { tourneySave(); showDraw(); holdResult(SHOW_DRAW_MS); return; }
             }
             const id = tourneyNextMatch();
             if (!id) { tourneyPodium(); return; }
@@ -3588,11 +3733,13 @@ function drakeSpriteURL(type) {
             if (!winner) { t.replay = true; tourneySave(); addLog(tT('draw', { label })); return; }
             t.replay = false;
             m.w[winner === m.a ? 0 : 1]++;
+            (m.g = m.g || []).push(winner === m.a ? 0 : 1);   // who won each game, in order (the pips under the cards)
             g.score = [...m.w];
             addLog(tT('won', { label, who: `@${winner}`, score: `${m.w[0]}:${m.w[1]}` }));
             if (Math.max(...m.w) >= (tourneySingle(g) ? 1 : TOURNEY_WINS)) {
                 m.winner = winner;
                 tourneyAdvance(g, winner, loser);
+                showNoteAdvance(g, winner);
                 t.game = 1;
                 if (g.q !== undefined) addLog(tT('qualWon', { who: `@${winner}`, stage: tT(tourneyStage({ r: 0 })) }));
                 else if (!g.third) addLog(tT('matchWon', { who: `@${winner}`, score: `${Math.max(...m.w)}:${Math.min(...m.w)}`, stage: tT(g.stage) }));
@@ -3617,11 +3764,16 @@ function drakeSpriteURL(type) {
             tourGame = null;
             tourneySave();
             updateQueueUI();
+            showSync();
         }
         // !турнір стоп: back to normal at once. An open tournament countdown is dropped; a game already being fought
         // finishes as a game that counts for nothing (no XP, no record), then the queue carries on
         function tourneyCancel() {
+            const inDraw = arenaState.kind === 'draw';   // cancelled during the draw: it goes at once, hold and all
+            if (inDraw && resultHold) { clearTimeout(resultHold.timer); resultHold = null; }
+            showStop();
             tourney = null;
+            if (inDraw) setArenaState({ kind: 'idle' });
             tourneySave();
             if (bettingWait && tourGame) {
                 clearTimeout(bettingWait.timer);
@@ -3693,6 +3845,7 @@ function drakeSpriteURL(type) {
             box.innerHTML = `<span class="pd-title">${tT('podium')}</span><div class="pd">${step(s.podium[1], 2)}${step(s.podium[0], 1)}${step(s.podium[2], 3)}</div>`;
             box.querySelectorAll('.pd-name').forEach(el => fitText(el, 10));
             panel.classList.add('counting');
+            showChampion();
         }
 
         // Chat: !турнір [4|8|16] / старт / стоп (the channel owner or a moderator), !учасник and !вийти (viewers).
@@ -4877,6 +5030,421 @@ function drakeSpriteURL(type) {
             if (changed) saveDragonDB(db);
         }
         migrateOldSaves();
+
+        /* ===== Tournament show: the tournament as an event =====
+           Looks (and optional sounds) only: nothing here decides anything or changes a fight, and its shuffles and confetti
+           use their own little generator (showRand), never Math.random. All of it is off when the "Tournament effects"
+           setting is off (SHOWFX_KEY); the tournament then runs and looks exactly as without it. With it on, the one thing
+           that takes time of its own is the draw (SHOW_DRAW_MS, before the first game); the rest fits into the countdowns
+           and result screens that are there anyway. The moments:
+             - the sign-up board on the free arena while sign-up is open (showBoardSync), and a progress bar on the strip;
+             - the draw (showDraw): the title slams in, the names shuffle, then fly into the bracket, the qualifier first;
+             - game 1 of a match: a versus intro over the countdown for its first SHOW_INTRO_MS (showIntro);
+             - tournament games: the championship frame (laurel corners, a light sweep), best-of-3 pips under the cards;
+               game 3: a «ВИРІШАЛЬНА ГРА» banner, then a red glow; the final: a slow pulse, «ФІНАЛ» on the plaque, a crown;
+             - the bracket: lines lit as winners move on, the winner sliding to its next slot (showBracket);
+             - the champion on the podium (showChampion), then engraved into the Hall of Fame (showEngrave).
+           Every animation is CSS transforms and opacity, 3 s or less (the draw and the champion screen run longer), and
+           nothing covers the cards or the log while a game is being fought (showSync clears the overlays at its start). */
+        const SHOWFX_KEY = 'drake_arena_showcase_tourfx';     // '0': every tournament effect off (on by default)
+        const SHOWSND_KEY = 'drake_arena_showcase_toursound';  // '1': the chiptune cues on (off by default)
+        const SHOW_DRAW_MS = 7500, SHOW_INTRO_MS = 2600, SHOW_BANNER_MS = 2600;
+        const SHOW_TEXT = {
+            uk: { drawTitle: 'Турнір Дрейк-Арени', drawPlate: '🎲 Жеребкування', decider: 'Вирішальна гра', deciderSub: 'Рахунок {score} — хто візьме матч?',
+                  finalPlaque: 'ФІНАЛ', champion: 'Чемпіон арени', boardTitle: 'Турнір · реєстрація', boardJoin: 'Пишіть <b>!учасник</b>, щоб узяти участь' },
+            en: { drawTitle: 'Drake Arena Tournament', drawPlate: '🎲 The draw', decider: 'Deciding game', deciderSub: '{score} — who takes the match?',
+                  finalPlaque: 'FINAL', champion: 'Arena champion', boardTitle: 'Tournament · sign-up', boardJoin: 'Type <b>!join</b> to take part' },
+        };
+        const sT = (key, vars = {}) => SHOW_TEXT[currentLang][key].replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '');
+        const showFxSetting = () => { try { return localStorage.getItem(SHOWFX_KEY) !== '0'; } catch (e) { return true; } };
+        const showSoundOn = () => { try { return localStorage.getItem(SHOWSND_KEY) === '1'; } catch (e) { return false; } };
+        const showOn = () => FV_LIVE && showFxSetting();
+        function setShowFx(on) {
+            try { localStorage.setItem(SHOWFX_KEY, on ? '1' : '0'); } catch (e) {}
+            const box = fvEl('debug-tourfx');
+            if (box) box.checked = !!on;
+            if (!on) showStop();
+            showSync();
+            updateQueueUI();
+        }
+        function setShowSound(on) {
+            try { localStorage.setItem(SHOWSND_KEY, on ? '1' : '0'); } catch (e) {}
+            const box = fvEl('debug-toursound');
+            if (box) box.checked = !!on;
+        }
+        let showSeed = 20250101;
+        const showRand = () => (showSeed = (showSeed * 1103515245 + 12345) % 2147483648) / 2147483648;
+        const showShuffle = a => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(showRand() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+
+        // The show's pixel art, in the drakes' format (a palette, and rows of letters: a is the palette's first colour)
+        const SHOW_SPRITES = {
+            // A gold crown with three points, two red gems and a blue one
+            crown: { pal: ['#2a1a06', '#b07a1c', '#f2c14e', '#fff3c4', '#e0452f', '#3b8fe8'], rows: [
+                '.aa....aa....aa.',
+                'adca..acca..acda',
+                '.aa....aa....aa.',
+                '.ac...acca...ca.',
+                '.acc..acca..cca.',
+                '.accaacddcaacca.',
+                '.acccccddccccca.',
+                '.acceccffccecca.',
+                '.acccccccccccca.',
+                'abbbbbbbbbbbbbba',
+                'abccccccccccccba',
+                '.aaaaaaaaaaaaaa.',
+            ] },
+            // A gold laurel branch for the arena's top-left corner (the other corners mirror it), with a red berry
+            laurel: { pal: ['#5a3a0c', '#b8862c', '#f2c14e', '#fff0b0', '#d8352f'], rows: [
+                '.......cc..cc..c',
+                '..e...cdc.cdc.cd',
+                '.eae.bc..bc..bc.',
+                '..e..bbbbbbbbbbb',
+                '....b.aaaaaaaaaa',
+                '..bb.a..bc..bc..',
+                '.ccba....cdc.cdc',
+                'cd.ba.....cc..cc',
+                'cc.bab..........',
+                '..bbacc.........',
+                '.ccba.dc........',
+                'cd.ba.cc........',
+                'cc.bab..........',
+                '..bbacc.........',
+                '.ccba.dc........',
+                'cd.ba.cc........',
+            ] },
+            // The trophy: a gold cup on a wooden base
+            trophy: { pal: ['#2a1a06', '#b07a1c', '#f2c14e', '#fff3c4', '#5a3e0c', '#8a5a1e'], rows: [
+                '..aaaaaaaaaa..',
+                'aaadcccccccbaa',
+                'a.adccccccba.a',
+                'a.adccccccba.a',
+                '.aadccccccbaa.',
+                '..adccccccba..',
+                '...adccccba...',
+                '....adccba....',
+                '.....acba.....',
+                '......ab......',
+                '......ab......',
+                '.....adcba....',
+                '...aaaaaaaa...',
+                '...afffffea...',
+                '..afffffffea..',
+                '..aaaaaaaaaa..',
+            ] },
+            // Confetti pieces: a square, a strip, a plus and a twist (coloured by SHOW_CONFETTI's palettes)
+            confettiA: { pal: ['#fff3c4', '#f2c14e'], rows: ['ab', 'bb'] },
+            confettiB: { pal: ['#fff3c4', '#f2c14e'], rows: ['a', 'b', 'b'] },
+            confettiC: { pal: ['#fff3c4', '#f2c14e'], rows: ['.b.', 'bab', '.b.'] },
+            confettiD: { pal: ['#fff3c4', '#f2c14e'], rows: ['ab.', '.ab'] },
+        };
+        const SHOW_CONFETTI = [['#fff3c4', '#f2c14e'], ['#ffc2b8', '#e0452f'], ['#cfe6ff', '#3b8fe8'], ['#c8f5d6', '#3ec46d'], ['#ecd6ff', '#9b59d0'], ['#ffffff', '#c9c9d4']];
+        const __showCache = {};
+        function showSpriteURL(name, pal) {
+            const key = name + (pal ? pal.join('') : '');
+            if (__showCache[key] !== undefined) return __showCache[key];
+            const spr = SHOW_SPRITES[name], c = document.createElement('canvas');
+            c.width = spr.rows[0].length; c.height = spr.rows.length;
+            const g = c.getContext && c.getContext('2d'), colours = pal || spr.pal, KEY = 'abcdefghijklmnopqrstuvwxyz';
+            if (g) spr.rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const i = KEY.indexOf(row[x]); if (i >= 0) { g.fillStyle = colours[i]; g.fillRect(x, y, 1, 1); } } });
+            let url = '';
+            try { url = c.toDataURL(); } catch (e) {}
+            return (__showCache[key] = url);
+        }
+        const showImg = (name, cls, pal) => `<img class="ts-px ${cls}" src="${showSpriteURL(name, pal)}" alt="">`;
+
+        // Chiptune cues (Web Audio, no files): 'fanfare' at the draw, 'drum' before game 3, 'champion' on the podium.
+        // Only with the sounds setting on; showCues keeps what played (for the tests)
+        let showAudio = null;
+        const showCues = [];
+        function showSound(cue) {
+            if (!showOn() || !showSoundOn()) return;
+            showCues.push(cue);
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return;
+                showAudio = showAudio || new AC();
+                if (showAudio.state === 'suspended') showAudio.resume();
+                const ctx = showAudio, t0 = ctx.currentTime + 0.05;
+                const note = (f, at, len, type = 'square', vol = 0.07) => {
+                    const o = ctx.createOscillator(), g = ctx.createGain();
+                    o.type = type; o.frequency.value = f;
+                    g.gain.setValueAtTime(vol, t0 + at); g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + len);
+                    o.connect(g); g.connect(ctx.destination); o.start(t0 + at); o.stop(t0 + at + len + 0.02);
+                };
+                const hit = (at, len, vol) => {
+                    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * len), ctx.sampleRate), d = buf.getChannelData(0);
+                    for (let i = 0; i < d.length; i++) d[i] = showRand() * 2 - 1;
+                    const src = ctx.createBufferSource(), g = ctx.createGain();
+                    src.buffer = buf; g.gain.setValueAtTime(vol, t0 + at); g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + len);
+                    src.connect(g); g.connect(ctx.destination); src.start(t0 + at);
+                };
+                const tune = notes => notes.forEach(([f, at, len]) => { note(f, at, len); note(f / 2, at, len, 'triangle', 0.05); });
+                if (cue === 'fanfare') tune([[523, 0, 0.12], [659, 0.13, 0.12], [784, 0.26, 0.12], [1047, 0.39, 0.5]]);
+                if (cue === 'drum') { let at = 0; for (let k = 0; k < 18; k++) { hit(at, 0.05, 0.05 + k * 0.006); at += 0.11 - k * 0.004; } hit(at + 0.05, 0.35, 0.22); note(98, at + 0.05, 0.4, 'triangle', 0.12); }
+                if (cue === 'champion') tune([[392, 0, 0.14], [523, 0.15, 0.14], [659, 0.3, 0.14], [784, 0.45, 0.3], [659, 0.78, 0.14], [784, 0.93, 0.7]]);
+            } catch (e) {}
+        }
+
+        // The overlay elements: the championship frame (laurels, sweep, glows, the final's crown) and the pips
+        function showFrame() {
+            const arena = fvEl('arena');
+            if (!arena) return;
+            if (!fvEl('ts-frame')) {
+                const f = document.createElement('div');
+                f.id = 'ts-frame'; f.setAttribute('aria-hidden', 'true');
+                f.innerHTML = '<span class="tsf-glow"></span><span class="tsf-pulse"></span><span class="tsf-red"></span>'
+                    + ['top', 'right', 'bottom', 'left'].map(e => `<span class="tsf-edge tsf-${e}"><span class="tsf-sweep"></span></span>`).join('')
+                    + ['tl', 'tr', 'bl', 'br'].map(c => showImg('laurel', `tsf-laurel tsf-${c}`)).join('') + showImg('crown', 'tsf-crown');
+                arena.insertBefore(f, arena.firstChild);   // first, so the cards and the log are drawn over it
+            }
+            const box = arena.querySelector('.fighters-box');
+            if (box && !fvEl('ts-pips-p1')) box.insertAdjacentHTML('beforeend', '<div class="ts-pips" id="ts-pips-p1"></div><div class="ts-pips" id="ts-pips-p2"></div>');
+        }
+        // Brings the arena's look in line with the moment: called on every arena state change (setArenaState)
+        let showPipsLast = null;
+        function showSync() {
+            if (!FV_LIVE) return;
+            const arena = fvEl('arena');
+            if (!arena) return;
+            const s = arenaState, gameOn = !!tourGame && ['countdown', 'fight', 'result'].includes(s.kind);
+            const on = showOn() && !!tourney && (gameOn || ['draw', 'podium', 'hall'].includes(s.kind));
+            if (on) showFrame();
+            const g = on && gameOn ? tourGame : null;
+            arena.classList.toggle('ts-on', on);
+            arena.classList.toggle('ts-final', !!g && g.stage === 'final');
+            arena.classList.toggle('ts-decider', !!g && g.game === 3 && !tourneySingle(g));
+            const plaque = arena.querySelector('.plaque-text');
+            if (plaque && g && g.stage === 'final') { plaque.textContent = sT('finalPlaque'); plaque.dataset.ts = '1'; }
+            else if (plaque && plaque.dataset.ts) { plaque.textContent = translations[currentLang].arena_title; delete plaque.dataset.ts; }
+            if (s.kind === 'fight') document.querySelectorAll('.ts-over').forEach(el => el.remove());   // the game is on: nothing over it
+            showPips(g);
+        }
+        // ●●○ under each card: one pip per game of a best-of-3 match; gold for a game this fighter won, grey for one lost,
+        // blinking for the game being played; a pip pops when it turns gold
+        function showPips(g) {
+            const arena = fvEl('arena'), p1 = fvEl('ts-pips-p1'), p2 = fvEl('ts-pips-p2');
+            const on = !!g && !tourneySingle(g) && !!tourney && !!fv.p1 && !!fv.p2 && !!p1;
+            arena.classList.toggle('ts-pipson', on);
+            if (!on) { showPipsLast = null; return; }
+            const m = tourneyMatch(g), games = m.g || [], now = arenaState.kind === 'result' ? -1 : games.length;
+            const row = name => { const side = name === m.a ? 0 : 1; return [0, 1, 2].map(i => games[i] === undefined ? (i === now ? 'now' : '') : games[i] === side ? 'won' : 'lost'); };
+            const cur = { pair: g.a + '|' + g.b, rows: [row(fv.p1.name), row(fv.p2.name)] };
+            const prev = showPipsLast && showPipsLast.pair === cur.pair ? showPipsLast.rows : null;
+            [p1, p2].forEach((el, k) => {
+                el.innerHTML = cur.rows[k].map((c, i) => `<span class="ts-pip ${c}${c === 'won' && prev && prev[k][i] !== 'won' ? ' pop' : ''}"></span>`).join('');
+            });
+            showPipsLast = cur;
+        }
+        // Takes every show overlay off (the setting switched off, a cancel)
+        function showStop() {
+            if (!FV_LIVE) return;
+            document.querySelectorAll('.ts-over').forEach(el => el.remove());
+            const box = fvEl('log-countdown'), panel = fvEl('log-panel');
+            if (box && (box.classList.contains('ts-draw') || box.classList.contains('ts-board'))) {
+                fvCountdownToken++;
+                box.className = 'log-countdown'; box.innerHTML = '';
+                if (panel) panel.classList.remove('counting');
+            }
+        }
+        // An overlay over the log area for ms, before a game (showSync takes it off if the game starts sooner)
+        function showOverlay(cls, html, ms) {
+            const panel = fvEl('log-panel');
+            if (!panel) return null;
+            document.querySelectorAll('.ts-over').forEach(el => el.remove());
+            const el = document.createElement('div');
+            el.className = `ts-over ${cls}`;
+            el.innerHTML = html;
+            panel.appendChild(el);
+            setTimeout(() => el.classList.add('out'), ms - 400);
+            setTimeout(() => el.remove(), ms);
+            return el;
+        }
+        // The start of a tournament game's countdown: game 1 of a match gets the versus intro; game 3 its banner
+        function showGameStart(g) {
+            if (!showOn()) return;
+            showSync();
+            if (g.game === 1 && !g.replay) showIntro(g);
+            else if (g.game === 3 && !tourneySingle(g)) {
+                const flip = fv.p1 && fv.p1.name === g.b;
+                const el = showOverlay('ts-banner', `<span class="tb-glow"></span><span class="tb-text">${sT('decider')}</span>`
+                    + `<span class="tb-sub">${sT('deciderSub', { score: flip ? `${g.score[1]}:${g.score[0]}` : `${g.score[0]}:${g.score[1]}` })}</span>`, SHOW_BANNER_MS);
+                if (el) showSound('drum');
+            }
+        }
+        function showIntro(g) {
+            if (!fv.p1 || !fv.p2) return;
+            const side = (f, cls) => {
+                const sprite = `<img class="ti-sprite" src="${drakeSpriteURL(f.drakeObj.type)}" alt="">`, name = `<span class="ti-name pname" style="color:${f.color}">@${f.name}</span>`;
+                return `<div class="ti-side ${cls}">${cls === 'ti-l' ? sprite + name : name + sprite}</div>`;
+            };
+            const el = showOverlay('ts-intro', `<span class="ti-stage">${g.q !== undefined ? tourneyLabel(g) : tT(g.stage)}</span>`
+                + `<div class="ti-row">${side(fv.p1, 'ti-l')}<span class="ti-vs">VS</span>${side(fv.p2, 'ti-r')}</div>`, SHOW_INTRO_MS);
+            const fit = () => { if (el) el.querySelectorAll('.ti-name').forEach(n => fitText(n, 14)); };
+            fit();
+            if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);   // right after a reload the font may still be on its way
+        }
+
+        // The draw, when the tournament begins: «🏆 ТУРНІР ДРЕЙК-АРЕНИ» slams in, the names shuffle in the middle, then
+        // each flies into its slot (the qualifier's first, then round 1's direct places). The arena is held for SHOW_DRAW_MS
+        function showDraw() {
+            const t = tourney, panel = fvEl('log-panel'), box = fvEl('log-countdown');
+            if (!panel || !box) return;
+            fvCountdownToken++;
+            const token = fvCountdownToken, alive = () => token === fvCountdownToken && arenaState.kind === 'draw' && showOn();
+            setArenaState({ kind: 'draw' });
+            box.className = 'log-countdown with-bracket ts-draw';
+            box.innerHTML = `<div class="ts-slam">${showImg('trophy', 'ts-trophy')}<span>${sT('drawTitle')}</span>${showImg('trophy', 'ts-trophy')}</div>${tourneyBracketHtml()}`;
+            box.querySelectorAll('.tb-n, .tb-h').forEach(el => fitText(el, 9));
+            panel.classList.add('counting');
+            const tb = box.querySelector('.tb');
+            tb.classList.add('ts-tb');
+            showSound('fanfare');
+            const cols = [...tb.querySelectorAll('.tb-col')], qualCol = t.qual.length ? cols[0] : null, first = cols[t.qual.length ? 1 : 0];
+            const slots = [...(qualCol ? qualCol.querySelectorAll('.tb-ms > .tb-m .tb-n') : []), ...[...first.querySelectorAll('.tb-ms > .tb-m .tb-n')].filter(n => n.textContent !== tT('tbd'))];
+            slots.forEach(n => n.classList.add('ts-hide'));
+            const base = box.getBoundingClientRect(), k = box.offsetWidth ? base.width / box.offsetWidth : 1;
+            const W = box.offsetWidth, H = box.offsetHeight, across = 4, cw = 190, ch = 30, down = Math.ceil(slots.length / across);
+            const cell = i => ({ x: W / 2 - across * cw / 2 + (i % across) * cw + 10, y: H / 2 - down * ch / 2 + Math.floor(i / across) * ch + 24 });
+            const place = (c, p) => { c.style.transform = `translate(${p.x}px, ${p.y}px)`; };
+            const chips = slots.map((n, i) => {
+                const c = document.createElement('span');
+                c.className = 'ts-chip pname'; c.textContent = n.textContent; c.style.color = n.style.color;
+                box.appendChild(c); place(c, cell(i));
+                return c;
+            });
+            let order = chips.map((_, i) => i);
+            for (let s = 0; s < 8; s++) setTimeout(() => { if (!alive()) return; order = showShuffle(order); chips.forEach((c, i) => place(c, cell(order[i]))); }, 1200 + s * 200);
+            const step = Math.min(220, 3000 / Math.max(1, slots.length));
+            slots.forEach((n, i) => setTimeout(() => {
+                if (!alive()) return;
+                const r = n.getBoundingClientRect();
+                chips[i].classList.add('flying');
+                place(chips[i], { x: (r.left - base.left) / k - 6, y: (r.top - base.top) / k - 2 });
+                setTimeout(() => { if (!alive()) return; n.classList.remove('ts-hide'); chips[i].classList.add('landed'); }, 520);
+            }, 2900 + i * step));
+        }
+
+        // A match was decided: its winner moves on (the bracket animates it the next time it's shown)
+        function showNoteAdvance(g, winner) {
+            const t = tourney;
+            if (!showOn() || !t || g.third) return;
+            const from = g.q !== undefined ? { q: g.q } : { r: g.r, m: g.m };
+            let to = null;
+            if (g.q !== undefined) to = { r: 0, m: t.qual[g.q].to.m, side: t.qual[g.q].to.side };
+            else if (g.r + 1 < t.rounds.length) to = { r: g.r + 1, m: g.m >> 1, side: g.m % 2 ? 'b' : 'a' };
+            if (to) { (t.adv = t.adv || []).push({ from, to, name: winner }); tourneySave(); }
+        }
+        // The bracket under the countdown: the lines between rounds (lit where a winner moved on), the newest winners
+        // sliding along to their next slot, the losers greyed out, the next match pulsing
+        function showBracket(box) {
+            const t = tourney, tb = box.querySelector('.tb');
+            if (!showOn() || !t || !tb) return;
+            tb.classList.add('ts-tb');
+            const cols = [...tb.querySelectorAll('.tb-col')], qualCol = t.qual.length ? cols[0] : null, rounds = t.qual.length ? cols.slice(1) : cols;
+            const mEl = id => id.q !== undefined ? qualCol.querySelectorAll('.tb-ms > .tb-m')[id.q] : rounds[id.r].querySelectorAll('.tb-ms > .tb-m')[id.m];
+            const rowEl = id => { const m = mEl(id); return m && m.querySelectorAll('.tb-p')[id.side === 'b' ? 1 : 0]; };
+            const links = [...t.qual.map((m, q) => ({ from: { q }, to: { r: 0, m: m.to.m, side: m.to.side }, lit: !!m.winner })),
+                ...t.rounds.slice(0, -1).flatMap((round, r) => round.map((m, i) => ({ from: { r, m: i }, to: { r: r + 1, m: i >> 1, side: i % 2 ? 'b' : 'a' }, lit: !!m.winner })))];
+            const base = tb.getBoundingClientRect(), k = tb.offsetWidth ? base.width / tb.offsetWidth : 1;
+            const pt = (el, right) => { const r = el.getBoundingClientRect(); return { x: ((right ? r.right : r.left) - base.left) / k, y: (r.top + r.height / 2 - base.top) / k }; };
+            const fresh = new Set((t.adv || []).map(a => JSON.stringify(a.from)));
+            let paths = '';
+            links.forEach(l => {
+                const a = mEl(l.from), b = rowEl(l.to);
+                if (!a || !b) return;
+                const p = pt(a, true), q = pt(b, false), xm = (p.x + q.x) / 2;
+                const d = `M${p.x.toFixed(1)} ${p.y.toFixed(1)}H${xm.toFixed(1)}V${q.y.toFixed(1)}H${q.x.toFixed(1)}`;
+                paths += `<path class="tsl" d="${d}"/>` + (l.lit ? `<path class="tsl-lit${fresh.has(JSON.stringify(l.from)) ? ' new' : ''}" d="${d}"/>` : '');
+            });
+            tb.insertAdjacentHTML('beforeend', `<svg class="ts-lines" width="${(base.width / k).toFixed(0)}" height="${(base.height / k).toFixed(0)}">${paths}</svg>`);
+            (t.adv || []).forEach((a, i) => {
+                const target = rowEl(a.to), name = target && target.querySelector('.tb-n'), src = mEl(a.from);
+                const srcName = src && [...src.querySelectorAll('.tb-n')].find(n => n.textContent === '@' + a.name);
+                if (!name || !srcName) return;
+                const s = pt(srcName, false), e = pt(name, false);
+                const fly = name.cloneNode(true);
+                fly.classList.add('ts-fly');
+                const cs = getComputedStyle(name);   // the copy sits outside its row: take the row's lettering with it
+                fly.style.left = `${s.x}px`; fly.style.top = `${s.y}px`; fly.style.width = `${name.offsetWidth}px`;
+                fly.style.fontSize = cs.fontSize; fly.style.fontWeight = cs.fontWeight;
+                tb.appendChild(fly);
+                name.classList.add('ts-wait');
+                setTimeout(() => { fly.style.transform = `translate(${(e.x - s.x).toFixed(1)}px, ${(e.y - s.y).toFixed(1)}px)`; }, 350 + i * 250);
+                setTimeout(() => { name.classList.remove('ts-wait'); fly.remove(); }, 1250 + i * 250);
+            });
+            if (t.adv && t.adv.length) { t.adv = []; tourneySave(); }
+        }
+
+        // The podium: «ЧЕМПІОН АРЕНИ» slams in, confetti falls, the champion jumps onto the top step and a crown drops onto it
+        function showChampion() {
+            if (!showOn()) return;
+            const box = fvEl('log-countdown');
+            if (!box || arenaState.kind !== 'podium') return;
+            box.classList.add('ts-champ');
+            const title = box.querySelector('.pd-title');
+            if (title) title.outerHTML = `<div class="ts-slam ts-champ-title">${showImg('trophy', 'ts-trophy')}<span>${sT('champion')}</span>${showImg('trophy', 'ts-trophy')}</div>`;
+            const sprite = box.querySelector('.pd-1 .pd-sprite');
+            if (sprite) { sprite.classList.add('ts-jump'); sprite.insertAdjacentHTML('afterend', showImg('crown', 'ts-crown-drop')); }
+            const shapes = ['confettiA', 'confettiB', 'confettiC', 'confettiD'];
+            let html = '';
+            for (let i = 0; i < 70; i++) {
+                const shape = shapes[Math.floor(showRand() * 4)];
+                html += showImg(shape, `ts-conf ts-${shape}`, SHOW_CONFETTI[i % SHOW_CONFETTI.length]).replace('alt=""',
+                    `alt="" style="left:${(showRand() * 98).toFixed(1)}%;animation-duration:${(2.4 + showRand() * 2).toFixed(2)}s;animation-delay:${(showRand() * 3).toFixed(2)}s"`);
+            }
+            box.insertAdjacentHTML('beforeend', `<div class="ts-confetti">${html}</div>`);
+            showSound('champion');
+        }
+        // The Hall of Fame right after the podium: the new champion's name engraved letter by letter
+        function showEngrave() {
+            if (!showOn()) return;
+            const row = document.querySelector('#log-countdown .hf-row'), name = row && row.querySelector('.hf-p .pname');
+            if (!name) return;
+            row.classList.add('ts-new');
+            name.innerHTML = [...name.textContent].map((ch, i) => `<span class="ts-ch" style="animation-delay:${(0.4 + i * 0.09).toFixed(2)}s">${ch}</span>`).join('');
+        }
+
+        // The sign-up board on the free arena while sign-up is open: a slot per place, each new player popping into theirs
+        // with their sprite, and the n/size bar. Off the arena (a fight, or sign-up over) it gives the log area back.
+        let showBoardNames = [], showBoardFrac = 0;
+        function showBoardSync(redraw = false) {
+            if (!FV_LIVE) return;
+            const panel = fvEl('log-panel'), box = fvEl('log-countdown');
+            if (!panel || !box) return;
+            const want = showOn() && !!tourney && tourney.phase === 'signup' && !arenaBusy() && !bettingWait;
+            const shown = box.classList.contains('ts-board');
+            if (!want) {
+                if (shown) {
+                    fvCountdownToken++;
+                    box.className = 'log-countdown'; box.innerHTML = '';
+                    panel.classList.remove('counting');
+                    showBoardNames = [];
+                    showHallOfFame();
+                }
+                return;
+            }
+            const t = tourney, n = t.players.length, names = t.players.map(p => p.name);
+            if (shown && !redraw && names.join() === showBoardNames.join()) return;
+            fvCountdownToken++;
+            const slot = (p, i) => p
+                ? `<div class="ts-slot${showBoardNames.includes(p.name) ? '' : ' pop'}"><img class="ts-slot-sprite" src="${drakeSpriteURL(p.drakeObj.type)}" alt=""><span class="ts-slot-name pname" style="color:${nameColor(p.color)}">@${p.name}</span></div>`
+                : `<div class="ts-slot empty"><span>${i + 1}</span></div>`;
+            box.className = `log-countdown ts-board ts-board-${t.size}`;
+            box.innerHTML = `<div class="tsb-head">${showImg('trophy', 'ts-trophy')}<span class="tsb-title">${sT('boardTitle')}</span><span class="tsb-count">${n}/${t.size}</span></div>`
+                + `<div class="tsb-bar"><div class="px-track"><div class="px-fill tsb-fill" style="transform:scaleX(${showBoardFrac})"></div></div></div>`
+                + `<div class="tsb-grid">${Array.from({ length: t.size }, (_, i) => slot(t.players[i], i)).join('')}</div>`
+                + `<span class="tsb-join">${sT('boardJoin')}</span>`;
+            box.querySelectorAll('.ts-slot-name').forEach(el => fitText(el, 9));
+            panel.classList.add('counting');
+            showBoardNames = names;
+            showBoardFrac = n / t.size;
+            setTimeout(() => { const f = box.querySelector('.tsb-fill'); if (f) f.style.transform = `scaleX(${showBoardFrac})`; }, 30);
+        }
+        // The strip under the log during sign-up: a small n/size bar after «🏆 Турнір: реєстрація · 5/8 · !учасник»
+        function showStrip(hint) {
+            if (!showOn() || !tourney || tourney.phase !== 'signup') return;
+            hint.insertAdjacentHTML('beforeend', `<span class="ts-mini"><span class="ts-mini-fill" style="transform:scaleX(${tourney.players.length / tourney.size})"></span></span>`);
+        }
 
         function initPage() {
             const params = new URLSearchParams(location.search);

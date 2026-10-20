@@ -89,6 +89,21 @@ The channel owner or a moderator opens sign-up with `!турнір` / `!tourname
 
 Medals, spins and the Hall of Fame live under their own key, `drake_arena_showcase_honours`, also without "db" or "stats" in the name, so a ladder wipe keeps them.
 
+### The show
+
+With **🎆 Tournament effects** on (Test Settings; on by default), a tournament plays like an event. Only tournaments get any of it: regular fights look exactly as before.
+
+- **Sign-up board:** while sign-up is open and the arena is free, the log area shows a slot for every place; each new player pops into theirs with their sprite and name, under a «5/8» progress bar. The strip under the log gets a small bar too.
+- **The draw** (7.5 s, when the tournament begins): «🏆 ТУРНІР ДРЕЙК-АРЕНИ» slams in, the names shuffle, then fly into their bracket slots, the qualifier column first. `!старт` cuts it short.
+- **Match intro** (2.6 s, over the start of game 1's countdown): both sprites slide in from the sides, with big names and the stage («ПІВФІНАЛ»).
+- **Tournament games:** the arena frame turns championship gold, with pixel laurel corners and a light that runs round it every 8 s; best-of-3 pips under each card, gold for a game that fighter won. Game 3 opens with a «ВИРІШАЛЬНА ГРА» banner, and the frame glows red.
+- **The bracket between matches:** the lines between rounds light up as winners move on, the winner's name slides along to its next slot, eliminated players grey out, and the next match pulses.
+- **The final:** «ФІНАЛ» on the arena's plaque, a pixel crown hovering above it, and the frame pulsing slowly.
+- **The champion:** «ЧЕМПІОН АРЕНИ», pixel confetti, the champion's drake jumping onto the top step and a crown dropping onto it; in the Hall of Fame that follows, their name is engraved letter by letter.
+- **Sounds** (🔊 Tournament sounds, off by default): short chiptune cues made with Web Audio, no audio files: a fanfare at the draw, a drumroll before game 3, a fanfare for the champion.
+
+Every animation lasts 3 s or less (except the draw and the champion screen) and uses only CSS transforms and opacity. Nothing covers the cards or the log while a game is being fought. The crown, laurel corners, trophy and confetti are pixel art in the drakes' sprite format (`SHOW_SPRITES`). With the effects off, the tournament runs exactly as without them: the same timings, nothing extra on screen. The two settings are saved under `drake_arena_showcase_tourfx` and `drake_arena_showcase_toursound`.
+
 **Duels during a fight:** `!accept` while the arena is busy doesn't cancel the duel: it waits, and starts when the current fight's result screen ends, before the ranked queue carries on. Accepting takes both players out of the ranked queue, and until their duel starts both get a short "busy" reply to `!queue`, `!battle` and `!accept`. Only one duel can wait at a time; another `!accept` meanwhile is told to challenge again after the next fight. A `!battle` to a viewer whose duel is waiting is answered straight away ("⏳ @x is waiting for a duel. Challenge them after the next fight.") and opens no challenge.
 
 ## How combat works
@@ -281,6 +296,7 @@ Everything is in `index.html`:
 - `EFFECTS`, `EFFECT_CAST`: the 12 buffs/debuffs (icon, names, description, what counts them down, numbers) and the cast rules; `getCastChance` is the cast chance
 - `CLASS_ULTIMATES`, `METER`: the six class ultimates (icon, names, numbers, description) and the Element Power meter; `ultimateFor`, `describeUltimate`, `renderPowerMeter` (the meter row on the fighter cards)
 - `getHonours`, `tourneyAward`, `medalOf`, `showHallOfFame`, `showHallCard`: tournament prizes (badges, spins, medals, the Hall of Fame)
+- `show*` (`showSync`, `showDraw`, `showIntro`, `showBracket`, `showChampion`, `showBoardSync`, `showSound`) and `SHOW_SPRITES`: the tournament show (looks and sounds only)
 - `tourney*` (`tourneyCommand`, `tourneyClose`, `tourneyNext`, `tourneyResult`, `tourneyPodium`, `tourneyFighter`, `tourneyBracketHtml`): tournaments; `TOURNEY_TEXT` holds their words in both languages
 - `checkQueue`, `runBattle`, `pickEffect`, `applyEffect`, `finishBattle`: matchmaking and the combat loop (`applyEffect` handles refresh, replacement, Dispel and immunity; `runBattle` fills the meter and plays the ultimates)
 - `addInfo`, `showStatsCard`, `showTitleRoll`, `showOddsCard`: the chat-request window
