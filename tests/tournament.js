@@ -746,6 +746,7 @@ const key = (a, b) => [a, b].sort().join('-');
         await mod(page, '!турнір 8');
         await say(page, 'ruslana', '!учасник');
         const wiped = await page.evaluate(() => { const gone = Object.keys(localStorage).filter(k => /db|stats/.test(k)); gone.forEach(k => localStorage.removeItem(k)); return gone; });
+        await storageSettled(page);   // the wipe and the game's saves (the sign-up, the honours) in the browser before the reload
         await page.reload();
         await page.evaluate(() => document.fonts.ready);
         await page.clock.runFor(500);
