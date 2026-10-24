@@ -34,6 +34,7 @@ const { chromium } = require('playwright');
 const { pageInit } = require('./page_hooks');
 const { settleArena } = require('./settle');
 const { offTwitch } = require('./no_twitch');   // a stand-in tmi.js: nothing reaches Twitch, no live chat gets in
+const { storageSettled } = require('./storage_sync');   // before a reload: the game's own save has reached the browser
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
@@ -58,9 +59,17 @@ async function open(browser, { lang = 'uk', betting = false } = {}) {
     await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
     await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));
     await page.addInitScript(pageInit, SEED);
-    await page.addInitScript(on => { if (!sessionStorage.getItem('loaded')) { localStorage.setItem('drake_arena_showcase_betting', on ? '1' : '0'); sessionStorage.setItem('loaded', '1'); } }, betting);
+    // The settings, on the first load only: a one-time token in the URL (?setup), which the script takes out of the URL
+    // once applied, so a reload keeps whatever the game saved since (not a sessionStorage flag: it can be lost)
+    await page.addInitScript(on => {
+        const q = new URLSearchParams(location.search);
+        if (!q.has('setup')) return;
+        localStorage.setItem('drake_arena_showcase_betting', on ? '1' : '0');
+        q.delete('setup');
+        history.replaceState(null, '', location.pathname + '?' + q);
+    }, betting);
     await page.addInitScript(installHooks);
-    await page.goto(`${PAGE}?lang=${lang}`);
+    await page.goto(`${PAGE}?lang=${lang}&setup`);
     await page.evaluate(() => document.fonts.ready);
     await settleArena(page);
     return { page, context, errors };
@@ -372,6 +381,7 @@ const key = (a, b) => [a, b].sort().join('-');
         await until(page, k => window.__games.filter(g => g.k === k).length === 1 && arenaState.kind === 'fight' && arenaState.turn >= 3, key(...sf[1]), { step: 1500 });
         const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)), KEY);
         const keyOk = !/db|stats/i.test(KEY);
+        await storageSettled(page);
         await page.reload();
         await page.evaluate(() => document.fonts.ready);
         await page.evaluate(p => { window.__plan = p; window.__played = {}; }, { [key(...sf[1])]: [sf[1][0], sf[1][0]], [key(sf[0][1], sf[1][1])]: [sf[0][1]], [key(sf[0][0], sf[1][0])]: [sf[0][0], sf[0][0]] });
@@ -404,6 +414,7 @@ const key = (a, b) => [a, b].sort().join('-');
                 await until(r.page, phase.at, null, { step: 250 });
             }
             const before = await r.page.evaluate(() => ({ kind: arenaState.kind, phase: tourney && tourney.phase, games: window.__games.length }));
+            await storageSettled(r.page);
             await r.page.reload();
             await r.page.clock.runFor(500);
             const after = await view(r.page), diag = await afterReload(r.page);
@@ -436,6 +447,7 @@ const key = (a, b) => [a, b].sort().join('-');
             await mod(w.page, '!турнір 4');
             for (const n of four) await say(w.page, n, '!учасник');
             await until(w.page, () => tourGame && arenaState.kind === 'fight' && arenaState.turn >= 2, null, { step: 250 });
+            await storageSettled(w.page);
             await w.page.goto(`${PAGE}?lang=uk&skipresume`);   // the reload, with the flag in the URL (it can't get lost)
             const t0 = await w.page.evaluate(() => Date.now());
             await w.page.clock.runFor(1000);
