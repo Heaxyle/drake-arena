@@ -867,7 +867,9 @@
                 fitText(document.getElementById(`info-${p}`), 10);
             });
             document.querySelectorAll('.lb-name, .lb-sub, .sc-name, .sc-sub, .sc-title, .hp-text').forEach(el => fitText(el, 9));
-            document.querySelectorAll('#log-countdown .tb-n[data-full], #log-countdown .pd-name').forEach(el => fitName(el));
+            const cdBox = document.getElementById('log-countdown');
+            if (cdBox && cdBox.querySelector('.tb')) tourneyFitBracket(cdBox);   // its names and headers, measured again in the loaded fonts
+            document.querySelectorAll('#log-countdown .pd-name').forEach(el => fitName(el));
             ['status-p1', 'status-p2'].forEach(id => fitChips(document.getElementById(id)));
             updateQueueUI();
         }

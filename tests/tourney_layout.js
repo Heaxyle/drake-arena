@@ -75,11 +75,23 @@ const until = async (page, fn, steps = 400) => {
     for (let i = 0; i < steps; i++) { if (await page.evaluate(fn)) return true; await page.clock.runFor(500); }
     return false;
 };
-// Changes the saved tournament (fn runs in the page on `tourney`), then reloads: the game resumes from it
+// Changes the saved tournament (fn runs in the page on `tourney`), then reloads: the game resumes from it. The changed
+// storage goes to the new page by an init script, not by localStorage itself: Chromium writes localStorage
+// asynchronously, so a page reloaded at once can still read the old state (on a slow machine it did). The script is
+// tied to a one-time token in the URL, so it applies exactly once, before the game's own script runs
+let resumes = 0;
 async function resumeWith(page, fn, arg) {
     await page.evaluate(fn, arg);
-    await page.evaluate(() => tourneySave());
-    await page.reload();
+    const snap = await page.evaluate(() => { tourneySave(); return Object.fromEntries(Object.keys(localStorage).map(k => [k, localStorage.getItem(k)])); });
+    const token = `r${++resumes}`;
+    await page.addInitScript(([s, tok]) => {
+        if (new URLSearchParams(location.search).get('resume') !== tok) return;
+        localStorage.clear();
+        Object.entries(s).forEach(([k, v]) => localStorage.setItem(k, v));
+    }, [snap, token]);
+    const url = new URL(page.url());
+    url.searchParams.set('resume', token);
+    await page.goto(url.toString());
     await page.evaluate(() => document.fonts.ready);
 }
 
