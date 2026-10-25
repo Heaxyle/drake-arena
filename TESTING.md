@@ -3,7 +3,7 @@
 Drake Arena is a single HTML file with no build step, so the tests work on that file as it is. The testing has two layers:
 
 1. **Effect rules, ultimates, game rules and balance simulation** (`tests/effects.js`, `tests/ultimates.js`, `tests/rules.js`, `tests/balance.js` + `tests/sim_harness.js`) run the real game code in Node. The effect, ultimate and rules tests check the buff/debuff, meter, ultimate, chat and fight rules; the balance sim plays thousands of fights. Together they answer: *do the rules work as written, is the game fair, and does combat ever crash?*
-2. **UI smoke test, layout test and fight view test** (`tests/ui.js`, `tests/layout.js`, `tests/fightview.js`) open the page in headless Chromium, play it through fake chat and check the layout, the battle log and the turn animation. They answer: *does it work and look right on stream?* The play log test (`tests/playlog.js`) checks what the game records about play and its export.
+2. **UI smoke test, layout test, fight view test and tournament test** (`tests/ui.js`, `tests/layout.js`, `tests/fightview.js`, `tests/tournament.js`) open the page in headless Chromium, play it through fake chat and check the layout, the battle log and the turn animation. They answer: *does it work and look right on stream?* The play log test (`tests/playlog.js`) checks what the game records about play and its export.
 
 Both run in CI (`.github/workflows/ci.yml`) on every pull request and on every push to `main`, so each PR update runs CI once.
 
@@ -27,7 +27,9 @@ flowchart TD
     K -->|a check failed| X
     K -->|all checks passed| PL["Layer 2: play log test<br/>npm run test:playlog"]
     PL -->|a check failed| X
-    PL -->|all checks passed| P[CI passes]
+    PL -->|all checks passed| T["Layer 2: tournament test<br/>npm run test:tournament"]
+    T -->|a check failed| X
+    T -->|all checks passed| P[CI passes]
     E -.->|always| S[Upload tests/screenshots<br/>as a build artifact]
     X -.-> S
 ```
@@ -113,12 +115,16 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | **No rest between fights**: both duellists `!queue` during their duel and their ranked fight starts right after it; a second `!queue` still says "already in queue"; a viewer who just fought is challenged and accepts at once, and a viewer in a fight can be challenged; no "exhausted" or "resting" reply anywhere. A second `!battle` while one is open gets a reply | A rest creeping back in (a fighter turned away from the queue, a challenge or an accept refused) |
 | `!accept` during a fight: the duel waits ("starts after the current fight") and both leave the ranked queue; another `!accept` is told to challenge again after the next fight; the waiting players get a "busy" reply to `!queue`, `!battle`, `!accept`; after the fight the waiting duel starts before the ranked queue; a fighter who accepts a challenge during their own fight gets a waiting duel that starts right after it, and the challenge closes (no "did not answer" 30 s later); `!battle` to a player whose duel is waiting says "⏳ @x is waiting for a duel. Challenge them after the next fight." and opens no challenge | Duels dropped when the arena is busy, the queue jumping ahead of them, or a misleading "did not answer" |
 | **The result screen holds the arena**: after a ranked fight two `!queue` only join the queue and a duel accepted then waits ("after the current fight"); a viewer's and a VIP's `!start` are ignored, a moderator's ends the hold and the waiting duel starts first; after that duel and its own hold the queue carries on; a friendly draw and a ranked draw hold too; the channel owner's `!start` with nobody waiting ends the hold, and the next two `!queue` start at once. After an accepted `!start` a moderator's and the owner's within 5 s are ignored, and one works again after it | The next fight starting the moment a result appears, `!start` ignored or open to anyone, two `!start` in a row both counting |
+| **Tournaments**: a viewer's `!tournament` does nothing, a moderator's opens sign-up; refusals (no drake, the White Dragon, already in); leaving during sign-up; the 4th of 4 fills the bracket and closes it ("full" after that), leaving then is refused. A rigged 4-player run: a duel accepted before it goes first, a new `!battle` gets "a tournament is on"; semifinals 2:0 and 2:1 with a drawn game replayed, then the 3rd-place game (one game), then the final 2:1; every game at level 20 (players at 2, 5, 9, 14); no XP, saved levels, wins and losses unchanged; the ranked queue waits for all of it, then carries on in order; the podium 🥇 🥈 🥉. `!tournament stop` mid-game: the game counts for nothing and the queue carries on | Matches of the wrong length, a draw counted, no 3rd place, saved levels in tournament games, XP or a record from them, the queue or duels running during it, anyone opening one |
+| **Uneven sign-ups** (5, 8, 9, 13, 15 and 16 players): the main bracket is the largest of 4, 8, 16 that fits; with everyone at level 3, the first registrants (sign-up order breaks the tie) are in round 1, the rest in qualifier games, each winner with a place of its own in round 1; the ЧАТ panel says «13 учасників: 3 з найвищим рівнем — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць» (and «за 1 місце» for 5 and 9); with 8 and 16 there is no qualifier and nothing about one. Run through: every qualifier game comes first and is one game; round 1 is the direct players and the qualifier winners; on to the podium | Byes instead of a qualifier, random players skipping it, a qualifier of more than one game or after round 1, «за 1 місць» |
+| **Level shapes the bracket**: 9 players at levels 1–15 signed up out of order: the 7 highest go straight in, the tie at the cut (two at level 2) to the earlier sign-up; the two highest (15 and 12) are in opposite halves and the ЧАТ panel names them; with the higher level winning every game they meet in the final, every game still at level 20. Then 56 draws (4, 5, 8, 9, 13, 15 and 16 players, 8 each, the two highest signed up last): the highest level always straight in, the two highest always in opposite halves (with 15 players the second is in the qualifier: their game's place) | Sign-up order instead of level, a tie to the later sign-up, the top two able to meet before the final, the second highest's qualifier game placed anywhere |
+| **The queue during a tournament**: a simulation error in a tournament game leaves the arena free for 2 s before the next fight; two `!queue` at that moment only join the queue (`!queue` goes through `nextFight()`, which runs the tournament): no ranked fight, the same tournament game is played again next, and the queue waits for the end of the tournament | `!queue` starting a ranked fight in the middle of a tournament |
 | "!battle" with no name, even mid-fight, replies "ℹ️ @x, to challenge someone type !battle @name." | No reply |
 | The opening-buff banner shows the title's icon once | "🌅 🌅 Woke Up Swinging" |
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 77 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 94 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -187,7 +193,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 63 | `!battle` opens a challenge to a viewer whose duel is waiting | `rules.js` 11 | `reply: ⚔️ @d3 challenges @d1 to a Friendly Duel!` |
 | 64 | No hold after a ranked fight: the next fight or duel starts as soon as it ends | `rules.js` 14 (8 checks) | `held false; queue ; fights 1` |
 | 65 | No hold after a duel or a friendly draw | `rules.js` 14 (2 checks) | `after a friendly draw the queue waits for the hold, then starts — {"during":1,…}` |
-| 66 | The queue ignores the hold: two `!queue` during the result screen start a fight at once | `rules.js` 14 (10 checks) | `held true; queue ; fights 1` |
+| 66 | The queue ignores the hold: the result screen no longer keeps the arena busy (`arenaBusy()`, which both `nextFight()` and `checkQueue()` check), so two `!queue` during it start a fight at once | `rules.js` 14 (10 checks) | `held true; queue ; fights 1` |
 | 67 | A duel accepted during the result screen starts at once | `rules.js` 14 (4 checks) | `held true; queue h3,h4; fights 0` (no waiting duel) |
 | 68 | A moderator's `!start` during the result screen does nothing | `rules.js` 14 (4 checks) | `ignored true; fights …` (the waiting duel never starts) |
 | 69 | Anyone's `!start` ends the result screen | `rules.js` 14 (2 checks) | `ignored false` |
@@ -199,6 +205,23 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 75 | Gold multiplies only the 40, not the bonus | `rules.js` 16 (4 checks) | the underdog XP cases fail |
 | 76 | The Top is ordered by wins only | `rules.js` 17 | the order check fails |
 | 77 | On equal wins − losses the higher level goes first, not more wins | `rules.js` 17 | the order check fails |
+| 78 | A tournament match ends after one won game (`TOURNEY_WINS` 1) | `rules.js` 18 (8 checks) | the order check: `{"order":["tb-tc","ta-…` (a semifinal of 1 game) |
+| 79 | A drawn tournament game counts for the first-named player instead of being replayed | `rules.js` 18 (4 checks) | the same order check (the 2:1 semifinal ends after 3 games) |
+| 80 | No 3rd-place game | `rules.js` 18 (6 checks) | the same order check (no 3rd-place pair before the final) |
+| 81 | Tournament games use the saved levels, not level 20 | `rules.js` 18 (2 checks) | `[[2,14],[2,14],[9,5],…]` |
+| 82 | Tournament games give XP and count as wins and losses | `rules.js` 18 (4 checks) | `[[170,2,{"wins":4,"losses":4}],…]` |
+| 83 | The ranked queue runs between tournament games | `rules.js` 18 (2 checks) | `[{"a":"ta","b":"tb","ranked":false},{"a":"te","b":"tf",…` (the ranked fight second) |
+| 84 | `!battle` and `!accept` work as usual during a tournament | `rules.js` 18 (2 checks) | the "tournament is on" reply missing |
+| 85 | A viewer's `!tournament` opens sign-up | `rules.js` 18 (2 checks) | `{"phase":"running",…}` |
+| 86 | The qualifier announcement says «за 1 місць» | `rules.js` 18 (2 checks) | `5 players: the ЧАТ panel says «5 учасників: … за 1 місце»` fails |
+| 87 | Who goes straight into the main bracket is drawn at random, not the highest levels | `rules.js` 18 (20 checks) | `5 players, all level 3: … the first 3 (sign-up order breaks the tie) straight in` fails |
+| 88 | A qualifier is first to 2, not one game | `rules.js` 18 (8 checks) | `5 players: the 1 qualifier game(s) come first, one game each` fails |
+| 89 | Round-1 matches with both players known are played before the qualifier | `rules.js` 18 (8 checks) | the same check (a semifinal before the qualifier) |
+| 90 | `!queue` calls `checkQueue()` itself instead of going through `nextFight()` | `rules.js` 18 (2 checks) | `a simulation error in a tournament game, then two !queue at once` fails (a ranked fight starts) |
+| 91 | The earliest registrants go straight into the main bracket, whatever their level | `rules.js` 18 (6 checks) | `9 players at levels 1–15: the 7 highest straight into the main bracket` fails |
+| 92 | On a level tie the later registrant goes straight in | `rules.js` 18 (18 checks) | `5 players, all level 3: … the first 3 (sign-up order breaks the tie) straight in` fails |
+| 93 | The two highest levels are drawn anywhere, so they can meet before the final | `rules.js` 18 (2 checks) | `56 draws (4–16 players): … the two highest always in opposite halves` fails |
+| 94 | When the second highest level is in the qualifier, their game's place can be in the top seed's half | `rules.js` 18 (2 checks) | the same check, with 15 players |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -263,7 +286,18 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: no !start guard
 …
 ✓ caught: Top tie: level before wins
-All 77 mutations caught.
+…
+✓ caught: anyone runs tournaments
+✓ caught: «місць» for any number
+✓ caught: random players skip the qualifier
+✓ caught: qualifier best of 3
+✓ caught: qualifier after round 1
+✓ caught: !queue starts ranked fights directly
+✓ caught: sign-up order, not level
+✓ caught: ties to the later sign-up
+✓ caught: the top two may share a half
+✓ caught: a qualifier seed left anywhere
+All 94 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -402,6 +436,7 @@ Everything else (the tier and level tables, the 45–57% target) is printed for 
 `ui.js` opens `showcase/index.html` in headless Chromium at 1920×1080, the OBS canvas size.
 
 - **Kept off Twitch.** The page carries tmi.js inside it, so each browser test runs `tests/no_twitch.js` first: `window.tmi` becomes a stand-in (the library's own assignment is ignored) whose client connects to nothing, and Playwright holds any WebSocket to Twitch. The test "types" chat messages through the same handler real Twitch messages use. No network, no Twitch account, and no live chat gets in.
+- **Reloads read what was saved.** Chromium writes `localStorage` (and commits IndexedDB) from the page asynchronously, so a page reloaded straight after a write can read the state from before it: on CI it did, three times. So no test writes storage and then reloads at once. To set up state, a test injects it before the page loads with an init script tied to a one-time URL token (`?setup` in `tournament.js`, `?resume=…` in `tourney_layout.js`'s `resumeWith`). Where the point is that the game's own save survives a reload (as in OBS), the test reloads the real save, but first calls `storageSettled` (`tests/storage_sync.js`): it reads the storage back from a second page of the same origin (`tests/storage_probe.html`) until it matches, the play log's IndexedDB counts too, and fails loudly if it never does.
 - **Fake clock, paused.** Playwright's clock controls the game timers and is paused: game time only moves when the test moves it (`clock.runFor`), so a full fight (up to 30 turns at 4.5 s each) runs in seconds and the test can stop every 500 ms of game time to measure the layout.
 - **Animations settle first.** CSS animations run on real time, not on the fake clock. Before a visual check reads the page, the shared helper `tests/settle.js` (`settleArena`) pauses the game clock and waits until every finite transition and animation in the arena has finished (the drakes' idle bob loops forever and is left out). `ui.js`, `layout.js` and `fightview.js` all use it, so an animation caught halfway can't fail a test at random.
 - **Seeded fights.** `tests/page_hooks.js` runs in the page before the game's script: `Math.random` is replaced with a seeded generator (mulberry32), so every run plays the same fights and a failure can be reproduced. The default seed (`UI_SEED`, 3) is one where both languages reach a full Element Power meter; `UI_SEED=n npm run test:ui` tries another.
@@ -452,8 +487,9 @@ It also saves screenshots at each stage to `tests/screenshots/` (`showcase-01-re
 | **HP number and bar agree**, in both languages: waiting cards show "—" with an empty bar; in the countdown, every few turns of a fight, the result, the result after a language switch, a test battle and its result, "h/max" matches the bar's width (±1%) and its colour | A number next to a bar that says something else (e.g. "150/150" by an empty bar) |
 | **Review sheet** (`layout-review-cards.png`): the fighter card for every element and the White Dragon, plus a winner (Gold drake) and a loser (Black drake), in both languages, on the arena panel inside the arena frame | Nothing by itself: it's for checking by eye |
 | No page errors | Exceptions from the new rendering code |
+| **Tournament screens, worst-case names** (`tests/tourney_layout.js`), 4, 8, 13, 15 and 16 players, both languages. The names: 25 wide letters (`wwwwwwwwwwwwwwwwwwwwwwwww`), a mixed one (`xX_SuperLongNickname_Xx`), two that differ only at the end (`the_real_slim_shady_123` / `_456`), the rest 25-letter ones. Played through the game's own sign-up, then fast-forwarded through its saved state (results filled in, a reload): the qualifier's countdown (13 and 15), a betting window with finished matches and the live one, that match being fought, the podium. Every name at 12 px or more, cut in the middle rather than squeezed, never wider than its box; two different names never drawn the same; nothing outside the log area, no two blocks overlapping; the plate inside the header, clear of the fight type, with the two names in full when the bracket cut one of them (one line when it didn't) | Long names overflowing or overlapping, shrunk past readable, squeezed, cut at the end (so `_123` and `_456` look alike), or cut with nowhere showing them in full |
 
-Screenshots: `layout-worst-{uk,en}[-nofonts].png`, `layout-obs-{uk,en}.png` (transparent), `layout-1366x768.png`, `layout-result-{uk,en}.png`, `layout-review-cards.png`. Only the review sheet, `layout-review-cards.png`, is committed (regenerate and commit it when the look changes on purpose); the rest are in the CI artifact.
+Screenshots: `layout-worst-{uk,en}[-nofonts].png`, `layout-obs-{uk,en}.png` (transparent), `layout-1366x768.png`, `layout-result-{uk,en}.png`, `layout-review-cards.png`, `layout-tourney-{n}-{screen}-{uk,en}.png`. Only the review sheet, `layout-review-cards.png`, is committed (regenerate and commit it when the look changes on purpose); the rest are in the CI artifact.
 
 Text that is still too wide at its smallest allowed size is squeezed sideways (`fitText` wraps it in a `.squeeze` span with `scaleX`). `scrollWidth` ignores transforms, so the test measures squeezed text as drawn.
 
@@ -520,6 +556,29 @@ The test also had to fail on 16 broken versions of the log: a missing queue join
 
 Review screenshots: `fightview-cards.png` (every kind of log card, both languages) and `fightview-turn.png` (the countdown, the betting window, turn steps 1 and 2, an ultimate turn and the result, both languages). Both are committed, like `layout-review-cards.png`: regenerate and commit them when the look changes on purpose. `FV_ONLY=2,4 npm run test:fightview` runs only some sections (numbered in the file).
 
+## Layer 2: tournament test
+
+`tournament.js` plays tournaments through the chat simulator in headless Chromium, on the paused game clock, with seeded fights. A hook on `finishBattle` sets each tournament game's result from a plan (a winner, or a draw), so every match goes the way the test says; everything else is the real game.
+
+| Check | What it catches |
+|---|---|
+| **Sign-up**, both languages: `!учасник` with no tournament says so; a viewer's `!турнір` does nothing; a moderator's opens sign-up for 8 and the line «🏆 Турнір: реєстрація · 0/8 · !учасник» appears; it counts joins (5/8) and `!вийти` (4/8); refusals in the ЧАТ panel: no drake, the White Dragon, already in; `!турнір старт` closes it with 4 but not with 3 («Замало учасників…»); the 4th of 4 closes it by itself and the line says «🏆 Турнір триває · черга чекає»; then "the bracket is full" and leaving refused | Anyone opening one, a wrong count, a missing refusal, too few players starting |
+| **The 8-player run** (Ukrainian, betting window on): a ranked fight is on and a duel waits when sign-up closes; the tournament waits for the fight, its result screen, the duel and its result screen. QF1 game 1: the betting window with the bracket under the timer (2:00), «⏳ Ставки відкрито» on the left and «🏆 Турнір · Чвертьфінал · Гра 1 · 0:0» on the plate; the bracket's columns, all 8 names, the next match lit, the 3rd-place game under the final, nothing cut off or outside the log area | The tournament jumping the queue's fight or the waiting duel, a missing bracket, a wrong plate |
+| `!черга` meanwhile joins the queue in order (1 @q_first, 2 @q_second, 3 @q_third) and `!бій` gets «зараз триває турнір: дуелі — після турніру»; after the podium the queue carries on in that order and `!бій` works again; the save is gone | Ranked fights or duels during the tournament, the queue order lost |
+| `!старт` skips the betting window; both fighters' cards say «Рівень 20» with level-20 max HP (`getMaxHP(20, …)`), though they're saved at levels 2 and 3. Game 2 starts exactly 20 s after game 1 ends, with a 10 s «Чвертьфінал · Гра 2» countdown (no betting window, no bracket) and «… · Гра 2 · 1:0» on the plate. A moderator's `!старт` ends a result screen and opens the next match's betting window; another moderator's 2 s later is ignored (the 5 s guard) | Saved levels in a tournament game, a missing or too short break between games, two `!старт` skipping a betting window |
+| The two highest levels (@oleh_the_great 16, @ira_77 12) are in opposite halves of the quarterfinals, and the ЧАТ panel says so when sign-up closes. After the podium the play log holds all 20 games as `kind: 'tournament'`, each with its stage and game number (the replay marked), the betting window's time for game 1 of a match, the saved levels, the winner and no XP | Seeds in the same half, tournament games missing from the play log or without their stage |
+| The whole run: QF1–QF4, SF1, SF2, the 3rd-place game, the final, in that order; QF1 2:0, QF2 and QF4 2:1, QF3 a draw replayed as game 1 then 2:0, the 3rd-place game one game, the final 2:1; the betting window with the bracket before game 1 of all 8 matches, the 10 s countdown before the 12 others; all 20 games at level 20; the plate at every stage; the podium 🥈 🥇 🥉 with names and sprites, «🏆 Турнір завершено» and «🥇 @…» in the header; saved XP, levels, wins, losses and the Top exactly as before | First to 1 or 3, a draw counted, the 3rd-place game missing or after the final, XP or records from tournament games |
+| **A reload mid-match**: the saved key (`drake_arena_showcase_tournament`, no "db" or "stats") is restored; the tournament resumes at the second semifinal with game 2 played again («Півфінал · Гра 2 · 1:0»), and runs to its podium | A reload losing the tournament or skipping the unfinished game |
+| **A reload at every moment** (each on the game clock, so it's the same on any machine; a fresh 4-player tournament per moment): during sign-up (2/4, it stays open and fills), during the betting window, in the middle of a game, on the result screen between games, during game 2's 10 s countdown, in the middle of the 3rd-place game and of the final, on the podium. Each time, 0.5 s after the reload the arena shows the tournament again (the game replayed, the next game, or the podium), the tournament runs to its podium and ends, and then the queue, paused all along, carries on. On a failure it reports what the reloaded page found (the save as it reads it, what it loaded, the arena's flags, page errors) | A moment a reload freezes the tournament (and the queue with it) |
+| **The watchdog**: a stall forced on purpose, a reload mid-game with the resume skipped (`tourneyResume` replaced by a no-op before the page starts up): the arena sits idle with the tournament saved as running; within 5 s the watchdog starts the game again and logs one `console.error` (the only check where that error is expected; everywhere else a console error fails the test, so the watchdog stepping in anywhere else is noticed) | No watchdog, a slower one |
+| **The qualifier, 5 players** (English, betting window on): a main bracket of 4 with @ava, @ben and @cleo (the first three, all at level 1) in the semifinals; @dan and @eve play one qualifier game: no betting window, the 10 s countdown with the bracket, the "Qualifier" column first (lit), one semifinal place "…", "🏆 Tournament · Qualifier 1/1"; "🏆 5 players: 3 with the highest levels straight into the semifinals, 2 play a qualifier for 1 spot" in the ЧАТ panel. Run through: the plates say "Qualifier 1/1", "Semifinal", "3rd-place match", "Final"; the qualifier's winner plays the semifinals; game 1 of every later match opens the betting window | A betting window before a qualifier game, no bracket during its countdown, no qualifier column, the wrong players in it, untranslated stage names |
+| **The qualifier, 13 players** (Ukrainian): «🏆 13 учасників: 3 з найвищим рівнем — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць»; the bracket's columns «Кваліфікація», «Чвертьфінал», «Півфінал», «Фінал»: 5 qualifier games (the first lit), the quarterfinals with @ava, @ben, @cleo and 5 places «…», all inside the countdown; «🏆 Турнір · Кваліфікація 1/5». The 5 qualifier games are one game each, then the quarterfinals have the 3 direct players and the 5 winners | A missing announcement, a qualifier of more than one game, a winner not moved on |
+| **9, 15 and 16 players, cancel, the layouts** (English): the qualifier's round-1 place reads "qualifier 1"; 9 players: @hal and @ivy (the last two) play for the last place, "🏆 Tournament · Qualifier 1/1", the queue waits. `!tournament stop` during that countdown: the countdown, the line and the save go, and the queue starts at once. 15 players: only @ava straight in, 7 qualifier games in their column, all inside the countdown; `!tournament stop` in the middle of the first qualifier game: the game is fought to its end (no "simulation error" from its label once the tournament is gone). 16 players: a bracket of 16 with no qualifier, "🏆 Tournament · Round of 16 · Game 1 · 0:0", mirrored: two halves of 4 round-of-16 matches meeting at the final in the middle, the timer above it and the 3rd-place game under it. `!tournament stop` during sign-up: back to normal | A bracket that doesn't fit, a qualifier with a full bracket, a cancel that leaves the arena waiting or aborts the game being fought |
+| **Stopping mid-game** (English, 4-player tournaments with planned results): `!tournament stop` in the middle of a semifinal game, a game 3, the 3rd-place game and the final. Each time the tournament, its line and its save go at once; the game is fought to its end with no "simulation error" and counts for nothing (the play log marks it `counted: false`); 18–20 s after its result screen appears (the screen holds 20 s from the game's end) the queue carries on (@q1 against @q2). On the podium `!tournament stop` is refused ("already over") and the podium stays | A stop that tears the game down, leaves the tournament running, or ends a finished tournament |
+| No page errors | Exceptions from the tournament code |
+
+Screenshots (Ukrainian): `tournament-signup.png` (the sign-up line), `tournament-bracket.png` (the bracket during the betting window), `tournament-plate.png` (a game 2 in progress with its plate), `tournament-podium.png`, `tournament-qualifier.png` (13 players: the «Кваліфікація» column before the quarterfinals). `TOUR_ONLY=2,3 npm run test:tournament` runs only some sections.
+
 ### Visual only: the fights stay the same
 
 The view only draws what the fight already decided. In Node (the balance sims, `effects.js`, `ultimates.js`, the mutations) there is no page, so the view switches itself off, and the fight's text record (the hidden `#battle-log`, which the sims and the effect tests read) is unchanged. Three checks back this up:
@@ -540,7 +599,7 @@ npm test                               # effect rules, then balance: element mat
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
 npm run test:rules                     # the game rules: whole HP, chat commands, no rest, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 77 ways, check effects.js / ultimates.js / rules.js catch each
+npm run test:mutations                 # break the game 94 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)
@@ -549,6 +608,7 @@ npm run test:layout                    # 1920×1080 layout test, both languages
 npm run test:controls                 # the test menu's picker and drop-downs, the language switch during a fight
 npm run test:playlog                   # the play log: what fights, title rolls, rerolls and !черга record; the export
 npm run test:fightview                 # battle log, turns, ultimates, countdown, result, both languages (slow: plays dozens of fights)
+npm run test:tournament                # sign-up, a whole 8-player tournament, a reload mid-match, the qualifier, cancel
 UI_FILE=main.html node tests/ui.js showcase   # same flow on another copy of the page: compare the fingerprint
 
 node tests/balance.js matrix 300 20 --seed 42    # rerun with another seed

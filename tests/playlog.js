@@ -16,6 +16,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 const { pageInit } = require('./page_hooks');
 const { offTwitch } = require('./no_twitch');
+const { storageSettled } = require('./storage_sync');
 
 const ROOT = path.join(__dirname, '..');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
@@ -168,6 +169,8 @@ async function run() {
         const statsOk = out && Object.keys(out.saves.stats).every(k => /^p\d{3}$/.test(k)) && Object.values(out.saves.stats).reduce((s, x) => s + x.wins + x.losses, 0) === 2;
         check(statsOk, 'the stats snapshot by id (one ranked win and one loss)', JSON.stringify(out && out.saves.stats));
         const again = JSON.parse(await exportLog(page));
+        // The reload must read back what the game saved: its saves and the play log (events and ids) in the browser first
+        await storageSettled(page, { idb: { name: 'drake_arena_showcase_playlog', stores: ['events', 'ids'] } });
         await page.reload();
         await chat(page, 'dave', '!дрейк чорний');
         const afterReload = JSON.parse(await exportLog(page));

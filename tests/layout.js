@@ -19,6 +19,7 @@ const { chromium } = require('playwright');
 const { settleArena } = require('./settle');
 const { pageInit } = require('./page_hooks');
 const { offTwitch } = require('./no_twitch');
+const { tourneyScreens, SIZES } = require('./tourney_layout');
 const SEED = Number(process.env.UI_SEED || 3);   // seeded fights: the same every run
 
 const ROOT = path.join(__dirname, '..');
@@ -820,6 +821,24 @@ async function startupNetwork(browser) {
             const tags = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .result-tag')].filter(t => getComputedStyle(t).display !== 'none').map(t => t.innerText));
             check(n === 18 && tags.join() === 'ПЕРЕМОЖЕЦЬ,НОКАУТ,WINNER,KNOCKED OUT', `review sheet: ${n} cards (7 types + winner + loser, both languages) in tests/screenshots/layout-review-cards.png`, `${n} cards, tags ${tags.join()}`);
             await context.close();
+        }
+
+        // Tournament screens with worst-case names (tests/tourney_layout.js), 4, 8, 13, 15 and 16 players, both languages
+        if (!process.env.LAYOUT_SKIP_TOURNEY) {
+            console.log('\nTournament screens, worst-case names');
+            for (const lang of ['uk', 'en']) {
+                for (const n of SIZES) {
+                    const { page, context, errors } = await open(browser, { lang });
+                    await page.evaluate(() => localStorage.setItem('drake_arena_showcase_betting', '1'));
+                    await page.addInitScript(() => localStorage.setItem('drake_arena_showcase_betting', '1'));
+                    const results = await tourneyScreens(page, lang, n, name => page.screenshot({ path: path.join(SHOTS, `layout-tourney-${n}-${name}-${lang}.png`) }));
+                    for (const [screen, problems] of results) {
+                        check(!problems.length, `[${lang}] ${n} players, ${screen}: every name at 12 px or more (cut in the middle, not squeezed), nothing overflowing, outside the log area or overlapping`, problems.slice(0, 4).join(' | '));
+                    }
+                    check(!errors.length, `[${lang}] ${n} players: no page errors`, errors.join(' | '));
+                    await context.close();
+                }
+            }
         }
     } finally {
         await browser.close();

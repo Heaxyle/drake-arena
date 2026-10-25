@@ -18,6 +18,10 @@
 //      players busy meanwhile; a fighter can accept a challenge, or be challenged, while their fight is on
 //   12 "!battle" with no name says how to challenge, before any other check
 //   13 the opening-buff banner shows the title's icon once
+//   18 tournaments: sign-up (the streamer or a moderator opens it; refusals; leaving), first to 2 with a drawn game
+//      replayed, the 3rd-place game right before the final, everyone at level 20 with saved levels untouched, no XP and
+//      no change to wins, losses or the Top, the ranked queue paused and duels refused until the tournament is over (a waiting duel
+//      first), and a cancel mid-game
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
@@ -45,6 +49,10 @@ eval(gameScript(FILE) + `
     get waitingDuel() { return typeof waitingDuel !== 'undefined' ? waitingDuel : undefined; },
     get running() { return isBattleRunning; }, set running(v) { isBattleRunning = v; },
     get streamer() { return STREAMER_USER; },
+    get tourGame() { return typeof tourGame !== 'undefined' ? tourGame : null; },
+    get tourney() { return typeof tourney !== 'undefined' ? tourney : undefined; },
+    tourneyReset: () => { if (typeof tourney !== 'undefined') { tourney = null; tourGame = null; tourneySave(); } },
+    wrapFinishBattle: f => { const orig = finishBattle; finishBattle = (...a) => orig(...f(...a)); },
     ELEMENT_BASE, getTierMultiplier, renderLeaderboard: () => renderLeaderboard(),
     get topRows() { return [...document.getElementById('leaderboard-list').innerHTML.matchAll(/class="lb-name[^>]*>@([^<]+)</g)].map(m => m[1]); },
     setLang: l => { currentLang = l; },
@@ -52,6 +60,8 @@ eval(gameScript(FILE) + `
     wrapRunBattle: f => { const orig = runBattle; runBattle = (...a) => { f(...a); return orig(...a); }; },
     wrapAddInfo: f => { const orig = addInfo; addInfo = (html, ...r) => { f(html); return orig(html, ...r); }; },
     wrapAddLog: f => { const orig = addLog; addLog = t => { orig(t); f(t); }; },
+    // The next fight turn throws (inside the fight loop's try), as a simulation error would
+    failNextTurn: () => { const orig = fvTurnEnd; fvTurnEnd = function () { fvTurnEnd = orig; throw new Error('forced by a test'); }; },
 };`);
 console.warn = _warn;
 const G = globalThis.__game;
@@ -66,7 +76,9 @@ const DRAKE = Object.fromEntries(G.DRAKE_TYPES.map(d => [d.type, d]));
 
 let infos = [], logs = [], fightsStarted = [];
 G.wrapAddInfo(h => infos.push(strip(h)));
-G.wrapAddLog(t => logs.push(strip(t)));
+// onSimError: run once, right when a "simulation error" is logged (inside the fight loop's catch, before its 2 s nextFight)
+let onSimError = null;
+G.wrapAddLog(t => { logs.push(strip(t)); if (onSimError && /simulation error|помилка симуляції/i.test(strip(t))) { const f = onSimError; onSimError = null; f(); } });
 G.wrapRunBattle((a, ac, b, bc, ranked) => fightsStarted.push({ a, b, ranked }));
 const lastInfo = () => infos[infos.length - 1] || '';
 // A clean slate: no saves, stats, queue, challenges or fight
@@ -75,8 +87,17 @@ const fresh = () => {
     G.saveDragonDB({}); Object.keys(G.stats).forEach(k => delete G.stats[k]); G.queue = [];
     Object.keys(G.pending).forEach(k => delete G.pending[k]); G.running = false;
     G.resetStartGuard();
+    G.tourneyReset();
     infos = []; logs = []; fightsStarted = [];
 };
+// Tournament games: rig(p1, p2) returns the winner's name or null (a draw); every game's fighters and levels are kept
+let rig = null, tourneyGames = [];
+G.wrapFinishBattle((p1, p2, h1, h2, ranked) => {
+    if (!rig || !G.tourGame) return [p1, p2, h1, h2, ranked];
+    const w = rig(p1.name, p2.name);
+    tourneyGames.push({ a: p1.name, b: p2.name, w, stage: G.tourGame.stage, lv: [G.calculateLevelAndProgress(p1.xp).level, G.calculateLevelAndProgress(p2.xp).level] });
+    return [p1, p2, w === p1.name ? 50 : w ? 0 : 30, w === p2.name ? 50 : w ? 0 : 30, ranked];
+});
 const make = (name, type, opts = {}) => {
     const db = G.getDragonDB();
     db[name] = { name, color: '#fff', drakeObj: DRAKE[type], title: opts.title || G.TITLES_DB.find(t => t.rarity === 'common'), xp: xpFor(opts.level || 1), level: opts.level || 1 };
@@ -385,6 +406,226 @@ for (const lang of ['en', 'uk']) {
             '17. the Top by wins − losses: @t2 6–2 and @t1 5–1 and @t3 4–0 (all +4: more wins first), @t5 3–0 L12 before @t4 3–0 L10 (same record: higher level), then @t6 7–6; no streamer, no test fighter',
             order.join());
         G.setStreamerUser(prevStreamer);
+    }
+
+    // 18. Tournaments
+    {
+        fresh();
+        ['ta', 'tb', 'tc', 'td', 'te'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 2 + i * 3 }));
+        G.say('viewer', t('!tournament 4', '!турнір 4'));
+        const viewerIgnored = !G.tourney;
+        G.sayAs('mod1', t('!tournament 4', '!турнір 4'), { mod: true });
+        const opened = G.tourney && G.tourney.phase === 'signup' && G.tourney.size === 4;
+        G.say('ghost', t('!join', '!учасник')); const noDrake = lastInfo();
+        G.setStreamerUser('streamchannel'); make('streamchannel', 'white', { level: 20 });
+        G.say('streamchannel', t('!join', '!учасник')); const dragon = lastInfo();
+        G.say('ta', t('!join', '!учасник')); G.say('ta', t('!join', '!учасник')); const twice = lastInfo();
+        G.say('tb', t('!join', '!учасник')); G.say('tb', t('!leave', '!вийти')); const left = lastInfo();
+        ['tb', 'tc', 'td'].forEach(n => G.say(n, t('!join', '!учасник')));   // the 4th fills the bracket: sign-up closes
+        const closed = G.tourney.phase !== 'signup';
+        G.say('te', t('!join', '!учасник')); const late = lastInfo();
+        G.say('ta', t('!leave', '!вийти')); const noLeave = lastInfo();
+        check(viewerIgnored && opened, "18. a viewer's !tournament does nothing; a moderator's opens sign-up for 4", JSON.stringify(G.tourney));
+        check(/create a drake|створіть дрейка/.test(noDrake) && /White Dragon|Білий Дракон/.test(dragon) && /already in the tournament|вже в турнірі/.test(twice)
+            && /leaves|виходить/.test(left) && closed && /bracket is full|сітка вже заповнена/.test(late) && /only leave during sign-up|лише під час реєстрації/.test(noLeave),
+            '18. refusals: no drake, the White Dragon, already in; leaving during sign-up; the 4th player fills the bracket and closes it ("full" after that); leaving then is refused',
+            JSON.stringify({ noDrake, dragon, twice, left, closed, late, noLeave }));
+        G.setStreamerUser('');
+        __drain(); fresh();
+    }
+    {
+        // A full 4-player run, rigged: every semifinal and final game is decided by the plan below
+        const levels = { ta: 2, tb: 5, tc: 9, td: 14, te: 4, tf: 4 };
+        Object.keys(levels).forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: levels[n] }));
+        G.stats.ta = { wins: 3, losses: 1 };
+        // A duel accepted and two !queue while a fight is on: the duel goes first, the tournament next, the queue last
+        G.running = true;
+        G.say('te', t('!queue', '!черга')); G.say('tf', t('!queue', '!черга'));
+        G.say('ta', t('!battle @tb', '!бій @tb')); G.say('tb', t('!accept', '!прийняти'));
+        G.running = false;
+        G.sayAs('mod1', t('!tournament', '!турнір'), { mod: true });
+        ['ta', 'tb', 'tc', 'td'].forEach(n => G.say(n, t('!join', '!учасник')));
+        G.sayAs('mod1', t('!tournament start', '!турнір старт'), { mod: true });
+        const bracket = G.tourney.rounds[0].map(m => [m.a, m.b]);
+        const key = (a, b) => [a, b].sort().join('-');
+        const sf = bracket.map(p => key(...p));
+        const finalists = [bracket[0][0], bracket[1][0]], thirds = [bracket[0][1], bracket[1][1]];
+        // Semifinal 1: 2:0. Semifinal 2: 2:1 with a draw in game 2 (replayed). 3rd place: one game. Final: 2:1
+        const plan = { [sf[0]]: [bracket[0][0], bracket[0][0]], [sf[1]]: [bracket[1][1], null, bracket[1][0], bracket[1][0]],
+                       [key(...thirds)]: [thirds[0]], [key(...finalists)]: [finalists[1], finalists[0], finalists[0]] };
+        const played = {};
+        const mine = () => JSON.stringify(['ta', 'tb', 'tc', 'td'].map(n => [G.getDragonDB()[n].xp, G.getDragonDB()[n].level, G.stats[n] || null]));
+        const before = mine();
+        tourneyGames = [];
+        rig = (a, b) => { const k = key(a, b); played[k] = (played[k] || 0) + 1; return plan[k][played[k] - 1]; };
+        G.say('tf', t('!battle @te', '!бій @te')); const duelReply = lastInfo();
+        const duelFirst = fightsStarted[0];
+        __drain();
+        rig = null;
+        const order = [...new Set(tourneyGames.map(g => key(g.a, g.b)))];
+        check(duelFirst && !duelFirst.ranked && key(duelFirst.a, duelFirst.b) === 'ta-tb' && /tournament is on|триває турнір/.test(duelReply),
+            '18. a duel accepted before the tournament goes first; a new !battle meanwhile gets the "tournament is on" reply', JSON.stringify({ duelFirst, duelReply }));
+        check(order.join('|') === [sf[0], sf[1], key(...thirds), key(...finalists)].join('|') && played[sf[0]] === 2 && played[sf[1]] === 4 && played[key(...finalists)] === 3,
+            '18. semifinals first to 2 (2:0, and 2:1 with a drawn game replayed), then the 3rd-place game (one game), then the final (2:1)',
+            JSON.stringify({ order, played }));
+        check(tourneyGames.length === 10 && tourneyGames.every(g => g.lv[0] === 20 && g.lv[1] === 20), '18. every tournament game is fought at level 20 (players at levels 2, 5, 9 and 14)',
+            JSON.stringify(tourneyGames.map(g => g.lv)));
+        check(mine() === before, '18. no XP for the players, saved levels untouched, wins and losses (the Top) unchanged', mine() + ' vs ' + before);
+        const ranked = fightsStarted.filter(f => f.ranked);
+        const lastTourney = fightsStarted.map(f => !f.ranked).lastIndexOf(true);
+        check(ranked.length === 1 && [ranked[0].a, ranked[0].b].join() === 'te,tf' && fightsStarted.indexOf(ranked[0]) > lastTourney && !G.tourney,
+            '18. the ranked queue waits for the whole tournament, then carries on in its order (@te, @tf)', JSON.stringify(fightsStarted));
+        check(logs.some(l => /Tournament over|Турнір завершено/.test(l) && l.includes('🥇 @' + finalists[0]) && l.includes('🥈 @' + finalists[1]) && l.includes('🥉 @' + thirds[0])),
+            `18. the podium: 🥇 @${finalists[0]}, 🥈 @${finalists[1]}, 🥉 @${thirds[0]}`, logs.filter(l => /🥇/.test(l)).join(' | '));
+        __drain(); fresh();
+    }
+    // Uneven sign-ups: the main bracket is the largest of 4, 8, 16 that fits; the highest levels go straight in (here
+    // everyone is level 3, so sign-up order decides), the rest play single qualifier games for the spots left
+    for (const [n, size, news] of [
+        [5, 4, t('5 players: 3 with the highest levels straight into the semifinals, 2 play a qualifier for 1 spot', '5 учасників: 3 з найвищим рівнем — одразу в півфінал, 2 грають кваліфікацію за 1 місце')],
+        [8, 8, null],
+        [9, 8, t('9 players: 7 with the highest levels straight into the quarterfinals, 2 play a qualifier for 1 spot', '9 учасників: 7 з найвищим рівнем — одразу в чвертьфінал, 2 грають кваліфікацію за 1 місце')],
+        [13, 8, t('13 players: 3 with the highest levels straight into the quarterfinals, 10 play a qualifier for 5 spots', '13 учасників: 3 з найвищим рівнем — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць')],
+        [15, 8, t('15 players: 1 with the highest levels straight into the quarterfinals, 14 play a qualifier for 7 spots', '15 учасників: 1 з найвищим рівнем — одразу в чвертьфінал, 14 грають кваліфікацію за 7 місць')],
+        [16, 16, null]]) {
+        fresh();
+        const names = Array.from({ length: n }, (_, i) => 'u' + String(i + 1).padStart(2, '0'));
+        names.forEach((p, i) => make(p, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 3 }));
+        G.sayAs('mod1', t('!tournament 16', '!турнір 16'), { mod: true });
+        names.forEach(p => G.say(p, t('!join', '!учасник')));
+        tourneyGames = [];
+        rig = (a, b) => a < b ? a : b;   // the earlier name wins: every game decided, no draws
+        G.sayAs('mod1', t('!tournament start', '!турнір старт'), { mod: true });
+        const T = JSON.parse(JSON.stringify(G.tourney));
+        const direct = 2 * size - n, r1 = T.rounds[0].flatMap(m => [m.a, m.b]).filter(Boolean);
+        const qualPlayers = T.qual.flatMap(m => [m.a, m.b]);
+        check(T.bracket === size && T.rounds[0].length === size / 2 && r1.slice().sort().join() === names.slice(0, direct).join()
+            && T.qual.length === (n - direct) / 2 && qualPlayers.slice().sort().join() === names.slice(direct).join()
+            && T.qual.every(m => m.to && !T.rounds[0][m.to.m][m.to.side]) && new Set(T.qual.map(m => m.to.m + m.to.side)).size === T.qual.length,
+            direct === n ? `18. ${n} players: a main bracket of ${size}, everyone straight in, no qualifier`
+                : `18. ${n} players, all level 3: a main bracket of ${size}; the first ${direct} (sign-up order breaks the tie) straight in, the last ${n - direct} in ${(n - direct) / 2} qualifier game(s), each winner to a place of its own in round 1`,
+            JSON.stringify({ bracket: T.bracket, r1, qual: T.qual }));
+        check(news ? infos.some(i => i.endsWith(news)) : !infos.some(i => /qualifier|кваліфікацію/.test(i)),
+            news ? `18. ${n} players: the ЧАТ panel says «${news}»` : `18. ${n} players: no qualifier, nothing about one in the ЧАТ panel`, JSON.stringify(infos));
+        __drain();
+        rig = null;
+        const q = T.qual.length, stages = tourneyGames.map(g => g.stage);
+        const qualWinners = T.qual.map(m => m.a < m.b ? m.a : m.b);
+        const firstRound = tourneyGames.filter(g => g.stage === ({ 4: 'sf', 8: 'qf', 16: 'r16' })[size]);
+        const inFirst = [...new Set(firstRound.flatMap(g => [g.a, g.b]))].sort();
+        check(stages.slice(0, q).every(s => s === 'qual') && !stages.slice(q).includes('qual')
+            && tourneyGames.slice(0, q).every((g, i) => [g.a, g.b].sort().join() === [T.qual[i].a, T.qual[i].b].sort().join())
+            && inFirst.join() === [...names.slice(0, direct), ...qualWinners].sort().join() && firstRound.length === size && !G.tourney
+            && logs.some(l => /Tournament over|Турнір завершено/.test(l)),
+            q ? `18. ${n} players: the ${q} qualifier game(s) come first, one game each; round 1 is the ${direct} direct players and the ${q} qualifier winner(s); on to the podium`
+                : `18. ${n} players: round 1 straight away, on to the podium`,
+            JSON.stringify({ stages, inFirst }));
+        fresh();
+    }
+    // Level shapes the bracket. Where each player is: their place in round 1 (0 … size-1), directly or through their
+    // qualifier game; the half is the place's first or second half
+    const placeIn = (T, who) => {
+        const i = T.rounds[0].findIndex(m => m.a === who || m.b === who);
+        if (i !== -1) return 2 * i + (T.rounds[0][i].b === who ? 1 : 0);
+        const q = T.qual.find(m => m.a === who || m.b === who);
+        return q ? 2 * q.to.m + (q.to.side === 'b' ? 1 : 0) : -1;
+    };
+    const halfOf = (T, who) => Math.floor(placeIn(T, who) / (T.bracket / 2));
+    {
+        // 9 players, levels shuffled against sign-up order, a tie at the cut: the 7 highest straight in, the tie (level 2)
+        // to the earlier sign-up; the two highest (@v05 15, @v08 12) in opposite halves; the higher level wins every game,
+        // so they meet in the final
+        fresh();
+        const lv = { v01: 2, v02: 2, v03: 9, v04: 4, v05: 15, v06: 4, v07: 1, v08: 12, v09: 4 };
+        const names = Object.keys(lv);
+        names.forEach((p, i) => make(p, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: lv[p] }));
+        G.sayAs('mod1', t('!tournament 16', '!турнір 16'), { mod: true });
+        names.forEach(p => G.say(p, t('!join', '!учасник')));
+        tourneyGames = [];
+        rig = (a, b) => lv[a] > lv[b] || (lv[a] === lv[b] && a < b) ? a : b;
+        G.sayAs('mod1', t('!tournament start', '!турнір старт'), { mod: true });
+        const T = JSON.parse(JSON.stringify(G.tourney));
+        const r1 = T.rounds[0].flatMap(m => [m.a, m.b]).filter(Boolean).sort(), qualPlayers = T.qual.flatMap(m => [m.a, m.b]).sort();
+        check(r1.join() === 'v01,v03,v04,v05,v06,v08,v09' && qualPlayers.join() === 'v02,v07',
+            '18. 9 players at levels 1–15: the 7 highest straight into the main bracket (@v01 before @v02 at level 2: sign-up order breaks the tie), @v02 and @v07 in the qualifier',
+            JSON.stringify({ r1, qualPlayers }));
+        const seedsLine = t('The highest levels, @v05 and @v08, are in opposite halves of the bracket: they can only meet in the final or in the 3rd-place match.',
+            'Найвищі рівні — @v05 і @v08: вони в різних половинах сітки й можуть зустрітися лише у фіналі або в матчі за 3-тє місце.');
+        check(halfOf(T, 'v05') !== halfOf(T, 'v08') && infos.some(i => i.endsWith(seedsLine)),
+            `18. @v05 (15) and @v08 (12) in opposite halves; the ЧАТ panel says «${seedsLine}»`, JSON.stringify({ halves: [halfOf(T, 'v05'), halfOf(T, 'v08')], infos }));
+        __drain();
+        rig = null;
+        const fin = tourneyGames.filter(g => g.stage === 'final');
+        check(fin.length >= 1 && fin.every(g => [g.a, g.b].sort().join() === 'v05,v08') && tourneyGames.every(g => g.lv[0] === 20 && g.lv[1] === 20)
+            && logs.some(l => /🥇 @v05/.test(l) && /🥈 @v08/.test(l)),
+            '18. the higher level winning every game, they meet only in the final; every game still at level 20', JSON.stringify({ fin, podium: logs.filter(l => /🥇/.test(l)) }));
+        fresh();
+    }
+    {
+        // Every draw: the two highest levels in opposite halves, in brackets of 4, 8 and 16, with and without a qualifier
+        // (with 15 the second highest is in the qualifier: their game's place is in the other half). The two highest
+        // signed up last, so sign-up order alone would put them in the qualifier
+        const bad = [];
+        let draws = 0;
+        for (const n of [4, 5, 8, 9, 13, 15, 16]) {
+            for (let k = 0; k < 8; k++) {
+                fresh();
+                const names = Array.from({ length: n }, (_, i) => 'w' + String(i + 1).padStart(2, '0'));
+                names.forEach((p, i) => make(p, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: i === n - 1 ? 18 : i === n - 2 ? 17 : 1 + (i % 5) }));
+                G.sayAs('mod1', t('!tournament 16', '!турнір 16'), { mod: true });
+                names.forEach(p => G.say(p, t('!join', '!учасник')));
+                G.sayAs('mod1', t('!tournament start', '!турнір старт'), { mod: true });
+                const T = JSON.parse(JSON.stringify(G.tourney));
+                const top = names[n - 1], second = names[n - 2];
+                const directTop = T.rounds[0].some(m => m.a === top || m.b === top);
+                if (!directTop || halfOf(T, top) === halfOf(T, second) || placeIn(T, second) === -1 || T.seeds.join() !== [top, second].join()) bad.push({ n, k, T: { r1: T.rounds[0], qual: T.qual, seeds: T.seeds } });
+                draws++;
+                G.sayAs('mod1', t('!tournament stop', '!турнір стоп'), { mod: true });
+            }
+        }
+        check(!bad.length, `18. ${draws} draws (4–16 players): the highest level always straight in, the two highest always in opposite halves`, JSON.stringify(bad.slice(0, 2)));
+        fresh();
+    }
+    {
+        // A simulation error in a tournament game: for 2 s the arena is free before the next fight. Two !queue in that
+        // moment only join the queue (it goes through nextFight, which runs the tournament): no ranked fight starts, the
+        // tournament game comes next, and the queue waits for the whole tournament
+        fresh();
+        ['ea', 'eb', 'ec', 'ed', 'q1', 'q2'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 3 }));
+        G.sayAs('mod1', t('!tournament 4', '!турнір 4'), { mod: true });
+        ['ea', 'eb', 'ec', 'ed'].forEach(n => G.say(n, t('!join', '!учасник')));   // full: the first game starts
+        const first = fightsStarted[0];
+        let atError = null;
+        onSimError = () => {
+            G.say('q1', t('!queue', '!черга')); G.say('q2', t('!queue', '!черга'));
+            atError = { fights: fightsStarted.length, queue: [...G.queue], last: fightsStarted[fightsStarted.length - 1] };
+        };
+        G.failNextTurn();
+        __drain();
+        const ranked = fightsStarted.filter(f => f.ranked), lastTourney = fightsStarted.map(f => !f.ranked).lastIndexOf(true);
+        check(first && !first.ranked && atError && atError.fights === 2 && !atError.last.ranked && [atError.last.a, atError.last.b].sort().join() === [first.a, first.b].sort().join()
+            && atError.queue.join() === 'q1,q2' && ranked.length === 1 && fightsStarted.indexOf(ranked[0]) > lastTourney && !G.tourney,
+            '18. a simulation error in a tournament game, then two !queue at once: no ranked fight; the same tournament game is played again next, and the queue (@q1, @q2) waits for the end of the tournament',
+            JSON.stringify({ first, atError, fights: fightsStarted }));
+        onSimError = null;
+        __drain(); fresh();
+    }
+    {
+        // Cancelled in the middle of a game: that game counts for nothing, and the queue and duels are back
+        ['ca', 'cb', 'cc', 'cd', 'q1', 'q2'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 3 }));
+        const mine = () => JSON.stringify(['ca', 'cb', 'cc', 'cd'].map(n => G.getDragonDB()[n].xp));
+        const before = mine();
+        G.sayAs('mod1', t('!tournament 4', '!турнір 4'), { mod: true });
+        ['ca', 'cb', 'cc', 'cd'].forEach(n => G.say(n, t('!join', '!учасник')));   // full: it starts at once
+        const gameOn = G.running && fightsStarted.length === 1;
+        G.sayAs('mod1', t('!tournament stop', '!турнір стоп'), { mod: true });
+        const gone = !G.tourney && /cancelled|скасовано/.test(lastInfo());
+        G.say('q1', t('!queue', '!черга')); G.say('q2', t('!queue', '!черга'));
+        __drain();
+        const after = fightsStarted.slice(1);
+        check(gameOn && gone && after.length === 1 && after[0].ranked && mine() === before,
+            '18. !tournament stop mid-game: the tournament is gone, the game counts for nothing (no XP), then the queue carries on', JSON.stringify({ gameOn, gone, fights: fightsStarted }));
+        __drain();
     }
 
     // 13. One icon in the opening banner
