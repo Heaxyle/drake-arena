@@ -243,7 +243,7 @@ const key = (a, b) => [a, b].sort().join('-');
         const qf = closed.tourney.rounds[0].map(m => [m.a, m.b]);
         // Level shapes the bracket: the two highest (@oleh_the_great 16, @ira_77 12) in opposite halves
         const half = n => Math.floor(qf.findIndex(m => m.includes(n)) / 2);
-        const seedsLine = '🏆 Найвищі рівні — @oleh_the_great і @ira_77: вони в різних половинах сітки й можуть зустрітися лише у фіналі.';
+        const seedsLine = '🏆 Найвищі рівні — @oleh_the_great і @ira_77: вони в різних половинах сітки й можуть зустрітися лише у фіналі або в матчі за 3-тє місце.';
         check(half('oleh_the_great') !== half('ira_77') && closed.chat === seedsLine,
             `the two highest levels in opposite halves of the bracket; the ЧАТ panel: «${closed.chat}»`, JSON.stringify({ qf, chat: closed.chat }));
         const plan = {
@@ -275,8 +275,8 @@ const key = (a, b) => [a, b].sort().join('-');
         await say(page, 'q_first', '!черга'); await say(page, 'q_second', '!черга'); await say(page, 'q_third', '!черга');
         await say(page, 'q_first', '!бій @q_second'); const duelReply = (await view(page)).chat;
         const queued = await view(page);
-        check(queued.queue.map(q => q.replace(/\s/g, '')).join() === '1@q_first,2@q_second,3@q_third' && /триває турнір: дуелі — після фіналу/.test(duelReply),
-            '!черга still joins the queue (1 @q_first, 2 @q_second, 3 @q_third); !бій gets "зараз триває турнір: дуелі — після фіналу"', JSON.stringify({ queue: queued.queue, duelReply }));
+        check(queued.queue.map(q => q.replace(/\s/g, '')).join() === '1@q_first,2@q_second,3@q_third' && /триває турнір: дуелі — після турніру/.test(duelReply),
+            '!черга still joins the queue (1 @q_first, 2 @q_second, 3 @q_third); !бій gets "зараз триває турнір: дуелі — після турніру"', JSON.stringify({ queue: queued.queue, duelReply }));
         // !старт skips the betting window
         await mod(page, '!старт');
         await page.clock.runFor(4500 + 4500 * 3 + 700);

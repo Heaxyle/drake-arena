@@ -3192,7 +3192,7 @@ function drakeSpriteURL(type) {
                 return;
             }
 
-            // During a tournament duels wait until the final is over (a challenge accepted now is dropped)
+            // During a tournament duels are refused: they come after it (a challenge accepted now is dropped)
             if (tourneyOn() && ['!бій', '!battle', '!прийняти', '!accept'].includes(command)) {
                 if (command === '!прийняти' || command === '!accept') {
                     if (!pendingChallenges[sender]) return;
@@ -3420,8 +3420,8 @@ function drakeSpriteURL(type) {
            least TOURNEY_MIN players); !турнір стоп cancels at any point. The main bracket is the largest of TOURNEY_SIZES
            that fits. Level shapes the bracket, not the fights: the highest levels go straight into it (sign-up order breaks
            ties), and with 5–7 or 9–15 players the rest play a qualifier (single games, paired at random) for the spots
-           left; the two highest levels are drawn into opposite halves, so they can only meet in the final. The rest of the
-           draw is random. Every match is first to TOURNEY_WINS games; a drawn
+           left; the two highest levels are drawn into opposite halves, so they can only meet in the final or the 3rd-place
+           game (a semifinal loser can still face the other there). The rest of the draw is random. Every match is first to TOURNEY_WINS games; a drawn
            game is replayed; the semifinal losers play one game for 3rd place right before the final. Everyone fights as
            level 20 (tourneyFighter) with their own element and title; saved levels, XP, wins, losses and the Top don't
            change. The tournament starts once the arena is free (after the current result screen and a waiting duel);
@@ -3455,12 +3455,12 @@ function drakeSpriteURL(type) {
                   notIn: 'ℹ️ {who}, вас немає серед учасників турніру.', noLeave: '⚠️ {who}, вийти можна лише під час реєстрації.',
                   tooFew: '⚠️ Замало учасників для турніру: {n}. Потрібно щонайменше {min}.', noTourney: 'ℹ️ Зараз немає турніру.',
                   closed: '🏆 Реєстрацію закрито: {n} учасників, сітка на {size}. Турнір почнеться, щойно звільниться арена.',
-                  begins: '🏆 <b>Турнір починається!</b> Черга й дуелі чекають до кінця фіналу.', cancelled: '🛑 Турнір скасовано: призів немає, черга й дуелі знову працюють.',
-                  over: 'ℹ️ Турнір уже завершено.', duelPaused: '🏆 {who}, зараз триває турнір: дуелі — після фіналу.',
+                  begins: '🏆 <b>Турнір починається!</b> Черга чекає до кінця турніру, а дуелі — після турніру.', cancelled: '🛑 Турнір скасовано: призів немає, черга й дуелі знову працюють.',
+                  over: 'ℹ️ Турнір уже завершено.', duelPaused: '🏆 {who}, зараз триває турнір: дуелі — після турніру.',
                   qual: 'Кваліфікація', r16: '1/8 фіналу', qf: 'Чвертьфінал', sf: 'Півфінал', third: 'Матч за 3-тє місце', final: 'Фінал',
                   into_r16: '1/8 фіналу', into_qf: 'чвертьфінал', into_sf: 'півфінал',
                   qualNews: '🏆 {n} учасників: {direct} з найвищим рівнем — одразу в {into}, {q} грають кваліфікацію за {spots}',
-                  seeds: '🏆 Найвищі рівні — {a} і {b}: вони в різних половинах сітки й можуть зустрітися лише у фіналі.',
+                  seeds: '🏆 Найвищі рівні — {a} і {b}: вони в різних половинах сітки й можуть зустрітися лише у фіналі або в матчі за 3-тє місце.',
                   spots: ['{n} місце', '{n} місця', '{n} місць'], qualWon: '🏆 {who} проходить кваліфікацію: далі — {stage}',
                   game: 'Гра {n}', replay: 'перегравання', tbd: '…', qualSlot: 'кваліф. {n}', podium: '🏆 Турнір завершено', champion: '🥇 {who}',
                   won: '🏆 {label}: перемагає {who} ({score})', draw: '🤝 {label}: нічия — гру буде переграно',
@@ -3476,12 +3476,12 @@ function drakeSpriteURL(type) {
                   notIn: "ℹ️ {who}, you're not in the tournament.", noLeave: '⚠️ {who}, you can only leave during sign-up.',
                   tooFew: '⚠️ Not enough players for a tournament: {n}. It needs at least {min}.', noTourney: "ℹ️ There's no tournament right now.",
                   closed: '🏆 Sign-up closed: {n} players, a bracket of {size}. The tournament starts as soon as the arena is free.',
-                  begins: '🏆 <b>The tournament begins!</b> The queue and duels wait until the final is over.', cancelled: '🛑 Tournament cancelled: no prizes; the queue and duels are back.',
-                  over: 'ℹ️ The tournament is already over.', duelPaused: '🏆 {who}, a tournament is on: duels after the final.',
+                  begins: '🏆 <b>The tournament begins!</b> The queue waits until the tournament is over, and duels come after it.', cancelled: '🛑 Tournament cancelled: no prizes; the queue and duels are back.',
+                  over: 'ℹ️ The tournament is already over.', duelPaused: '🏆 {who}, a tournament is on: duels come after the tournament.',
                   qual: 'Qualifier', r16: 'Round of 16', qf: 'Quarterfinal', sf: 'Semifinal', third: '3rd-place match', final: 'Final',
                   into_r16: 'round of 16', into_qf: 'quarterfinals', into_sf: 'semifinals',
                   qualNews: '🏆 {n} players: {direct} with the highest levels straight into the {into}, {q} play a qualifier for {spots}',
-                  seeds: '🏆 The highest levels, {a} and {b}, are in opposite halves of the bracket: they can only meet in the final.',
+                  seeds: '🏆 The highest levels, {a} and {b}, are in opposite halves of the bracket: they can only meet in the final or in the 3rd-place match.',
                   spots: ['{n} spot', '{n} spots', '{n} spots'], qualWon: '🏆 {who} is through the qualifier: next, the {stage}',
                   game: 'Game {n}', replay: 'replay', tbd: '…', qualSlot: 'qualifier {n}', podium: '🏆 Tournament over', champion: '🥇 {who}',
                   won: '🏆 {label}: {who} wins ({score})', draw: '🤝 {label}: a draw — the game will be replayed',
@@ -3534,8 +3534,9 @@ function drakeSpriteURL(type) {
         // Sign-up closes. The main bracket is the largest of TOURNEY_SIZES that fits. Level shapes the bracket (everyone
         // still fights at level 20): the highest levels go straight into it, sign-up order breaking ties, and the rest pair
         // up in qualifier games for the spots left: 13 players → a bracket of 8, the 3 highest in it, the other 10 in 5
-        // qualifier games. The two highest levels are drawn into opposite halves, so they can only meet in the final (if the
-        // second is in the qualifier, the winner of their game takes that place). The pairs and the other places are random.
+        // qualifier games. The two highest levels are drawn into opposite halves, so they can only meet in the final or the
+        // 3rd-place game (if the second is in the qualifier, the winner of their game takes that place). The pairs and the
+        // other places are random.
         const tourneyLevel = name => { const d = getDragonStrict(name); return d ? calculateLevelAndProgress(d.xp).level : 1; };
         function tourneyClose() {
             const t = tourney;

@@ -20,7 +20,7 @@
 //   13 the opening-buff banner shows the title's icon once
 //   18 tournaments: sign-up (the streamer or a moderator opens it; refusals; leaving), first to 2 with a drawn game
 //      replayed, the 3rd-place game right before the final, everyone at level 20 with saved levels untouched, no XP and
-//      no change to wins, losses or the Top, the ranked queue and duels paused until the final is over (a waiting duel
+//      no change to wins, losses or the Top, the ranked queue paused and duels refused until the tournament is over (a waiting duel
 //      first), and a cancel mid-game
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
@@ -549,8 +549,8 @@ for (const lang of ['en', 'uk']) {
         check(r1.join() === 'v01,v03,v04,v05,v06,v08,v09' && qualPlayers.join() === 'v02,v07',
             '18. 9 players at levels 1–15: the 7 highest straight into the main bracket (@v01 before @v02 at level 2: sign-up order breaks the tie), @v02 and @v07 in the qualifier',
             JSON.stringify({ r1, qualPlayers }));
-        const seedsLine = t('The highest levels, @v05 and @v08, are in opposite halves of the bracket: they can only meet in the final.',
-            'Найвищі рівні — @v05 і @v08: вони в різних половинах сітки й можуть зустрітися лише у фіналі.');
+        const seedsLine = t('The highest levels, @v05 and @v08, are in opposite halves of the bracket: they can only meet in the final or in the 3rd-place match.',
+            'Найвищі рівні — @v05 і @v08: вони в різних половинах сітки й можуть зустрітися лише у фіналі або в матчі за 3-тє місце.');
         check(halfOf(T, 'v05') !== halfOf(T, 'v08') && infos.some(i => i.endsWith(seedsLine)),
             `18. @v05 (15) and @v08 (12) in opposite halves; the ЧАТ panel says «${seedsLine}»`, JSON.stringify({ halves: [halfOf(T, 'v05'), halfOf(T, 'v08')], infos }));
         __drain();
