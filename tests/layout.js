@@ -827,15 +827,19 @@ async function startupNetwork(browser) {
         if (!process.env.LAYOUT_SKIP_TOURNEY) {
             console.log('\nTournament screens, worst-case names');
             for (const lang of ['uk', 'en']) {
-                for (const n of SIZES) {
+                // Every size with the tournament effects on (the default), and 13 and 16 with them off (the plain bracket, no draw)
+                for (const [n, fx] of [...SIZES.map(n => [n, true]), [13, false], [16, false]]) {
                     const { page, context, errors } = await open(browser, { lang });
-                    await page.evaluate(() => localStorage.setItem('drake_arena_showcase_betting', '1'));
-                    await page.addInitScript(() => localStorage.setItem('drake_arena_showcase_betting', '1'));
-                    const results = await tourneyScreens(page, lang, n, name => page.screenshot({ path: path.join(SHOTS, `layout-tourney-${n}-${name}-${lang}.png`) }));
+                    const init = on => { localStorage.setItem('drake_arena_showcase_betting', '1'); localStorage.setItem('drake_arena_showcase_tourfx', on ? '1' : '0'); };
+                    await page.evaluate(init, fx);
+                    await page.addInitScript(init, fx);
+                    const tag = `${n}${fx ? '' : '-plain'}`, label = `${n} players${fx ? '' : ', effects off'}`;
+                    if (!fx) await page.evaluate(() => setShowFx(false));
+                    const results = await tourneyScreens(page, lang, n, name => page.screenshot({ path: path.join(SHOTS, `layout-tourney-${tag}-${name}-${lang}.png`) }));
                     for (const [screen, problems] of results) {
-                        check(!problems.length, `[${lang}] ${n} players, ${screen}: every name at 12 px or more (cut in the middle, not squeezed), nothing overflowing, outside the log area or overlapping`, problems.slice(0, 4).join(' | '));
+                        check(!problems.length, `[${lang}] ${label}, ${screen}: every name at 12 px or more (cut in the middle, not squeezed), nothing overflowing, outside the log area or overlapping`, problems.slice(0, 4).join(' | '));
                     }
-                    check(!errors.length, `[${lang}] ${n} players: no page errors`, errors.join(' | '));
+                    check(!errors.length, `[${lang}] ${label}: no page errors`, errors.join(' | '));
                     await context.close();
                 }
             }
