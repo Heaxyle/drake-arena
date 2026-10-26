@@ -2815,18 +2815,28 @@ function drakeSpriteURL(type) {
             } catch (e) { playFight = null; }
             playBettingOpened = null;
         }
+        // Each player's max HP in this fight (runBattle, once it's worked out; a tournament game's is level 20's)
+        function playFightMax(max1, max2) {
+            try { if (playFight) playFight.players.forEach((p, i) => { p.maxHp = [max1, max2][i]; }); } catch (e) { playLogFailed++; }
+        }
         // The fight's end: result 'ko' / 'timeout' / 'draw' (or 'error' for a simulation error), the winner, the turns, and
-        // per player the XP got: { xp, base, underdog, gold } (gold: what the Gold passive added; xp 0 at level 20), null in a duel
-        function playFightEnd(end, xp) {
+        // per player the XP got: { xp, base, underdog, gold } (gold: what the Gold passive added; xp 0 at level 20), null in a duel,
+        // and the HP left (hp: name → HP, shown as the arena shows it: rounded, never below 0)
+        function playFightEnd(end, xp, hp) {
             try {
                 const f = playFight;
                 playFight = null;
                 if (!f) return;
-                f.players.forEach(p => { p.got = xp ? xp[p.name] || null : null; });
+                f.players.forEach(p => { p.got = xp ? xp[p.name] || null : null; p.hpLeft = hp && p.name in hp ? Math.round(Math.max(0, hp[p.name])) : null; });
                 playLog('fight', { ...f, ended: playNow(), ...end });
             } catch (e) { playLogFailed++; }
         }
         const playXp = (got, base, underdog = 0) => ({ xp: got, base, underdog: got ? underdog : 0, gold: got ? got - base - underdog : 0 });
+        // Tournament events (type 'tournament', event: 'opened', 'joined', 'left', 'closed', 'cancelled', 'podium'). data may
+        // be a function, so working out what to log is guarded too: logging never stops the tournament
+        function playTourney(event, data) {
+            try { playLog('tournament', { event, ...(typeof data === 'function' ? data() : data) }); } catch (e) { playLogFailed++; }
+        }
 
         // The export: everything on the clipboard as one JSON, the log plus a snapshot of the saves (drakes, stats and the
         // tournament honours: the last podium, medals, free spins left, the Hall of Fame).
@@ -2859,7 +2869,7 @@ function drakeSpriteURL(type) {
                     return ids.get(n);
                 };
                 // New ids in the order players first appear: the log first, then the saves
-                events.forEach(e => { id(e.user); (e.players || []).forEach(p => id(p.name)); id(e.winner); });
+                events.forEach(e => { id(e.user); (e.players || []).forEach(p => id(p.name)); id(e.winner); (e.podium || []).forEach(id); });
                 Object.keys(drakes).sort().forEach(id);
                 Object.keys(stats).sort().forEach(id);
                 [...honours.holders, ...honours.hall.flatMap(e => e.podium), ...Object.keys(honours.medals), ...Object.keys(honours.spins)].forEach(id);
@@ -2878,7 +2888,8 @@ function drakeSpriteURL(type) {
                 format: 'drake-arena-play-log', version: 1, exported: playNow(), names: names ? 'twitch' : 'ids',
                 failedWrites: playLogFailed, logError,
                 events: events.map(e => ({ ...e, ...(e.user !== undefined && { user: id(e.user) }), ...(e.winner !== undefined && { winner: id(e.winner) }),
-                                           ...(e.players && { players: e.players.map(p => ({ ...p, name: id(p.name) })) }) })),
+                                           ...(e.players && { players: e.players.map(p => ({ ...p, name: id(p.name) })) }),
+                                           ...(e.podium && { podium: e.podium.map(id) }) })),
                 saves: {
                     streamer: STREAMER_USER ? id(STREAMER_USER) : null,
                     drakes: Object.fromEntries(Object.entries(drakes).map(([n, d]) => [id(n), { ...d, name: id(d.name || n) }])),
@@ -3765,7 +3776,8 @@ function drakeSpriteURL(type) {
         // 3rd-place game (if the second is in the qualifier, the winner of their game takes that place). The pairs and the
         // other places are random.
         const tourneyLevel = name => { const d = getDragonStrict(name); return d ? calculateLevelAndProgress(d.xp).level : 1; };
-        function tourneyClose() {
+        // by: who typed !турнір старт (none when the last place filled and closed it)
+        function tourneyClose(by) {
             const t = tourney;
             const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
             // Highest level first; on a tie, whoever signed up first
@@ -3793,6 +3805,7 @@ function drakeSpriteURL(type) {
             t.bracket = size;
             t.phase = 'ready'; t.game = 1; t.replay = false;
             tourneySave();
+            playTourney('closed', { how: by ? 'start' : 'full', user: by || null, signedUp: t.players.length, bracket: size, qualifierGames: t.qual.length });
             addInfo(tT('closed', { n: t.players.length, size }), 'ok');
             addInfo(tT('seeds', { a: `@${names[0]}`, b: `@${names[1]}` }), 'ok');
             if (t.qual.length) addLog(`🏆 ${tT('qual')}: ${t.qual.map(m => `@${m.a} — @${m.b}`).join(' · ')}`);
@@ -3857,6 +3870,7 @@ function drakeSpriteURL(type) {
             t.phase = 'podium';
             t.podium = [fin.winner, fin.winner === fin.a ? fin.b : fin.a, t.third.winner];
             tourneySave();
+            playTourney('podium', { podium: [...t.podium], signedUp: t.players.length, bracket: t.bracket });
             tourneyAward(t);
             tourGame = null;
             addLog(`${tT('podium')}: 🥇 @${t.podium[0]} · 🥈 @${t.podium[1]} · 🥉 @${t.podium[2]}`);
@@ -3873,7 +3887,12 @@ function drakeSpriteURL(type) {
         }
         // !турнір стоп: back to normal at once. An open tournament countdown is dropped; a game already being fought
         // finishes as a game that counts for nothing (no XP, no record), then the queue carries on
-        function tourneyCancel() {
+        // by: who typed !турнір стоп. Logged with where it stood: the phase ('signup', 'ready', 'running'), the game on the
+        // arena or coming up (stage, game number; only while running: tourGame can still hold an earlier tournament's
+        // last game) and what the arena showed ('draw', 'countdown', 'fight', 'result', 'idle')
+        function tourneyCancel(by) {
+            playTourney('cancelled', () => { const g = tourney.phase === 'running' ? tourGame : null;
+                return { user: by || null, phase: tourney.phase, stage: g ? g.stage : null, game: g ? g.game : null, during: arenaState.kind, signedUp: tourney.players.length }; });
             const inDraw = arenaState.kind === 'draw';   // cancelled during the draw: it goes at once, hold and all
             if (inDraw && resultHold) { clearTimeout(resultHold.timer); resultHold = null; }
             showStop();
@@ -3996,13 +4015,13 @@ function drakeSpriteURL(type) {
                     if (!tourney) addInfo(tT('noTourney'), 'warn');
                     else if (tourney.phase !== 'signup') addInfo(tT('busy'), 'warn');
                     else if (tourney.players.length < TOURNEY_MIN) addInfo(tT('tooFew', { n: tourney.players.length, min: TOURNEY_MIN }), 'warn');
-                    else tourneyClose();
+                    else tourneyClose(sender);
                     return true;
                 }
                 if (arg === 'стоп' || arg === 'stop') {
                     if (!tourney) addInfo(tT('noTourney'), 'warn');
                     else if (tourney.phase === 'podium' || tourney.phase === 'hall') addInfo(tT('over'), 'warn');
-                    else tourneyCancel();
+                    else tourneyCancel(sender);
                     return true;
                 }
                 const size = arg === undefined ? TOURNEY_DEFAULT : Number(arg);
@@ -4010,6 +4029,7 @@ function drakeSpriteURL(type) {
                 if (tourney) { addInfo(tT('busy'), 'warn'); return true; }
                 tourney = { phase: 'signup', size, players: [] };
                 tourneySave();
+                playTourney('opened', { size, user: sender });
                 addInfo(tT('opened', { size }), 'ok');
                 updateQueueUI();
                 return true;
@@ -4025,6 +4045,7 @@ function drakeSpriteURL(type) {
                 else {
                     t.players.push({ name: sender, color: d.color, drakeObj: d.drakeObj, title: d.title });
                     tourneySave();
+                    playTourney('joined', { user: sender, signedUp: t.players.length });
                     addInfo(tT('joined', { who, n: t.players.length, size: t.size }), 'ok');
                     updateQueueUI();
                     if (t.players.length === t.size) tourneyClose();
@@ -4039,6 +4060,7 @@ function drakeSpriteURL(type) {
                 else {
                     t.players = t.players.filter(p => p.name !== sender);
                     tourneySave();
+                    playTourney('left', { user: sender, signedUp: t.players.length });
                     addInfo(tT('left', { who, n: t.players.length, size: t.size }));
                     updateQueueUI();
                 }
@@ -4307,6 +4329,7 @@ function drakeSpriteURL(type) {
             let p2HP = getMaxHP(p2Prog.level, p2.drakeObj.type, p2.title);
             let p1MaxHP = p1HP;
             let p2MaxHP = p2HP;
+            playFightMax(p1MaxHP, p2MaxHP);
             const hpOf = f => f === p1 ? p1HP : p2HP;
             // Every HP change goes through here. Element Power: +1, once per fight, the first time HP drops below half
             const setHP = (f, v) => {
@@ -4855,7 +4878,7 @@ function drakeSpriteURL(type) {
                     clearInterval(battleInterval);
                     isBattleRunning = false;
                     fvAbort();
-                    playFightEnd({ result: 'error', winner: null, turns: turn, error: String(error && error.message) }, null);
+                    playFightEnd({ result: 'error', winner: null, turns: turn, error: String(error && error.message) }, null, { [p1.name]: p1HP, [p2.name]: p2HP });
                     let errorMsg = currentLang === 'uk' ?
                         `❌ <span style="color: #ff4141; font-weight: bold;">Критична помилка симуляції:</span> ${error.message}. Бій перервано!` :
                         `❌ <span style="color: #ff4141; font-weight: bold;">Critical simulation error:</span> ${error.message}. Battle aborted!`;
@@ -4962,7 +4985,7 @@ function drakeSpriteURL(type) {
             if (tourGame) {
                 // counted: false when the tournament was cancelled during the game (it then counts for nothing)
                 playFightEnd({ result: !winner ? 'draw' : ko ? 'ko' : 'timeout', winner: winner ? winner.name : null, turns: fightTurns,
-                               counted: !!tourney && tourney.phase === 'running' }, null);
+                               counted: !!tourney && tourney.phase === 'running' }, null, { [p1.name]: p1HP, [p2.name]: p2HP });
                 tourneyResult(winner ? winner.name : null, looser ? looser.name : null);
                 fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: false, turns: fightTurns, xp: null, lvl: null });
                 isBattleRunning = false;
@@ -4983,7 +5006,7 @@ function drakeSpriteURL(type) {
                         `🤝 <b>Friendly battle finished!</b> Winner: <span style="color: ${winner.color}; font-weight: bold;">@${winner.name}</span>! <i>(XP and stats unchanged)</i>`;
                     addLog(msg);
                 }
-                playFightEnd({ result: !winner ? 'draw' : ko ? 'ko' : 'timeout', winner: winner ? winner.name : null, turns: fightTurns }, null);
+                playFightEnd({ result: !winner ? 'draw' : ko ? 'ko' : 'timeout', winner: winner ? winner.name : null, turns: fightTurns }, null, { [p1.name]: p1HP, [p2.name]: p2HP });
                 fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: false, turns: fightTurns, xp: null, lvl: null });
                 setArenaState({ kind: 'result', ranked: false, winner, turns: fightTurns, ko });
                 isBattleRunning = false;
@@ -5032,7 +5055,7 @@ function drakeSpriteURL(type) {
             updateFighterCard('p1', getDragonStrict(p1.name));
             updateFighterCard('p2', getDragonStrict(p2.name));
             
-            playFightEnd({ result: !winner ? 'draw' : ko ? 'ko' : 'timeout', winner: winner ? winner.name : null, turns: fightTurns }, playGot);
+            playFightEnd({ result: !winner ? 'draw' : ko ? 'ko' : 'timeout', winner: winner ? winner.name : null, turns: fightTurns }, playGot, { [p1.name]: p1HP, [p2.name]: p2HP });
             fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: true, turns: fightTurns, xp: fvXp, xpBonus: fvXpBonus, lvl: fvLvl });
             setArenaState({ kind: 'result', ranked: true, winner, turns: fightTurns, ko });
             isBattleRunning = false;

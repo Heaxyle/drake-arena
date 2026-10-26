@@ -237,11 +237,12 @@ How ultimates fit with the rest:
 
 The overlay keeps a record of how people play, so play can be studied (before a season wipe, say). It records silently: nothing on screen, nothing sent anywhere.
 
-- **Every fight:** the date and time; ranked or duel; both players with their level, XP, element and title before it; the winner; KO, time-out or draw (or a simulation error); the turns; the XP each got, with the underdog and Gold parts; when its betting window opened (if it had one) and when the fight started.
+- **Every fight:** the date and time; ranked or duel; both players with their level, XP, element and title before it; the winner; KO, time-out or draw (or a simulation error); the turns; the XP each got, with the underdog and Gold parts; each player's HP left and max HP at the end (as the arena card shows them); when its betting window opened (if it had one) and when the fight started.
 - **Every title roll:** who, the old and the new title, and how: channel points, a free spin from a tournament, or typed by the streamer.
 - **Every new drake (`!дрейк`) and element change (`!рерол`):** who, which element (and the old one), and the levels lost.
 - **Every `!черга`:** who and when, and their place in the queue, so queue waits can be worked out from the fights that follow.
 - **Every tournament game,** like a fight (`kind: 'tournament'`), plus its stage (`qual`, `r16`, `qf`, `sf`, `third`, `final`), game number and whether it was a replayed draw. The players' level and XP are their saved ones (they fought at level 20, `fightLevel: 20`); no XP. A game fought after `!турнір стоп` is marked `counted: false`.
+- **Every tournament event** (`type: 'tournament'`): sign-up opened (`event: 'opened'`: the size, who opened it); each `!учасник` and `!вийти` (`joined`, `left`: who, and how many are signed up after it); sign-up closed (`closed`: `how` is `full` when the last place filled it or `start` for `!турнір старт`, with who typed it; the players signed up, the bracket size, the qualifier games); `!турнір стоп` (`cancelled`: who, and where it stood: the phase `signup` / `ready` / `running`, the game on the arena or coming up with its stage and number, and what the arena showed: `draw`, `countdown`, `fight`, `result` or `idle`); and the podium (`podium`: 1st, 2nd, 3rd).
 
 It lives in the browser's IndexedDB (database `drake_arena_showcase_playlog`), not in `localStorage` with the saves: `localStorage` only holds about 5 MB. Its name has no "db" or "stats" in it, so a ladder wipe of those keys keeps it, but clearing the browser's site data deletes it too, so export first. Logging never affects the game: if IndexedDB fails, the fight carries on and the export reports how many writes were lost.
 

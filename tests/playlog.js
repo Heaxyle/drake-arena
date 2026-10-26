@@ -3,9 +3,15 @@
 //      (twice from one player), a ranked fight with the betting window on, a duel with it off, an element change at
 //      level 5. The log holds exactly those events, in order, and each says what the game did: both fighters' level,
 //      XP, element and title before the fight; the winner, KO / time-out / draw and the turns as the arena showed them;
-//      the XP each got as the saves changed, with the underdog and Gold parts; the betting window's opening and the
-//      fight's start in order. Nothing of it shows on the page
-//  1b  The endings the seeded fights don't reach, through finishBattle: a time-out (both standing) and a draw
+//      the XP each got as the saves changed, with the underdog and Gold parts; each one's HP left and max HP at the end,
+//      as their arena card showed it; the betting window's opening and the fight's start in order. Nothing of it shows on
+//      the page
+//  1b  The endings the seeded fights don't reach, through finishBattle: a time-out (both standing) and a draw, with the HP
+//      each ended on
+//  1c  A tournament through chat: opened (size, who), every !учасник and !вийти with how many are signed up after it,
+//      closed (it filled up; and by !турнір старт, with a qualifier), each game with both players' HP left and max HP at
+//      level 20 as the cards showed it, the podium; a cancel during sign-up and one mid-game (where it stood). In the
+//      export the players are ids there too (the podium included), no name left
 //   2  The export: valid JSON with the log and the saves (drakes and stats); player names replaced by ids p001… everywhere
 //      (no name left in the text; a player only in the saves too), the same ids in a second export and after a reload;
 //      { names: true } keeps the names. clearPlayLog() empties the log and the ids and leaves the saves
@@ -57,6 +63,13 @@ async function playOut(page) {
     return page.evaluate(() => ({ kind: arenaState.kind, winner: arenaState.winner ? arenaState.winner.name : null, turns: arenaState.turns, ko: arenaState.ko }));
 }
 const endHold = page => page.evaluate(() => endResultHold());
+// What the arena cards show at the end of a fight: name → "HP/max HP"
+const cardsHp = page => page.evaluate(() => Object.fromEntries(['p1', 'p2'].map(p => [document.getElementById(`name-${p}`).textContent.replace('@', ''), document.getElementById(`hp-text-${p}`).textContent.trim()])));
+// Moves the game clock on until cond() is true in the page
+async function until(page, cond, step = 1000, max = 2 * 3600000) {
+    for (let t = 0; t <= max; t += step) { if (await page.evaluate(cond)) return; await page.clock.runFor(step); }
+    throw new Error('timed out waiting for ' + cond.toString().slice(0, 100));
+}
 const exportLog = (page, opts) => page.evaluate(o => exportPlayLog(o), opts);
 // The log as the game stored it (names kept)
 const events = async page => JSON.parse(await exportLog(page, { names: true })).events;
@@ -90,6 +103,7 @@ async function run() {
         await page.clock.runFor(3000);
         await chat(page, 'bobgold', '!черга');
         const ranked = await playOut(page);
+        const rankedCards = await cardsHp(page);
         const postRanked = await saves(page);
         await endHold(page);
 
@@ -136,6 +150,9 @@ async function run() {
         });
         check(xpOk && underdog(ranked.winner) > 0, `the XP each got, as the saves changed, split into base, underdog and Gold (${['alice', 'bobgold'].map(n => `@${n} ${JSON.stringify(rp[n] && rp[n].got)}`).join(', ')})`,
             JSON.stringify({ alice: rp.alice && rp.alice.got, bob: rp.bobgold && rp.bobgold.got, gained: { alice: postRanked.alice.xp - preRanked.alice.xp, bobgold: postRanked.bobgold.xp - preRanked.bobgold.xp } }));
+        check(f1 && f1.players.every(p => rankedCards[p.name] === `${p.hpLeft}/${p.maxHp}`) && f1.players.some(p => p.hpLeft === 0),
+            `each player's HP left and max HP at the end, as their card showed it: ${f1 && f1.players.map(p => `@${p.name} ${p.hpLeft}/${p.maxHp}`).join(', ')}`,
+            JSON.stringify({ log: f1 && f1.players.map(p => [p.name, p.hpLeft, p.maxHp]), cards: rankedCards }));
         const tOpen = f1 && Date.parse(f1.bettingOpened), tStart = f1 && Date.parse(f1.started), tEnd = f1 && Date.parse(f1.ended);
         check(f1 && tOpen === Date.parse(q3.t) && tStart - tOpen === 120000 - 4500 && tEnd > tStart && f1.t === f1.ended,
             `when the betting window opened (with @bobgold's !черга) and the fight started (${(tStart - tOpen) / 1000} s later), then its end`, JSON.stringify({ q3: q3 && q3.t, f1: f1 && { bettingOpened: f1.bettingOpened, started: f1.started, ended: f1.ended } }));
@@ -212,11 +229,15 @@ async function run() {
         }));
         const endEv = (await events(e.page)).filter(x => x.type === 'fight');
         const [to, dr] = endEv;
+        const hpEnd = f => Object.fromEntries(f.players.map(p => [p.name, p.hpLeft]));
         check(endEv.length === 2 && to.result === 'timeout' && to.winner === 'alice' && to.turns === 30 && dr.result === 'draw' && dr.winner === null
+            && JSON.stringify(hpEnd(to)) === JSON.stringify({ alice: 120, carol: 80 }) && JSON.stringify(hpEnd(dr)) === JSON.stringify({ alice: 90, carol: 90 })
             && dr.players.every(p => p.got && p.got.xp === 10 && p.got.base === 10 && p.got.xp === ends[1][p.name].xp - ends[0][p.name].xp),
-            'a time-out (both standing after 30 turns: the one with more HP wins) and a draw (10 XP each)', JSON.stringify(endEv.map(x => ({ result: x.result, winner: x.winner, turns: x.turns, got: x.players.map(p => p.got) }))));
+            'a time-out (both standing after 30 turns: the one with more HP wins; 120 and 80 HP left) and a draw (10 XP each; 90 and 90)', JSON.stringify(endEv.map(x => ({ result: x.result, winner: x.winner, turns: x.turns, got: x.players.map(p => p.got) }))));
         check(!e.errors.length, 'no page errors', JSON.stringify(e.errors));
         await e.context.close();
+
+        await tournamentRun(browser);
 
         // 3. A failing IndexedDB
         const plain = await fightEvents(browser, null);
@@ -250,6 +271,78 @@ async function fightEvents(browser, breakIdb) {
     const events = await r.page.evaluate(() => window.__fightEvents);
     await r.context.close();
     return { result, events, errors: r.errors, exported };
+}
+
+// 1c. A tournament through chat (effects off: its own timings), then a cancel mid-game and one during sign-up
+async function tournamentRun(browser) {
+    console.log('\n[1c. a tournament: sign-up, every game, the podium; two cancels]');
+    const r = await open(browser);
+    const { page } = r;
+    const mod = (who, msg) => chat(page, who, msg, { mod: true, badges: { moderator: '1' } });
+    const colours = ['червоний', 'синій', 'чорний', 'золотий', 'фіолетовий', 'зелений'];
+    const all = ['tia', 'tom', 'tess', 'ted', 'uma', 'una', 'uli', 'ute', 'uwe'];
+    for (const [i, n] of all.entries()) await chat(page, n, `!дрейк ${colours[i % 6]}`);
+    await page.evaluate(() => setShowFx(false));
+    await mod('mod_a', '!турнір 4');
+    for (const [n, m] of [['tia', '!учасник'], ['tom', '!учасник'], ['tom', '!вийти'], ['tom', '!учасник'], ['tess', '!учасник'], ['ted', '!учасник']]) await chat(page, n, m);
+    // Every game to the podium; what the cards show on each game's result screen
+    const shown = [];
+    let onResult = false;
+    for (let i = 0; i < 5000; i++) {
+        const s = await page.evaluate(() => ({ kind: arenaState.kind, podium: tourney && tourney.podium ? [...tourney.podium] : null }));
+        if (s.kind === 'result' && !onResult) shown.push(await cardsHp(page));
+        onResult = s.kind === 'result';
+        if (s.kind === 'podium') { shown.podium = s.podium; break; }
+        await page.clock.runFor(500);
+    }
+    await until(page, () => !tourney && !resultHold, 1000);
+    // Closed by !турнір старт with a qualifier; stopped in the middle of the qualifier game
+    await mod('mod_b', '!турнір');
+    for (const n of all.slice(4)) await chat(page, n, '!учасник');
+    await mod('mod_a', '!турнір старт');
+    await until(page, () => arenaState.kind === 'fight' && tourGame && tourGame.stage === 'qual', 500);
+    await mod('mod_b', '!турнір стоп');
+    await until(page, () => !isBattleRunning && !resultHold, 1000);
+    // Stopped during sign-up
+    await mod('mod_a', '!турнір 8');
+    await chat(page, 'uma', '!учасник'); await chat(page, 'una', '!учасник');
+    const during = await page.evaluate(() => arenaState.kind);
+    await mod('mod_c', '!турнір стоп');
+
+    const named = JSON.parse(await exportLog(page, { names: true }));
+    const tour = named.events.filter(e => e.type === 'tournament').map(({ t, type, ...e }) => e);
+    const joined = (u, n) => ({ event: 'joined', user: u, signedUp: n });
+    const want = [
+        { event: 'opened', size: 4, user: 'mod_a' }, joined('tia', 1), joined('tom', 2), { event: 'left', user: 'tom', signedUp: 1 }, joined('tom', 2), joined('tess', 3), joined('ted', 4),
+        { event: 'closed', how: 'full', user: null, signedUp: 4, bracket: 4, qualifierGames: 0 },
+        { event: 'podium', podium: shown.podium, signedUp: 4, bracket: 4 },
+        { event: 'opened', size: 8, user: 'mod_b' }, ...all.slice(4).map((n, i) => joined(n, i + 1)),
+        { event: 'closed', how: 'start', user: 'mod_a', signedUp: 5, bracket: 4, qualifierGames: 1 },
+        { event: 'cancelled', user: 'mod_b', phase: 'running', stage: 'qual', game: 1, during: 'fight', signedUp: 5 },
+        { event: 'opened', size: 8, user: 'mod_a' }, joined('uma', 1), joined('una', 2),
+        { event: 'cancelled', user: 'mod_c', phase: 'signup', stage: null, game: null, during, signedUp: 2 },
+    ];
+    check(shown.podium && JSON.stringify(tour) === JSON.stringify(want),
+        `the tournament events in order: opened (4, @mod_a), 5 joins and a leave with the count after each, closed when full, the podium (🥇 @${shown.podium && shown.podium[0]}); opened again (8, @mod_b), closed by @mod_a's !турнір старт (5, bracket 4, 1 qualifier game), cancelled by @mod_b mid-qualifier; opened, cancelled by @mod_c during sign-up`,
+        JSON.stringify({ got: tour, want }));
+    // Each game of the 4-player run with both players' HP left and max HP (level 20) as their cards showed it; the
+    // stopped qualifier game too, counting for nothing
+    const games = named.events.filter(e => e.type === 'fight' && e.kind === 'tournament');
+    const four = games.filter(g => g.counted), stopped = games.filter(g => !g.counted);
+    const max20 = await page.evaluate(ns => Object.fromEntries(ns.map(n => { const d = getDragonDB()[n]; return [n, getMaxHP(20, d.drakeObj.type, d.title)]; })), all);
+    check(four.length === shown.length && four.every((g, i) => g.players.every(p => p.maxHp === max20[p.name] && shown[i][p.name] === `${p.hpLeft}/${p.maxHp}`))
+        && stopped.length === 1 && stopped[0].stage === 'qual' && stopped[0].players.every(p => p.maxHp === max20[p.name] && Number.isInteger(p.hpLeft) && p.hpLeft >= 0),
+        `all ${four.length} games with both players' HP left and max HP at level 20, as the cards showed them (${four[0] && four[0].players.map(p => `@${p.name} ${p.hpLeft}/${p.maxHp}`).join(', ')} …); the stopped qualifier game with its HP, not counted`,
+        JSON.stringify({ games: games.map(g => [g.stage, g.counted, g.players.map(p => [p.name, p.hpLeft, p.maxHp])]), shown }));
+    // By id: every name in the tournament events (who, the podium) is an id; no name left anywhere
+    const byId = await exportLog(page), ex = JSON.parse(byId);
+    const exTour = ex.events.filter(e => e.type === 'tournament');
+    const ids = exTour.flatMap(e => [e.user, ...(e.podium || [])]).filter(x => x !== null && x !== undefined);
+    const leaked = [...all, 'mod_a', 'mod_b', 'mod_c'].filter(n => byId.includes(`"${n}"`));
+    check(ids.length && ids.every(x => /^p\d{3}$/.test(x)) && !leaked.length && exTour.find(e => e.event === 'podium').podium.length === 3,
+        'in the export the tournament events name everyone by id too (the moderators, the players, the podium); no name left', JSON.stringify({ ids, leaked }));
+    check(!r.errors.length && !r.requests.length, 'no page errors, no network request', JSON.stringify({ errors: r.errors, requests: r.requests }));
+    await r.context.close();
 }
 
 run().catch(e => { console.error(e); process.exit(1); });

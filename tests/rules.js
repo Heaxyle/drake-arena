@@ -25,6 +25,9 @@
 //   19 tournament rewards: the podium's badges (in the Top and !stats, replaced when the next tournament ends), free
 //      title spins 3 / 2 / 1 (they add up; !title typed in chat uses one, a channel-point redemption doesn't, none left
 //      gets the usual reply), medals that add up, the Hall of Fame (!hall), nothing for a cancelled tournament
+//   20 the play log, as the game hands it to playLog: the tournament events (opened, each join and leave with the count
+//      after it, closed when full and by !tournament start, cancelled during sign-up and mid-game, the podium) and
+//      every fight's HP left and max HP (ranked, duel, tournament game, simulation error)
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
@@ -66,6 +69,8 @@ eval(gameScript(FILE) + `
     wrapRunBattle: f => { const orig = runBattle; runBattle = (...a) => { f(...a); return orig(...a); }; },
     wrapAddInfo: f => { const orig = addInfo; addInfo = (html, ...r) => { f(html); return orig(html, ...r); }; },
     wrapAddLog: f => { const orig = addLog; addLog = t => { orig(t); f(t); }; },
+    // Every play log event as the game hands it over (Node has no IndexedDB: the write itself fails quietly, as designed)
+    wrapPlayLog: f => { if (typeof playLog !== 'function') return false; const orig = playLog; playLog = (type, data) => { f(type, data); return orig(type, data); }; return true; },
     // The next fight turn throws (inside the fight loop's try), as a simulation error would
     failNextTurn: () => { const orig = fvTurnEnd; fvTurnEnd = function () { fvTurnEnd = orig; throw new Error('forced by a test'); }; },
 };`);
@@ -87,6 +92,9 @@ let onSimError = null;
 G.wrapAddLog(t => { logs.push(strip(t)); if (onSimError && /simulation error|помилка симуляції/i.test(strip(t))) { const f = onSimError; onSimError = null; f(); } });
 G.wrapRunBattle((a, ac, b, bc, ranked) => fightsStarted.push({ a, b, ranked }));
 const lastInfo = () => infos[infos.length - 1] || '';
+// The play log's events, in order ({ type, ...data })
+let plays = [];
+const hasPlayLog = G.wrapPlayLog((type, data) => plays.push({ type, ...JSON.parse(JSON.stringify(data)) }));
 // A clean slate: no saves, stats, queue, challenges or fight
 const fresh = () => {
     __drain();
@@ -94,8 +102,11 @@ const fresh = () => {
     Object.keys(G.pending).forEach(k => delete G.pending[k]); G.running = false;
     G.resetStartGuard();
     G.tourneyReset();
-    infos = []; logs = []; fightsStarted = [];
+    infos = []; logs = []; fightsStarted = []; plays = []; finishes = [];
 };
+// The HP every fight ended on, as finishBattle got it: registered before the rigging below, so it sees the rigged HP
+let finishes = [];
+G.wrapFinishBattle((p1, p2, h1, h2, ranked) => { finishes.push({ [p1.name]: h1, [p2.name]: h2 }); return [p1, p2, h1, h2, ranked]; });
 // Tournament games: rig(p1, p2) returns the winner's name or null (a draw); every game's fighters and levels are kept
 let rig = null, tourneyGames = [];
 G.wrapFinishBattle((p1, p2, h1, h2, ranked) => {
@@ -696,6 +707,83 @@ for (const lang of ['en', 'uk']) {
         check(/Hall of Fame|Зала слави/.test(hall) && hall.includes('🥇 @' + p2[0]) && hall.includes('🥇 @' + p1[0]) && hall.indexOf('@' + p2[0]) < hall.indexOf('🥇 @' + p1[0]) && /Most wins|Найбільше перемог/.test(hall),
             '19. !hall: both tournaments, the latest first, and who has won the most', hall);
         __drain(); fresh(); G.honoursReset();
+    }
+
+    // 20. The play log: tournament events and every fight's HP. What the game hands to playLog, in order
+    if (hasPlayLog) {
+        const tour = () => plays.filter(p => p.type === 'tournament').map(({ type, t: _, ...e }) => e);
+        const fightsLogged = () => plays.filter(p => p.type === 'fight');
+        const hpOk = (f, end) => f.players.every(p => p.hpLeft === Math.round(Math.max(0, end[p.name])) && Number.isInteger(p.hpLeft) && p.hpLeft >= 0 && p.hpLeft <= p.maxHp);
+        // Sign-up: opened (size, who), each !join and !leave with how many are signed up after it, closed when it fills up
+        fresh();
+        ['pa', 'pb', 'pc', 'pd'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 2 + i }));
+        G.sayAs('mod1', t('!tournament 4', '!турнір 4'), { mod: true });
+        G.say('pa', t('!join', '!учасник')); G.say('pb', t('!join', '!учасник')); G.say('pb', t('!leave', '!вийти'));
+        G.say('pb', t('!join', '!учасник')); G.say('pc', t('!join', '!учасник'));
+        G.say('pd', t('!join', '!учасник'));   // the 4th: full, it closes by itself
+        const signup = tour();
+        check(JSON.stringify(signup) === JSON.stringify([
+            { event: 'opened', size: 4, user: 'mod1' }, { event: 'joined', user: 'pa', signedUp: 1 }, { event: 'joined', user: 'pb', signedUp: 2 },
+            { event: 'left', user: 'pb', signedUp: 1 }, { event: 'joined', user: 'pb', signedUp: 2 }, { event: 'joined', user: 'pc', signedUp: 3 },
+            { event: 'joined', user: 'pd', signedUp: 4 }, { event: 'closed', how: 'full', user: null, signedUp: 4, bracket: 4, qualifierGames: 0 }]),
+            '20. sign-up in the play log: opened (4, by @mod1), each join and leave with the count after it, closed when the 4th filled it (bracket 4, no qualifier)',
+            JSON.stringify(signup));
+        // The games to the podium (the earlier name wins every game): each logged with both players' max HP (level 20's)
+        // and the HP left as the arena shows it; then the podium
+        rig = (a, b) => [a, b].sort()[0];
+        __drain();
+        rig = null;
+        const games = fightsLogged(), podium = tour().filter(e => e.event === 'podium');
+        const want20 = n => { const d = G.getDragonDB()[n]; return G.getMaxHP(20, d.drakeObj.type, d.title); };
+        check(games.length === 7 && games.length === finishes.length && games.every((f, i) => f.kind === 'tournament' && f.players.every(p => p.maxHp === want20(p.name)) && hpOk(f, finishes[i]))
+            && podium.length === 1 && JSON.stringify(podium[0]) === JSON.stringify({ event: 'podium', podium: G.honours.holders, signedUp: 4, bracket: 4 }),
+            `20. all 7 games (2:0 semifinals, the 3rd-place game, a 2:0 final) each with both players' max HP at level 20 and the HP left; then the podium (🥇 @${podium[0] && podium[0].podium.join(', @')})`,
+            JSON.stringify({ games: games.map(f => f.players.map(p => [p.name, p.hpLeft, p.maxHp])), podium, holders: G.honours.holders }));
+        // Closed by !tournament start with a qualifier, then cancelled in the middle of the qualifier game
+        fresh(); G.honoursReset();
+        ['qa', 'qb', 'qc', 'qd', 'qe'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: 3 }));
+        G.sayAs('mod1', t('!tournament', '!турнір'), { mod: true });
+        ['qa', 'qb', 'qc', 'qd', 'qe'].forEach(n => G.say(n, t('!join', '!учасник')));
+        G.sayAs('mod2', t('!tournament start', '!турнір старт'), { mod: true });
+        const gameOn = G.running && G.tourGame && G.tourGame.stage === 'qual';
+        G.sayAs('mod1', t('!tournament stop', '!турнір стоп'), { mod: true });
+        __drain();
+        const q = tour().filter(e => e.event === 'closed' || e.event === 'cancelled');
+        const qGame = fightsLogged()[0];
+        check(gameOn && JSON.stringify(q) === JSON.stringify([
+            { event: 'closed', how: 'start', user: 'mod2', signedUp: 5, bracket: 4, qualifierGames: 1 },
+            { event: 'cancelled', user: 'mod1', phase: 'running', stage: 'qual', game: 1, during: 'countdown', signedUp: 5 }])
+            && qGame && qGame.counted === false && hpOk(qGame, finishes[0]),
+            '20. closed by @mod2\'s !tournament start (5 signed up, bracket 4, 1 qualifier game); cancelled by @mod1 during the qualifier game (running, qual, game 1; in Node the arena is still on its countdown); that game logged as not counted, with its HP',
+            JSON.stringify({ q, qGame }));
+        // Cancelled during sign-up, straight after that (the stopped game is still the last tournament game the arena had)
+        ['sa', 'sb'].forEach((n, i) => make(n, G.VIEWER_DRAKE_TYPES[i].type, { level: 1 }));
+        G.sayAs('mod1', t('!tournament 8', '!турнір 8'), { mod: true });
+        G.say('sa', t('!join', '!учасник')); G.say('sb', t('!join', '!учасник'));
+        const shown = G.arenaState.kind;   // what the arena shows meanwhile (the last fight's result, here)
+        G.sayAs('mod3', t('!tournament stop', '!турнір стоп'), { mod: true });
+        const c = tour().pop();
+        check(JSON.stringify(c) === JSON.stringify({ event: 'cancelled', user: 'mod3', phase: 'signup', stage: null, game: null, during: shown, signedUp: 2 }),
+            '20. cancelled during sign-up: by @mod3, phase "signup", no game, 2 signed up', JSON.stringify(c));
+        // Every other kind of fight with its HP: a ranked fight (different levels and elements, so different max HP), a duel,
+        // and a simulation error
+        fresh();
+        make('ha', 'red', { level: 4 }); make('hb', 'gold', { level: 11 }); make('hc', 'blue', { level: 7 });
+        G.say('ha', t('!queue', '!черга')); G.say('hb', t('!queue', '!черга'));
+        __drain();
+        G.say('hc', t('!battle @ha', '!бій @ha')); G.say('ha', t('!accept', '!прийняти'));
+        __drain();
+        G.failNextTurn();
+        G.say('hb', t('!battle @hc', '!бій @hc')); G.say('hc', t('!accept', '!прийняти'));
+        __drain();
+        const [rf, df, ef] = fightsLogged();
+        const wantMax = n => { const d = G.getDragonDB()[n]; return G.getMaxHP(d.level, d.drakeObj.type, d.title); };
+        check(rf && rf.kind === 'ranked' && rf.players.every(p => p.maxHp === wantMax(p.name)) && rf.players[0].maxHp !== rf.players[1].maxHp && hpOk(rf, finishes[0])
+            && df && df.kind === 'duel' && hpOk(df, finishes[1])
+            && ef && ef.result === 'error' && ef.players.every(p => p.maxHp === wantMax(p.name) && Number.isInteger(p.hpLeft) && p.hpLeft >= 0 && p.hpLeft <= p.maxHp),
+            `20. every fight's HP in the log: the ranked one (${rf && rf.players.map(p => `@${p.name} ${p.hpLeft}/${p.maxHp}`).join(', ')}), the duel, and a fight stopped by a simulation error; max HP each player's own, HP left as the arena shows it (rounded, never below 0)`,
+            JSON.stringify({ rf, df, ef, finishes }));
+        __drain(); fresh();
     }
 
     // 13. One icon in the opening banner
