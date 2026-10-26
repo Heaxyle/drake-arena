@@ -305,7 +305,10 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: a qualifier seed left anywhere
 …
 ✓ caught: badges kept for good
-All 99 mutations caught.
+✓ caught: opened without who
+…
+✓ caught: no HP on a simulation error
+All 112 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -514,7 +517,7 @@ Text that is still too wide at its smallest allowed size is squeezed sideways (`
 
 ## Layer 2: play log test
 
-`playlog.js` checks the [play log](showcase/README.md#play-log): the record of fights, title rolls, element changes and `!черга` that the game keeps in IndexedDB, and `exportPlayLog()`. Like `ui.js` it plays through fake chat with seeded fights on the paused game clock, so every time in the log is exact.
+`playlog.js` checks the [play log](showcase/README.md#play-log): the record of fights, tournament events, title rolls, element changes and `!черга` that the game keeps in IndexedDB, and `exportPlayLog()`. Like `ui.js` it plays through fake chat with seeded fights on the paused game clock, so every time in the log is exact.
 
 | Check | What it catches |
 |---|---|
@@ -523,9 +526,13 @@ Text that is still too wide at its smallest allowed size is squeezed sideways (`
 | The title roll: who, the old and the new title as the saves have them, channel points | Wrong titles, or a paid roll logged as the streamer's |
 | `!черга`: who and when (3 s apart on the game clock), the repeat marked as not joined, places in the queue | Queue waits that can't be worked out |
 | The ranked fight (level 2 against level 1, an underdog win for the Gold drake): both fighters' level, XP, element and title from *before* it; the winner, KO, the turns as the arena showed them; the XP each got exactly as the saves changed, split into base, underdog (5) and Gold (23) | Fighters recorded after the fight, a result that doesn't match the arena, XP parts missing or wrong |
+| Each player's HP left and max HP at the end of the ranked fight, exactly as their arena card showed them (`69/150`, `0/160`) | HP missing, swapped, or not what the arena showed |
 | The betting window's opening (at the second `!черга`), the fight's start 115.5 s later, its end after that | Lost or wrong times |
 | The duel: no betting window, no XP, its winner and turns | Duels not logged, or logged with XP |
-| A time-out and a draw, through the game's `finishBattle` (the seeded fights all end in a KO): the one with more HP wins on a time-out; a draw gives 10 XP each | Wrong result labels |
+| A time-out and a draw, through the game's `finishBattle` (the seeded fights all end in a KO): the one with more HP wins on a time-out; a draw gives 10 XP each; the HP each ended on (120 and 80; 90 and 90) | Wrong result labels or HP |
+| A tournament through chat (section 1c, effects off): `!турнір 4` by @mod_a, five `!учасник` and a `!вийти`, the 4th place filling it; every game to the podium; then `!турнір` by @mod_b, five sign-ups, @mod_a's `!турнір старт` (a qualifier), @mod_b's `!турнір стоп` in the middle of the qualifier game; then a sign-up stopped by @mod_c. The log holds exactly: opened (size, who), each join and leave with the count after it, closed (`full`, or `start` and who; players, bracket, qualifier games), the podium (as the game made it), the cancels with where they stood (`running`, `qual`, game 1, mid-fight; `signup`, no game, even though the stopped qualifier game was the arena's last tournament game) | Tournament events missing, out of order, or with wrong counts, sizes or stages |
+| Every game of that tournament with both players' HP left and max HP at level 20, as their cards showed them on its result screen; the stopped qualifier game too, `counted: false` | Tournament games logged without their HP |
+| By id, the tournament events name everyone as an id (the moderators, the players, the podium); no name anywhere | Names leaking through the new events |
 | Nothing of the log on the page, no network request, no page errors | A visible or networked log |
 | The export is valid JSON with the log and the saves (drakes and stats); every player is an id (`p001`…): the log's in the order they first played, then a player only in the saves; no name anywhere in the text | Names leaking into the export |
 | The same ids in a second export and after a reload, where a new player gets the next id and the saves-only player keeps theirs; `{ names: true }` keeps the names | Ids that change between exports |
@@ -533,6 +540,8 @@ Text that is still too wide at its smallest allowed size is squeezed sideways (`
 | IndexedDB failing (`indexedDB.open` throws; every write throws): the ranked fight plays out exactly as with a working log (the same fight events), no page errors, and the export still works, reporting the failed writes | Logging that can break a fight |
 
 The test also had to fail on 16 broken versions of the log: a missing queue join, no Gold part, no underdog part, the betting window's time lost, fighters taken after the fight, KO and time-out swapped, duels not logged, no levels lost, a paid title roll logged as the streamer's, names left in the saves, ids not kept between exports, a failed write left unhandled, IndexedDB opened outside the guard during a fight, and a `clearPlayLog` that keeps the events, keeps the ids, or wipes the saves too.
+
+The tournament events and the HP are also checked in Node (`tests/rules.js` section 20 sees everything the game hands to `playLog`), so the mutation check covers them: 13 more broken versions, all caught: `opened` without who, `joined` logging the bracket size, `!вийти` not logged, a `!турнір старт` close logged as `full`, no qualifier games, a cancel without its stage, a sign-up cancel with a stopped tournament's old game, the podium reversed, max HP or HP left swapped between the fighters, and no HP on a duel, a tournament game or a simulation error.
 
 ## Layer 2: fight view test
 
@@ -616,7 +625,7 @@ npm test                               # effect rules, then balance: element mat
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
 npm run test:rules                     # the game rules: whole HP, chat commands, no rest, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 99 ways, check effects.js / ultimates.js / rules.js catch each
+npm run test:mutations                 # break the game 112 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)
