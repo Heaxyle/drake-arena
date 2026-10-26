@@ -258,6 +258,13 @@ const MUTATIONS = [
         "counted: !!tourney && tourney.phase === 'running' }, null, { [p1.name]: p1HP, [p2.name]: p2HP });", "counted: !!tourney && tourney.phase === 'running' }, null);"],
     ['no HP on a simulation error', 'a fight stopped by a simulation error is logged without the HP left',
         'error: String(error && error.message) }, null, { [p1.name]: p1HP, [p2.name]: p2HP });', 'error: String(error && error.message) }, null);'],
+    // The coin flip's Ukrainian words (caught by rules.js)
+    ['title 189 untranslated', 'title 189 shows its English name in Ukrainian',
+        'name: { uk: "Герб чи число", en: "Heads or Tails" }', 'name: { uk: "Heads or Tails", en: "Heads or Tails" }'],
+    ['coin heads in English', 'the Ukrainian log says "Heads!" for the coin flip',
+        '`🪙 Герб! (×${MECH.coinHigh}) `', '`🪙 Heads! (×${MECH.coinHigh}) `'],
+    ['coin tails reworded', "the Ukrainian log names the coin's other side with some other word",
+        '`🪙 Число... (×${MECH.coinLow}) `', '`🪙 Монета... (×${MECH.coinLow}) `'],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported

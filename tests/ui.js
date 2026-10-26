@@ -13,6 +13,8 @@
 // A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent.
 // Another checks the streamer card in the side column draws the streamer's own drake: the dragon, then a red drake after a
 // reroll (at an exact 2x, centred in the dragon's slot), then the dragon again.
+// Another loads a save whose drake has title 189 under its old Ukrainian name: the drake shows «Герб чи число» (English
+// "Heads or Tails"), and still does after a reload.
 // Screenshots go to tests/screenshots/. Game timers run on a fake clock, so fights take seconds.
 // Fights are seeded: Math.random is replaced with a seeded generator before the page loads, so every run plays the same
 // fights (UI_SEED=n picks another seed). The game clock is paused and only moved by the test, and visual checks wait
@@ -26,6 +28,7 @@ const { chromium } = require('playwright');
 const { pageInit } = require('./page_hooks');
 const { settleArena } = require('./settle');
 const { offTwitch } = require('./no_twitch');   // a stand-in tmi.js: window.__chat types into chat, nothing reaches Twitch
+const { storageSettled } = require('./storage_sync');
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
@@ -518,6 +521,58 @@ async function testMigration(browser, key) {
     return failures;
 }
 
+// A drake saved with title 189 as it was stored before the rename (the whole title, with its old Ukrainian name): on load
+// the save takes the title's new name, «Герб чи число»; !стата shows it; after a reload (once the game's own save has
+// reached the browser) the save and !стата still have it; in English it stays "Heads or Tails". The save is injected
+// before the page loads, only on the ?setup load.
+async function testSavedTitle(browser, key) {
+    const failures = [];
+    const fail = msg => { failures.push(msg); console.log(`    ✗ ${msg}`); };
+    const pass = msg => console.log(`    ✓ ${msg}`);
+    const cfg = VERSIONS[key];
+    const DB_KEY = 'drake_arena_showcase_db';
+    console.log(`
+=== ${key}: a saved title 189 after the rename ===`);
+    // The old name and the banned stem, built in pieces: tests/banned_words.js keeps them out of every other file
+    const OLD_UK = 'Орел чи р' + 'ешка', STEM = 'р' + 'ешк', NEW_UK = 'Герб чи число', EN = 'Heads or Tails';
+    const save = { coinfan: { name: 'coinfan', color: '#8ab4f8', drakeObj: { name: { uk: 'Червоний Дрейк 🟥', en: 'Red Drake 🟥' }, type: 'red' }, xp: 1200, level: 4,
+        title: { id: 189, rarity: 'meme', icon: '🪙', name: { uk: OLD_UK, en: EN }, bonus: { type: 'unique', mechanic: 'coin_flip', stats: { hp: 20 } } } } };
+
+    const context = await browser.newContext();
+    const pageErrors = [];
+    const page = await context.newPage();
+    page.on('pageerror', e => pageErrors.push(e.message));
+    await offTwitch(page);
+    await page.addInitScript(([k, raw]) => { if (/[?&]setup\b/.test(location.search)) { localStorage.clear(); localStorage.setItem(k, raw); } }, [DB_KEY, JSON.stringify(save)]);
+    const url = 'file:///' + path.join(ROOT, cfg.file).replace(/\\/g, '/');
+    const seen = async lang => {
+        await page.evaluate(m => window.__chat('coinfan', m), lang === 'uk' ? '!стата' : '!stats');
+        return page.evaluate(k => ({ saved: JSON.parse(localStorage.getItem(k)).coinfan.title.name,
+            card: [...document.querySelectorAll('#info-feed .info-card')].pop().innerText }), DB_KEY);
+    };
+
+    await page.goto(url + '?lang=uk&setup');
+    const first = await seen('uk');
+    if (first.saved.uk !== NEW_UK || first.saved.en !== EN || !first.card.includes(NEW_UK) || first.card.toLowerCase().includes(STEM)) fail(`on load the save and !стата should have «${NEW_UK}», got ${JSON.stringify(first)}`);
+    else pass(`on load: the save's title 189 is «${first.saved.uk}» ("${first.saved.en}"), and !стата shows it`);
+
+    await storageSettled(page);
+    await page.goto(url + '?lang=uk');
+    const again = await seen('uk');
+    if (again.saved.uk !== NEW_UK || !again.card.includes(NEW_UK) || again.card.toLowerCase().includes(STEM)) fail(`after a reload the save and !стата should still have «${NEW_UK}», got ${JSON.stringify(again)}`);
+    else pass(`after a reload: still «${NEW_UK}» in the save and in !стата`);
+
+    await page.goto(url + '?lang=en');
+    const en = await seen('en');
+    if (!en.card.includes(EN) || en.card.includes(NEW_UK)) fail(`in English !stats should show "${EN}", got ${JSON.stringify(en)}`);
+    else pass(`in English: "${EN}"`);
+
+    if (pageErrors.length) [...new Set(pageErrors)].forEach(e => fail(`JS error: ${e}`));
+    else pass('no JS errors');
+    await context.close();
+    return failures;
+}
+
 // The streamer card draws the streamer's own drake, in a fresh page (so the main run's seeded fights are untouched):
 // no drake yet → the greyed-out dragon placeholder; !дрейк білий → the dragon at 2x (120×84); a reroll to red, as chat
 // sends it (a channel-point redemption) → the red sprite at 2x (96×72) centred in the same 120×84 slot, the text column
@@ -596,6 +651,7 @@ async function testStreamerCard(browser, key) {
             total += (await testVersion(browser, key)).length;
             if (VERSIONS[key].dragon) total += (await testMigration(browser, key)).length;
             if (VERSIONS[key].dragon) total += (await testStreamerCard(browser, key)).length;
+            total += (await testSavedTitle(browser, key)).length;
         }
     } finally {
         await browser.close();
