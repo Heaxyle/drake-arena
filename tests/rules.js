@@ -28,6 +28,8 @@
 //   20 the play log, as the game hands it to playLog: the tournament events (opened, each join and leave with the count
 //      after it, closed when full and by !tournament start, cancelled during sign-up and mid-game, the podium) and
 //      every fight's HP left and max HP (ranked, duel, tournament game, simulation error)
+//   21 the coin flip in Ukrainian is «Герб» / «Число» (title 189 «Герб чи число», and the log lines it shares with
+//      «Картопля Шредінгера»); English stays Heads / Tails
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
@@ -784,6 +786,35 @@ for (const lang of ['en', 'uk']) {
             `20. every fight's HP in the log: the ranked one (${rf && rf.players.map(p => `@${p.name} ${p.hpLeft}/${p.maxHp}`).join(', ')}), the duel, and a fight stopped by a simulation error; max HP each player's own, HP left as the arena shows it (rounded, never below 0)`,
             JSON.stringify({ rf, df, ef, finishes }));
         __drain(); fresh();
+    }
+
+    // 21. The coin flip's words: title 189 and the log lines of both coin-flip titles (189 and 190). Its own seeded
+    // Math.random, so the fights here don't shift the rest of the run
+    {
+        fresh();
+        const coin = G.TITLES_DB.find(x => x.id === 189);
+        check(coin && coin.name.uk === 'Герб чи число' && coin.name.en === 'Heads or Tails',
+            '21. title 189 is «Герб чи число» in Ukrainian, "Heads or Tails" in English', JSON.stringify(coin && coin.name));
+        const keep = Math.random; Math.random = mulberry32(189);
+        const seen = {};
+        try {
+            for (const id of [189, 190]) {
+                make('ca', 'red', { level: 5, title: G.TITLES_DB.find(x => x.id === id) }); make('cb', 'blue', { level: 5 });
+                const lines = [];
+                for (let i = 0; i < 6 && !(lines.some(l => l.includes('🪙 ' + t('Heads!', 'Герб!'))) && lines.some(l => l.includes('🪙 ' + t('Tails...', 'Число...')))); i++) {
+                    logs = [];
+                    G.say('ca', t('!battle @cb', '!бій @cb')); G.say('cb', t('!accept', '!прийняти'));
+                    __drain();
+                    lines.push(...logs.filter(l => l.includes('🪙')));
+                }
+                seen[id] = { heads: lines.some(l => l.includes('🪙 ' + t('Heads!', 'Герб!'))), tails: lines.some(l => l.includes('🪙 ' + t('Tails...', 'Число...'))),
+                             other: lines.filter(l => !/🪙 (Heads!|Tails...|Герб!|Число...)/.test(l)), sample: lines.slice(0, 2) };
+                fresh();
+            }
+        } finally { Math.random = keep; }
+        check([189, 190].every(id => seen[id].heads && seen[id].tails && !seen[id].other.length),
+            `21. the coin flip in the log, for «${G.TITLES_DB.find(x => x.id === 190).name.uk}» too: ${t('"🪙 Heads!" and "🪙 Tails..."', '«🪙 Герб!» і «🪙 Число...»')}, no other coin words`,
+            JSON.stringify(seen));
     }
 
     // 13. One icon in the opening banner

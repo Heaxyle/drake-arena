@@ -122,10 +122,11 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | **Tournament prizes**: the podium of a rigged 4-player tournament gets the badges, one medal each, 3 / 2 / 1 free title spins and a Hall of Fame entry; the Top shows 🏆 after the champion and 🥈 after the runner-up (none for a player off the podium); `!stats` shows the badge, "🏆×1 🥈×0 🥉×0" and the spins; `!title` in chat uses a spin ("2 left"), a channel-point `!title` doesn't, and with none the usual "channel points only" reply; a cancelled tournament gives nothing; the next tournament takes the badges while medals and spins add up; `!hall` lists both, the latest first, and who has won the most | Spins spent by channel points, free rolls without spins, medals or spins reset, badges kept forever |
 | "!battle" with no name, even mid-fight, replies "ℹ️ @x, to challenge someone type !battle @name." | No reply |
 | The opening-buff banner shows the title's icon once | "🌅 🌅 Woke Up Swinging" |
+| **The coin flip's words**: title 189 is «Герб чи число» in Ukrainian, "Heads or Tails" in English; duels with title 189 and with «Картопля Шредінгера» (the other coin-flip title) log «🪙 Герб!» and «🪙 Число...» in Ukrainian, "🪙 Heads!" and "🪙 Tails..." in English, and no other coin words (its own seeded `Math.random`, so the rest of the run plays the same fights) | The old Russian-derived coin words coming back, English in the Ukrainian log, or a new word for one side |
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 99 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 115 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, underdog XP, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, and 113–115 the coin flip's Ukrainian words:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -228,6 +229,22 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 97 | Medal counts start again at each tournament | `rules.js` 19 (2 checks) | `@ra's medals add up (1/0/1)` fails |
 | 98 | A new tournament's spins replace the ones left | `rules.js` 19 (2 checks) | `so do the spins (2 left + 1 = 3)` fails |
 | 99 | The first podium keeps the badges after the next tournament | `rules.js` 19 (2 checks) | `{"holders":["ra",…` |
+| 100 | The play log's `opened` event leaves out who opened sign-up | `rules.js` 20 (2 checks) | `sign-up in the play log: opened (4, by @mod1), each join and leave …` fails |
+| 101 | Each `joined` event logs the bracket size instead of how many have signed up | `rules.js` 20 (2 checks) | the same sign-up check |
+| 102 | Leaving sign-up (`!leave`) leaves no event in the play log | `rules.js` 20 (2 checks) | the same sign-up check (no `left` event) |
+| 103 | A sign-up closed by `!tournament start` is logged as `full` | `rules.js` 20 (2 checks) | `closed by @mod2's !tournament start (5 signed up, bracket 4, 1 qualifier game)` fails |
+| 104 | The `closed` event says 0 qualifier games whatever the draw | `rules.js` 20 (2 checks) | the same check |
+| 105 | A cancel mid-tournament is logged without the stage it stopped at | `rules.js` 20 (2 checks) | the same check (`cancelled by @mod1 during the qualifier game (running, qual, game 1)`) |
+| 106 | A sign-up cancelled after an earlier tournament was stopped mid-game is logged with that old game's stage (`tourGame` used whatever the phase) | `rules.js` 20 (2 checks) | `{"event":"cancelled","user":"mod3","phase":"signup","stage":"qual",…` |
+| 107 | The `podium` event lists 3rd place first | `rules.js` 20 (2 checks) | `… then the podium (🥇 @pc, …` |
+| 108 | Each fighter's max HP is logged on the other fighter | `rules.js` 20 (2 checks) | `the ranked one (@hb 79/189, @ha 0/259)` (the max HPs swapped) |
+| 109 | A ranked fight logs each fighter's HP left on the other one | `rules.js` 20 (2 checks) | `the ranked one (@hb 0/259, @ha 79/189)` (the winner at 0) |
+| 110 | A duel is logged without the HP left | `rules.js` 20 (2 checks) | `every fight's HP in the log: …` fails (the duel's `hpLeft` is null) |
+| 111 | A tournament game is logged without the HP left | `rules.js` 20 (4 checks) | `all 7 games … both players' max HP at level 20 and the HP left` fails |
+| 112 | A fight stopped by a simulation error is logged without the HP left | `rules.js` 20 (2 checks) | `every fight's HP in the log: …` fails (the error fight's `hpLeft` is null) |
+| 113 | Title 189 shows its English name in Ukrainian | `rules.js` 21 (2 checks) | `{"uk":"Heads or Tails","en":"Heads or Tails"}` |
+| 114 | The Ukrainian log says "Heads!" for the coin flip | `rules.js` 21 (1 check) | `{"189":{"heads":false,"tails":true,…` |
+| 115 | The Ukrainian log names the coin's other side with some other word | `rules.js` 21 (1 check) | `{"189":{"heads":true,"tails":false,…` |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -308,10 +325,16 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: opened without who
 …
 ✓ caught: no HP on a simulation error
-All 112 mutations caught.
+All 115 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
+
+## Layer 1: banned words
+
+`banned_words.js` (the first step of `npm test`) lists word stems that must not appear in Ukrainian text, each with the reason. It reads every file git tracks (the game, the tests, the docs; not binaries, and not itself, the one place the stems are written out), matches each stem case-insensitively anywhere in a word, and prints every hit with its file and line. It checks its own matcher first, on text it must catch and text it must leave alone. Add a stem to `BANNED` to ban another word.
+
+The first entry is the stem of the second half of the Russian imperial coin phrase: the Ukrainian sides of a coin are «герб» and «число». «Орел» alone stays allowed (title 167, «Орел з вайфаєм», is an eagle). A test that has to use a banned word, such as `ui.js` loading a save from before the rename, builds it from pieces.
 
 ## Layer 1: balance simulation
 
@@ -469,6 +492,7 @@ First it checks the White Dragon is streamer-only: with no streamer set, `!др�
 | The info feed never overflows its column (clipped at the bottom, too wide, or running past the column) | Chat reply cards cut off or spilling into the rest of the overlay |
 | No page errors or `console.error` | Any uncaught exception anywhere during the run |
 | The White Dragon is refused with no streamer set and for every other viewer; the streamer's dragon gets title 999 | The streamer-only check missing from a command path (`!drake`, `!reroll`, either language) |
+| A saved title after the rename: a page loads (on a one-time `?setup` load) a save whose drake has title 189 under its old Ukrainian name; the save and `!стата` show «Герб чи число»; after a reload (once `storageSettled` sees the game's own save) they still do; in English `!stats` says "Heads or Tails" | A save keeping a title's old name (`migrateOldSaves` not refreshing titles from `TITLES_DB`), or the old name coming back after a reload |
 | Old-save migration: a second page loads a save from before the Green Drake, then reloads | Viewers' `'white'` not becoming `'green'` (with XP kept), the streamer's dragon being converted, title 999 left on a non-dragon, or a second load changing the save again (not idempotent) |
 | Streamer card: a third page, in both languages. Before the streamer has a drake, the greyed-out dragon; after `!дрейк білий`, the dragon at 120×84; after `!рерол червоний` (a channel-point redemption, as chat sends it), the red sprite at an exact 2× (96×72) centred in the same 120×84 slot, the text column where it was, the label naming the red drake; after `!рерол білий`, the dragon again. The Ukrainian run saves `showcase-streamer-card-dragon.png` and `showcase-streamer-card-red.png` of the side column | The card drawing the White Dragon whatever drake the streamer has, a drake stretched to the dragon's 120×84, or the text column moving with the sprite |
 
@@ -621,11 +645,12 @@ Requires Node 18+ (CI uses Node 22).
 npm ci
 npx playwright install chromium        # once; CI adds --with-deps for Linux system libraries
 
-npm test                               # effect rules, then balance: element matrix, title tiers, level gaps
+npm test                               # banned words, effect rules, then balance: element matrix, title tiers, level gaps
+npm run test:banned-words              # no banned Ukrainian word in any tracked file (~1 s)
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
 npm run test:rules                     # the game rules: whole HP, chat commands, no rest, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 112 ways, check effects.js / ultimates.js / rules.js catch each
+npm run test:mutations                 # break the game 115 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)

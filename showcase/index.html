@@ -2512,7 +2512,7 @@ function drakeSpriteURL(type) {
             { id: 186, rarity: 'mythic', icon: '🍷', name: { uk: "Граф Дракула чату", en: "Count Dracula of Chat" }, bonus: { type: 'unique', mechanic: 'lifesteal', stats: { hp: 15, crit: 8, hpPerLevel: 1.1 } } },
             { id: 187, rarity: 'mythic', icon: '⚰️', name: { uk: "Добивач на 1 HP", en: "1 HP Finisher" }, bonus: { type: 'unique', mechanic: 'executioner', stats: { crit: 12, hp: 20, hpPerLevel: 1.1 } } },
             { id: 188, rarity: 'mythic', icon: '🪓', name: { uk: "Кат лоу-хп", en: "Low-HP Executioner" }, bonus: { type: 'unique', mechanic: 'executioner', stats: { crit: 12, hp: 20, hpPerLevel: 1.1 } } },
-            { id: 189, rarity: 'meme', icon: '🪙', name: { uk: "Орел чи решка", en: "Heads or Tails" }, bonus: { type: 'unique', mechanic: 'coin_flip', stats: { hp: 20 } } },
+            { id: 189, rarity: 'meme', icon: '🪙', name: { uk: "Герб чи число", en: "Heads or Tails" }, bonus: { type: 'unique', mechanic: 'coin_flip', stats: { hp: 20 } } },
             { id: 190, rarity: 'meme', icon: '🥔', name: { uk: "Картопля Шредінгера", en: "Schrödinger's Potato" }, bonus: { type: 'unique', mechanic: 'coin_flip', stats: { hp: 20 } } },
             { id: 191, rarity: 'meme', icon: '😴', name: { uk: "Заснув на стрімі", en: "Fell Asleep on Stream" }, bonus: { type: 'unique', mechanic: 'sleepy', stats: { hp: 5 } } },
             { id: 192, rarity: 'meme', icon: '🦥', name: { uk: "Лінивець-берсерк", en: "Berserk Sloth" }, bonus: { type: 'unique', mechanic: 'sleepy', stats: { hp: 5 } } },
@@ -4624,8 +4624,8 @@ function drakeSpriteURL(type) {
                     } else if (atkMech === 'coin_flip') {
                         const heads = Math.random() < 0.5;
                         baseDmg *= heads ? MECH.coinHigh : MECH.coinLow;
-                        logExtra += heads ? (currentLang === 'uk' ? `🪙 Орел! (×${MECH.coinHigh}) ` : `🪙 Heads! (×${MECH.coinHigh}) `)
-                                          : (currentLang === 'uk' ? `🪙 Решка... (×${MECH.coinLow}) ` : `🪙 Tails... (×${MECH.coinLow}) `);
+                        logExtra += heads ? (currentLang === 'uk' ? `🪙 Герб! (×${MECH.coinHigh}) ` : `🪙 Heads! (×${MECH.coinHigh}) `)
+                                          : (currentLang === 'uk' ? `🪙 Число... (×${MECH.coinLow}) ` : `🪙 Tails... (×${MECH.coinLow}) `);
                         fvNote('coin', heads ? MECH.coinHigh : MECH.coinLow);
                     } else if (atkMech === 'sleepy') {
                         if (Math.random() < MECH.sleepChance) { baseDmg = 0; logExtra += currentLang === 'uk' ? `😴 Проспав хід! ` : `😴 Slept through the turn! `; fvNote('sleep'); }
