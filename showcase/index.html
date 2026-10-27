@@ -4811,7 +4811,7 @@ function drakeSpriteURL(type) {
                         const thorn = Math.max(1, Math.round(finalDmg * MECH.thorns));
                         setHP(attacker, Math.max(0, hpOf(attacker) - thorn));
                         fvNote('thorns', thorn);
-                        logExtra += currentLang === 'uk' ? `🌵 Шипи: -${thorn} HP атакуючому! ` : `🌵 Thorns: -${thorn} HP to the attacker! `;
+                        logExtra += currentLang === 'uk' ? `🌵 Шипи: -${thorn} HP нападникові! ` : `🌵 Thorns: -${thorn} HP to the attacker! `;
                     }
                     if (finalDmg > 0 && titleMechanic(attacker) === 'lifesteal') {
                         const steal = Math.max(1, Math.round(healAmount(attacker, finalDmg * MECH.lifesteal)));

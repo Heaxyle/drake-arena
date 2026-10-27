@@ -27,7 +27,7 @@ The root `index.html` only redirects to `showcase/index.html` (for GitHub Pages)
 ## Rules
 - HP bars and fighter cards must NOT move when buffs/debuffs appear. Every card block has a fixed height; keep it that way.
 - Chat replies to viewers go to the info window (`addInfo`), not the battle log (`addLog`).
-- Ukrainian text: no Russian-origin slang or Russianisms where Ukrainian has its own word (titles 1, 4, 87, 146, 68, 50, 31 were renamed for this). A coin's sides are «герб» and «число» (title 189 «Герб чи число»; the coin-flip log «🪙 Герб!» / «🪙 Число...»), never the Russian-derived coin words. `tests/banned_words.js` lists the banned stems.
+- Ukrainian text: no Russian-origin slang or Russianisms where Ukrainian has its own word (titles 1, 4, 87, 146, 68, 50, 31 were renamed for this; the attacker is «нападник»). A coin's sides are «герб» and «число» (title 189 «Герб чи число»; the coin-flip log «🪙 Герб!» / «🪙 Число...»), never the Russian-derived coin words. `tests/banned_words.js` lists the banned stems.
 - Never break the transparent OBS layout (1920x1080, arena and side column on the right, the left column and the strip above the arena free for a camera and alerts).
 
 ## Testing — run after ANY mechanics change

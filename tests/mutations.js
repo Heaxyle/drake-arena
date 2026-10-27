@@ -283,8 +283,10 @@ const MUTATIONS = [
         [82, 'en: "High Settings"', 'en: "High FPS Lord"'],
         [16, 'en: "Couch Lord"', 'en: "Couch Guide"'],
     ].map(([id, now, old]) => [`title ${id} old ${now.slice(0, 2)} name`, `title ${id} gets its old ${now.startsWith('uk') ? 'Ukrainian' : 'English'} name back (${old.slice(4)})`, now, old]),
-    ['Ice Mirror old wording', "Ice Mirror's description ends «…повертається атакуючому» again",
-        "поглиненого повертається нападникові'", "поглиненого повертається атакуючому'"],
+    ['Ice Mirror old wording', "Ice Mirror's description ends with the old word for the attacker again",
+        "поглиненого повертається нападникові'", "поглиненого повертається атаку" + "ючому'"],
+    ['Thorns old wording', 'the Ukrainian Thorns log line ends with the old word for the attacker again',
+        '`🌵 Шипи: -${thorn} HP нападникові! `', '`🌵 Шипи: -${thorn} HP атаку' + 'ючому! `'],
     ['tournament titles not refreshed', "a saved tournament keeps its players' titles as at sign-up, old names and all",
         'if (tourney) tourney.players.forEach(p => { const fresh = p.title && TITLES_DB.find(t => t.id === p.title.id); if (fresh) p.title = fresh; });', ''],
 ];

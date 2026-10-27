@@ -851,8 +851,28 @@ for (const lang of ['en', 'uk']) {
     const fps = G.TITLES_DB.filter(x => /FPS/.test(x.name.uk) || /FPS/.test(x.name.en)).map(x => x.id);
     check(fps.join() === '84', '22. id 84 «Магістр FPS» is the only title with FPS in its name', JSON.stringify(fps));
     const mirrorUk = G.describeUltimate('mirror', 'uk');
-    check(G.CLASS_ULTIMATES.mirror.desc.uk.endsWith('повертається нападникові') && mirrorUk.endsWith('повертається нападникові') && !/атакуюч/.test(mirrorUk),
+    check(G.CLASS_ULTIMATES.mirror.desc.uk.endsWith('повертається нападникові') && mirrorUk.endsWith('повертається нападникові') && !mirrorUk.includes('атаку' + 'юч'),
         `22. Ice Mirror's description, as written and as the game fills it in: «…${mirrorUk.slice(-60)}»`, `${G.CLASS_ULTIMATES.mirror.desc.uk} | ${mirrorUk}`);
+
+    // Thorns in the Ukrainian log: «🌵 Шипи: -N HP нападникові!» (a duel against a thorns title, on its own seeded
+    // Math.random so the rest of the run plays the same fights)
+    {
+        fresh();
+        G.setLang('uk');
+        const keep = Math.random; Math.random = mulberry32(183);
+        const thorns = [];
+        try {
+            make('ta', 'red', { level: 5 }); make('tb', 'blue', { level: 5, title: G.TITLES_DB.find(x => x.id === 183) });
+            for (let i = 0; i < 4 && !thorns.length; i++) {
+                logs = [];
+                G.say('ta', '!бій @tb'); G.say('tb', '!прийняти');
+                __drain();
+                thorns.push(...logs.filter(l => l.includes('🌵 Шипи')));
+            }
+        } finally { Math.random = keep; }
+        check(thorns.length && thorns.every(l => /🌵 Шипи: -\d+ HP нападникові!/.test(l)) && !thorns.some(l => l.includes('атаку' + 'юч')),
+            `22. Thorns in the Ukrainian log: «${(thorns[0] || '').match(/🌵[^!]*!/)}»`, JSON.stringify(thorns.slice(0, 2)));
+    }
 
     // A save from before the rename (title 31 under its old name): the load-time migration gives it the new name
     fresh();
