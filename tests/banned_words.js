@@ -11,6 +11,17 @@ const { execFileSync } = require('child_process');
 
 const BANNED = [
     { stem: 'решк', why: '«орел чи решка» comes from Russian imperial coins; the Ukrainian coin sides are «герб» and «число»' },
+    { stem: 'задрот', why: 'Russian gamer slang; «трайхардер»' },
+    { stem: 'душніл', why: 'the Russian slang «душнила» in Ukrainian letters; «буквоїд»' },
+    { stem: 'душнил', why: 'Russian slang; «буквоїд»' },
+    { stem: 'атаку' + 'юч', why: 'a Russian-style participle («атакующий»); «нападник», «нападникові»' },
+    // «прикол» (a joke, slang) shares its letters with «приколоти» (to pin): its own forms only. The bare «прикол»,
+    // «приколи» and «приколі» can't be told from the verb («приколи», «приколіть») by letters alone
+    ...['прикола', 'приколу', 'приколом', 'приколів', 'приколам', 'приколах', 'прикольн'].map(stem =>
+        ({ stem, why: 'Russian slang «прикол»; «жарт»' })),
+    // «катка» (a match, slang) has nearly every form in common with «каток» (a roller, a skating rink): only the two
+    // that «каток» lacks
+    ...['катці', 'каткою'].map(stem => ({ stem, why: 'Russian gamer slang «катка»; «матч», «гра»' })),
 ];
 
 const ROOT = path.join(__dirname, '..');
@@ -22,7 +33,13 @@ const find = text => {
     const low = text.toLowerCase();
     return BANNED.filter(b => low.includes(b.stem));
 };
-const selfTest = [['Р' + 'ЕШКА', true], ['Орел чи р' + 'ешка', true], ['р' + 'ешкою', true], ['Герб чи число', false], ['Орел з вайфаєм', false]];
+const MUST_CATCH = ['РЕШКА', 'Орел чи решка', 'решкою', 'Сесійний задрот', 'задротом', 'Задротський', 'душніла', 'ДУШНІЛОЮ', 'душнилы',
+    'Директор з приколів', 'для приколу', 'приколом', 'без прикола', 'приколами', 'у приколах', 'прикольний', 'Прикольно',
+    'у катці', 'новою каткою', 'HP атаку' + 'ючому!', 'Атаку' + 'ючий'];
+const MUST_PASS = ['Герб чи число', 'Орел з вайфаєм', 'Сесійний трайхардер', 'буквоїд', 'душ', 'задушливий', 'задушила', 'душно',
+    'приколоти', 'приколов', 'приколола', 'прикололи', 'приколю', 'приколеш', 'приколіть', 'приколювати', 'приколотий',
+    'каток', 'біля катка', 'на катку', 'катком', 'катків', 'дорожні катки', 'ще один матч', 'Директор жартів', 'нападникові', 'атака', 'атакувати', 'атакує', 'атакуй'];
+const selfTest = [...MUST_CATCH.map(t => [t, true]), ...MUST_PASS.map(t => [t, false])];
 const broken = selfTest.filter(([text, hit]) => !!find(text).length !== hit);
 if (broken.length) {
     console.log(`✗ the matcher is wrong on: ${broken.map(([t]) => JSON.stringify(t)).join(', ')}`);
