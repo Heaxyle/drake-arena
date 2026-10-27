@@ -265,6 +265,28 @@ const MUTATIONS = [
         '`🪙 Герб! (×${MECH.coinHigh}) `', '`🪙 Heads! (×${MECH.coinHigh}) `'],
     ['coin tails reworded', "the Ukrainian log names the coin's other side with some other word",
         '`🪙 Число... (×${MECH.coinLow}) `', '`🪙 Монета... (×${MECH.coinLow}) `'],
+    // The renamed titles and Ice Mirror's wording (caught by rules.js 22). Old names with a banned stem are built from
+    // pieces, so tests/banned_words.js keeps the whole word out of this file
+    ...[
+        [1, 'uk: "Сесійний трайхардер"', 'uk: "Сесійний зад' + 'рот"'],
+        [4, 'uk: "Професійний буквоїд"', 'uk: "Професійний душ' + 'ніла"'],
+        [87, 'uk: "Легендарний буквоїд"', 'uk: "Легендарний душ' + 'ніла"'],
+        [146, 'uk: "Знову «ще один матч»"', 'uk: "Знову «ще одна катка»"'],
+        [68, 'uk: "Директор жартів"', 'uk: "Директор з при' + 'колів"'],
+        [50, 'uk: "Володар шкарпеток"', 'uk: "Володар носків"'],
+        [31, 'uk: "Володар капців"', 'uk: "Володар тапків"'],
+        [84, 'uk: "Магістр FPS"', 'uk: "Магістр ультра-настроїв"'],
+        [82, 'uk: "Підвищені налаштування"', 'uk: "Володар високих FPS"'],
+        [69, 'uk: "Володар хорор-ігор"', 'uk: "Володар хоррор-ігор"'],
+        [16, 'uk: "Диванний лорд"', 'uk: "Провідник дивану"'],
+        [84, 'en: "FPS Master"', 'en: "Ultra Settings Master"'],
+        [82, 'en: "High Settings"', 'en: "High FPS Lord"'],
+        [16, 'en: "Couch Lord"', 'en: "Couch Guide"'],
+    ].map(([id, now, old]) => [`title ${id} old ${now.slice(0, 2)} name`, `title ${id} gets its old ${now.startsWith('uk') ? 'Ukrainian' : 'English'} name back (${old.slice(4)})`, now, old]),
+    ['Ice Mirror old wording', "Ice Mirror's description ends «…повертається атакуючому» again",
+        "поглиненого повертається нападникові'", "поглиненого повертається атакуючому'"],
+    ['tournament titles not refreshed', "a saved tournament keeps its players' titles as at sign-up, old names and all",
+        'if (tourney) tourney.players.forEach(p => { const fresh = p.title && TITLES_DB.find(t => t.id === p.title.id); if (fresh) p.title = fresh; });', ''],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported

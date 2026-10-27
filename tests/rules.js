@@ -30,6 +30,8 @@
 //      every fight's HP left and max HP (ranked, duel, tournament game, simulation error)
 //   21 the coin flip in Ukrainian is «Герб» / «Число» (title 189 «Герб чи число», and the log lines it shares with
 //      «Картопля Шредінгера»); English stays Heads / Tails
+//   22 the renamed titles (Ukrainian names of 11, English of 3) and Ice Mirror's wording, pinned; a save and a saved
+//      tournament holding an old title name take the new one on load
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
@@ -57,6 +59,8 @@ eval(gameScript(FILE) + `
     get waitingDuel() { return typeof waitingDuel !== 'undefined' ? waitingDuel : undefined; },
     get running() { return isBattleRunning; }, set running(v) { isBattleRunning = v; },
     get streamer() { return STREAMER_USER; },
+    CLASS_ULTIMATES, describeUltimate, migrateOldSaves: () => migrateOldSaves(),
+    tourneyLoad: typeof tourneyLoad === 'function' ? () => tourneyLoad() : null, TOURNEY_KEY: typeof TOURNEY_KEY !== 'undefined' ? TOURNEY_KEY : null,
     get tourGame() { return typeof tourGame !== 'undefined' ? tourGame : null; },
     get tourney() { return typeof tourney !== 'undefined' ? tourney : undefined; },
     tourneyReset: () => { if (typeof tourney !== 'undefined') { tourney = null; tourGame = null; tourneySave(); } },
@@ -822,6 +826,52 @@ for (const lang of ['en', 'uk']) {
     const banners = G.fvT ? opener.map(x => G.fvT('opening', { title: `${x.icon} ${x.name[lang]}`, who: '@x', fx: 'FX' })) : [];
     check(opener.length && banners.every((b, i) => b.startsWith(opener[i].icon + ' ') && b.split(opener[i].icon).length === 2 && !b.includes('🌅 🌅')),
         `13. the opening banner shows the title's icon once: ${banners.slice(0, 2).join(' | ')}`, banners.join(' | ') || 'no banner template');
+}
+
+// 22. Renamed titles: each keeps its id, icon, rarity and bonus; only these names changed. Ice Mirror ends «…повертається
+// нападникові». Old names stay away from saves: migrateOldSaves refreshes a saved title, tourneyLoad a tournament's
+{
+    console.log('\n[22. renamed titles]');
+    const RENAMED = {
+        1: { uk: 'Сесійний трайхардер', en: 'Session Tryhard' },
+        4: { uk: 'Професійний буквоїд', en: 'Professional Nitpicker' },
+        87: { uk: 'Легендарний буквоїд', en: 'Legendary Nitpicker' },
+        146: { uk: 'Знову «ще один матч»', en: '"Just One More Match" Again' },
+        68: { uk: 'Директор жартів', en: 'Director of Jokes' },
+        50: { uk: 'Володар шкарпеток', en: 'Sock Lord' },
+        31: { uk: 'Володар капців', en: 'Slipper Lord' },
+        84: { uk: 'Магістр FPS', en: 'FPS Master' },
+        82: { uk: 'Підвищені налаштування', en: 'High Settings' },
+        69: { uk: 'Володар хорор-ігор', en: 'Horror Game Lord' },
+        16: { uk: 'Диванний лорд', en: 'Couch Lord' },
+    };
+    const wrong = Object.entries(RENAMED).map(([id, want]) => [id, want, G.TITLES_DB.find(x => x.id === +id)])
+        .filter(([, want, t]) => !t || t.name.uk !== want.uk || t.name.en !== want.en).map(([id, want, t]) => `${id}: ${JSON.stringify(t && t.name)}`);
+    check(!wrong.length, `22. the 11 renamed titles: ${Object.entries(RENAMED).map(([id, n]) => `${id} «${n.uk}»`).join(', ')}; English "FPS Master" (84), "High Settings" (82), "Couch Lord" (16)`, wrong.join('; '));
+    const fps = G.TITLES_DB.filter(x => /FPS/.test(x.name.uk) || /FPS/.test(x.name.en)).map(x => x.id);
+    check(fps.join() === '84', '22. id 84 «Магістр FPS» is the only title with FPS in its name', JSON.stringify(fps));
+    const mirrorUk = G.describeUltimate('mirror', 'uk');
+    check(G.CLASS_ULTIMATES.mirror.desc.uk.endsWith('повертається нападникові') && mirrorUk.endsWith('повертається нападникові') && !/атакуюч/.test(mirrorUk),
+        `22. Ice Mirror's description, as written and as the game fills it in: «…${mirrorUk.slice(-60)}»`, `${G.CLASS_ULTIMATES.mirror.desc.uk} | ${mirrorUk}`);
+
+    // A save from before the rename (title 31 under its old name): the load-time migration gives it the new name
+    fresh();
+    const slipper = G.TITLES_DB.find(x => x.id === 31);
+    const db = G.getDragonDB();
+    db.oldsave = { name: 'oldsave', color: '#fff', drakeObj: DRAKE.red, title: { ...slipper, name: { uk: 'Володар тапків', en: 'Slipper Lord' } }, xp: 0, level: 1 };
+    G.saveDragonDB(db);
+    G.migrateOldSaves();
+    const saved = G.getDragonDB().oldsave.title.name;
+    check(saved.uk === 'Володар капців' && saved.en === 'Slipper Lord', '22. a save holding title 31 under its old name «Володар тапків» takes «Володар капців» on load', JSON.stringify(saved));
+    // A tournament saved before the rename keeps each player's title as at sign-up: on load it takes the new name too
+    if (G.tourneyLoad) {
+        const socks = G.TITLES_DB.find(x => x.id === 50);
+        localStorage.setItem(G.TOURNEY_KEY, JSON.stringify({ phase: 'signup', size: 4, players: [{ name: 'gone', color: '#fff', drakeObj: DRAKE.red, title: { ...socks, name: { uk: 'Володар носків', en: 'Sock Lord' } } }] }));
+        G.tourneyLoad();
+        const t = G.tourney && G.tourney.players[0].title.name;
+        check(t && t.uk === 'Володар шкарпеток' && t.en === 'Sock Lord', '22. a saved tournament whose player has title 50 under its old name «Володар носків» shows «Володар шкарпеток» once loaded', JSON.stringify(t));
+    }
+    fresh();
 }
 
 console.log(failures ? `\n${failures} rule check(s) failed.` : '\nAll rule checks passed.');

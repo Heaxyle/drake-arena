@@ -122,11 +122,12 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | **Tournament prizes**: the podium of a rigged 4-player tournament gets the badges, one medal each, 3 / 2 / 1 free title spins and a Hall of Fame entry; the Top shows 🏆 after the champion and 🥈 after the runner-up (none for a player off the podium); `!stats` shows the badge, "🏆×1 🥈×0 🥉×0" and the spins; `!title` in chat uses a spin ("2 left"), a channel-point `!title` doesn't, and with none the usual "channel points only" reply; a cancelled tournament gives nothing; the next tournament takes the badges while medals and spins add up; `!hall` lists both, the latest first, and who has won the most | Spins spent by channel points, free rolls without spins, medals or spins reset, badges kept forever |
 | "!battle" with no name, even mid-fight, replies "ℹ️ @x, to challenge someone type !battle @name." | No reply |
 | The opening-buff banner shows the title's icon once | "🌅 🌅 Woke Up Swinging" |
+| **Renamed titles** (once, not per language): the Ukrainian names of titles 1, 4, 87, 146, 68, 50, 31, 84, 82, 69 and 16 and the English names of 84, 82 and 16, exactly; only 84 has FPS in its name; Ice Mirror's description ends «…повертається нападникові», as written and as filled in; a save holding title 31 under its old name takes the new one from `migrateOldSaves`, and a saved tournament holding title 50 under its old name takes it from `tourneyLoad` | An old name or the old wording put back; a renamed title kept under its old name in a save or a saved tournament |
 | **The coin flip's words**: title 189 is «Герб чи число» in Ukrainian, "Heads or Tails" in English; duels with title 189 and with «Картопля Шредінгера» (the other coin-flip title) log «🪙 Герб!» and «🪙 Число...» in Ukrainian, "🪙 Heads!" and "🪙 Tails..." in English, and no other coin words (its own seeded `Math.random`, so the rest of the run plays the same fights) | The old Russian-derived coin words coming back, English in the Ukrainian log, or a new word for one side |
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 115 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, underdog XP, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, and 113–115 the coin flip's Ukrainian words:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 131 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, underdog XP, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, and 116–131 the renamed titles, Ice Mirror's wording and the saved tournament's title refresh:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -245,6 +246,22 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 113 | Title 189 shows its English name in Ukrainian | `rules.js` 21 (2 checks) | `{"uk":"Heads or Tails","en":"Heads or Tails"}` |
 | 114 | The Ukrainian log says "Heads!" for the coin flip | `rules.js` 21 (1 check) | `{"189":{"heads":false,"tails":true,…` |
 | 115 | The Ukrainian log names the coin's other side with some other word | `rules.js` 21 (1 check) | `{"189":{"heads":true,"tails":false,…` |
+| 116 | Title 1 gets its old Ukrainian name back (the Russian gamer slang for a tryhard) | `rules.js` 22 (1 check) | the renamed-titles check, which prints that id's name |
+| 117 | Title 4 gets its old Ukrainian name back (the Russian slang for a nitpicker) | `rules.js` 22 (1 check) | the renamed-titles check, which prints that id's name |
+| 118 | Title 87 gets its old Ukrainian name back (the same slang) | `rules.js` 22 (1 check) | the renamed-titles check, which prints that id's name |
+| 119 | Title 146 gets its old Ukrainian name back (the Russian gamer slang for a match) | `rules.js` 22 (1 check) | the renamed-titles check, which prints that id's name |
+| 120 | Title 68 gets its old Ukrainian name back (the Russian slang for jokes) | `rules.js` 22 (1 check) | the renamed-titles check, which prints that id's name |
+| 121 | Title 50 gets its old Ukrainian name back («Володар носків») | `rules.js` 22 (2 checks) | the renamed-titles check, and `a saved tournament whose player has title 50 under its old name …` |
+| 122 | Title 31 gets its old Ukrainian name back («Володар тапків») | `rules.js` 22 (2 checks) | the renamed-titles check, and `a save holding title 31 under its old name …` |
+| 123 | Title 84 gets its old Ukrainian name back («Магістр ультра-настроїв») | `rules.js` 22 (1 check) | the renamed-titles check, which prints that id's name |
+| 124 | Title 82 gets its old Ukrainian name back («Володар високих FPS») | `rules.js` 22 (2 checks) | the renamed-titles check, and `id 84 «Магістр FPS» is the only title with FPS in its name` (`[82,84]`) |
+| 125 | Title 69 gets its old Ukrainian spelling back («хоррор») | `rules.js` 22 (1 check) | the renamed-titles check, which prints that id's name |
+| 126 | Title 16 gets its old Ukrainian name back («Провідник дивану») | `rules.js` 22 (1 check) | the renamed-titles check, which prints that id's name |
+| 127 | Title 84 gets its old English name back ("Ultra Settings Master") | `rules.js` 22 (1 check) | the renamed-titles check, which prints that id's name |
+| 128 | Title 82 gets its old English name back ("High FPS Lord") | `rules.js` 22 (2 checks) | the renamed-titles check, and `id 84 «Магістр FPS» is the only title with FPS in its name` (`[82,84]`) |
+| 129 | Title 16 gets its old English name back ("Couch Guide") | `rules.js` 22 (1 check) | the renamed-titles check, which prints that id's name |
+| 130 | Ice Mirror's description ends with the old word for the attacker again | `rules.js` 22 (1 check) | `«…(решта проходить), а 60% поглиненого повертається атакуючому»` |
+| 131 | A saved tournament keeps its players' titles as at sign-up (no refresh in `tourneyLoad`) | `rules.js` 22 (1 check) | `{"uk":"Володар носків","en":"Sock Lord"}` |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -325,7 +342,7 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: opened without who
 …
 ✓ caught: no HP on a simulation error
-All 115 mutations caught.
+All 131 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -335,6 +352,13 @@ If a mutation's code is no longer in the game (after a refactor), the script say
 `banned_words.js` (the first step of `npm test`) lists word stems that must not appear in Ukrainian text, each with the reason. It reads every file git tracks (the game, the tests, the docs; not binaries, and not itself, the one place the stems are written out), matches each stem case-insensitively anywhere in a word, and prints every hit with its file and line. It checks its own matcher first, on text it must catch and text it must leave alone. Add a stem to `BANNED` to ban another word.
 
 The first entry is the stem of the second half of the Russian imperial coin phrase: the Ukrainian sides of a coin are «герб» and «число». «Орел» alone stays allowed (title 167, «Орел з вайфаєм», is an eagle). A test that has to use a banned word, such as `ui.js` loading a save from before the rename, builds it from pieces.
+
+The other entries ban Russian-origin slang: the gamer word for a tryhard, the word for a nitpicker (in Ukrainian and in Russian letters), the word for a joke and the gamer word for a match. The list matches plain substrings, so each stem must not appear inside a real word; the self-test checks the slang forms it must catch and real words it must leave alone. Two of them can only be partly covered:
+
+- **the slang for a joke** shares its letters with «приколоти» (to pin): the list has its other forms (genitive, instrumental, plural cases, the adjective), but not the bare word, its nominative plural or its locative, which read like the verb («приколи», «приколіть»);
+- **the slang for a match** has nearly every form in common with «каток» (a roller, a skating rink): only its locative and instrumental singular are listed.
+
+Catching those forms needs whole-word matching with some context, which the list doesn't do.
 
 ## Layer 1: balance simulation
 
@@ -650,7 +674,7 @@ npm run test:banned-words              # no banned Ukrainian word in any tracked
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
 npm run test:rules                     # the game rules: whole HP, chat commands, no rest, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 115 ways, check effects.js / ultimates.js / rules.js catch each
+npm run test:mutations                 # break the game 131 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run balance                        # quick per-element check (same as balance:showcase)
