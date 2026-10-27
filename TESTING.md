@@ -126,7 +126,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 115 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, , 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, and 39–49 flip each interaction choice:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 115 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, underdog XP, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, and 113–115 the coin flip's Ukrainian words:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -229,6 +229,22 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 97 | Medal counts start again at each tournament | `rules.js` 19 (2 checks) | `@ra's medals add up (1/0/1)` fails |
 | 98 | A new tournament's spins replace the ones left | `rules.js` 19 (2 checks) | `so do the spins (2 left + 1 = 3)` fails |
 | 99 | The first podium keeps the badges after the next tournament | `rules.js` 19 (2 checks) | `{"holders":["ra",…` |
+| 100 | The play log's `opened` event leaves out who opened sign-up | `rules.js` 20 (2 checks) | `sign-up in the play log: opened (4, by @mod1), each join and leave …` fails |
+| 101 | Each `joined` event logs the bracket size instead of how many have signed up | `rules.js` 20 (2 checks) | the same sign-up check |
+| 102 | Leaving sign-up (`!leave`) leaves no event in the play log | `rules.js` 20 (2 checks) | the same sign-up check (no `left` event) |
+| 103 | A sign-up closed by `!tournament start` is logged as `full` | `rules.js` 20 (2 checks) | `closed by @mod2's !tournament start (5 signed up, bracket 4, 1 qualifier game)` fails |
+| 104 | The `closed` event says 0 qualifier games whatever the draw | `rules.js` 20 (2 checks) | the same check |
+| 105 | A cancel mid-tournament is logged without the stage it stopped at | `rules.js` 20 (2 checks) | the same check (`cancelled by @mod1 during the qualifier game (running, qual, game 1)`) |
+| 106 | A sign-up cancelled after an earlier tournament was stopped mid-game is logged with that old game's stage (`tourGame` used whatever the phase) | `rules.js` 20 (2 checks) | `{"event":"cancelled","user":"mod3","phase":"signup","stage":"qual",…` |
+| 107 | The `podium` event lists 3rd place first | `rules.js` 20 (2 checks) | `… then the podium (🥇 @pc, …` |
+| 108 | Each fighter's max HP is logged on the other fighter | `rules.js` 20 (2 checks) | `the ranked one (@hb 79/189, @ha 0/259)` (the max HPs swapped) |
+| 109 | A ranked fight logs each fighter's HP left on the other one | `rules.js` 20 (2 checks) | `the ranked one (@hb 0/259, @ha 79/189)` (the winner at 0) |
+| 110 | A duel is logged without the HP left | `rules.js` 20 (2 checks) | `every fight's HP in the log: …` fails (the duel's `hpLeft` is null) |
+| 111 | A tournament game is logged without the HP left | `rules.js` 20 (4 checks) | `all 7 games … both players' max HP at level 20 and the HP left` fails |
+| 112 | A fight stopped by a simulation error is logged without the HP left | `rules.js` 20 (2 checks) | `every fight's HP in the log: …` fails (the error fight's `hpLeft` is null) |
+| 113 | Title 189 shows its English name in Ukrainian | `rules.js` 21 (2 checks) | `{"uk":"Heads or Tails","en":"Heads or Tails"}` |
+| 114 | The Ukrainian log says "Heads!" for the coin flip | `rules.js` 21 (1 check) | `{"189":{"heads":false,"tails":true,…` |
+| 115 | The Ukrainian log names the coin's other side with some other word | `rules.js` 21 (1 check) | `{"189":{"heads":true,"tails":false,…` |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
