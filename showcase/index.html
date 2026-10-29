@@ -1643,12 +1643,14 @@
         function startFight(p1Name, p1Color, p2Name, p2Color, isRanked, opts = {}) {
             clearForcedCast();
             tourGame = opts.tour || null;
+            if (opts.tour) arenaSetMatch(null);   // a tournament game resumes from the tournament's own save
             if (!FV_LIVE || (!opts.tour && !bettingWindowOn())) return runBattle(p1Name, p1Color, p2Name, p2Color, isRanked, { tour: opts.tour });
             const bets = !opts.tour || (!!opts.bets && bettingWindowOn());
             const windowMs = bets ? BETTING_WINDOW_MS : TOURNEY_GAP_MS;
             const show = (n, c) => { const d = (opts.tour && tourneyFighter(n)) || getDragonStrict(n) || getDragon(n, c); return { ...d, color: nameColor(d.color) }; };
             const a = show(p1Name, p1Color), b = show(p2Name, p2Color);
             if (bets) playBettingOpened = playNow();
+            if (!opts.tour) arenaSetMatch({ p1: p1Name, c1: p1Color, p2: p2Name, c2: p2Color, ranked: !!isRanked, stage: 'betting' });
             fv = { on: false, p1: a, p2: b, ranked: isRanked, betting: bets, items: [], stats: {}, rec: null, hold: null, lit: null };
             fvFeedReset();
             fvHead();
@@ -2869,7 +2871,8 @@ function drakeSpriteURL(type) {
                     return ids.get(n);
                 };
                 // New ids in the order players first appear: the log first, then the saves
-                events.forEach(e => { id(e.user); (e.players || []).forEach(p => id(p.name)); id(e.winner); (e.podium || []).forEach(id); });
+                events.forEach(e => { id(e.user); (e.players || []).forEach(p => id(p.name)); id(e.winner); (e.podium || []).forEach(id);
+                                      (e.queue || []).forEach(id); (e.duel || []).forEach(id); if (e.match) e.match.pair.forEach(id); });
                 Object.keys(drakes).sort().forEach(id);
                 Object.keys(stats).sort().forEach(id);
                 [...honours.holders, ...honours.hall.flatMap(e => e.podium), ...Object.keys(honours.medals), ...Object.keys(honours.spins)].forEach(id);
@@ -2889,7 +2892,9 @@ function drakeSpriteURL(type) {
                 failedWrites: playLogFailed, logError,
                 events: events.map(e => ({ ...e, ...(e.user !== undefined && { user: id(e.user) }), ...(e.winner !== undefined && { winner: id(e.winner) }),
                                            ...(e.players && { players: e.players.map(p => ({ ...p, name: id(p.name) })) }),
-                                           ...(e.podium && { podium: e.podium.map(id) }) })),
+                                           ...(e.podium && { podium: e.podium.map(id) }),
+                                           ...(e.queue && { queue: e.queue.map(id) }), ...(e.duel && { duel: e.duel.map(id) }),
+                                           ...(e.match && { match: { ...e.match, pair: e.match.pair.map(id) } }) })),
                 saves: {
                     streamer: STREAMER_USER ? id(STREAMER_USER) : null,
                     drakes: Object.fromEntries(Object.entries(drakes).map(([n, d]) => [id(n), { ...d, name: id(d.name || n) }])),
@@ -3458,9 +3463,11 @@ function drakeSpriteURL(type) {
                 let cColor = db[challenger] ? db[challenger].color : '#cccccc';
                 matchmakingQueue = matchmakingQueue.filter(u => u !== sender && u !== challenger);
                 updateQueueUI();
+                arenaSave();
                 // The arena is busy (a fight, or its result screen): the duel waits and starts after it
                 if (arenaBusy()) {
                     waitingDuel = { challenger, cColor, accepter: sender, aColor: senderColor };
+                    arenaSave();
                     addInfo(currentLang === 'uk'
                         ? `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> приймає виклик <b>@${challenger}</b>! Дуель почнеться після поточного бою.`
                         : `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> accepts <b>@${challenger}</b>'s challenge! The duel starts after the current fight.`, 'ok');
@@ -3493,6 +3500,7 @@ function drakeSpriteURL(type) {
                     return;
                 }
                 matchmakingQueue.push(sender);
+                arenaSave();
                 playLog('queue', { user: sender, joined: true, position: matchmakingQueue.length });
                 updateQueueUI();
                 let msg = currentLang === 'uk' ?
@@ -3582,6 +3590,7 @@ function drakeSpriteURL(type) {
                 if (diff < bestDiff) { bestDiff = diff; best = i; }
             });
             let p2Name = matchmakingQueue.splice(best, 1)[0];
+            arenaSave();
 
             isBattleRunning = true;
             updateQueueUI();
@@ -3620,6 +3629,7 @@ function drakeSpriteURL(type) {
             if (!resultHold) return false;
             clearTimeout(resultHold.timer);
             resultHold = null;
+            if (arenaMatch) arenaSetMatch(null);
             nextFight();
             return true;
         }
@@ -3627,10 +3637,52 @@ function drakeSpriteURL(type) {
         // (its next game; the ranked queue waits until it's over), then the ranked queue
         function nextFight() {
             if (arenaBusy()) return;
-            if (waitingDuel) { const d = waitingDuel; waitingDuel = null; startDuel(d.challenger, d.cColor, d.accepter, d.aColor); return; }
+            if (waitingDuel) { const d = waitingDuel; waitingDuel = null; arenaSave(); startDuel(d.challenger, d.cColor, d.accepter, d.aColor); return; }
             if (tourneyOn()) { tourneyNext(); return; }
             checkQueue();
             showBoardSync();   // nothing started: the sign-up board (while one is open) on the free arena
+        }
+        // The arena survives a reload (OBS restarts the browser source when its scene is hidden and shown, or on "Refresh
+        // cache"). Saved under ARENA_KEY on every change: the ranked queue in order, the waiting duel, and the ranked fight
+        // or duel on the arena with its stage ('betting', 'fight' or 'result'; tournament games resume from TOURNEY_KEY).
+        // On load (arenaResume, from initPage) a save under ARENA_RESUME_MS old brings the queue and the duel back and plays
+        // an interrupted match again from a fresh betting window (same pair, a new fight: nothing of it was counted yet); a
+        // match already on its result screen was counted and is over. An older save is dropped. No "db" or "stats" in the key
+        const ARENA_KEY = 'drake_arena_showcase_arena';
+        const ARENA_RESUME_MS = 10 * 60 * 1000;
+        let arenaMatch = null;   // { p1, c1, p2, c2, ranked, stage } while a ranked fight or a duel is on the arena
+        function arenaSave() {
+            try { localStorage.setItem(ARENA_KEY, JSON.stringify({ saved: Date.now(), queue: matchmakingQueue, duel: waitingDuel, match: arenaMatch })); } catch (e) {}
+        }
+        function arenaSetMatch(m) { arenaMatch = m; arenaSave(); }
+        function arenaResume() {
+            let s = null;
+            try { s = JSON.parse(localStorage.getItem(ARENA_KEY)); } catch (e) {}
+            const age = s && typeof s.saved === 'number' ? Date.now() - s.saved : null;
+            const fresh = age !== null && age >= 0 && age < ARENA_RESUME_MS;
+            if (s && !fresh) { try { localStorage.removeItem(ARENA_KEY); } catch (e) {} }
+            // Only players who still have a drake (a ladder wipe since the save takes the rest out)
+            const has = n => typeof n === 'string' && !!getDragonStrict(n);
+            const queue = fresh && Array.isArray(s.queue) ? s.queue.filter((n, i, q) => has(n) && q.indexOf(n) === i) : [];
+            const duel = fresh && s.duel && has(s.duel.challenger) && has(s.duel.accepter) ? s.duel : null;
+            const match = fresh && s.match && has(s.match.p1) && has(s.match.p2) && s.match.p1 !== s.match.p2 ? s.match : null;
+            const replay = match && match.stage !== 'result' ? match : null;
+            matchmakingQueue = queue;
+            waitingDuel = duel;
+            arenaMatch = null;
+            // Every page load, with what came back (restored: false for no save or one too old; ageMs: the save's age)
+            playLog('load', { saved: !!s, ageMs: age, restored: fresh, queue: [...queue], duel: duel ? [duel.challenger, duel.accepter] : null,
+                              match: match ? { pair: [match.p1, match.p2], kind: match.ranked ? 'ranked' : 'duel', stage: match.stage, replayed: !!replay } : null,
+                              tournament: tourney ? tourney.phase : null });
+            updateQueueUI();
+            if (!replay) { if (fresh) arenaSave(); return; }
+            isBattleRunning = true;
+            fightRecordReset();
+            startFight(replay.p1, replay.c1, replay.p2, replay.c2, !!replay.ranked);
+            const who = n => `<span style="color: ${nameColor((getDragonStrict(n) || {}).color || '#cccccc')}; font-weight: bold;">@${n}</span>`;
+            addInfo(currentLang === 'uk'
+                ? `🔄 Арену перезапущено: бій ${who(replay.p1)} — ${who(replay.p2)} починається знову.`
+                : `🔄 The arena restarted: ${who(replay.p1)} vs ${who(replay.p2)} starts again.`, 'warn');
         }
         // Tournament watchdog: while a tournament is on, something always follows on the arena (a game, the podium), so
         // it never sits free for long. If it has been free for TOURNEY_WATCHDOG_MS anyway, a step failed to call
@@ -4319,6 +4371,7 @@ function drakeSpriteURL(type) {
             let p1 = (opts.tour ? tourneyFighter(p1Name) : getDragonStrict(p1Name)) || getDragon(p1Name, p1Color);
             let p2 = (opts.tour ? tourneyFighter(p2Name) : getDragonStrict(p2Name)) || getDragon(p2Name, p2Color);
             playFightStart(p1.name, p2.name, isRanked, opts);
+            arenaSetMatch(opts.tour ? null : { p1: p1Name, c1: p1Color, p2: p2Name, c2: p2Color, ranked: !!isRanked, stage: 'fight' });
             // Display copies: names drawn in the log and on the cards get a readable brightness (saves are untouched)
             p1 = { ...p1, color: nameColor(p1.color) };
             p2 = { ...p2, color: nameColor(p2.color) };
@@ -4880,6 +4933,7 @@ function drakeSpriteURL(type) {
                 } catch (error) {
                     clearInterval(battleInterval);
                     isBattleRunning = false;
+                    arenaSetMatch(null);
                     fvAbort();
                     playFightEnd({ result: 'error', winner: null, turns: turn, error: String(error && error.message) }, null, { [p1.name]: p1HP, [p2.name]: p2HP });
                     let errorMsg = currentLang === 'uk' ?
@@ -4996,6 +5050,8 @@ function drakeSpriteURL(type) {
                 holdResult();
                 return;
             }
+            // On the result screen the match is over (counted below): a reload from here on doesn't play it again
+            if (arenaMatch) arenaSetMatch({ ...arenaMatch, stage: 'result' });
 
             if (!isRanked) {
                 if (!winner) {
@@ -5687,7 +5743,9 @@ function drakeSpriteURL(type) {
             fvPopulateTestMenu();
             fitStage();
             showHallOfFame();   // the idle arena: the Hall of Fame (once there is one) instead of «Арена готова!»
+            arenaResume();      // first: a match interrupted before a tournament's first game is played before it
             tourneyResume();
+            if (!tourneyOn()) nextFight();   // a restored queue or duel with nothing on the arena carries on (a tournament: tourneyResume's job)
         }
         document.addEventListener('DOMContentLoaded', initPage);
 

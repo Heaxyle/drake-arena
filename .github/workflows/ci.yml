@@ -47,6 +47,10 @@ jobs:
       # The play log: what fights, title rolls, element changes and !черга record, the export (ids, not names), a failing IndexedDB
       - name: Play log test
         run: npm run test:playlog
+
+      # Reloads (as OBS restarts the source) in the betting window, mid-fight and on the result screen; an old save
+      - name: Reload test
+        run: npm run test:resume
       # Sign-up, a whole 8-player tournament, a reload mid-match, byes and cancel, on the fake clock
       - name: Tournament test
         run: npm run test:tournament
