@@ -11,11 +11,15 @@
 //     whoever waited longer), in the order the "Далі в черзі" strip shows; an underdog's bonus XP on the result card;
 //     the Top by wins − losses (then wins, then level)
 //   - Every turn of several real fights: one card per attack in the attacker's column, the highlight on the attacker,
-//     the damage number on the target's card, the whole turn animation finished inside the turn, no card past 2 lines
+//     the damage number on the target's card, the whole turn animation finished inside the turn, nothing cut off
 //   - Every effect from the test menu's "next hit casts" picker, every ultimate from its СИЛА button, every Jackpot
 //     outcome (including a miss): the card text and the fighter-card chip
 //   - The result card's numbers against the fight's own cards; level-up messages against the game's numbers
 //   - After several fights the log holds only the current fight; no internal ids anywhere; worst-case cards fit
+//   - Nothing on a card is ever hidden (nobody can hover or scroll on stream): a second line that doesn't fit at 90% shows
+//     its lower-priority items compact (icon and number), after what the attack did, and only then grows to a third line;
+//     never "+N". The busiest turn there can be shows every item in both languages, nothing cut off, on the review sheet
+//     and as the newest card in the live log at 1920×1080
 //   - The log scrolls: a 30-turn fight keeps every row and its top is reachable; scrolled up, the view stays still while
 //     turns arrive and "↓ нові ходи (N)" counts them; back at the bottom (or the pill) it follows again; 15 s untouched
 //     during a fight brings it back; the result screen scrolls from the intro banner to the result card and stays put
@@ -35,7 +39,7 @@ const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
 const TURN = 4500, HIT = 600;
-// FV_ONLY=2,4 runs only those sections (0–9, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
+// FV_ONLY=2,4 runs only those sections (0–11, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
 const ONLY = (process.env.FV_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
 
@@ -54,6 +58,7 @@ async function open(browser, { lang = 'uk', betting = false, width = 1920, heigh
     await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
     await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));
     await page.addInitScript(pageInit, SEED);
+    await page.addInitScript({ content: [busiestRecs, cardShowsAll].map(f => `window.${f.name} = ${f};`).join('\n') });   // page-side helpers (below)
     if (betting) await page.addInitScript(() => localStorage.setItem('drake_arena_showcase_betting', '1'));
     await page.goto(`${PAGE}?lang=${lang}`);
     await page.evaluate(() => document.fonts.ready);
@@ -91,39 +96,93 @@ function arenaNow() {
         textLog: window.__fightLog.slice() };
 }
 
-// Cards that wrap past two lines, or text cut off inside them (squeezed text measured as drawn)
+// Cards with anything hidden or cut off (squeezed text measured as drawn). A card is 58 px (76 with an ultimate's
+// header) with a one-line second line; one whose second line wraps (.wrap) grows (.l3), and so does its row (.tall),
+// every card of the row as tall as the row. Every chip and word of a second line lies inside it, so nothing is clipped;
+// it is never drawn below 90%; there is no "+N"
 function cardFitProblems() {
     const out = [];
     const sw = document.getElementById('stage').getBoundingClientRect().width, k = sw ? sw / 1920 : 1;   // the review sheet hides the stage
     const width = el => { const sq = el.querySelector(':scope > .squeeze'), cs = getComputedStyle(el);
         return sq ? Math.ceil(sq.getBoundingClientRect().width / k + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)) : el.scrollWidth; };
+    const inside = (l2, what) => {
+        const b = l2.getBoundingClientRect();
+        l2.querySelectorAll('.lk, .lx').forEach(x => { const r = x.getBoundingClientRect();
+            if (r.left < b.left - 1 || r.right > b.right + 1 || r.top < b.top - 1 || r.bottom > b.bottom + 1) out.push(`hidden: "${x.textContent}" on ${what}`); });
+        if (l2.querySelector('.lk.more') || [...l2.querySelectorAll('.lk')].some(x => /^\+\d+$/.test(x.textContent.trim()))) out.push(`"+N" on ${what}`);
+    };
     document.querySelectorAll('#log-feed .lc, #review-sheet .lc').forEach(c => {
+        const what = `card "${c.textContent.slice(0, 40)}"`;
         const lines = [...c.children].filter(x => !x.classList.contains('lc-glow'));
-        const want = c.classList.contains('has-ult') ? 3 : 2;
-        if (lines.length !== want) out.push(`card ${c.textContent.slice(0, 40)}: ${lines.length} lines`);
-        const h = c.getBoundingClientRect().height / k;
-        if (Math.abs(h - (want === 3 ? 76 : 58)) > 0.5) out.push(`card "${c.textContent.slice(0, 40)}" is ${h}px tall`);
+        const want = c.classList.contains('has-ult') ? 3 : 2, base = want === 3 ? 76 : 58;
+        if (lines.length !== want) out.push(`${what}: ${lines.length} lines`);
+        const h = c.getBoundingClientRect().height / k, row = c.closest('.log-row'), tall = !!row && row.classList.contains('tall');
+        if (!tall && Math.abs(h - base) > 0.5) out.push(`${what} is ${h}px tall`);
+        if (tall && (h < base - 0.5 || Math.abs(h - row.getBoundingClientRect().height / k) > 0.5)) out.push(`${what} is ${h}px tall in a ${row.getBoundingClientRect().height / k}px row`);
+        const l2 = c.querySelector('.lc-l2'), wrapped = !!l2 && l2.classList.contains('wrap');
+        if (wrapped !== c.classList.contains('l3') || (wrapped && !tall)) out.push(`${what}: a wrapped second line without .l3 and .tall`);
         lines.forEach(l => {
             if (width(l) > l.clientWidth + 1) out.push(`cut off: "${l.textContent.slice(0, 60)}" ${width(l)} > ${l.clientWidth}`);
-            if (l.scrollHeight > l.clientHeight + 1) out.push(`wraps: "${l.textContent.slice(0, 60)}"`);
+            if (!(l === l2 && wrapped) && l.scrollHeight > l.clientHeight + 1) out.push(`wraps: "${l.textContent.slice(0, 60)}"`);
         });
         // Second lines are never drawn below 90% of their normal size (font size × any sideways squeeze)
-        const l2 = c.querySelector('.lc-l2');
         if (l2) {
             const sq = l2.querySelector(':scope > .squeeze');
             const squeeze = sq ? +(/scaleX\(([\d.]+)\)/.exec(sq.style.transform) || [0, 1])[1] : 1;
             const scale = parseFloat(getComputedStyle(l2).fontSize) / 12 * squeeze;
             if (scale < 0.9 - 1e-6) out.push(`second line at ${Math.round(scale * 100)}%: "${l2.textContent.slice(0, 60)}"`);
-            const more = l2.querySelector('.lk.more');
-            if (more && (!/^\+\d+$/.test(more.textContent) || [...l2.querySelectorAll('.lk')].pop() !== more)) out.push(`"+N" isn't the last chip: "${l2.textContent.slice(0, 60)}"`);
+            inside(l2, what);
         }
         c.querySelectorAll('.lc-move').forEach(m => { if (width(m) > m.clientWidth + 1) out.push(`move name cut off: "${m.textContent}"`); });
     });
     document.querySelectorAll('#log-feed .lc-cell:not(.empty), #review-sheet .lc-cell:not(.empty), #log-feed .log-banner, #review-sheet .log-banner').forEach(c => {
         if (width(c) > c.clientWidth + 1) out.push(`cut off: "${c.textContent.slice(0, 60)}"`);
+        const l2 = c.querySelector('.lc-l2');
+        if (l2) {
+            inside(l2, `"${c.textContent.slice(0, 40)}"`);
+            const b = c.getBoundingClientRect(), r = l2.getBoundingClientRect();
+            if (r.top < b.top - 1 || r.bottom > b.bottom + 1) out.push(`cut off by its cell: "${l2.textContent.slice(0, 60)}"`);
+        }
     });
     return out;
 }
+
+// The busiest turn there can be, as a turn record (page side: atk, def, the defender's colour for the arrow). Left: an
+// ultimate (Shadow Theft taking two buffs and losing one of its own), a crit in sudden death, armour-piercing, a vampire
+// heal, the defender's Blue reflect and Thorns title, the attacker's Chaotic charge title with its extra debuff, three
+// start-of-turn ticks, two effects counted down and a cast replacing a debuff. Right: a crowded card without an ultimate
+// (Gold's fortune, the coin flip, Thorns, two ticks, two counted down, two casts)
+function busiestRecs(A, B) {
+    const rec = (turn, atk, def, extra) => Object.assign({ turn, atk, def, side: turn % 2 ? 'left' : 'right', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: null, frozen: false }, extra);
+    const atk = (type, sub, dmg, more = {}) => Object.assign({ type, sub, dmg, crit: false, block: false, shadow: false, miss: false, pierce: false, sd: 0 }, more);
+    return {
+        left: (turn) => rec(turn, A, B, { ult: { id: 'theft', taken: ['shield', 'blessing'], lost: ['regen'] }, attack: atk('vampire', 'sneaky', 87, { crit: true, pierce: true, sd: 2.8 }),
+            notes: { vamp: 43, reflect: 13, thorns: 4, chaos: true }, ticks: [{ id: 'burn', v: -12 }, { id: 'poison', v: -7 }, { id: 'regen', v: 19 }], used: ['rage', 'mark'],
+            casts: [{ owner: B, id: 'frost', result: 'replaced', extra: 'weakness' }, { owner: B, id: 'poison', result: 'applied' }] }),
+        right: (turn) => rec(turn, B, A, { attack: atk('physical', 'heavy', 64, { crit: true, sd: 3.1 }), notes: { fortune: true, coin: 1.5, thorns: 6 },
+            ticks: [{ id: 'burn', v: -9 }, { id: 'regen', v: 14 }], used: ['blessing', 'shield'],
+            casts: [{ owner: A, id: 'mark', result: 'applied' }, { owner: B, id: 'rage', result: 'refreshed' }] }),
+    };
+}
+// What a painted card shows against what it has (page side): every chip of the card as fvCardHtml writes it must be on
+// the card, in full or in its compact form (data-c); a card whose line didn't fit (compact chips, or wrapped) shows what
+// the attack did (the chips outside a priority group) first, in full and in order. Returns the problems, the second
+// line's chips, how many are compact and how many lines the second line takes (the game's own fvLineCount)
+function cardShowsAll(el, rec, side, lang) {
+    const keep = currentLang; currentLang = lang;
+    const box = document.createElement('div'); box.innerHTML = fvCardHtml(rec, side);
+    currentLang = keep;
+    const want = [...box.querySelectorAll('.lc-l2 .lk')].map(k => ({ text: k.textContent, c: k.dataset.c, first: !k.closest('.lg') }));
+    const got = [...el.querySelectorAll('.lc-l2 .lk')].map(k => k.textContent);
+    const out = [], left = [...got];
+    want.forEach(w => { const i = left.findIndex(g => g === w.text || (w.c !== undefined && g === w.c)); if (i === -1) out.push(`missing "${w.text}"`); else left.splice(i, 1); });
+    if (left.length) out.push(`extra ${JSON.stringify(left)}`);
+    const l2 = el.querySelector('.lc-l2'), compact = el.querySelectorAll('.lc-l2 .lk.compact').length, wrap = l2.classList.contains('wrap');
+    const firsts = want.filter(w => w.first).map(w => w.text);
+    if ((compact || wrap) && got.slice(0, firsts.length).join('|') !== firsts.join('|')) out.push(`what the attack did isn't first and in full: ${JSON.stringify(got.slice(0, firsts.length))} vs ${JSON.stringify(firsts)}`);
+    return { out, got, lines: fvLineCount(l2), compact, wrap };
+}
+
 
 // Animations in the arena that are still running, and how long until the last one ends (ms)
 function animationTail() {
@@ -775,7 +834,7 @@ async function popAtStep2(page, turn) {
                     fv = { on: true, p1: A, p2: B, ranked: true, betting: false, items: [], stats: { [A.name]: { dmg: 228, max: 61, crits: 3 }, [B.name]: { dmg: 148, max: 38, crits: 1 } }, rec: null, hold: null, lit: null };
                     const rec = (turn, atk, def, extra) => Object.assign({ turn, atk, def, side: turn % 2 ? 'left' : 'right', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: null, frozen: false }, extra);
                     const atk = (type, sub, dmg, more = {}) => Object.assign({ type, sub, dmg, crit: false, block: false, shadow: false, miss: false, pierce: false, sd: 0 }, more);
-                    const add = (item) => { item.el = document.createElement('div'); box.appendChild(item.el); fvPaint(item); };
+                    const add = (item) => { item.el = document.createElement('div'); box.appendChild(item.el); fvPaint(item); (window.__sheet = window.__sheet || []).push({ item, lang }); };
                     const row = (l, r) => add({ type: 'row', cells: { left: l, right: r } });
                     const card = r => ({ k: 'card', rec: r });
                     add({ type: 'banner', kind: 'intro', data: {} });
@@ -809,6 +868,9 @@ async function popAtStep2(page, turn) {
                     row(card(rec(23, W, B, { attack: atk('physical', 'heavy', 1949998, { crit: true, sd: 3.4 }), notes: { wrath: true } })),
                         card(rec(24, B, W, { attack: atk('vampire', 'heavy', 0, { block: true, sd: 3.7 }), notes: { sovereign: true }, ticks: [{ id: 'burn', v: -12 }, { id: 'poison', v: -7 }, { id: 'regen', v: 19 }],
                             used: ['weakness', 'blessing'], casts: [{ owner: B, id: 'shadow', result: 'replaced', extra: 'divine' }] })));
+                    // The busiest turn there can be (busiestRecs), and a crowded one without an ultimate on the right
+                    const busy = busiestRecs(B, Bl);
+                    row(card(busy.left(25)), card(busy.right(26)));
                     fv.lit = null;
                     row({ k: 'pending', f: A }, { k: 'wait', f: B });
                     row({ k: 'pending', f: Go, ult: 'jackpot' }, { k: 'ko', f: B, rec: rec(26, B, A, { ticks: [{ id: 'burn', v: -12 }, { id: 'poison', v: -7 }] }) });
@@ -828,13 +890,25 @@ async function popAtStep2(page, turn) {
             const burnOnce = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .lc')].filter(c => (c.querySelector('.lc-turn') || {}).textContent === '15')
                 .map(c => [...c.querySelectorAll('.lc-l2 .lk')].filter(x => x.textContent.includes(EFFECTS.burn.icon)).length));
             check(burnOnce.length === 2 && burnOnce.every(k => k === 1), 'one attack touching the same effect twice (Firestorm applies 🔥 Burn, its cast refreshes it) shows it once', JSON.stringify(burnOnce));
-            const crowded = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .lc')].filter(c => (c.querySelector('.lc-turn') || {}).textContent === '24').map(c => {
-                const chips = [...c.querySelectorAll('.lc-l2 .lk')].map(x => x.textContent);
-                return { more: (c.querySelector('.lc-l2 .lk.more') || {}).textContent || '', kept: ['uk', 'en'].some(l => ['shadow', 'divine'].every(id => chips.includes(`${EFFECTS[id].icon} ${EFFECTS[id].name[l]}`))), chips };
-            }));
-            check(crowded.length === 2 && crowded.every(c => /^\+\d+$/.test(c.more) && c.kept),
-                `the most crowded card keeps what the attack did (${crowded.length ? crowded[0].chips.filter(x => !x.startsWith('+')).slice(-3).join(' ') : ''}) and ends with "${crowded.length ? crowded[0].more : ''}" for what it dropped`, JSON.stringify(crowded));
-            check(!fitIssues.length, `worst cases fit in two lines (${n} cards, both languages): 25-letter names, the White Dragon's -1949998, the longest effect line, every ultimate`, fitIssues.slice(0, 5).join(' | '));
+            // Every card on the sheet shows every item it has; the crowded ones (24, and the busiest turn 25 with 26 beside it)
+            // keep what the attack did first and in full, the rest compact, no "+N"
+            const shown = await page.evaluate(() => window.__sheet.flatMap(({ item, lang }) => item.type !== 'row' ? [] : ['left', 'right']
+                .filter(s => item.cells[s].k === 'card').map(s => {
+                    const el = item.el.querySelector(`.lc.${s}`), r = cardShowsAll(el, item.cells[s].rec, s, lang);
+                    return { lang, turn: item.cells[s].rec.turn, ...r };
+                })));
+            const missing = shown.filter(x => x.out.length);
+            check(shown.length >= 50 && !missing.length, `every card on the review sheet shows every item it has (${shown.length} cards, both languages): nothing left out, no "+N", what the attack did first`,
+                JSON.stringify(missing.slice(0, 3)));
+            const crowded = shown.filter(x => [24, 25, 26].includes(x.turn));
+            check(crowded.length === 6 && crowded.every(x => !x.out.length && x.compact > 0),
+                `the crowded cards (turns 24–26, both languages) show all their items, the lower-priority ones compact: ${crowded.map(x => `[${x.lang}] ${x.turn}: ${x.got.length} chips, ${x.compact} compact, ${x.lines} line${x.lines > 1 ? 's' : ''}`).join(' · ')}`,
+                JSON.stringify(crowded));
+            const busiest = crowded.filter(x => x.turn === 25);
+            check(busiest.length === 2 && busiest.every(x => x.got.length === 17 && !x.out.length),
+                `the busiest turn there can be (an ultimate, a crit in sudden death, effects landing and ticking, title mechanics): all 17 items in both languages, nothing cut off; ${busiest.map(x => `[${x.lang}] its second line wraps onto ${x.lines} lines`).join(', ')} (the card grows rather than hide anything)`,
+                JSON.stringify(busiest));
+            check(!fitIssues.length, `worst cases: nothing hidden or cut off (${n} cards, both languages): 25-letter names, the White Dragon's -1949998, the longest effect line, every ultimate, the busiest turn`, fitIssues.slice(0, 5).join(' | '));
             const idsLeft = await page.evaluate(() => { const t = document.getElementById('review-sheet').innerText; return [...EFFECT_IDS, ...ULTIMATE_IDS].filter(id => new RegExp(`(?<![\\p{L}_])${id}(?![\\p{L}_])`, 'u').test(t)).concat(['undefined', 'NaN', '{'].filter(w => t.includes(w))); });
             check(!idsLeft.length, 'no internal ids on any kind of card', idsLeft.join(', '));
             await page.waitForTimeout(500);   // the sheet sits outside the stage, so let its cells' fade-in finish too
@@ -967,6 +1041,41 @@ async function popAtStep2(page, turn) {
                 check(res.kind === 'result' && res.result && res.top === 0 && res.max > 0, `${tag} its result screen scrolled up to the intro banner (screenshot)`, JSON.stringify(res));
                 await page.screenshot({ path: path.join(SHOTS, 'fightview-log-result.png'), clip: crop });
             }
+            if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // ===== 10. The busiest turn there can be, as the newest card in the live log at 1920×1080 =====
+        console.log('\nThe busiest turn in the live log');
+        if (run(10)) for (const lang of ['uk', 'en']) {
+            const tag = `[${lang}, busiest]`;
+            const { page, context, errors } = await open(browser, { lang });
+            await register(page, lang, [['alpha', 'red'], ['omega', 'green']]);
+            await page.evaluate(() => { const orig = window.__maxHP = getMaxHP; window.getMaxHP = (...a) => orig(...a) * 1000; });   // nobody falls before turn 12
+            await say(page, 'alpha', cmd(lang, '!черга', '!queue')); await say(page, 'omega', cmd(lang, '!черга', '!queue'));
+            await toFightTime(page, 12 * TURN + HIT + 1);   // the log is full and follows the newest card
+            await settleArena(page);
+            // The next two turns as the busiest turn there can be (left) and the crowded card (right), painted the way the
+            // fight paints its cards; each must be whole, below the log's top fade, once it is the newest
+            const seen = [];
+            for (const [turn, side] of [[13, 'left'], [14, 'right']]) {
+                await page.evaluate(([t, s]) => { const busy = busiestRecs(fv.p1, fv.p2); fvSetCell(t, { k: 'card', rec: s === 'left' ? busy.left(t) : busy.right(t) }); }, [turn, side]);
+                await settleArena(page);
+                seen.push(await page.evaluate(([t, s, l]) => {
+                    const f = document.getElementById('log-feed'), fr = f.getBoundingClientRect();
+                    const c = [...f.querySelectorAll(`.lc.${s}`)].find(x => +x.querySelector('.lc-turn').textContent === t);
+                    if (!c) return { turn: t, found: false };
+                    const r = c.getBoundingClientRect(), row = fv.items.find(x => x.type === 'row' && x.round === Math.ceil(t / 2));
+                    const shows = cardShowsAll(c, row.cells[s].rec, s, l);
+                    return { turn: t, found: true, clear: r.top >= fr.top + 34 - 0.5 && r.bottom <= fr.bottom + 0.5, top: Math.round(r.top - fr.top), bottom: Math.round(fr.bottom - r.bottom),
+                             height: Math.round(r.height), chips: shows.got.length, out: shows.out, lines: shows.lines, wrap: shows.wrap, atBottom: f.scrollHeight - f.scrollTop - f.clientHeight < 2 };
+                }, [turn, side, lang]));
+            }
+            const fit = await page.evaluate(cardFitProblems);
+            check(seen.every(x => x.found && x.clear && x.atBottom && !x.out.length) && !fit.length,
+                `${tag} the busiest turn and the crowded card, each as the newest card: whole and in view below the fade, every item shown (${seen.map(x => `turn ${x.turn}: ${x.chips} chips, ${x.height}px`).join('; ')}), nothing cut off`,
+                JSON.stringify({ seen, fit: fit.slice(0, 3) }));
+            await page.evaluate(() => { window.getMaxHP = window.__maxHP; });
             if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
