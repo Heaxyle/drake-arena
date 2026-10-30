@@ -15,6 +15,11 @@
 //     the damage number on the target's card, the whole turn animation finished inside the turn, nothing cut off
 //   - Every effect from the test menu's "next hit casts" picker, every ultimate from its СИЛА button, every Jackpot
 //     outcome (including a miss): the card text and the fighter-card chip
+//   - The streamer's White Drake, in a duel: Магніт and Перекування from the test menu (cast only by its own hit), a buff
+//     the foe casts under Магніт pulled to it, a debuff bouncing off its scales, the scales cracking and Перекування
+//     rebuilding them, the opening banner, the faint White Dragon behind the log through its fights (gone in the next
+//     fight without it), the result card's line. Screenshots (not tracked): tests/screenshots/white-drake-card.png (its fighter card with the scales up),
+//     white-drake-fight.png (the arena mid-fight, scales up) and white-drake-log.png (its lines in the log)
 //   - The result card's numbers against the fight's own cards; level-up messages against the game's numbers
 //   - After several fights the log holds only the current fight; no internal ids anywhere; worst-case cards fit
 //   - Nothing on a card is ever hidden (nobody can hover or scroll on stream): a second line that doesn't fit at 90% shows
@@ -68,10 +73,14 @@ async function open(browser, { lang = 'uk', betting = false, width = 1920, heigh
 }
 const say = (page, user, msg, color = '#ff7f50') => page.evaluate(([u, m, c]) => handleChatMessage('#test', { username: u, color: c }, m, false), [user, msg, color]);
 const cmd = (lang, uk, en) => lang === 'uk' ? uk : en;
-const COLOR_WORD = { uk: { red: 'червоний', blue: 'синій', black: 'чорний', gold: 'золотий', purple: 'фіолетовий', green: 'зелений', white: 'білий' },
-                     en: { red: 'red', blue: 'blue', black: 'black', gold: 'gold', purple: 'purple', green: 'green', white: 'white' } };
+// «білий» gives the streamer the White Drake ('steel'); the White Dragon ('white') is the streamer's other form, through !дракон
+const COLOR_WORD = { uk: { red: 'червоний', blue: 'синій', black: 'чорний', gold: 'золотий', purple: 'фіолетовий', green: 'зелений', steel: 'білий', white: 'білий' },
+                     en: { red: 'red', blue: 'blue', black: 'black', gold: 'gold', purple: 'purple', green: 'green', steel: 'white', white: 'white' } };
 async function register(page, lang, users) {
-    for (const [u, type, color] of users) await say(page, u, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][type]}`, color || '#ff7f50');
+    for (const [u, type, color] of users) {
+        await say(page, u, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][type]}`, color || '#ff7f50');
+        if (type === 'white') await say(page, u, cmd(lang, '!дракон', '!dragon'), color || '#ff7f50');
+    }
 }
 // Moves the game clock to an exact time after the current fight started
 async function toFightTime(page, ms) {
@@ -675,7 +684,8 @@ async function popAtStep2(page, turn) {
         if (run(4)) for (const lang of ['uk', 'en']) {
             const { page, context, errors } = await open(browser, { lang });
             await page.click('button[data-i18n="btn_settings"]');
-            const ids = await page.evaluate(() => EFFECT_IDS.slice());
+            // The 12 effects every drake can cast (the White Drake's own pair: 4b, below)
+            const ids = await page.evaluate(() => POOL_IDS.slice());
             const results = [];
             const ensureFight = async () => {
                 if (await page.evaluate('isBattleRunning')) return;
@@ -708,16 +718,109 @@ async function popAtStep2(page, turn) {
                 if (!found) { results.push({ id, ok: false, why: 'never cast' }); continue; }
                 const e = await page.evaluate(id => ({ kind: EFFECTS[id].kind, lasts: EFFECTS[id].lasts, name: fxName(id) }), id);
                 const label = { uk: e.kind === 'buff' ? 'отримує' : 'накладає', en: e.kind === 'buff' ? 'gets' : 'applies' }[lang];
-                const refresh = { uk: 'оновлює', en: 'refreshes' }[lang], replace = { uk: 'замінює', en: 'replaces' }[lang], removes = { uk: 'знімає', en: 'removes' }[lang];
+                const refresh = { uk: 'оновлює', en: 'refreshes' }[lang], removes = { uk: 'знімає', en: 'removes' }[lang], lost = { uk: 'зникає', en: 'lost' }[lang];
                 const textOk = e.lasts === 'instant' ? found.l2.includes(`${e.name} ${removes}`)
-                    : found.l2.includes(`${label} ${e.name}`) || found.l2.includes(`${refresh} ${e.name}`) || found.l2.includes(`${e.name} ${replace}`);
+                    : found.l2.includes(`${label} ${e.name}`) || found.l2.includes(`${refresh} ${e.name}`) || (found.l2.includes(`${e.name} ·`) && found.l2.includes(lost));   // a replacement: «X · Y зникає»
                 const chipOk = e.lasts === 'instant' || found.ownerChips.some(c => c.startsWith(e.name));
                 results.push({ id, ok: textOk && chipOk && found.forced === null, why: JSON.stringify(found) });
             }
             await page.selectOption('#debug-force-cast', '');
             const bad = results.filter(r => !r.ok);
-            check(!bad.length && results.length === 12, `[${lang}] all 12 effects cast from "next hit casts": the card says it ("накладає 🔥 Підпал", refresh / replace / Dispel in words) and the fighter card shows the chip`,
+            check(!bad.length && results.length === 12, `[${lang}] all 12 effects cast from "next hit casts": the card says it ("накладає 🔥 Підпал", refresh / Dispel in words, a replacement «X · Y зникає») and the fighter card shows the chip`,
                 bad.slice(0, 3).map(r => `${r.id}: ${r.why}`).join(' | '));
+            if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // ===== 4b. The streamer's White Drake on the log cards =====
+        console.log('\nThe White Drake on the log cards');
+        if (run(4)) for (const lang of ['uk', 'en']) {
+            const { page, context, errors } = await open(browser, { lang });
+            await page.click('button[data-i18n="btn_settings"]');
+            await page.evaluate(() => setStreamerUser('stalwart'));
+            await register(page, lang, [['stalwart', 'steel', '#e8f6ff'], ['ruby', 'red', '#ff7f50']]);
+            const W = await page.evaluate(() => ({ magnet: fxName('magnet'), reforge: fxName('reforge'), rage: fxName('rage'), burn: fxName('burn'),
+                bounced: fvT('bounced'), pulled: fvT('pulled'), cracked: fvT('cracked'), scales: fvT('scales'), steelIn: fvT('steelIn'), steelWin: fvT('steelWin'), steelLoss: fvT('steelLoss') }));
+            const applies = cmd(lang, 'накладає', 'applies'), gets = cmd(lang, 'отримує', 'gets');
+            const pick = async id => { await page.selectOption('#debug-force-cast', ''); if (id) await page.selectOption('#debug-force-cast', id); };
+            const chipOn = (id, side) => page.evaluate(([id, side]) => [...document.querySelectorAll(`#status-${side} .status-item`)].some(x => x.textContent.startsWith(fxName(id))), [id, side]);
+            // What each cast from the menu must say on its card: a Підпал on the White Drake bounces while its scales hold; a
+            // Лють the foe casts under Магніт goes to the White Drake
+            const says = { burn: l2 => l2.includes(`${W.burn} ${W.bounced}`), magnet: l2 => l2.includes(`${applies} ${W.magnet}`),
+                           rage: l2 => l2.includes(`${W.rage} ${W.pulled}`), reforge: l2 => l2.includes(`${gets} ${W.reforge}`) };
+            const todo = new Set(Object.keys(says)), done = {}, chips = {}, panel = [], fights = [];   // panel: the silhouette, turn by turn
+            let crackSeen = false, rebuildSeen = false, scalesHitSeen = false, menuOnlyWd = null, shots = false, logShot = false;
+            for (let duel = 0; duel < 4 && (todo.size || !crackSeen || !rebuildSeen || menuOnlyWd === null); duel++) {
+                await page.clock.runFor(4 * 60000);
+                await say(page, 'stalwart', `${cmd(lang, '!бій', '!battle')} @ruby`); await say(page, 'ruby', cmd(lang, '!прийняти', '!accept'));
+                const wd = await page.evaluate(() => document.getElementById('name-p1').textContent.includes('stalwart') ? 'p1' : 'p2'), foe = wd === 'p1' ? 'p2' : 'p1';
+                for (let turn = 1; turn <= 30 && await page.evaluate('isBattleRunning'); turn++) {
+                    const mine = (turn % 2 === 1) === (wd === 'p1');   // p1 strikes on odd turns
+                    await toFightTime(page, turn * TURN - 50);
+                    const st = await page.evaluate(() => battleFx && battleFx.stalwart ? { scales: battleFx.stalwart.scales.now, magnet: battleFx.ruby.debuff.some(x => x.id === 'magnet') } : null);
+                    if (!st) break;
+                    // The White Drake's turn: Магніт (again, while a pull is still to be seen and it has worn off), Перекування.
+                    // The foe's: Підпал while the scales hold, Лють under Магніт, or the menu check: the White Drake's own
+                    // Перекування, picked before the foe's hit, is still waiting after it
+                    let id = null, probe = false;
+                    if (mine) id = todo.has('magnet') || (todo.has('rage') && !st.magnet) ? 'magnet' : todo.has('reforge') ? 'reforge' : null;
+                    else if (todo.has('burn') && st.scales > 0) id = 'burn';
+                    else if (todo.has('rage') && st.magnet) id = 'rage';
+                    else if (menuOnlyWd === null) { id = 'reforge'; probe = true; }
+                    if (id) await pick(id);
+                    await toFightTime(page, turn * TURN + HIT + 1);
+                    await settleArena(page);
+                    const now = await page.evaluate(arenaNow);
+                    const card = now.cards.find(c => c.turn === turn);
+                    if (probe) {
+                        if (card && /^-[1-9]\d*$/.test(card.num)) menuOnlyWd = await page.evaluate(() => forcedCast === 'reforge');
+                        await pick('');
+                    } else if (id && card && says[id](card.l2)) {
+                        done[id] = card.l2;
+                        // Where the chip is: nowhere for the bounced Підпал, on the foe for Магніт, on the White Drake for the rest
+                        chips[id] = id === 'burn' ? !await chipOn('burn', wd) : await chipOn(id, id === 'magnet' ? foe : wd);
+                        todo.delete(id);
+                    } else if (id) await pick('');   // used up by a hit that didn't show it, or not at all: picked again on its turn
+                    if (card && card.l2.includes(W.cracked)) crackSeen = true;
+                    if (card && /⚒️ \+\d+/.test(card.l2)) rebuildSeen = true;
+                    if (card && (card.l2.includes(`${W.scales} -`) || /🤍 -\d+/.test(card.l2))) scalesHitSeen = true;
+                    panel.push(await page.evaluate(() => { const p = document.getElementById('log-panel'); return p.classList.contains('steel-fight') && /^url\(/.test(p.style.backgroundImage); }));
+                    const up = await page.evaluate(() => !!battleFx && !!battleFx.stalwart && battleFx.stalwart.scales.now > 0 && battleFx.stalwart.scales.now < battleFx.stalwart.scales.max);
+                    if (lang === 'uk' && !shots && done.magnet && up) {
+                        // The White Drake's card with its scales up (and its frame's shimmer around it), and the whole arena
+                        const box = await page.locator(`#card-${wd}`).boundingBox();
+                        await page.screenshot({ path: path.join(SHOTS, 'white-drake-card.png'), clip: { x: box.x - 16, y: box.y - 16, width: box.width + 32, height: box.height + 32 } });
+                        await page.screenshot({ path: path.join(SHOTS, 'white-drake-fight.png') });
+                        shots = true;
+                    }
+                    if (lang === 'uk' && !logShot && done.burn && done.rage && (crackSeen || rebuildSeen)) {
+                        await page.locator('#log-panel').screenshot({ path: path.join(SHOTS, 'white-drake-log.png') });
+                        logShot = true;
+                    }
+                }
+                await pick('');
+                for (let i = 0; i < 40 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(TURN);
+                await page.clock.runFor(HIT + 100);
+                const end = await page.evaluate(arenaNow);
+                const won = end.textLog.some(l => /(Переміг|Переможець|Winner):? @stalwart\b/.test(l));
+                fights.push({ won, banner: end.banners.some(t => t.includes(W.steelIn)), line: end.result.includes(won ? W.steelWin : W.steelLoss) && !end.result.includes(won ? W.steelLoss : W.steelWin) });
+                await page.clock.runFor(await page.evaluate(() => RESULT_HOLD_MS) + 1000);   // past the result screen's hold
+            }
+            // The next fight, without the White Drake: no silhouette behind the log
+            await register(page, lang, [['onyx', 'black', '#a9a9ff']]);
+            await page.clock.runFor(4 * 60000);
+            await say(page, 'ruby', `${cmd(lang, '!бій', '!battle')} @onyx`); await say(page, 'onyx', cmd(lang, '!прийняти', '!accept'));
+            await toFightTime(page, TURN + HIT + 1);
+            const plainAfter = await page.evaluate(() => { const p = document.getElementById('log-panel'); return !p.classList.contains('steel-fight') && !p.style.backgroundImage; });
+            for (let i = 0; i < 40 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(TURN);
+            const missing = Object.keys(says).filter(id => !done[id] || !chips[id]);
+            check(!missing.length, `[${lang}] the White Drake's lines: «${(done.burn || '').slice(0, 40)}», «${(done.magnet || '').slice(0, 30)}», «${(done.rage || '').slice(0, 45)}», «${(done.reforge || '').slice(0, 30)}», each chip on the right card`,
+                JSON.stringify({ missing, done, chips }));
+            check(menuOnlyWd === true, `[${lang}] Перекування from the test menu waits for the White Drake's own hit (the foe's damaging hit leaves it picked)`, String(menuOnlyWd));
+            check(crackSeen && rebuildSeen && scalesHitSeen, `[${lang}] what a hit takes off the scales («🤍 -N»), «${W.cracked}» and Перекування's «⚒️ +N» on the cards`, JSON.stringify({ crackSeen, rebuildSeen, scalesHitSeen }));
+            check(fights.length && fights.every(r => r.banner && r.line), `[${lang}] every White Drake fight opens with «${W.steelIn}» and its result card says «${W.steelWin}» or «${W.steelLoss}», as it ended (${fights.map(f => f.won ? 'won' : 'lost').join(', ')})`, JSON.stringify(fights));
+            check(panel.length && panel.every(Boolean) && plainAfter, `[${lang}] the faint White Dragon behind the log through every turn of its fights (${panel.length}), gone in the next fight without it`, JSON.stringify({ panel: panel.slice(0, 12), plainAfter }));
+            if (lang === 'uk') check(shots && logShot, 'screenshots: tests/screenshots/white-drake-card.png, white-drake-fight.png, white-drake-log.png', JSON.stringify({ shots, logShot }));
             if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
@@ -735,6 +838,7 @@ async function popAtStep2(page, turn) {
             for (const run of runs) {
                 const u = run.u, me = `ult_${n}`, foe = `foe_${n}`; n++;
                 const foeType = u.element === 'purple' ? 'red' : 'purple';
+                if (u.element === 'steel') await page.evaluate(n => setStreamerUser(n), me);   // Удар ковадла: the streamer's White Drake
                 await register(page, lang, [[me, u.element], [foe, foeType]]);
                 if (u.id === 'theft') { /* the foe gets a buff first, so there is something to take */ await page.selectOption('#debug-force-cast', 'rage'); }
                 if (run.reels) await page.evaluate(icons => { let i = 0; window.spinReel = () => { const icon = icons[i++ % 3]; return CLASS_ULTIMATES.jackpot.reels.find(r => r.icon === icon); }; }, run.reels);
@@ -769,6 +873,7 @@ async function popAtStep2(page, turn) {
                     unblockable: { uk: 'не блокується', en: 'unblockable' }[lang], miss: { uk: 'промах', en: 'miss' }[lang],
                     burn: fxName('burn'), hits: `${CLASS_ULTIMATES.mirror.icon} ${unitLeftText('hits', CLASS_ULTIMATES.mirror.nums.hits)}`,
                     takes: { uk: 'забирає', en: 'takes' }[lang], forced: { uk: 'гарантований крит', en: 'guaranteed crit' }[lang], rage: fxName('rage'),
+                    anvil: CLASS_ULTIMATES.anvil.nums.dmgMult,
                 }), [u.id, lang]);
                 let detail = false;
                 if (card) {
@@ -782,6 +887,7 @@ async function popAtStep2(page, turn) {
                         detail = reels ? l2.includes(reels.join(' ')) && (miss ? l2.includes(want.miss) && card.num === '0' : l2.includes(`×${1 + gems}`)) : /💎|🪙|💀/.test(l2);
                     }
                     if (u.id === 'detonation') detail = /×\d/.test(l2);
+                    if (u.id === 'anvil') detail = l2.includes(`×${want.anvil}`);
                     if (u.id === 'bloom') detail = card.num.startsWith('+');
                 }
                 const ok = !!card && card.ult === u.label && !!step1 && step1.ult && step1.tab === u.name && detail;
@@ -872,6 +978,17 @@ async function popAtStep2(page, turn) {
                     row(U(17, B, A, 'theft', atk('physical', 'heavy', 61, { crit: true, sd: 1.6 }), { forced: true }), U(18, B, A, 'theft', atk('physical', 'sneaky', 44, { pierce: true, sd: 1.9 }), { taken: ['rage', 'shield'], lost: ['blessing'] }));
                     row(U(19, Go, A, 'jackpot', atk('magical', 'light', 96, { sd: 2.2 }), { reels: ['💎', '💎', '🪙'], miss: false, mult: 3 }), U(20, Go, A, 'jackpot', atk('magical', 'light', 0, { miss: true, sd: 2.5 }), { reels: ['💀', '🪙', '💀'], miss: true, mult: 1 }));
                     row(U(21, Pu, A, 'detonation', atk('magical', 'sneaky', 112, { pierce: true, sd: 2.8 }), { mult: 3.2, removed: ['burn', 'weakness'] }), U(22, G, A, 'bloom', null, { healed: 45, removed: ['poison', 'burn'] }));
+                    // The streamer's White Drake: its banner; a debuff bouncing off its scales (and what the hit took off them);
+                    // Магніт; a buff pulled to it, replacing one of its own, as its scales crack; Перекування rebuilding them;
+                    // Удар ковадла re-forging them; armour-piercing on its scales
+                    const Wd = mk('streamer', 'steel', '#e8f6ff');
+                    fv.stats[Wd.name] = { dmg: 191, max: 74, crits: 2 };
+                    add({ type: 'banner', kind: 'steel', data: {} });
+                    row(card(rec(29, B, Wd, { attack: atk('physical', 'light', 18), notes: { scales: 18 }, casts: [{ owner: Wd, id: 'burn', result: 'bounced' }] })),
+                        card(rec(30, Wd, B, { attack: atk('magical', 'heavy', 33), casts: [{ owner: B, id: 'magnet', result: 'applied' }] })));
+                    row(card(rec(31, B, Wd, { attack: atk('physical', 'heavy', 41), notes: { scales: 22, crack: true }, casts: [{ owner: Wd, id: 'rage', result: 'pulled', extra: 'regen' }] })),
+                        card(rec(32, Wd, B, { attack: atk('physical', 'light', 25), notes: { reforge: 15 }, used: ['reforge'] })));
+                    row(U(33, Wd, B, 'anvil', atk('physical', 'heavy', 74), { mult: 1.5, reforged: 31 }), card(rec(34, B, Wd, { attack: atk('magical', 'sneaky', 29, { pierce: true }), notes: { scales: 9 } })));
                     // Sudden death, the White Dragon's damage, a knock-out by start-of-turn effects, and the other cells
                     add({ type: 'banner', kind: 'sd', data: {} });
                     row(card(rec(23, W, B, { attack: atk('physical', 'heavy', 1949998, { crit: true, sd: 3.4 }), notes: { wrath: true } })),
@@ -889,6 +1006,9 @@ async function popAtStep2(page, turn) {
                     add({ type: 'banner', kind: 'timeout', data: {} });
                     add({ type: 'result', data: { winner: A, loser: B, ranked: true, turns: 17, timeout: false, xp: { [A.name]: 40, [B.name]: 10 }, stats: fv.stats } });
                     add({ type: 'result', data: { winner: null, loser: null, ranked: false, turns: 30, timeout: false, xp: null, stats: fv.stats } });
+                    // The White Drake's result lines, a win and a loss
+                    add({ type: 'result', data: { winner: Wd, loser: B, ranked: true, turns: 14, timeout: false, xp: { [Wd.name]: 40, [B.name]: 10 }, stats: fv.stats, steel: 'win' } });
+                    add({ type: 'result', data: { winner: B, loser: Wd, ranked: true, turns: 19, timeout: false, xp: { [Wd.name]: 10, [B.name]: 40 }, stats: fv.stats, steel: 'loss' } });
                 }
                 currentLang = 'uk';
                 fv = { on: false, items: [], stats: {}, rec: null, hold: null, lit: null };
@@ -919,7 +1039,27 @@ async function popAtStep2(page, turn) {
             check(busiest.length === 2 && busiest.every(x => x.got.length === 17 && !x.out.length),
                 `the busiest turn there can be (an ultimate, a crit in sudden death, effects landing and ticking, title mechanics): all 17 items in both languages, nothing cut off; ${busiest.map(x => `[${x.lang}] its second line wraps onto ${x.lines} lines`).join(', ')} (the card grows rather than hide anything)`,
                 JSON.stringify(busiest));
-            check(!fitIssues.length, `worst cases: nothing hidden or cut off (${n} cards, both languages): 25-letter names, the White Dragon's -1949998, the longest effect line, every ultimate, the busiest turn`, fitIssues.slice(0, 5).join(' | '));
+            check(!fitIssues.length, `worst cases: nothing hidden or cut off (${n} cards, both languages): 25-letter names, the White Dragon's -1949998, the longest effect line, every ultimate, the White Drake's lines, the busiest turn`, fitIssues.slice(0, 5).join(' | '));
+            // The White Drake's own lines, in both languages: the bounce, the pull, the crack, the rebuild, Удар ковадла's
+            // re-forge, the banner and both result lines
+            const steelMissing = await page.evaluate(() => {
+                const t = document.getElementById('review-sheet').innerText;
+                const want = ['uk', 'en'].flatMap(l => { currentLang = l; return ['bounced', 'pulled', 'cracked', 'steelIn', 'steelWin', 'steelLoss'].map(k => fvT(k))
+                    .concat(`${fvT('pulled')} · ${fxName('regen')} ${fvT('lost')}`); });   // the pulled card (turn 31): «… · 💚 Регенерація зникає»
+                currentLang = 'uk';
+                return [...new Set(want)].concat([`${EFFECTS.reforge.icon} +15`, '🤍 +31', `${CLASS_ULTIMATES.anvil.icon} `]).filter(w => !t.replace(/\s+/g, ' ').includes(w));
+            });
+            check(!steelMissing.length, "the White Drake's cards on the sheet, both languages: a debuff bounced off its scales, a buff pulled to it (replacing one), the scales cracking, Перекування's rebuild, Удар ковадла re-forging them, its banner and both result lines",
+                steelMissing.join(' | '));
+            // A dropped effect is named first, then «зникає» (its name stays in the nominative): a replaced buff (turn 9), a
+            // replaced debuff (the busiest turn), Shadow Theft's lost buff (turn 18); no card says «замінює» any more
+            const dropped = await page.evaluate(() => {
+                const t = document.getElementById('review-sheet').innerText.replace(/\s+/g, ' ');
+                const want = ['uk', 'en'].flatMap(l => { currentLang = l; return [`${fxName('divine')} · ${fxName('blessing')} ${fvT('lost')}`, `· ${fxName('weakness')} ${fvT('lost')}`, `${fxName('shield')} · ${fxName('blessing')} ${fvT('lost')}`]; });
+                currentLang = 'uk';
+                return { missing: want.filter(w => !t.includes(w)), replaces: /замінює|\breplaces\b/.test(t) };
+            });
+            check(!dropped.missing.length && !dropped.replaces, 'a dropped effect is named first, then «зникає» / "lost" (a replaced buff, a replaced debuff, Shadow Theft\'s), and no card says «замінює»', JSON.stringify(dropped));
             const idsLeft = await page.evaluate(() => { const t = document.getElementById('review-sheet').innerText; return [...EFFECT_IDS, ...ULTIMATE_IDS].filter(id => new RegExp(`(?<![\\p{L}_])${id}(?![\\p{L}_])`, 'u').test(t)).concat(['undefined', 'NaN', '{'].filter(w => t.includes(w))); });
             check(!idsLeft.length, 'no internal ids on any kind of card', idsLeft.join(', '));
             await page.waitForTimeout(500);   // the sheet sits outside the stage, so let its cells' fade-in finish too
@@ -1181,6 +1321,7 @@ async function popAtStep2(page, turn) {
             // and the result card says so, whole
             await page.evaluate(() => setStreamerUser('dragonkeeper'));
             await sim('dragonkeeper', `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang].white}`);
+            await sim('dragonkeeper', cmd(lang, '!дракон', '!dragon'));   // «білий» is the White Drake; !дракон, the Dragon
             await sim('brave', `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang].red}`);
             const wd0 = await page.evaluate(() => ({ xp: getDragonStrict('brave').xp, stats: JSON.stringify(playerLeaderboardStats) }));
             await sim('dragonkeeper', Q); await sim('brave', Q);

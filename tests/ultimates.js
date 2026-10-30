@@ -32,6 +32,7 @@ const _warn = console.warn; console.warn = () => {};
 eval(gameScript(FILE) + `
 ;globalThis.__game = {
     EFFECTS, CLASS_ULTIMATES, ULTIMATE_IDS, METER, EFFECT_CAPS, TITLES_DB, DRAKE_TYPES, VIEWER_DRAKE_TYPES, DRAGON_TYPE, DRAGON_TITLE_ID,
+    WHITE_DRAKE_TYPE, WHITE_DRAKE_TITLE_ID,
     applyEffect: (...a) => applyEffect(...a), describeUltimate, ultLabel, ultimateFor, fxNum, getEffectMult, getMaxHP, getRequiredXP,
     getDragonDB, saveDragonDB, runBattle: (...a) => runBattle(...a), renderPowerMeter,
     get battleFx() { return battleFx; },
@@ -106,8 +107,8 @@ const castOn = (fx, owner, id, power = 1) => {   // put effect `id` straight on 
 
 // ---------------------------------------------------------------- 1. The table
 console.log('\nCLASS_ULTIMATES table');
-check(ULTIMATE_IDS.length === 6, 'there are 6 ultimates', `found ${ULTIMATE_IDS.length}`);
-for (const d of G.VIEWER_DRAKE_TYPES) {
+check(ULTIMATE_IDS.length === 7, "there are 7 ultimates: one per viewer element and the White Drake's", `found ${ULTIMATE_IDS.length}`);
+for (const d of [...G.VIEWER_DRAKE_TYPES, G.DRAKE_TYPES.find(t => t.type === G.WHITE_DRAKE_TYPE)]) {
     const own = ULTIMATE_IDS.filter(id => U[id].element === d.type);
     check(own.length === 1 && G.ultimateFor(d.type) === own[0], `${d.type}: ${own.map(id => `${U[id].icon} ${U[id].name.uk} / ${U[id].name.en}`).join('')}`, `${d.type} has ${own.length} ultimates`);
 }
@@ -445,8 +446,10 @@ for (const lang of ['uk', 'en']) {
     G.setLang(lang);
     for (let i = 0; i < 240; i++) {
         const types = G.VIEWER_DRAKE_TYPES.map(d => d.type);
-        const dragonFight = i % 8 === 0;
-        const a = dragonFight ? { ...drake('A', G.DRAGON_TYPE, 20, G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID)), name: 'A' } : drake('A', types[i % 6], [1, 10, 20][i % 3]);
+        const dragonFight = i % 8 === 0, steelFight = i % 8 === 4;   // the White Dragon (no meter), the White Drake (Удар ковадла)
+        const a = dragonFight ? { ...drake('A', G.DRAGON_TYPE, 20, G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID)), name: 'A' }
+            : steelFight ? { ...drake('A', G.WHITE_DRAKE_TYPE, [1, 10, 20][i % 3], G.TITLES_DB.find(t => t.id === G.WHITE_DRAKE_TITLE_ID)), name: 'A' }
+            : drake('A', types[i % 6], [1, 10, 20][i % 3]);
         const b = drake('B', types[(i * 5 + 1) % 6], [1, 10, 20][(i + 1) % 3]);
         const db = G.getDragonDB(); db.A = a; db.B = b; G.saveDragonDB(db);
         current = { dragon: dragonFight ? 'A' : null };

@@ -7,12 +7,15 @@
 //
 // Checks: no JS page errors, every drake type registers and its sprite renders,
 // a full fight finishes, !стата / !титул / !шанси answer, HP bars never move
-// vertically, the info feed never overflows its column, buff/debuff chips read "name · what's left" and aren't cut off. The White Dragon is streamer-only: it's refused while no
-// streamer is set and for every other viewer (!дрейк / !drake / !рерол), and works for the streamer set in Test Settings.
+// vertically, the info feed never overflows its column, buff/debuff chips read "name · what's left" and aren't cut off. The streamer's
+// two forms are streamer-only: the White Drake (!дрейк білий) and the White Dragon (!дракон) are refused while no streamer is
+// set and for every other viewer (!дрейк / !drake / !рерол / !дракон), and work for the streamer set in Test Settings, who
+// fights as the White Drake, then switches to the Dragon and back with its XP kept: all 8 drake types are drawn.
 // Fights with the dragon (one natural, one with vampire rolls forced) must never log a heal above the healer's max HP.
-// A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent.
-// Another checks the streamer card in the side column draws the streamer's own drake: the dragon, then a red drake after a
-// reroll (at an exact 2x, centred in the dragon's slot), then the dragon again.
+// A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent,
+// and that the streamer's old Dragon save gets a White Drake at level 1 behind it.
+// Another checks the streamer card in the side column draws the streamer's own drake: the White Drake (at an exact 2x,
+// centred in the dragon's slot), the dragon after !дракон, then the White Drake again.
 // Another loads a save whose drake has title 189 under its old Ukrainian name: the drake shows «Герб чи число» (English
 // "Heads or Tails"), and still does after a reload.
 // Screenshots go to tests/screenshots/. Game timers run on a fake clock, so fights take seconds.
@@ -42,20 +45,22 @@ const SEED = Number(process.env.UI_SEED || 3);
 const VERSIONS = {
     showcase: {
         file: 'showcase/index.html',
-        // 6 viewer elements + the White Dragon, which only the streamer (set in Test Settings) can pick
+        // 6 viewer elements + the streamer's White Drake (!дрейк білий), which only the streamer (set in Test Settings) can
+        // pick; the streamer's other form, the White Dragon, comes through !дракон before the heal-log duels (3b)
         drakes: [['ruby', 'червоний', 'red'], ['sapphire', 'синій', 'blue'], ['onyx', 'чорний', 'black'], ['topaz', 'золотий', 'gold'],
-                 ['amethyst', 'фіолетовий', 'purple'], ['jade', 'зелений', 'green'], ['teststreamer', 'білий', 'white']],
+                 ['amethyst', 'фіолетовий', 'purple'], ['jade', 'зелений', 'green'], ['teststreamer', 'білий', 'steel']],
         // First pair fights ranked via !черга; the rest are friendly duels so every sprite gets drawn
         duels: [['onyx', 'topaz'], ['amethyst', 'jade'], ['teststreamer', 'ruby']],
-        dragon: { streamer: 'teststreamer', type: 'white', titleId: 999, storageKey: 'drake_arena_showcase_streamer' },
+        dragon: { streamer: 'teststreamer', type: 'white', titleId: 999, drakeType: 'steel', drakeTitleId: 998, storageKey: 'drake_arena_showcase_streamer' },
         hasInfoFeed: true,
         hasOdds: true,
     },
 };
 
 // Showcase saves from before the Green Drake existed: 'white' was an ordinary viewer element. Keys are Twitch usernames.
-// Expected after migrateOldSaves (streamer = teststreamer): the streamer's dragon stays 'white', every other 'white' → 'green'
-// with XP kept, title 999 only on the dragon, everything else untouched.
+// Expected after migrateOldSaves (streamer = teststreamer): the streamer's dragon stays 'white' (level 20) with a White Drake
+// at level 1 kept behind it for !дракон, every other 'white' → 'green' with XP kept, title 999 only on the dragon,
+// everything else untouched.
 const OLD_SHOWCASE_SAVE = {
     teststreamer: { name: 'teststreamer', color: '#9fe3ff', drakeObj: { name: { uk: 'Білий Дракон 🐉', en: 'White Dragon 🐉' }, type: 'white' }, xp: 1000000, level: 20, title: { id: 999 } },
     snowfan:   { name: 'snowfan', color: '#8ab4f8', drakeObj: { name: { uk: 'Білий Дрейк ⬜', en: 'White Drake ⬜' }, type: 'white' }, xp: 5000, level: 8, title: { id: 1 } },
@@ -139,7 +144,8 @@ async function testVersion(browser, key) {
     const skipped = [];
     const fail = msg => { failures.push(msg); console.log(`    ✗ ${msg}`); };
     const pass = msg => console.log(`    ✓ ${msg}`);
-    const typeOf = Object.fromEntries(cfg.drakes.map(([u, , t]) => [u, t]));
+    // Each user's drake type as the save has it when a fight starts (the streamer changes form during the run)
+    let typeOf = {};
 
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await context.newPage();
@@ -212,6 +218,7 @@ async function testVersion(browser, key) {
     // Plays one fight from start to finish, sampling the layout every STEP_MS of game time
     const runFight = async (label, start, midShot) => {
         await start();
+        typeOf = await page.evaluate(() => Object.fromEntries(Object.entries(getDragonDB()).map(([u, d]) => [u.toLowerCase(), d.drakeObj && d.drakeObj.type])));
         await page.clock.runFor(STEP_MS);
         if (!await page.evaluate('isBattleRunning')) { fail(`${label}: fight did not start`); return; }
         let elapsed = 0, shotTaken = !midShot;
@@ -266,18 +273,19 @@ async function testVersion(browser, key) {
     }
     if (dragonCfg) {
         const me = db[dragonCfg.streamer];
-        if (!me || !me.title || me.title.id !== dragonCfg.titleId) fail(`@${dragonCfg.streamer}'s dragon should have title ${dragonCfg.titleId}, has ${me && me.title && me.title.id}`);
-        else pass(`@${dragonCfg.streamer}'s White Dragon has title ${dragonCfg.titleId}`);
-        // Other viewers can't take the streamer's dragon, in either language or by reroll
-        for (const cmd of ['!дрейк білий', '!drake white']) {
+        if (!me || !me.title || me.title.id !== dragonCfg.drakeTitleId) fail(`@${dragonCfg.streamer}'s White Drake should have title ${dragonCfg.drakeTitleId}, has ${me && me.title && me.title.id}`);
+        else pass(`@${dragonCfg.streamer}'s White Drake has title ${dragonCfg.drakeTitleId}`);
+        // Other viewers can't take either of the streamer's forms, in either language, by reroll or by !дракон
+        for (const cmd of ['!дрейк білий', '!drake white', '!дракон', '!dragon']) {
             await expectReply(`${cmd} by a viewer is refused`, () => chat('sneaky', cmd));
-            if ((await page.evaluate('getDragonDB()')).sneaky) fail(`@sneaky got a save after ${cmd}: the dragon should be streamer-only`);
-            else pass(`@sneaky could not take the White Dragon with ${cmd}`);
+            if ((await page.evaluate('getDragonDB()')).sneaky) fail(`@sneaky got a save after ${cmd}: the streamer's forms should be streamer-only`);
+            else pass(`@sneaky could not take a streamer form with ${cmd}`);
         }
         await expectReply('!рерол білий by a viewer is refused', () => chat('ruby', '!рерол білий', { 'custom-reward-id': 'ui-test-reward' }));
+        await expectReply('!дракон by a viewer with a drake is refused', () => chat('ruby', '!дракон'));
         const rubyType = (await page.evaluate('getDragonDB()')).ruby.drakeObj.type;
-        if (rubyType !== 'red') fail(`@ruby rerolled into ${rubyType}: viewers must not reroll into the dragon`);
-        else pass('@ruby could not reroll into the White Dragon');
+        if (rubyType !== 'red') fail(`@ruby became ${rubyType}: viewers must not reroll or switch into a streamer form`);
+        else pass('@ruby could not reroll into the White Drake or switch to the White Dragon');
     }
     await checkFeed('after registering');
     await shot('01-registered');
@@ -315,7 +323,17 @@ async function testVersion(browser, key) {
             await chat(target, '!прийняти');
         });
     }
-    // 3b. Heals logged in a fight with the streamer's dragon must be what was actually restored (≤ that fighter's max HP)
+    // 3b. Heals logged in a fight with the streamer's dragon must be what was actually restored (≤ that fighter's max HP).
+    // The streamer has fought as the White Drake so far: !дракон first, and back to the White Drake after
+    let drakeBefore = null;
+    if (dragonCfg) {
+        drakeBefore = (await page.evaluate('getDragonDB()'))[dragonCfg.streamer];
+        await expectReply(`!дракон (@${dragonCfg.streamer})`, () => chat(dragonCfg.streamer, '!дракон'));
+        const asDragon = (await page.evaluate('getDragonDB()'))[dragonCfg.streamer];
+        if (asDragon.drakeObj.type !== dragonCfg.type || asDragon.title.id !== dragonCfg.titleId || !asDragon.regular || asDragon.regular.xp !== drakeBefore.xp)
+            fail(`!дракон should make @${dragonCfg.streamer} the White Dragon (title ${dragonCfg.titleId}) with the White Drake's ${drakeBefore.xp} XP kept, got ${JSON.stringify({ type: asDragon.drakeObj.type, title: asDragon.title.id, regular: asDragon.regular && asDragon.regular.xp })}`);
+        else pass(`!дракон: @${dragonCfg.streamer} is the White Dragon (title ${dragonCfg.titleId}); the White Drake waits with its ${drakeBefore.xp} XP`);
+    }
     if (dragonCfg) {
         const dragonDuelCfg = cfg.duels.find(d => d.includes(dragonCfg.streamer));
         const pair = [dragonCfg.streamer, dragonDuelCfg ? dragonDuelCfg.find(u => u !== dragonCfg.streamer) : cfg.drakes[0][0]];
@@ -373,6 +391,13 @@ async function testVersion(browser, key) {
         const forcedVamp = await dragonDuel(`heal log: duel @${pair[0]} vs @${pair[1]} (vampire rolls forced)`);
         await page.evaluate(() => { Math.random = window.__realRandom; });
         if (!forcedVamp) fail('forced-vampire duel: the dragon never made a vampire attack, so the heal cap was not exercised');
+        // Back to the White Drake: the same XP and title as before (the Dragon gains nothing)
+        await page.clock.runFor(await page.evaluate(() => RESULT_HOLD_MS) + 1000);
+        await expectReply(`!дракон back (@${dragonCfg.streamer})`, () => chat(dragonCfg.streamer, '!дракон'));
+        const back = (await page.evaluate('getDragonDB()'))[dragonCfg.streamer];
+        if (back.drakeObj.type !== dragonCfg.drakeType || back.xp !== drakeBefore.xp || back.title.id !== dragonCfg.drakeTitleId || back.regular)
+            fail(`!дракон again should bring back the White Drake with ${drakeBefore.xp} XP and title ${dragonCfg.drakeTitleId}, got ${JSON.stringify({ type: back.drakeObj.type, xp: back.xp, title: back.title.id, regular: !!back.regular })}`);
+        else pass(`!дракон again: the White Drake is back with its ${back.xp} XP and title ${back.title.id}`);
     }
 
     await page.clock.runFor(1000);   // the last hit lands on screen (0.6 s after the fight's last turn)
@@ -430,9 +455,11 @@ async function testVersion(browser, key) {
     else pass(`Element Power meter rows: ${meterTexts.size} different states, pips match the meter, full meter shown ${meterFullSeen} time(s) with READY, never overlapping or cut off`);
     if (barMoves.size) [...barMoves].slice(0, 10).forEach(fail);
     else pass('HP bars stayed at the same vertical position the whole time');
-    const missing = cfg.drakes.map(([, , t]) => t).filter(t => !spritesSeen[t]);
+    const allTypes = await page.evaluate(() => DRAKE_TYPES.map(d => d.type));
+    const missing = allTypes.filter(t => !spritesSeen[t]);
+    if (allTypes.length !== 8) fail(`expected 8 drake types (6 viewer elements, the White Drake and the White Dragon), the game has ${allTypes.length}: ${allTypes.join(', ')}`);
     if (missing.length) fail(`sprites never rendered for: ${missing.join(', ')}`);
-    else pass(`sprites rendered for all ${cfg.drakes.length} types`);
+    else pass(`sprites rendered for all ${allTypes.length} types (${allTypes.join(', ')})`);
     if (cfg.hasInfoFeed) {
         if (feedIssues.size) feedIssues.forEach((v, kind) => fail(`info feed: ${kind} — first ${v.when} (${v.detail}), seen in ${v.count} check(s)`));
         else pass('info feed never overflowed its column');
@@ -494,7 +521,8 @@ async function testMigration(browser, key) {
         const got = d && d.drakeObj && d.drakeObj.type;
         if (got !== type) fail(`@${user}: expected ${type}, save has ${got || 'nothing'}`);
         else if (JSON.stringify(d.drakeObj.name) !== JSON.stringify(drakeNames[type])) fail(`@${user}: type ${type} but name is ${JSON.stringify(d.drakeObj.name)}`);
-        else if (d.xp !== OLD_SHOWCASE_SAVE[user].xp) fail(`@${user}: xp changed ${OLD_SHOWCASE_SAVE[user].xp} → ${d.xp}`);
+        else if (user === cfg.dragon.streamer ? await page.evaluate(x => calculateLevelAndProgress(x).level, d.xp) !== 20 : d.xp !== OLD_SHOWCASE_SAVE[user].xp)
+            fail(`@${user}: xp changed ${OLD_SHOWCASE_SAVE[user].xp} → ${d.xp}${user === cfg.dragon.streamer ? ' (the Dragon must stay level 20)' : ''}`);
         else pass(`@${user}: ${OLD_SHOWCASE_SAVE[user].drakeObj.type} → ${type} (${d.drakeObj.name.en}), xp kept`);
     }
     const titleOf = u => db[u] && db[u].title && db[u].title.id;
@@ -503,6 +531,10 @@ async function testMigration(browser, key) {
     const st = db[cfg.dragon.streamer] && db[cfg.dragon.streamer].title;
     if (titleOf(cfg.dragon.streamer) !== cfg.dragon.titleId || !st.name) fail(`streamer should keep a full title 999, got ${JSON.stringify(st)}`);
     else pass(`streamer keeps title 999 (${st.name.en})`);
+    const behind = db[cfg.dragon.streamer].regular;
+    if (!behind || behind.drakeObj.type !== cfg.dragon.drakeType || behind.xp !== 0 || !behind.title || behind.title.id !== cfg.dragon.drakeTitleId)
+        fail(`the streamer's Dragon should keep a White Drake at level 1 (0 XP, title ${cfg.dragon.drakeTitleId}) for !дракон, got ${JSON.stringify(behind)}`);
+    else pass(`behind the streamer's Dragon: a White Drake at 0 XP (level 1) with title ${behind.title.id}, never level 20`);
 
     // Same page: run the migration again (as happens when the streamer setting changes)
     const rawRerun = await page.evaluate(k => { migrateOldSaves(); return localStorage.getItem(k); }, DB_KEY);
@@ -574,10 +606,11 @@ async function testSavedTitle(browser, key) {
 }
 
 // The streamer card draws the streamer's own drake, in a fresh page (so the main run's seeded fights are untouched):
-// no drake yet → the greyed-out dragon placeholder; !дрейк білий → the dragon at 2x (120×84); a reroll to red, as chat
-// sends it (a channel-point redemption) → the red sprite at 2x (96×72) centred in the same 120×84 slot, the text column
-// where it was, the label naming the red drake; a reroll back to white → the dragon again. Both languages; the Ukrainian
-// run saves screenshots of the side column with the dragon and with the red drake.
+// no drake yet → the greyed-out dragon placeholder; !дрейк білий → the White Drake at 2x (96×72) centred in the dragon's
+// 120×84 slot, the label naming the White Drake; !дракон → the dragon at 2x (120×84), the text column where it was;
+// !дракон again → the White Drake again. A reroll into a viewer colour, as chat sends it (a channel-point redemption),
+// is refused and changes nothing. Both languages; the Ukrainian run saves screenshots of the side column with the White
+// Drake and with the dragon.
 async function testStreamerCard(browser, key) {
     const failures = [];
     const fail = msg => { failures.push(msg); console.log(`    ✗ ${msg}`); };
@@ -607,7 +640,7 @@ async function testStreamerCard(browser, key) {
                 textLeft: Math.round(id.getBoundingClientRect().left), grey: /grayscale/.test(img.getAttribute('style') || ''), sub: box.querySelector('.sc-sub').innerText };
         });
         const tag = `[${lang}]`;
-        const red = lang === 'uk' ? 'Червоний Дрейк' : 'Red Drake', dragonName = lang === 'uk' ? 'Білий Дракон' : 'White Dragon';
+        const drakeName = lang === 'uk' ? 'Білий Дрейк' : 'White Drake', dragonName = lang === 'uk' ? 'Білий Дракон' : 'White Dragon';
         const reward = { 'custom-reward-id': 'test-reward' };   // !рерол only counts as a channel-point redemption
 
         const none = await card();
@@ -615,23 +648,30 @@ async function testStreamerCard(browser, key) {
         else pass(`${tag} no drake yet: the greyed-out dragon placeholder (${none.sub})`);
 
         await chat(lang === 'uk' ? '!дрейк білий' : '!drake white');
-        const white = await card();
-        if (white.type !== 'white' || white.dx || white.dy || white.grey || white.w !== 120 || white.h !== 84 || !white.sub.startsWith(dragonName)) fail(`${tag} after !дрейк білий the card should show the dragon at 120×84, got ${JSON.stringify(white)}`);
-        else pass(`${tag} the White Dragon: dragon sprite at 120×84, "${white.sub}"`);
-        if (lang === 'uk') await page.locator('#side').screenshot({ path: path.join(SHOTS, `${key}-streamer-card-dragon.png`) });
+        const drake = await card();
+        if (drake.type !== 'steel' || drake.grey || drake.w !== 96 || drake.h !== 72 || !drake.sub.startsWith(drakeName)) fail(`${tag} after !дрейк білий the card should show the White Drake at 96×72, got ${JSON.stringify(drake)}`);
+        else pass(`${tag} the White Drake: its sprite at 96×72, "${drake.sub}"`);
+        if (drake.dx !== 0 || drake.dy !== 0) fail(`${tag} the White Drake should be centred in the 120×84 slot (centre offset 0,0), got ${drake.dx},${drake.dy}`);
+        else pass(`${tag} the White Drake is centred in the dragon's 120×84 slot`);
+        if (lang === 'uk') await page.locator('#side').screenshot({ path: path.join(SHOTS, `${key}-streamer-card-white-drake.png`) });
 
         await chat(lang === 'uk' ? '!рерол червоний' : '!reroll red', reward);
-        const redCard = await card();
-        if (redCard.type !== 'red' || redCard.grey || redCard.w !== 96 || redCard.h !== 72 || !redCard.sub.startsWith(red)) fail(`${tag} after a reroll to red the card should show the red sprite at 96×72 and name the red drake, got ${JSON.stringify(redCard)}`);
-        else pass(`${tag} rerolled to red: red sprite at 96×72, "${redCard.sub}"`);
-        if (redCard.dx !== 0 || redCard.dy !== 0 || redCard.textLeft !== white.textLeft) fail(`${tag} the red sprite should be centred in the 120×84 slot with the text where it was (centre offset 0,0; text at ${white.textLeft}), got offset ${redCard.dx},${redCard.dy}, text at ${redCard.textLeft}`);
-        else pass(`${tag} the red sprite is centred in the dragon's 120×84 slot; the text column didn't move`);
-        if (lang === 'uk') await page.locator('#side').screenshot({ path: path.join(SHOTS, `${key}-streamer-card-red.png`) });
+        const refused = await card();
+        if (refused.type !== 'steel' || refused.sub !== drake.sub) fail(`${tag} the streamer's reroll into a viewer colour should change nothing, got ${JSON.stringify(refused)}`);
+        else pass(`${tag} the streamer's reroll into red is refused: still the White Drake`);
 
-        await chat(lang === 'uk' ? '!рерол білий' : '!reroll white', reward);
+        await chat(lang === 'uk' ? '!дракон' : '!dragon');
+        const dragon = await card();
+        if (dragon.type !== 'white' || dragon.dx || dragon.dy || dragon.grey || dragon.w !== 120 || dragon.h !== 84 || !dragon.sub.startsWith(dragonName)) fail(`${tag} after !дракон the card should show the dragon at 120×84, got ${JSON.stringify(dragon)}`);
+        else pass(`${tag} the White Dragon: dragon sprite at 120×84, "${dragon.sub}"`);
+        if (dragon.textLeft !== drake.textLeft) fail(`${tag} the text column should stay where it was (at ${drake.textLeft}), got ${dragon.textLeft}`);
+        else pass(`${tag} the text column didn't move`);
+        if (lang === 'uk') await page.locator('#side').screenshot({ path: path.join(SHOTS, `${key}-streamer-card-dragon.png`) });
+
+        await chat(lang === 'uk' ? '!дракон' : '!dragon');
         const back = await card();
-        if (back.type !== 'white' || back.w !== 120 || back.h !== 84 || back.textLeft !== white.textLeft || !back.sub.startsWith(dragonName)) fail(`${tag} after a reroll back to white the card should show the dragon at 120×84 again, got ${JSON.stringify(back)}`);
-        else pass(`${tag} rerolled back to white: the dragon at 120×84 again`);
+        if (back.type !== 'steel' || back.w !== 96 || back.h !== 72 || back.dx || back.dy || back.textLeft !== drake.textLeft || !back.sub.startsWith(drakeName)) fail(`${tag} after !дракон again the card should show the White Drake at 96×72 again, got ${JSON.stringify(back)}`);
+        else pass(`${tag} !дракон again: the White Drake at 96×72 again`);
         await page.close();
     }
     if (pageErrors.length) [...new Set(pageErrors)].forEach(e => fail(`JS error: ${e}`));

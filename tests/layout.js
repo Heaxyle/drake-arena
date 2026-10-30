@@ -676,7 +676,7 @@ async function startupNetwork(browser) {
             const frames = await page.evaluate(() => {
                 const card = document.getElementById('card-p1'), out = {};
                 const read = cls => { card.className = 'fighter-card ' + cls; const s = getComputedStyle(card); return { hi: s.getPropertyValue('--hi').trim(), lo: s.getPropertyValue('--lo').trim() }; };
-                for (const t of ['red', 'green', 'blue', 'black', 'gold', 'purple', 'white']) out[t] = read('el-' + t);
+                for (const t of ['red', 'green', 'blue', 'black', 'gold', 'purple', 'steel', 'white']) out[t] = read('el-' + t);
                 out.winner = read('el-gold is-winner');
                 out.loser = read('el-red is-loser');
                 const a = getComputedStyle(document.getElementById('arena'));
@@ -685,27 +685,79 @@ async function startupNetwork(browser) {
                 return out;
             });
             const PANEL = '#0d0e15';
-            // Every pair of light edges (six elements, the White Dragon, the winner — the same gold as the arena frame — and the loser)
-            const names = ['red', 'green', 'blue', 'black', 'gold', 'purple', 'white', 'winner', 'loser'];
+            // Every pair of light edges (six elements, the White Drake, the White Dragon, the winner — the same gold as the arena frame — and the loser)
+            const names = ['red', 'green', 'blue', 'black', 'gold', 'purple', 'steel', 'white', 'winner', 'loser'];
             const pairs = [];
             for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) pairs.push([names[i], names[j], de2000(frames[names[i]].hi, frames[names[j]].hi)]);
             pairs.sort((a, b) => a[2] - b[2]);
             const close = pairs.filter(p => p[2] < 20);
             check(!close.length && frames.winner.hi === frames.arena.hi, `every pair of frame light edges is ≥ 20 apart (CIEDE2000), ${pairs.length} pairs; closest: ${pairs.slice(0, 3).map(([a, b, d]) => `${a}/${b} ${d.toFixed(1)}`).join(', ')}`,
                 close.map(([a, b, d]) => `${a} ${frames[a].hi} / ${b} ${frames[b].hi}: ${d.toFixed(1)}`).join(' | ') || 'the winner frame is not the arena gold');
-            // Each frame still reads as its element: hue family for the colours, near-neutral for black and the loser, near-white for the White Dragon
+            // Each frame still reads as its element: hue family for the colours, near-neutral for black and the loser, a light
+            // cool steel for the White Drake, near-white for the White Dragon
             const FAMILY = {
                 red: c => (c.h >= 345 || c.h <= 15) && c.s >= 0.5, gold: c => c.h >= 38 && c.h <= 55 && c.s >= 0.5, green: c => c.h >= 100 && c.h <= 160 && c.s >= 0.5,
                 blue: c => c.h >= 200 && c.h <= 230 && c.s >= 0.5, purple: c => c.h >= 255 && c.h <= 290 && c.s >= 0.5, black: c => c.s <= 0.15 && c.l >= 0.45 && c.l <= 0.75,
-                white: c => c.l >= 0.9, winner: c => c.h >= 38 && c.h <= 55 && c.s >= 0.5, loser: c => c.s <= 0.15 && c.l <= 0.5,
+                steel: c => c.h >= 170 && c.h <= 195 && c.s >= 0.3 && c.s <= 0.6, white: c => c.l >= 0.9, winner: c => c.h >= 38 && c.h <= 55 && c.s >= 0.5, loser: c => c.s <= 0.15 && c.l <= 0.5,
             };
             const off = names.filter(n => !FAMILY[n](hslOf(frames[n].hi)) || (n !== 'white' && n !== 'black' && n !== 'loser' && !FAMILY[n](hslOf(frames[n].lo))));
-            check(!off.length, 'each frame reads as its element (red, gold, green, blue and purple hues on both edges; neutral steel for Black; near-white for the White Dragon; grey for the loser)',
+            check(!off.length, 'each frame reads as its element (red, gold, green, blue and purple hues on both edges; neutral steel for Black; a cool white steel for the White Drake; near-white for the White Dragon; grey for the loser)',
                 off.map(n => `${n} ${frames[n].hi} / ${frames[n].lo}: ${JSON.stringify(hslOf(frames[n].hi))}`).join(' | '));
             const weak = names.filter(n => n !== 'loser' && contrast(frames[n].hi, PANEL) < 3);
             const blackLo = contrast(frames.black.lo, PANEL);
             check(!weak.length && blackLo >= 3, `every frame's light edge is ≥ 3:1 against the dark panel, and the Black drake's dark edge too (${blackLo.toFixed(2)}:1)`,
                 weak.map(n => `${n} ${frames[n].hi}: ${contrast(frames[n].hi, PANEL).toFixed(2)}:1`).join(' | ') || `black dark edge ${blackLo.toFixed(2)}:1`);
+            await context.close();
+        }
+
+        console.log('\nThe White Drake\'s scale bar');
+        for (const lang of ['uk', 'en']) {
+            const { page, context, errors } = await open(browser, { lang });
+            // Both cards: the White Drake (scales part-gone), then a viewer drake for the HP bar's place; then broken
+            const look = await page.evaluate(() => {
+                const xpFor = n => { let x = 0; for (let i = 1; i < n; i++) x += getRequiredXP(i); return x; };
+                const title = TITLES_DB.find(t => t.id === WHITE_DRAKE_TITLE_ID);
+                const wd = { name: 'streamer', color: '#e8f6ff', drakeObj: DRAKE_TYPES.find(d => d.type === WHITE_DRAKE_TYPE), title, xp: xpFor(10) };
+                const red = { name: 'viewer', color: '#ff7f50', drakeObj: DRAKE_TYPES.find(d => d.type === 'red'), title: TITLES_DB[3], xp: xpFor(10) };
+                const max = scalesOf(10, getMaxHP(10, WHITE_DRAKE_TYPE, title));
+                const fx = now => ({ buff: [], debuff: [], meter: 3, halfDone: false, mirror: 0, scales: { now, max } });
+                const plain = { buff: [], debuff: [], meter: 3, halfDone: false, mirror: 0, scales: null };
+                setArenaState({ kind: 'fight', ranked: true, turn: 5 });
+                const r = el => { const b = el.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, w: b.width }; };
+                const read = p => {
+                    const card = document.getElementById(`card-${p}`), row = card.querySelector('.scale-row'), track = card.querySelector('.scale-track');
+                    const fill = document.getElementById(`scales-${p}`), num = document.getElementById(`scale-text-${p}`);
+                    return { shown: getComputedStyle(row).display !== 'none', track: r(track), hp: r(document.getElementById(`bar-${p}`).parentElement),
+                             meter: r(document.getElementById(`power-${p}`)), hpText: r(document.getElementById(`hp-text-${p}`)), num: r(num), text: num.textContent,
+                             fillScale: new DOMMatrix(getComputedStyle(fill).transform).a, cracked: track.classList.contains('cracked') && num.classList.contains('cracked'),
+                             fillOrigin: getComputedStyle(fill).transformOrigin.split(' ')[0] };
+                };
+                const out = {};
+                for (const p of ['p1', 'p2']) {
+                    updateFighterCard(p, red, plain); const viewer = read(p);
+                    updateFighterCard(p, wd, fx(Math.round(max * 0.4))); const part = read(p);
+                    updateFighterCard(p, wd, fx(0)); const broken = read(p);
+                    out[p] = { viewer, part, broken, max, partNow: Math.round(max * 0.4) };
+                }
+                return out;
+            });
+            await page.waitForTimeout(400);   // the fill's transition
+            const bad = [];
+            for (const [p, x] of Object.entries(look)) {
+                const { viewer: v, part: a, broken: b } = x;
+                if (v.shown) bad.push(`${p}: a scale bar on a viewer drake's card`);
+                if (!a.shown) bad.push(`${p}: no scale bar on the White Drake's card`);
+                if (Math.abs(a.track.left - a.hp.left) > 0.5 || Math.abs(a.track.right - a.hp.right) > 0.5) bad.push(`${p}: the bar (${a.track.left}–${a.track.right}) isn't over the HP bar (${a.hp.left}–${a.hp.right})`);
+                if (!(a.track.bottom + 1 <= a.hp.top - 2 - 1 && a.track.top - 1 >= a.meter.bottom)) bad.push(`${p}: the bar (${a.track.top}–${a.track.bottom}) isn't in the gap between the СИЛА row (${a.meter.bottom}) and the HP bar (${a.hp.top})`);
+                if (a.num.bottom > a.hpText.top + 0.5 || Math.abs((p === 'p1' ? a.num.right - a.hpText.right : a.num.left - a.hpText.left)) > 0.5) bad.push(`${p}: the number isn't over the HP number`);
+                if (Math.abs(a.hp.top - v.hp.top) > 0.1 || Math.abs(a.hp.left - v.hp.left) > 0.1 || Math.abs(a.hp.w - v.hp.w) > 0.1) bad.push(`${p}: the HP bar moved (${JSON.stringify(v.hp)} → ${JSON.stringify(a.hp)})`);
+                if (a.text !== String(x.partNow) || a.cracked) bad.push(`${p}: part-gone shows "${a.text}"${a.cracked ? ', cracked' : ''}`);
+                if (b.text !== '0' || !b.cracked) bad.push(`${p}: broken shows "${b.text}", cracked ${b.cracked}`);
+                if (a.fillOrigin !== (p === 'p1' ? '0px' : `${a.track.w}px`)) bad.push(`${p}: the bar drains from the wrong side (origin ${a.fillOrigin})`);
+            }
+            check(!bad.length, `[${lang}] the White Drake's scales: their own bar right above the HP bar, as wide and lined up with it on both cards, in the gap under the СИЛА row, the number over the HP number; it drains from the VS side like HP, cracks at 0 («0»); the HP bar is where a viewer drake's is`,
+                bad.join(' | '));
+            if (errors.length) fail(`[${lang}] page errors: ${errors.join(' | ')}`);
             await context.close();
         }
 
@@ -790,14 +842,18 @@ async function startupNetwork(browser) {
                     panel.style.cssText = 'position:relative;background:var(--panel);padding:30px;margin:0 8px 60px;width:max-content;display:grid;grid-template-columns:repeat(5,404px);gap:34px 24px;';
                     sheet.append(head, panel);
                     const types = [...DRAKE_TYPES.filter(d => d.type !== DRAGON_TYPE), DRAKE_TYPES.find(d => d.type === DRAGON_TYPE)];
-                    const hpPct = [1, 0.62, 0.4, 0.2, 0.75, 0.5, 0.9];
+                    const hpPct = [1, 0.62, 0.4, 0.2, 0.75, 0.5, 0.55, 0.9];
                     types.forEach((d, i) => {
-                        const name = d.type === DRAGON_TYPE ? 'streamer' : 'viewer_' + d.type;
-                        const title = d.type === DRAGON_TYPE ? TITLES_DB.find(t => t.id === DRAGON_TITLE_ID) : TITLES_DB[(i * 29) % TITLES_DB.length];
-                        const dr = { name, color: ['#ff7f50', '#5fd4ff', '#c792ea', '#000000', '#ffd166', '#7cfc00', '#ffffff'][i], drakeObj: d, title, xp };
+                        // The streamer's two forms: the White Drake (its title, its scales part-gone) and the White Dragon
+                        const streamer = d.type === DRAGON_TYPE || d.type === WHITE_DRAKE_TYPE;
+                        const name = streamer ? 'streamer' : 'viewer_' + d.type;
+                        const title = d.type === DRAGON_TYPE ? TITLES_DB.find(t => t.id === DRAGON_TITLE_ID) : d.type === WHITE_DRAKE_TYPE ? TITLES_DB.find(t => t.id === WHITE_DRAKE_TITLE_ID) : TITLES_DB[(i * 29) % TITLES_DB.length];
+                        const dr = { name, color: ['#ff7f50', '#5fd4ff', '#c792ea', '#000000', '#ffd166', '#7cfc00', '#e8f6ff', '#ffffff'][i], drakeObj: d, title, xp };
+                        const max = d.type === WHITE_DRAKE_TYPE ? scalesOf(12, getMaxHP(12, d.type, title)) : 0;
+                        const st = d.type === DRAGON_TYPE ? null : d.type === WHITE_DRAKE_TYPE ? { ...fx(i % 6), scales: { now: Math.round(max * 0.6), max } } : fx(i % 6);
                         setArenaState({ kind: 'fight', ranked: true, turn: 7 });
-                        updateFighterCard('p1', dr, d.type === DRAGON_TYPE ? null : fx(i % 6));
-                        updateStatusUI(name, 12, d.type, title, d.type === DRAGON_TYPE ? { buff: [], debuff: [] } : fx(i % 6));
+                        updateFighterCard('p1', dr, st);
+                        updateStatusUI(name, 12, d.type, title, st || { buff: [], debuff: [] });
                         updateUIHP(Math.round(200 * hpPct[i]), 200, 1, 200);
                         panel.appendChild(snap(drakeLabel(d)));
                     });
@@ -819,7 +875,7 @@ async function startupNetwork(browser) {
             await page.locator('#review-sheet').screenshot({ path: path.join(SHOTS, 'layout-review-cards.png') });
             const n = await page.evaluate(() => document.querySelectorAll('#review-sheet .fighter-card').length);
             const tags = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .result-tag')].filter(t => getComputedStyle(t).display !== 'none').map(t => t.innerText));
-            check(n === 18 && tags.join() === 'ПЕРЕМОЖЕЦЬ,НОКАУТ,WINNER,KNOCKED OUT', `review sheet: ${n} cards (7 types + winner + loser, both languages) in tests/screenshots/layout-review-cards.png`, `${n} cards, tags ${tags.join()}`);
+            check(n === 20 && tags.join() === 'ПЕРЕМОЖЕЦЬ,НОКАУТ,WINNER,KNOCKED OUT', `review sheet: ${n} cards (8 types + winner + loser, both languages) in tests/screenshots/layout-review-cards.png`, `${n} cards, tags ${tags.join()}`);
             await context.close();
         }
 

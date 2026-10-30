@@ -37,6 +37,7 @@ const _warn = console.warn; console.warn = () => {};
 eval(gameScript(FILE) + `
 ;globalThis.__game = {
     EFFECTS, EFFECT_IDS, BUFF_IDS, DEBUFF_IDS, EFFECT_CAST, CLASS_ULTIMATES, ULTIMATE_IDS, ultLabel, TITLES_DB, DRAKE_TYPES, VIEWER_DRAKE_TYPES, DRAGON_TYPE, DRAGON_TITLE_ID,
+    POOL_IDS, STREAMER_TYPES, WHITE_DRAKE_TYPE, WHITE_DRAKE_TITLE_ID,
     applyEffect: (...a) => applyEffect(...a), pickEffect, countDownEffects, newFxState, describeEffect, effectLeftText, effectChipText,
     fxNum, getEffectMult, ELEMENT_BASE, getTierMultiplier, getRequiredXP, getDragonDB, saveDragonDB,
     runBattle: (...a) => runBattle(...a),
@@ -70,7 +71,9 @@ const logged = fn => { capture = []; const r = fn(); const lines = capture; capt
 // ---------------------------------------------------------------- 1. The table
 console.log('\nEFFECTS table');
 const UNITS = ['attacks', 'hits', 'turns', 'instant'];
-check(EFFECT_IDS.length === 12, 'there are 12 effects', `expected 12 effects, found ${EFFECT_IDS.length}: ${EFFECT_IDS.join(', ')}`);
+check(EFFECT_IDS.length === 14 && G.POOL_IDS.length === 12 && G.POOL_IDS.every(id => !G.STREAMER_TYPES.includes(EFFECTS[id].element)),
+    "there are 14 effects: the 12 of the shared pool (every viewer element's pair) and the White Drake's own pair, which isn't in it",
+    `expected 14 effects (12 in the pool), found ${EFFECT_IDS.length}: ${EFFECT_IDS.join(', ')}; pool ${G.POOL_IDS.join(', ')}`);
 for (const id of EFFECT_IDS) {
     const e = EFFECTS[id], bad = [];
     if (!e.icon || !e.icon.trim()) bad.push('no icon');
@@ -85,7 +88,7 @@ for (const id of EFFECT_IDS) {
     if (!e.color) bad.push('no chip color');
     check(!bad.length, `${e.icon} ${e.name.uk} / ${e.name.en}: ${G.describeEffect(id, 'en')}`, `${id}: ${bad.join(', ')}`);
 }
-for (const d of G.VIEWER_DRAKE_TYPES) {
+for (const d of [...G.VIEWER_DRAKE_TYPES, G.DRAKE_TYPES.find(t => t.type === G.WHITE_DRAKE_TYPE)]) {
     const own = EFFECT_IDS.filter(id => EFFECTS[id].element === d.type).map(id => EFFECTS[id].kind).sort().join('+');
     check(own === 'buff+debuff', `${d.type}: one buff and one debuff`, `${d.type} element pair is "${own}", expected one buff and one debuff`);
 }
@@ -100,6 +103,8 @@ for (const id of EFFECT_IDS) {
     for (const l of ['uk', 'en']) {
         for (const k of Object.keys(e.nums)) if (!e.desc[l].includes(`{${k}}`) && !e.desc[l].includes(`{x:${k}}`)) bad.push(`${l} text never shows nums.${k}`);
         if (/\d/.test(e.desc[l].replace(/\{[^}]*\}/g, ''))) bad.push(`${l} text has a number typed in instead of a {placeholder}: "${e.desc[l]}"`);
+        // A text without {count} reads as one ("its next attack"), so the effect must last exactly one
+        if (e.lasts !== 'instant' && !e.desc[l].includes('{count}') && e.count !== 1) bad.push(`${l} text has no {count}, so it says one, but count is ${e.count}: "${e.desc[l]}"`);
         // Change every number in the table: the text must follow
         const before = G.describeEffect(id, l), saved = { ...e.nums }, savedCount = e.count;
         for (const k of Object.keys(e.nums)) e.nums[k] = e.nums[k] + 7;
@@ -127,6 +132,7 @@ const EFFECT_TEXT_ALLOWLIST = [
     { line: 'id: 128, rarity:', terms: ['🎯'], why: 'title icon: Missed the Button' },
     { line: 'id: 76, rarity:', terms: ['🛡'], why: 'title icon: Chat Patrol' },
     { line: 'id: 151, rarity:', terms: ['🛡', 'Щит', 'Shield'], why: 'title: Щит від спойлерів / Spoiler Shield' },
+    { line: 'id: 163, rarity:', terms: ['Магніт', 'Magnet'], why: "title: Магніт для критів / Crit Magnet (older than the White Drake's Магніт)" },
     { line: 'id: 152, rarity:', terms: ['🔥'], why: 'title icon: Hot Take' },
     { line: 'id: 160, rarity:', terms: ['🍀'], why: 'title icon: Four-Leaf Clover' },
     { line: 'id: 176, rarity:', terms: ['🛡'], why: 'title icon: Unbreakable Moderator' },
@@ -295,8 +301,10 @@ for (const lang of ['uk', 'en']) {
     check(Math.abs(own / N - expectOwn) < 0.015 && Math.abs(buffs / own - 0.5) < 0.02,
         `Red picks its own pair ${(100 * own / N).toFixed(1)}% of the time (expected ${(100 * expectOwn).toFixed(1)}%), ${(100 * buffs / own).toFixed(1)}% of those the buff`,
         `Red own-pair rate ${(own / N).toFixed(3)} (expected ${expectOwn.toFixed(3)}), buff share ${(buffs / own).toFixed(3)}`);
-    const dr = EFFECT_IDS.map(id => (dragonHits[id] || 0) / N);
-    check(dr.every(x => Math.abs(x - 1 / 12) < 0.012), 'the White Dragon picks evenly from all 12', `White Dragon pick rates: ${dr.map(x => x.toFixed(3)).join(' ')}`);
+    const dr = G.POOL_IDS.map(id => (dragonHits[id] || 0) / N);
+    const steelPicked = EFFECT_IDS.filter(id => !G.POOL_IDS.includes(id) && dragonHits[id]);
+    check(dr.every(x => Math.abs(x - 1 / 12) < 0.012) && !steelPicked.length, "the White Dragon picks evenly from the 12 of the shared pool, never the White Drake's pair",
+        `White Dragon pick rates: ${dr.map(x => x.toFixed(3)).join(' ')}; picked the White Drake's: ${steelPicked.join(', ')}`);
 }
 
 // ---------------------------------------------------------------- 4. What each effect does
@@ -512,8 +520,9 @@ for (const [pLabel, pCaster] of POWERS) {
 // Before every "[Хід N]" / "[Turn N]" line the state is compared with the state after the previous line (or the last
 // cast). Between the two, the only things allowed to change counts are: the attacker's turn starting ('turns' −1),
 // the attacker attacking ('attacks' −1), the defender being attacked ('hits' −1) — or, on a frozen turn, only the
-// attacker's 'turns' effects and Frost itself. An effect may only vanish when its count reached 0.
-console.log(`\nReal fights (${FIGHTS} per language, all elements, ability titles, the White Dragon)`);
+// attacker's 'turns' effects and Frost itself. Магніт ('attacks') runs down once its owner's attack has made its casts,
+// after that attack's line, so it shows one line later. An effect may only vanish when its count reached 0.
+console.log(`\nReal fights (${FIGHTS} per language, all elements, ability titles, the White Dragon and the White Drake)`);
 const ID_RE = new RegExp(`\\b(${[...EFFECT_IDS, ...G.ULTIMATE_IDS].join('|')}|stoneskin|armorbreak|divinepower)\\b`);
 const types = G.VIEWER_DRAKE_TYPES.map(d => d.type);
 const mechTitles = ['opening_buff', 'chaotic_charge', 'cat_keyboard', 'debuff_immunity', 'thorns', 'lifesteal'].map(titleWith).filter(Boolean);
@@ -533,6 +542,7 @@ G.wrapApplyEffect((r, a, targetBuffs) => {
 
 const stats = { turns: 0, checked: 0, frozen: 0, wrong: [], idLeaks: [], seen: new Set(), ultimates: new Set(), immuneHad: [], unitsSeen: { attacks: 0, hits: 0, turns: 0 } };
 let current = null;      // { A, B, immune: Set(names) }
+let lastAttacker = null; // who made the previous line's attack (null after a turn without one): its Магніт ran down since
 G.wrapAddLog(raw => {
     if (!current) return;
     const line = strip(raw);
@@ -556,7 +566,8 @@ G.wrapAddLog(raw => {
         const own = before.owner === attacker;
         if (ult === 'theft' && e.kind === 'buff') continue;
         const mayVanish = (ult === 'detonation' && !own && e.kind === 'debuff') || (ult === 'bloom' && own && e.kind === 'debuff');
-        const d = noAttack ? (own && (e.lasts === 'turns' || (frozen && before.id === 'frost')) ? 1 : 0)
+        const d = before.id === 'magnet' ? (before.owner === lastAttacker ? 1 : 0)
+                : noAttack ? (own && (e.lasts === 'turns' || (frozen && before.id === 'frost')) ? 1 : 0)
                            : (own ? (e.lasts === 'turns' || e.lasts === 'attacks' ? 1 : 0) : (e.lasts === 'hits' ? 1 : 0));
         const want = before.left - d;
         const after = now.get(inst);
@@ -568,6 +579,7 @@ G.wrapAddLog(raw => {
     }
     for (const name of current.immune) if (G.battleFx[name] && G.battleFx[name].debuff.length) stats.immuneHad.push(`@${name} has ${G.battleFx[name].debuff.map(x => x.id)}`);
     baseline = now;
+    lastAttacker = noAttack ? null : attacker;
 });
 
 for (const lang of ['uk', 'en']) {
@@ -575,14 +587,15 @@ for (const lang of ['uk', 'en']) {
     for (let i = 0; i < FIGHTS; i++) {
         const level = pick([1, 10, 20]);
         const mk = (name) => {
-            const type = i % 25 === 0 && name === 'A' ? G.DRAGON_TYPE : pick(types);
-            const title = type === G.DRAGON_TYPE ? G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID) : (Math.random() < 0.6 ? pick(mechTitles) : (Math.random() < 0.5 ? effectTitle : null));
+            const type = i % 25 === 0 && name === 'A' ? G.DRAGON_TYPE : i % 5 === 2 && name === 'B' ? G.WHITE_DRAKE_TYPE : pick(types);
+            const title = type === G.DRAGON_TYPE ? G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID) : type === G.WHITE_DRAKE_TYPE ? G.TITLES_DB.find(t => t.id === G.WHITE_DRAKE_TITLE_ID)
+                : (Math.random() < 0.6 ? pick(mechTitles) : (Math.random() < 0.5 ? effectTitle : null));
             return { name, color: '#fff', drakeObj: DRAKE_TYPES_BY[type], title, xp: xpFor(type === G.DRAGON_TYPE ? 20 : level) };
         };
         const A = mk('A'), B = mk('B');
         const db = G.getDragonDB(); db.A = A; db.B = B; G.saveDragonDB(db);
         current = { immune: new Set([A, B].filter(f => f.title && ['debuff_immunity', 'streamer_god'].includes(f.title.bonus.mechanic)).map(f => f.name)) };
-        baseline = null;
+        baseline = null; lastAttacker = null;
         G.setRunning(true);
         G.runBattle('A', '#fff', 'B', '#fff', false);
         // runBattle sets up the fight synchronously; take the baseline before the first turn runs
@@ -599,7 +612,7 @@ check(stats.unitsSeen.attacks > 0 && stats.unitsSeen.hits > 0 && stats.unitsSeen
     'every kind of countdown (and a frozen turn) actually happened', `some countdown never happened: ${JSON.stringify(stats.unitsSeen)}, frozen ${stats.frozen}`);
 check(stats.idLeaks.length === 0, 'no internal effect id appears in the battle log (uk and en)', `effect ids in the log: ${stats.idLeaks.join(' | ')}`);
 const unseen = EFFECT_IDS.filter(id => !stats.seen.has(id));
-check(!unseen.length, `all 12 effects showed up in fight logs by name`, `never seen in a fight log: ${unseen.join(', ')}`);
+check(!unseen.length, `all ${EFFECT_IDS.length} effects showed up in fight logs by name`, `never seen in a fight log: ${unseen.join(', ')}`);
 check(dispel.wasted === 0 && dispel.recast > 0,
     `Dispel in fights: ${dispel.cast} cast, ${dispel.recast} recast as another effect (no buffs to remove), ${dispel.immune} stopped by immunity, 0 wasted`,
     `Dispel landed on a target with no buffs ${dispel.wasted} time(s) (recast ${dispel.recast})`);

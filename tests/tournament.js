@@ -2,7 +2,8 @@
 // seeded fights. Game results are set by the test (a hook on finishBattle), so every match goes the way the plan says.
 //   1  Sign-up (both languages): only the streamer or a moderator opens it; the line on the arena «🏆 Турнір: реєстрація
 //      · 5/8 · !учасник»; every refusal in the ЧАТ panel (no tournament, no drake, the White Dragon, already in, the
-//      bracket full); leaving during sign-up and not after; !турнір старт with too few; the 8th player closes it
+//      bracket full); leaving during sign-up and not after; !турнір старт with too few; the 8th player closes it. The
+//      streamer's White Drake signs up like any drake, and !дракон is refused while it's signed up
 //   2  A full 8-player run (Ukrainian, betting window on): it waits for the ranked fight on screen, its result screen and
 //      the duel waiting after it; the betting window with the bracket under its timer before game 1 of every match (the
 //      3rd-place game and the final too); !старт skips it and its 5 s guard holds; games 2 and 3 after the 20 s result
@@ -31,6 +32,9 @@
 //      medals adding up over two tournaments; the Hall of Fame after the podium, on the idle arena after a reload and
 //      as the !зала card; !турнір стоп refused during the Hall of Fame; a ladder wipe (every key with "db" or "stats" in
 //      its name) leaves the rewards and an open sign-up alone
+//   7  The streamer's White Drake plays a 4-player tournament (Ukrainian): it fights as the White Drake at level 20, its
+//      scales on its card; !дракон is refused in its game's countdown, mid-game, once it's knocked out with the 3rd-place
+//      game and the final to come, and on the podium (which shows the White Drake); once the tournament is over it works
 //   Screenshots (Ukrainian): tests/screenshots/tournament-signup.png, -bracket.png, -plate.png, -podium.png, -qualifier.png,
 //   -hall-idle.png (the Hall of Fame on the idle arena), -hall-card.png (the !зала card), -champion.png (badges, glow)
 //
@@ -207,7 +211,18 @@ const key = (a, b) => [a, b].sort().join('-');
         if (lang === 'uk') await shot(page, 'tournament-signup.png');
         const replies = {};
         await say(page, 'ghost_no_drake', cmd(lang, '!учасник', '!join')); replies.noDrake = (await view(page)).chat;
+        // The streamer's White Drake signs up like any drake; signed up, !дракон waits; out again, the Dragon can't sign up
+        await say(page, 'streamer_kit', cmd(lang, '!учасник', '!join')); replies.drakeIn = (await view(page)).chat;
+        const drakeJoined = (await view(page)).tourney.players.some(p => p.name === 'streamer_kit');
+        await say(page, 'streamer_kit', cmd(lang, '!дракон', '!dragon')); replies.formWait = (await view(page)).chat;
+        const formKept = await page.evaluate(() => getDragonDB().streamer_kit.drakeObj.type);
+        await say(page, 'streamer_kit', cmd(lang, '!вийти', '!leave'));
+        await say(page, 'streamer_kit', cmd(lang, '!дракон', '!dragon'));
         await say(page, 'streamer_kit', cmd(lang, '!учасник', '!join')); replies.dragon = (await view(page)).chat;
+        const dragonOut = !(await view(page)).tourney.players.some(p => p.name === 'streamer_kit');
+        check(drakeJoined && /у турнірі|in the tournament/.test(replies.drakeIn) && formKept === 'steel' && /змінити форму|switch forms/.test(replies.formWait) && dragonOut,
+            `the streamer's White Drake signs up; signed up, ${cmd(lang, '!дракон', '!dragon')} is refused ("${replies.formWait}"); out again, the White Dragon can't sign up`,
+            JSON.stringify({ drakeJoined, formKept, dragonOut, replies }));
         await say(page, 'maks', cmd(lang, '!учасник', '!join')); replies.twice = (await view(page)).chat;
         await say(page, 'maks', cmd(lang, '!вийти', '!leave')); replies.left = (await view(page)).chat;
         const four = await view(page);
@@ -234,6 +249,49 @@ const key = (a, b) => [a, b].sort().join('-');
             JSON.stringify({ started: startedWith4.tourney && startedWith4.tourney.phase, tooFew: tooFew.chat, full: full4.tourney.phase, line: full4.line }));
         check(/сітка вже заповнена|bracket is full/.test(replies.full) && /лише під час реєстрації|only leave during sign-up/.test(replies.noLeave),
             'refusals: the bracket full; leaving after sign-up closed', JSON.stringify(replies));
+        check(!errors.length, 'no page errors', errors.join(' | '));
+        await context.close();
+    }
+
+    // 7. The streamer's White Drake in a tournament: it plays as itself, and !дракон waits until the tournament is over
+    if (run(7)) {
+        console.log('\n[7. the streamer\'s White Drake in a tournament, uk]');
+        const { page, context, errors } = await open(browser, { lang: 'uk' });
+        const players = ['streamer_kit', 'bohdan', 'ira_77', 'maks'];
+        await page.evaluate(() => setStreamerUser('streamer_kit'));
+        await register(page, 'uk', players.slice(1));
+        await say(page, 'streamer_kit', '!дрейк білий');
+        await mod(page, '!турнір 4');
+        for (const n of players) await say(page, n, '!учасник');   // the 4th closes sign-up: the draw
+        // The plan: the streamer loses its semifinal 0:2, wins the 3rd-place game; the other semifinal's first player wins it and the final
+        const sfs = await page.evaluate(() => tourney.rounds[0].map(m => [m.a, m.b]));
+        const mine = sfs.find(m => m.includes('streamer_kit')), other = sfs.find(m => !m.includes('streamer_kit')), opp = mine.find(n => n !== 'streamer_kit');
+        await page.evaluate(plan => Object.assign(window.__plan, plan), {
+            [key(...mine)]: [opp, opp], [key(...other)]: [other[0], other[0]], [key('streamer_kit', other[1])]: ['streamer_kit'], [key(opp, other[0])]: [other[0], other[0]] });
+        const form = () => page.evaluate(() => getDragonDB().streamer_kit.drakeObj.type);
+        const tryForm = async () => { await say(page, 'streamer_kit', '!дракон'); return { type: await form(), reply: (await view(page)).chat }; };
+        const moments = {};
+        await until(page, () => tourGame && tourGame.stage === 'sf' && [tourGame.a, tourGame.b].includes('streamer_kit') && arenaState.kind === 'countdown');
+        moments.countdown = await tryForm();
+        await until(page, () => tourGame && tourGame.stage === 'sf' && [tourGame.a, tourGame.b].includes('streamer_kit') && arenaState.kind === 'fight' && arenaState.turn >= 2, null, { step: 250 });
+        const card = await page.evaluate(() => { const side = document.getElementById('name-p1').textContent.includes('streamer_kit') ? 'p1' : 'p2', f = side === 'p1' ? fv.p1 : fv.p2;
+            return { type: f && f.drakeObj.type, level: f && calculateLevelAndProgress(f.xp).level, scales: document.getElementById(`card-${side}`).classList.contains('has-scales'),
+                     text: document.getElementById(`scale-text-${side}`).textContent }; });
+        moments.midGame = await tryForm();
+        await until(page, () => tourney.rounds[0].some(m => m.winner && [m.a, m.b].includes('streamer_kit')) && arenaState.kind === 'result');
+        moments.knockedOut = await tryForm();
+        await until(page, () => arenaState.kind === 'podium');
+        const podium = await page.evaluate(() => { const img = document.querySelector('#log-countdown .pd-3 .pd-sprite'); return { third: tourney.podium[2], steel: !!img && img.getAttribute('src') === drakeSpriteURL(WHITE_DRAKE_TYPE) }; });
+        moments.podium = await tryForm();
+        await until(page, () => !tourney);
+        moments.over = await tryForm();
+        check(card.type === 'steel' && card.level === 20 && card.scales && /^\d+$/.test(card.text),
+            `the streamer fights as the White Drake at level 20, its scales' bar and number on its card («${card.text}»)`, JSON.stringify(card));
+        const waited = ['countdown', 'midGame', 'knockedOut', 'podium'];
+        check(waited.every(k => moments[k].type === 'steel' && /змінити форму/.test(moments[k].reply)) && moments.over.type === 'white',
+            `!дракон refused in its game's countdown, mid-game, knocked out (3rd-place game and final to come) and on the podium («${moments.countdown.reply}»); after the tournament it works`,
+            JSON.stringify(moments));
+        check(podium.third === 'streamer_kit' && podium.steel, 'the podium shows the White Drake in 3rd place', JSON.stringify(podium));
         check(!errors.length, 'no page errors', errors.join(' | '));
         await context.close();
     }
@@ -1093,18 +1151,19 @@ const key = (a, b) => [a, b].sort().join('-');
             JSON.stringify({ sPod, podScreen, podChat, sHall, hallChat, letters }));
         await until(page, () => !tourney, null, { step: 1000 });
 
-        // 11. The crown on every drake: the six on podium steps as drawn (3×, as the champion stands), and mirrored (2×).
+        // 11. The crown on every drake: the six and the streamer's White Drake on podium steps as drawn (3×, as the champion
+        // stands), and mirrored (2×).
         // For each, the anchor is at the top of the head (the crown's bottom row covers the head's first or second row in that
         // column, and the head goes on below it), the crown's bottom edge sits on the anchor and its middle on the anchor's
         // column (within 2 px), on the sprite's pixel grid
         const crowns = await page.evaluate(() => {
             const st = document.createElement('div');
             st.id = 'crown-review';   // no .ts-champ here: the crowns are shown as they are once landed, without the drop
-            st.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:600px;z-index:99;background:#0b0c11;display:grid;grid-template-columns:repeat(6, 1fr);grid-template-rows:56px 330px 214px;align-items:end;justify-items:center';
+            st.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:600px;z-index:99;background:#0b0c11;display:grid;grid-template-columns:repeat(7, 1fr);grid-template-rows:56px 330px 214px;align-items:end;justify-items:center';
             st.innerHTML = `<div style="grid-column:1 / -1;align-self:center;font:800 20px var(--pixel), sans-serif;color:var(--gold);letter-spacing:2px;text-transform:uppercase">${sT('champion')}</div>`;
             document.body.appendChild(st);
             const out = [];
-            [false, true].forEach(flip => VIEWER_DRAKE_TYPES.forEach(d => {
+            [false, true].forEach(flip => [...VIEWER_DRAKE_TYPES, DRAKE_TYPES.find(t => t.type === WHITE_DRAKE_TYPE)].forEach(d => {
                 const col = document.createElement('div');
                 col.className = `pd-col ${flip ? 'pd-2' : 'pd-1'}`;
                 col.innerHTML = `<img class="pd-sprite" src="${drakeSpriteURL(d.type)}" alt=""${flip ? ' style="transform:scaleX(-1)"' : ''}>`
@@ -1123,8 +1182,8 @@ const key = (a, b) => [a, b].sort().join('-');
         await page.screenshot({ path: path.join(SHOTS, 'show-crowns.png'), clip: { x: 0, y: 0, width: 1920, height: 600 } });
         await page.evaluate(() => document.getElementById('crown-review').remove());
         const offHead = crowns.filter(c => !(Math.abs(c.dy) <= 2 && Math.abs(c.dx) <= 2 && c.grid && c.onHead));
-        check(crowns.length === 12 && !offHead.length,
-            `the crown sits on the head anchor of all six drakes, as drawn (3×) and mirrored (2×): ${crowns.map(c => `${c.type}${c.flip ? '⇆' : ''} ${c.dx},${c.dy}`).join(' · ')} px; on the sprite's pixel grid`,
+        check(crowns.length === 14 && !offHead.length,
+            `the crown sits on the head anchor of all six drakes and the White Drake, as drawn (3×) and mirrored (2×): ${crowns.map(c => `${c.type}${c.flip ? '⇆' : ''} ${c.dx},${c.dy}`).join(' · ')} px; on the sprite's pixel grid`,
             JSON.stringify(offHead.length ? offHead : crowns));
         check(!errors.length, 'no page errors', errors.join(' | '));
         await context.close();

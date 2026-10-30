@@ -10,6 +10,9 @@
 //      the queue
 //   5  A save older than 10 minutes (the clock moved on 11 minutes with the page closed) is dropped: empty queue, idle
 //      arena, the key gone; one 9 minutes old is still picked up
+//   6  The streamer's White Drake mid-fight, its scales hit: the match starts again with the scales and effects as a new
+//      fight has them (the scales full at their starting size, the card showing it; no debuffs, any buff fresh). Then as
+//      the White Dragon across a reload: still the Dragon, and !дракон brings back the White Drake with the same XP
 // Every case: one page load event per load in the play log saying what came back, exactly one logged fight per fight
 // fought to its end, no page errors.
 // Usage: npm run test:resume   (or node tests/resume.js; RESUME_ONLY=1,3 runs only those cases)
@@ -203,6 +206,49 @@ async function main() {
                 check(!errors.length, 'no page errors', errors.join(' | '));
                 await context.close();
             }
+        }
+        // 6: the streamer's White Drake: a reload mid-fight with its scales hit, then its other form across a reload
+        if (run(6)) {
+            console.log('\n[6. the streamer\'s White Drake: a reload mid-fight, and the Dragon across a reload]');
+            const { page, context, errors } = await open(browser);
+            await page.evaluate(() => setStreamerUser('stream_owner'));
+            await chat(page, 'stream_owner', '!дрейк білий');
+            await chat(page, 'stream_owner', '!черга');
+            await chat(page, 'ania', '!черга');
+            const fxOf = () => { const st = battleFx && battleFx.stream_owner, foe = battleFx && battleFx.ania;
+                return st && foe ? { scales: { ...st.scales }, turn: arenaState.turn, buffs: [...st.buff, ...foe.buff].map(x => [x.id, x.left]), debuffs: [...st.debuff, ...foe.debuff].map(x => x.id) } : null; };
+            await until(page, () => arenaState.kind === 'fight' && arenaState.turn >= 3 && !!battleFx && !!battleFx.stream_owner && battleFx.stream_owner.scales.now < battleFx.stream_owner.scales.max);
+            const before = await page.evaluate(fxOf);
+            await reload(page);
+            await page.clock.runFor(500);
+            const back = await view(page);
+            check(back.kind === 'countdown' && back.betting && same(back.cards, ['ania', 'stream_owner']) && restartLine(back),
+                `before: the scales at ${before.scales.now}/${before.scales.max} on turn ${before.turn}; after the reload the same match in a fresh betting window`, JSON.stringify({ before, back }));
+            // The fight begins again: as a new fight has it, before its first hit
+            await until(page, () => arenaState.kind === 'fight', null, 250);
+            const fresh = await page.evaluate(fxOf);
+            const counts = await page.evaluate(() => Object.fromEntries(EFFECT_IDS.map(id => [id, EFFECTS[id].count])));
+            const want = await page.evaluate(() => { const d = getDragonDB().stream_owner, lvl = calculateLevelAndProgress(d.xp).level; return scalesOf(lvl, getMaxHP(lvl, d.drakeObj.type, d.title)); });
+            const card = await page.evaluate(() => { const side = document.getElementById('name-p1').textContent.includes('stream_owner') ? 'p1' : 'p2';
+                return { text: document.getElementById(`scale-text-${side}`).textContent, on: document.getElementById(`card-${side}`).classList.contains('has-scales') }; });
+            check(fresh && fresh.turn <= 1 && fresh.scales.now === want && fresh.scales.max === want && card.on && card.text === String(want),
+                `the fight starts again with the scales full at their starting size (${want}), the card showing «${card.text}»`, JSON.stringify({ fresh, want, card }));
+            check(fresh && !fresh.debuffs.length && fresh.buffs.every(([id, left]) => left === counts[id]),
+                `no effect carried over from before the reload (before: ${before.buffs.length + before.debuffs.length} up; now: ${fresh ? fresh.buffs.map(b => b[0]).join(', ') || 'none' : '?'}, fresh)`, JSON.stringify({ before, fresh }));
+            await until(page, () => arenaState.kind === 'result', null, 1000);
+            await page.evaluate(() => endResultHold());
+            // The White Dragon across a reload: still the Dragon, the White Drake behind it with its XP
+            const drakeXp = await page.evaluate(() => getDragonDB().stream_owner.xp);
+            await chat(page, 'stream_owner', '!дракон');
+            await reload(page);
+            await page.clock.runFor(500);
+            const asDragon = await page.evaluate(() => { const d = getDragonDB().stream_owner; return { type: d.drakeObj.type, kept: d.regular && d.regular.xp }; });
+            await chat(page, 'stream_owner', '!дракон');
+            const again = await page.evaluate(() => { const d = getDragonDB().stream_owner; return { type: d.drakeObj.type, xp: d.xp, title: d.title.id }; });
+            check(asDragon.type === 'white' && asDragon.kept === drakeXp && again.type === 'steel' && again.xp === drakeXp && again.title === 998,
+                `as the White Dragon across a reload: still the Dragon, and !дракон brings back the White Drake with its ${drakeXp} XP`, JSON.stringify({ drakeXp, asDragon, again }));
+            check(!errors.length, 'no page errors', errors.join(' | '));
+            await context.close();
         }
     } finally {
         await browser.close();

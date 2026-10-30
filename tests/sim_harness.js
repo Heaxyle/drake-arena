@@ -1,7 +1,8 @@
 
 // ---- appended to the game script ----
 const __xpFor = lvl => { let x = 0; for (let l = 1; l < lvl; l++) x += getRequiredXP(l); return x; };
-// Viewer elements only: the streamer's White Dragon (DRAGON_TYPE) is a one-shot god mode and is never balanced against.
+// Viewer elements only: the streamer's White Dragon (DRAGON_TYPE) is a one-shot god mode and is never balanced against;
+// the streamer's White Drake has its own check (whitedrake).
 const __TYPES = VIEWER_DRAKE_TYPES.map(d => d.type);
 const __NEUTRAL = { id: 0, name: 'neutral', icon: '', color: '#fff', rarity: 'none', bonus: { type: 'none', value: 0 } };
 const __stripe = s => s.replace(/<[^>]+>/g, '');
@@ -17,9 +18,10 @@ function __effectReport() {
     console.log('+dmg = extra damage dealt, prevented = damage avoided, healed = HP restored; "each" = per landing.');
     console.log('effect'.padEnd(26) + 'kind'.padEnd(8) + 'lands'.padStart(8) + '+dmg'.padStart(8) + 'prevent'.padStart(8) + 'healed'.padStart(8) + '  each:' + '+dmg'.padStart(7) + 'prevent'.padStart(8) + 'healed'.padStart(8) + '  note');
     for (const id of EFFECT_IDS) {
+        if (STREAMER_TYPES.includes(EFFECTS[id].element) && !__elementFights[EFFECTS[id].element]) continue;   // the White Drake's, when it didn't fight
         const e = EFFECTS[id], t = effectTally[id] || { lands: 0, dmg: 0, prevented: 0, healed: 0, removed: 0 };
         const note = { rage: 'prevent < 0: extra damage the raging drake takes', frost: 'prevent: estimated from the frozen drake\'s average hit',
-            poison: 'prevent: healing it blocked', dispel: `${per(t.removed, t.lands).trim()} buffs removed each` }[id] || '';
+            poison: 'prevent: healing it blocked', dispel: `${per(t.removed, t.lands).trim()} buffs removed each`, reforge: 'prevent: scales rebuilt' }[id] || '';
         console.log(`${e.icon} ${e.name.en}`.padEnd(25) + e.kind.padEnd(8) + n(t.lands) + n(t.dmg) + n(t.prevented) + n(t.healed) + '      ' +
             per(t.dmg, t.lands).slice(1) + per(t.prevented, t.lands) + per(t.healed, t.lands) + '  ' + note);
     }
@@ -28,6 +30,7 @@ function __effectReport() {
     console.log('prevent = damage it stopped, healed = HP restored; final blow = share of uses that killed the opponent.');
     console.log('ultimate'.padEnd(26) + 'fires'.padStart(8) + '  per use:' + '+dmg'.padStart(7) + 'prevent'.padStart(8) + 'healed'.padStart(8) + 'final blow'.padStart(12));
     for (const id of ULTIMATE_IDS) {
+        if (STREAMER_TYPES.includes(CLASS_ULTIMATES[id].element) && !__elementFights[CLASS_ULTIMATES[id].element]) continue;
         const u = CLASS_ULTIMATES[id], t = ultimateTally[id] || { fires: 0, dmg: 0, prevented: 0, healed: 0, kills: 0 };
         const fights = __elementFights[u.element] || 0;
         console.log(`${u.icon} ${u.name.en}`.padEnd(25) + (fights ? t.fires / fights : 0).toFixed(2).padStart(8) + '          ' +
@@ -40,8 +43,8 @@ let __turnsTotal = 0;
 
 function __fight(a, b) {
     const db = getDragonDB();
-    db.A = { name: 'A', color: '#fff', drakeObj: DRAKE_TYPES.find(d => d.type === a.type) || { name: 'Plain', type: a.type }, title: a.title, xp: __xpFor(a.level), level: a.level };
-    db.B = { name: 'B', color: '#fff', drakeObj: DRAKE_TYPES.find(d => d.type === b.type) || { name: 'Plain', type: b.type }, title: b.title, xp: __xpFor(b.level), level: b.level };
+    db.A = { name: 'A', color: '#fff', drakeObj: DRAKE_TYPES.find(d => d.type === a.type) || { name: { uk: 'Plain', en: 'Plain' }, type: a.type }, title: a.title, xp: __xpFor(a.level), level: a.level };
+    db.B = { name: 'B', color: '#fff', drakeObj: DRAKE_TYPES.find(d => d.type === b.type) || { name: { uk: 'Plain', en: 'Plain' }, type: b.type }, title: b.title, xp: __xpFor(b.level), level: b.level };
     saveDragonDB(db);
     const start = __LOG.length;
     isBattleRunning = true;
@@ -66,7 +69,7 @@ const __writeJson = obj => { if (global.__JSON_OUT) require('fs').writeFileSync(
 
 function __tierList() {
     const tiers = {};
-    TITLES_DB.filter(t => t.id !== 999).forEach(t => (tiers[t.rarity] = tiers[t.rarity] || []).push(t));
+    TITLES_DB.filter(t => t.rarity !== 'divine').forEach(t => (tiers[t.rarity] = tiers[t.rarity] || []).push(t));   // never the streamer's 998, 999
     return tiers;
 }
 
@@ -114,7 +117,7 @@ if (scenario === 'bonuses') {
     const tiers = __tierList();
     const base = tiers.common;
     const groups = {};
-    TITLES_DB.filter(t => t.id !== 999).forEach(t => {
+    TITLES_DB.filter(t => t.rarity !== 'divine').forEach(t => {
         const key = t.rarity + ':' + (t.bonus.mechanic || JSON.stringify(t.bonus.stats || t.bonus.value));
         (groups[key] = groups[key] || []).push(t);
     });
@@ -203,7 +206,7 @@ if (scenario === 'sweep') {
 if (scenario === 'dragon') {
     const N = +(process.argv[4] || 100);
     const dragonTitle = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
-    const titles = TITLES_DB.filter(t => t.id !== DRAGON_TITLE_ID);
+    const titles = TITLES_DB.filter(t => t.rarity !== 'divine');
     const bad = [];
     for (const x of __TYPES) {
         let w = 0;
@@ -215,4 +218,42 @@ if (scenario === 'dragon') {
         console.log(`White Dragon vs ${x}: ${__pct(w / N)}`);
     }
     if (bad.length) { console.error('White Dragon should win every fight: ' + bad.join(', ')); process.exit(1); }
+}
+
+// The streamer's White Drake against each viewer element at equal levels 1, 5, 10 and 20: with its fixed title (White
+// Steel) against the viewers' real title odds (getRandomTitle, as the roulette rolls them), and with no title on either
+// side. Prints the tables and the effect report; with --json, writes the win rates. [N] [titles|plain[:level]] plays one
+// table (at one level) only: tests/white_drake_gate.js (npm run test:white-drake-gate) runs the parts in parallel and
+// checks the bounds
+if (scenario === 'whitedrake') {
+    const N = +(process.argv[4] || 1500);
+    const [onlyMode, onlyLevel] = (process.argv[5] || '').split(':');
+    const LEVELS = onlyLevel ? [+onlyLevel] : [1, 5, 10, 20];
+    const modes = [['titles', 'its title (White Steel) against the roulette titles'], ['plain', 'no titles']].filter(([m]) => !onlyMode || m === onlyMode);
+    if (!modes.length || LEVELS.some(l => !(l >= 1 && l <= 20))) throw new Error(`whitedrake: unknown part "${process.argv[5]}" (titles|plain[:level])`);
+    const steelTitle = TITLES_DB.find(t => t.id === WHITE_DRAKE_TITLE_ID);
+    const cells = { titles: {}, plain: {} };
+    for (const [mode, label] of modes) {
+        console.log(`\nWhite Drake against each element, ${label}: win %`);
+        console.log('level  ' + __TYPES.map(t => t.padStart(8)).join(''));
+        for (const lvl of LEVELS) {
+            let row = `L${lvl}`.padEnd(7);
+            for (const x of __TYPES) {
+                let w = 0;
+                for (let i = 0; i < N; i++) {
+                    const r = __fight({ type: WHITE_DRAKE_TYPE, level: lvl, title: mode === 'titles' ? steelTitle : __NEUTRAL },
+                                      { type: x, level: lvl, title: mode === 'titles' ? getRandomTitle() : __NEUTRAL });
+                    if (r.winner === 'A') w++; else if (r.winner === 'draw') w += 0.5;
+                }
+                const pct = 100 * w / N;
+                (cells[mode][lvl] = cells[mode][lvl] || {})[x] = pct;
+                row += (pct.toFixed(1) + '%').padStart(8);
+            }
+            console.log(row);
+        }
+    }
+    const b = effectTally.__bounced || 0;
+    console.log(`\nDebuffs that bounced off the scales: ${(b / Math.max(1, __fights)).toFixed(2)} per fight`);
+    __effectReport();
+    __writeJson({ scenario: 'whitedrake', fights: N, cells });
 }

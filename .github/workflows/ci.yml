@@ -29,6 +29,11 @@ jobs:
       - name: Element balance gate
         run: npm run test:balance-gate
 
+      # The streamer's White Drake against each viewer element, levels 1/5/10/20 (20,000 seeded fights a matchup, 8 parts in
+      # parallel): fails if, with titles, a level's average leaves 52–57% or a matchup 48–60% (known counters: 46–62%)
+      - name: White Drake balance gate
+        run: npm run test:white-drake-gate
+
       - name: UI smoke test
         run: npm run test:ui showcase
 

@@ -105,6 +105,10 @@
         .el-gold   { --hi: #ae8513; --lo: #6e4f06; --deep: #1a1102; --meter: #d9a520; }
         .el-purple { --hi: #b47aff; --lo: #6a35b0; --deep: #12061f; --meter: #b47aff; }
         .el-white  { --hi: #ffffff; --lo: #5a8fb0; --deep: #061018; --meter: #ffffff; }
+        .el-steel  { --hi: #8ddbde; --lo: #4a8a90; --deep: #051416; --meter: #c8f4ee; }
+        /* The streamer's White Drake: a white-steel frame with a soft green shimmer (opacity only; not the champion's gold) */
+        .fighter-card.el-steel::after { content: ''; position: absolute; inset: -6px; pointer-events: none; z-index: -1; box-shadow: 0 0 22px 3px rgba(88, 232, 136, 0.32); opacity: 0.2; animation: steelShimmer 3.6s ease-in-out infinite; }
+        @keyframes steelShimmer { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.75; } }
         /* After the fight: the winner framed in gold, the loser greyed */
         .fighter-card.is-winner { --hi: #ffd978; --lo: #b8862c; --deep: #1b1206; --glow: 0 0 30px rgba(242, 193, 78, 0.28); }
         .fighter-card.is-loser  { --hi: #6c6f80; --lo: #3a3c48; --deep: #08080b; }
@@ -167,14 +171,26 @@
         .pm-count { font-size: 12px; color: var(--dim); }
         .pm-ready { font-size: 12px; font-weight: 800; letter-spacing: 1px; color: var(--meter); }
         .pm-mirror { font-size: 12px; font-weight: 600; color: #7fdcff; }
-        .fc-hp { display: flex; align-items: center; gap: 12px; margin-top: auto; flex-shrink: 0; }
+        .fc-hp { position: relative; display: flex; align-items: center; gap: 12px; margin-top: auto; flex-shrink: 0; }
         .hp-bar-container { height: 20px; }
+        /* The White Drake's scales (Луска Дракона): their own thin white-steel bar right above the HP bar, in the gap under
+           the СИЛА row, laid out like the HP row so the bar lines up with the HP bar and its number with the HP number. It
+           empties as it's hit (from the VS side, like HP) and cracks when it breaks. Only on its card (.has-scales) */
+        .scale-row { display: none; position: absolute; left: 0; right: 0; top: -9px; height: 4px; align-items: center; gap: 12px; pointer-events: none; }
+        .fighter-card.has-scales .scale-row { display: flex; }
+        .scale-track { position: relative; flex: 1; height: 4px; background: #1b2238; box-shadow: 0 0 0 1px #8796b6; overflow: hidden; }
+        .scale-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(#ffffff, #d2dbea 50%, #8e9cba); transition: transform 0.3s ease; }
+        .scale-track.cracked { background: #2c1420 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 4' preserveAspectRatio='none'%3E%3Cpolyline points='0,2 9,0 15,4 24,1 31,4 40,0 47,3 56,0 62,4 71,1 79,4 87,0 94,3 103,0 110,4 120,1' fill='none' stroke='%23ff8a8a' stroke-width='1.1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; box-shadow: 0 0 0 1px #ff8a8a; }
+        .scale-num { width: 118px; flex-shrink: 0; font-family: var(--pixel); font-size: 12px; line-height: 12px; color: #e6edf6; text-align: right; white-space: nowrap; }
+        .scale-num.cracked { color: #ff8a8a; }
         .hp-text { font-family: var(--pixel); font-size: 16px; color: var(--text); width: 118px; text-align: right; white-space: nowrap; overflow: hidden; }
         /* The right card's bars are mirrored, so lost HP disappears on the VS side of both cards: the HP number sits next to
            the VS badge, the HP, ghost and XP bars and the СИЛА pips fill from the outer edge (info line, stats and chips stay left-aligned) */
         #card-p2 .fc-hp { flex-direction: row-reverse; }
         #card-p2 .hp-text { text-align: left; }
-        #card-p2 .px-fill, #card-p2 .hp-ghost { transform-origin: 100% 50%; }
+        #card-p2 .px-fill, #card-p2 .hp-ghost, #card-p2 .scale-fill { transform-origin: 100% 50%; }
+        #card-p2 .scale-row { flex-direction: row-reverse; }
+        #card-p2 .scale-num { text-align: left; }
         #card-p2 .power-meter, #card-p2 .pm-pips { flex-direction: row-reverse; }
 
         /* ===== Turn animation: pre-drawn layers that only fade (opacity) or move (transform), so OBS doesn't drop frames ===== */
@@ -210,6 +226,7 @@
             75% { opacity: 1; transform: translateY(-6px); } 100% { opacity: 0; transform: translateY(-18px); } }
 
         /* ===== Battle log: two-column attack cards, one row per round (left fighter's attack | right fighter's) ===== */
+        .log-panel.steel-fight { background-repeat: no-repeat; background-position: 50% 58%; }
         .log-panel { position: relative; flex: 1; min-height: 0; box-sizing: border-box; padding: 10px 16px 14px; background: rgba(6, 7, 11, 0.96); display: flex; flex-direction: column; gap: 8px;
             --hi: #241d10; --lo: #4a3c1e; --deep: #050403; }
         .log-head { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: baseline; gap: 12px; height: 15px; flex-shrink: 0; font-size: 12px; padding: 0 4px; }
@@ -748,6 +765,7 @@
                 <div class="fc-chips" id="status-p1"></div>
                 <div class="power-meter" id="power-p1"></div>
                 <div class="fc-hp">
+                    <div class="scale-row"><div class="scale-track"><div class="scale-fill" id="scales-p1"></div></div><span class="scale-num" id="scale-text-p1"></span></div>
                     <div class="px-track hp-bar-container"><div class="hp-ghost" id="ghost-p1"></div><div class="px-fill hp-bar" id="bar-p1"></div></div>
                     <span class="hp-text" id="hp-text-p1">—</span>
                 </div>
@@ -772,6 +790,7 @@
                 <div class="fc-chips" id="status-p2"></div>
                 <div class="power-meter" id="power-p2"></div>
                 <div class="fc-hp">
+                    <div class="scale-row"><div class="scale-track"><div class="scale-fill" id="scales-p2"></div></div><span class="scale-num" id="scale-text-p2"></span></div>
                     <div class="px-track hp-bar-container"><div class="hp-ghost" id="ghost-p2"></div><div class="px-fill hp-bar" id="bar-p2"></div></div>
                     <span class="hp-text" id="hp-text-p2">—</span>
                 </div>
@@ -980,7 +999,7 @@
 
         /* ===== Display helpers for the overlay (visual only: nothing here changes a rule or a number) ===== */
         // Element colours of the reference's title plaque, used for small swatches
-        const ELEMENT_COLORS = { red: '#e0452f', blue: '#3b8fe8', black: '#4a4a60', gold: '#f2c14e', purple: '#9b59d0', green: '#3ec46d', white: '#bfe9ff' };
+        const ELEMENT_COLORS = { red: '#e0452f', blue: '#3b8fe8', black: '#4a4a60', gold: '#f2c14e', purple: '#9b59d0', green: '#3ec46d', steel: '#d8e6ec', white: '#bfe9ff' };
 
         // Player names get a minimum brightness: a dark Twitch colour is lifted towards white until it has at least
         // 4.5:1 contrast against NAME_BG, which is lighter than every background a name is drawn on.
@@ -1135,7 +1154,7 @@
             type.style.textTransform = 'uppercase';
         }
         const turnsWordUk = n => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'хід' : (a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'ходи' : 'ходів'); };
-        function setArenaState(next) { arenaState = next; renderArenaHeader(); renderResultTags(); showSync(); }
+        function setArenaState(next) { arenaState = next; renderArenaHeader(); renderResultTags(); showSync(); if (next.kind === 'idle') arenaSilhouette(false); }
 
         // After the fight: the winner's card in gold with "ПЕРЕМОЖЕЦЬ"; the loser's greyed with "НОКАУТ" (knocked out) or
         // "ПОРАЗКА" (lost on HP when time ran out); after a draw both cards say "НІЧИЯ"
@@ -1178,11 +1197,12 @@
 
         const FV_TEXT = {
             uk: { attacks: 'атаки', physical: 'фізична', magical: 'магічна', vampire: 'вампірська', tab: '⚔ Атакує', attacking: 'атакує…', upNext: '⏳ хід',
-                  ko: 'вибуває', start: 'початок ходу', applies: 'накладає', gets: 'отримує', refreshes: 'оновлює', replaces: 'замінює', removes: 'знімає',
-                  takes: 'забирає', lost: 'зникає', immune: '🐉 імунітет', block: '🚫 блок', sovereign: '👑 атака розсіюється', pierce: '⚡ крізь броню',
+                  ko: 'вибуває', start: 'початок ходу', applies: 'накладає', gets: 'отримує', refreshes: 'оновлює', removes: 'знімає',
+                  takes: 'забирає', lost: 'зникає', lostMany: 'зникають', immune: '🐉 імунітет', block: '🚫 блок', sovereign: '👑 атака розсіюється', pierce: '⚡ крізь броню',
                   unblockable: 'не блокується', crit: '💥 Крит', miss: 'промах', frozen: 'атаку пропущено', back: 'назад', reflect: '🟦 відбиває',
                   fortune: '🟨 фортуна · 1 HP', thorns: '🌵 шипи', lifesteal: '🧛 титул', execute: '⚰️ добивання', sleep: '😴 проспав хід', wrath: '👑 кара етеру',
-                  guardian: '👼 ангел-охоронець', chaos: '⚡ хаос', cat: '🐈 кіт', forced: 'гарантований крит', noBuffs: 'бафів немає',
+                  guardian: '👼 ангел-охоронець', chaos: '⚡ хаос', cat: '🐈 кіт', bounced: '🤍 відскочило від луски', cracked: '💔 Луска розкололася!', scales: '🤍 луска',
+                  pulled: 'притягується до Білого Дрейка', steelIn: '👑 Біла сталь виходить на бій!', steelWin: '👑 Сталь не гнеться', steelLoss: '🐉 Дракон це запам\'ятав…', forced: 'гарантований крит', noBuffs: 'бафів немає',
                   sdBanner: '💀 РАПТОВА СМЕРТЬ з {n}-го ходу · шкода зростає щоходу', timeout: '⏳ ЧАС ВИЙШОВ · ліміт {n} ходів',
                   error: '❌ Помилка симуляції — бій перервано', vs: 'проти', fightStart: '🔔 Бій почався{bets} · 🎲 першим б’є {a}', betsClosed: ' · ставки закрито',
                   opening: '{title}: {who} починає бій з {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
@@ -1192,11 +1212,12 @@
                   reaches: '{who} досягає {n}-го рівня', atkGain: '+{n} до атаки', tierGain: 'стихія сильнішає', meterBtn: '✦ {meter}: {side}',
                   left: 'лівий', right: 'правий', noCast: '— випадково —', newTurns: '↓ нові ходи ({n})' },
             en: { attacks: 'attacks', physical: 'physical', magical: 'magic', vampire: 'vampire', tab: '⚔ Attacks', attacking: 'attacks…', upNext: '⏳ up next:',
-                  ko: 'is knocked out', start: 'start of turn', applies: 'applies', gets: 'gets', refreshes: 'refreshes', replaces: 'replaces', removes: 'removes',
-                  takes: 'takes', lost: 'lost', immune: '🐉 immune', block: '🚫 block', sovereign: '👑 the attack dissolves', pierce: '⚡ armour-piercing',
+                  ko: 'is knocked out', start: 'start of turn', applies: 'applies', gets: 'gets', refreshes: 'refreshes', removes: 'removes',
+                  takes: 'takes', lost: 'lost', lostMany: 'lost', immune: '🐉 immune', block: '🚫 block', sovereign: '👑 the attack dissolves', pierce: '⚡ armour-piercing',
                   unblockable: 'unblockable', crit: '💥 Crit', miss: 'miss', frozen: 'attack skipped', back: 'back', reflect: '🟦 reflects',
                   fortune: '🟨 fortune · 1 HP', thorns: '🌵 thorns', lifesteal: '🧛 title', execute: '⚰️ execute', sleep: '😴 slept through it', wrath: '👑 aether wrath',
-                  guardian: '👼 guardian angel', chaos: '⚡ chaos', cat: '🐈 cat', forced: 'guaranteed crit', noBuffs: 'no buffs',
+                  guardian: '👼 guardian angel', chaos: '⚡ chaos', cat: '🐈 cat', bounced: '🤍 bounced off the scales', cracked: '💔 The scales cracked!', scales: '🤍 scales',
+                  pulled: 'is pulled to the White Drake', steelIn: '👑 White Steel enters the fight!', steelWin: '👑 Steel doesn\'t bend', steelLoss: '🐉 The Dragon won\'t forget this…', forced: 'guaranteed crit', noBuffs: 'no buffs',
                   sdBanner: '💀 SUDDEN DEATH from turn {n} · damage grows every turn', timeout: '⏳ TIME OUT · {n}-turn limit',
                   error: '❌ Simulation error — the fight was stopped', vs: 'vs', fightStart: '🔔 The fight is on{bets} · 🎲 {a} strikes first', betsClosed: ' · bets closed',
                   opening: '{title}: {who} starts with {fx}', knockout: '🏆 KNOCKOUT · {w} wins in {n} {turns}', timeoutWin: '⏳ TIME OUT · {w} wins on HP',
@@ -1230,6 +1251,9 @@
             green:  { physical: { light: ['Удар лози', 'Vine Lash'], heavy: ['Корінний удар', 'Root Slam'], sneaky: ['Колючий випад', 'Thorn Lunge'] },
                       magical: { light: ['Гострий лист', 'Razor Leaf'], heavy: ['Гнів лісу', 'Forest Wrath'], sneaky: ['Отруйний пилок', 'Toxic Pollen'] },
                       vampire: { light: ['Укус лози', 'Vine Bite'], heavy: ['Сокова спрага', 'Sap Thirst'] } },
+            steel:  { physical: { light: ['Сталеві кігті', 'Steel Claws'], heavy: ['Молот крила', 'Wing Hammer'], sneaky: ['Гартоване жало', 'Tempered Sting'] },
+                      magical: { light: ['Білий промінь', 'White Ray'], heavy: ['Подих горна', 'Forge Breath'], sneaky: ['Іскра з ковадла', 'Anvil Spark'] },
+                      vampire: { light: ['Залізний укус', 'Iron Bite'], heavy: ['Металева жага', 'Metal Thirst'] } },
             white:  { physical: { light: ['Етерні кігті', 'Aether Claws'], heavy: ['Удар бурі', 'Storm Slam'], sneaky: ['Небесний випад', 'Sky Lunge'] },
                       magical: { light: ['Зоряна іскра', 'Star Spark'], heavy: ['Етерний подих', 'Aether Breath'], sneaky: ['Промінь небес', 'Heaven Ray'] },
                       vampire: { light: ['Укус вічності', 'Eternal Bite'], heavy: ['Спрага етеру', 'Aether Thirst'] } },
@@ -1463,6 +1487,7 @@
                 case 'start': return fvT('fightStart', { bets: fv.betting ? fvT('betsClosed') : '', a: fvWho(fv.p1) });
                 case 'opening': return fvT('opening', { title: `${d.f.title.icon} ${d.f.title.name[currentLang]}`, who: fvWho(d.f), fx: fxName(d.id) });
                 case 'sd': return fvT('sdBanner', { n: SUDDEN_DEATH.from });
+                case 'steel': return fvT('steelIn');
                 case 'timeout': return fvT('timeout', { n: MAX_TURNS });
                 case 'error': return fvT('error');
             }
@@ -1526,11 +1551,12 @@
                 if (x.reels) g(0, fvLk(x.reels.join(' '), 'reels'), x.miss ? fvLk(fvT('miss'), 'hurt') : fvLk(`×${x.mult}`));
                 if (x.id === 'detonation') { g(0, fvLk(`×${x.mult}`)); if (x.removed && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvFxChip)); }
                 if (x.taken && x.taken.length) g(0, fvLx(fvT('takes')), ...x.taken.map(fvFxChip));
-                if (x.lost && x.lost.length) g(0, fvLx(fvT('lost')), ...x.lost.map(fvFxChip));
+                if (x.lost && x.lost.length) g(0, x.taken && x.taken.length ? fvLx('·') : '', ...x.lost.map(fvFxChip), fvLx(fvT(x.lost.length > 1 ? 'lostMany' : 'lost')));
                 if (x.forced) g(0, fvLk(fvT('noBuffs')), fvLk(fvT('forced')));
                 if (x.immune) g(0, fvLk(fvT('immune')));
                 if (x.hits !== undefined) g(0, fvLk(`${u.icon} ${unitLeftText('hits', x.hits)}`));
                 if (x.removed && x.id === 'bloom' && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvFxChip));
+                if (x.id === 'anvil') g(0, fvLk(`×${x.mult}`), x.reforged ? fvLk(`🤍 +${x.reforged}`, 'heal') : '');
             }
             const n = rec.notes;
             if (a && a.sd) g(3, fvLk(`💀 ×${Math.round(a.sd * 10) / 10}`, 'sd'));
@@ -1548,6 +1574,10 @@
             if (n.vamp) g(4, fvLk(`🩸 +${n.vamp}`, 'heal'));
             if (n.lifesteal) g(4, fvLk(`${fvT('lifesteal')} +${n.lifesteal}`, 'heal', `${fvIcon('lifesteal')} +${n.lifesteal}`));
             if (n.thorns) g(4, fvLk(`${fvT('thorns')} -${n.thorns}`, 'hurt', `${fvIcon('thorns')} -${n.thorns}`));
+            // The White Drake's scales: what they took off this hit, and the moment they break (what the attack did: in full)
+            if (n.scales) g(4, fvLk(`${fvT('scales')} -${n.scales}`, '', `${fvIcon('scales')} -${n.scales}`));
+            if (n.crack) g(0, fvLk(fvT('cracked'), 'hurt'));
+            if (n.reforge) g(4, fvLk(`${EFFECTS.reforge.icon} +${n.reforge}`, 'heal'));
             // One attack touching the same effect twice (Firestorm's Burn, then a cast of Burn that refreshes it) shows it once
             const seen = new Set(), casts = rec.casts.filter(c => { const k = c.owner.name + '|' + c.id; if (seen.has(k)) return false; seen.add(k); return true; });
             const castIds = new Set(casts.map(c => c.id));
@@ -1560,9 +1590,11 @@
                 const kind = EFFECTS[c.id].kind;
                 const mine = (kind === 'buff' && c.owner === rec.atk) || (kind === 'debuff' && c.owner === rec.def);
                 if (c.result === 'immune') g(0, fvLk(fvT('immune')), fvFxChip(c.id));
+                else if (c.result === 'bounced') g(0, fvFxChip(c.id), fvLk(fvT('bounced')));
+                else if (c.result === 'pulled') g(0, fvFxChip(c.id), fvLx(fvT('pulled')), ...(c.extra ? [fvLx('·'), fvFxChip(c.extra), fvLx(fvT('lost'))] : []));
                 else if (c.result === 'dispelled') g(0, fvFxChip(c.id), fvLx(fvT('removes')), ...(c.extra || []).map(fvFxChip));
                 else if (c.result === 'refreshed') g(0, fvLx(fvT('refreshes')), fvFxChip(c.id));
-                else if (c.result === 'replaced') g(0, fvFxChip(c.id), fvLx(fvT('replaces')), fvFxChip(c.extra));
+                else if (c.result === 'replaced') g(0, fvFxChip(c.id), fvLx('·'), fvFxChip(c.extra), fvLx(fvT('lost')));   // «🌟 Божественна міць · 🍀 Благословіння зникає»
                 else g(0, fvLx(mine ? (kind === 'buff' ? fvT('gets') : fvT('applies')) : `@${c.owner.name} ${fvT('gets')}`), fvFxChip(c.id));
             });
             const head = u ? `<div class="lc-ult" style="color:${u.color}">${ultLabel(rec.ult.id)}</div>` : '';
@@ -1586,7 +1618,8 @@
                 + `<span class="lr-a lr-name" style="color:${a.color}">@${a.name}</span><span></span><span class="lr-name" style="color:${b.color}">@${b.name}</span>`
                 + row(fvT('dmg'), st(a).dmg, st(b).dmg, 'lr-n') + row(fvT('biggest'), st(a).max, st(b).max, 'lr-n')
                 + row(fvT('crits'), st(a).crits, st(b).crits, 'lr-n') + row(fvT('xp'), xp(a), xp(b), 'lr-xp') + `</div>`
-                + (d.noRecord ? `<div class="lr-note">${fvT('noRecord')}</div>` : '');   // a ranked fight against the White Dragon
+                + (d.noRecord ? `<div class="lr-note">${fvT('noRecord')}</div>` : '')   // a ranked fight against the White Dragon
+                + (d.steel ? `<div class="lr-note">${fvT(d.steel === 'win' ? 'steelWin' : 'steelLoss')}</div>` : '');   // the White Drake won or lost
         }
 
         // ----- The fight's steps -----
@@ -1610,7 +1643,32 @@
             fvHead();
             fvBanner('intro');
             fvBanner('start');
+            const steel = [p1, p2].some(f => f.drakeObj && f.drakeObj.type === WHITE_DRAKE_TYPE);
+            if (steel) fvBanner('steel');
+            arenaSilhouette(steel);
             fvCountdown(TURN_MS);
+        }
+        // The White Drake's fights: a faint White Dragon silhouette behind the log (the log panel's background, below every card)
+        let silhouetteURL = null;
+        function arenaSilhouette(on) {
+            const panel = fvEl('log-panel');
+            if (!panel || !panel.style) return;
+            if (on && silhouetteURL === null) {
+                silhouetteURL = '';
+                const src = makeDrakeCanvas(DRAGON_TYPE), c = src && document.createElement('canvas');
+                if (c && c.getContext) {
+                    c.width = src.width * 9; c.height = src.height * 9;
+                    const g = c.getContext('2d');
+                    g.imageSmoothingEnabled = false;
+                    g.drawImage(src, 0, 0, c.width, c.height);
+                    g.globalCompositeOperation = 'source-in';
+                    g.fillStyle = 'rgba(205, 235, 255, 0.07)';
+                    g.fillRect(0, 0, c.width, c.height);
+                    try { silhouetteURL = c.toDataURL(); } catch (e) { silhouetteURL = ''; }
+                }
+            }
+            panel.style.backgroundImage = on && silhouetteURL ? `url(${silhouetteURL})` : '';
+            if (panel.classList) panel.classList.toggle('steel-fight', !!on);
         }
         function fvOpening(f, id) { fvBanner('opening', { f, id }); }
         // The fight's hidden text record (#battle-log) starts empty for each fight, like the visible log
@@ -1810,7 +1868,9 @@
                     fvSetCell(slot, { k: 'ko', f: loser });
                 }
             }
-            fvAddItem({ type: 'result', data: { winner: d.winner, loser, ranked: d.ranked, turns: d.turns, timeout: !!(loser && hpOf(loser) > 0), xp: d.xp, xpBonus: d.xpBonus, stats: fv.stats, noRecord: !!d.noRecord } });
+            const steel = [d.p1, d.p2].find(f => f.drakeObj && f.drakeObj.type === WHITE_DRAKE_TYPE);
+            fvAddItem({ type: 'result', data: { winner: d.winner, loser, ranked: d.ranked, turns: d.turns, timeout: !!(loser && hpOf(loser) > 0), xp: d.xp, xpBonus: d.xpBonus, stats: fv.stats, noRecord: !!d.noRecord,
+                                                steel: steel && d.winner ? (d.winner === steel ? 'win' : 'loss') : null } });
             // Level-ups go to the chat panel, with the game's own numbers (max HP and attack from the level)
             if (d.lvl) [d.p1, d.p2].forEach(f => {
                 const saved = getDragonStrict(f.name), before = d.lvl[f.name];
@@ -1898,7 +1958,7 @@
 
         if (FV_LIVE) ['updateUIHP', 'updateFighterCard', 'updateStatusUI', 'setArenaState', 'flashSpriteHit', 'renderLeaderboard'].forEach(fvHoldable);
 
-        // Side column: the streamer's card (their own drake: the White Dragon, or a drake after a reroll)
+        // Side column: the streamer's card (their own drake: the White Drake or the White Dragon)
         function renderStreamerCard() {
             const box = document.getElementById('streamer-card');
             if (!box) return;
@@ -1924,8 +1984,8 @@
             box.querySelectorAll('.sc-name, .sc-sub, .sc-title').forEach(el => fitText(el, 9));
         }
         // "Червоний Дрейк 🟥" → "Червоний Дрейк" (the swatch is drawn separately)
-        const drakeLabel = drakeObj => drakeObj ? drakeObj.name[currentLang].replace(/\s*[\u{1F7E5}-\u{1F7EB}\u{2B1B}\u{1F409}]\s*$/u, '').trim() : '';
-        const drakeIcon = drakeObj => { const m = drakeObj && /([\u{1F7E5}-\u{1F7EB}\u{2B1B}\u{1F409}])\s*$/u.exec(drakeObj.name[currentLang]); return m ? m[1] : ''; };
+        const drakeLabel = drakeObj => drakeObj ? drakeObj.name[currentLang].replace(/\s*[\u{1F7E5}-\u{1F7EB}\u{2B1B}\u{1F409}\u{1F90D}]\s*$/u, '').trim() : '';
+        const drakeIcon = drakeObj => { const m = drakeObj && /([\u{1F7E5}-\u{1F7EB}\u{2B1B}\u{1F409}\u{1F90D}])\s*$/u.exec(drakeObj.name[currentLang]); return m ? m[1] : ''; };
 
         // "Як грати" / "How to play": the game's real chat commands, shown exactly when the chat panel is empty
         const HOW_TO_PLAY = {
@@ -2208,6 +2268,48 @@ const DRAKE_SPRITES = {
             '...............dd............dddd...............'
         ]
     },
+    // White Drake (the streamer's regular form, the White Dragon's young form): the drakes' own body in polished white steel, with a small green mane swept back on the head and small green spikes down the back of the neck like the Dragon's, a bright green eye, plate lines with green seams, steel wing ribs, and a small green flame on the tail tip in the Dragon's green
+    steel: {
+        pal: ["#1c7a4a", "#b4fbc8", "#0a3e26", "#58e888", "#3a466e", "#1e2644", "#27b865", "#f1f5fb", "#6a78a2", "#232c48", "#090c1c", "#cdd8ea", "#93a3c4", "#0e1328", "#127a4a", "#283050", "#ffffff", "#56648c", "#b2bfd6", "#4c5a86", "#36416a", "#9dffbf", "#3fd27a", "#adbad1", "#151b30", "#7a88a6", "#f4fff7", "#46536f", "#dbe3ef", "#7b8aae", "#0a0e20", "#56638a", "#1a2038", "#343f60", "#f4f8ff", "#8e9cba"],
+        rows: [
+            '...................abc..........................',
+            '.................addc........e.ff...............',
+            '..........eeeeagdgc...abc...ehfijk..............',
+            '........eehhlmnoc..adgc....ehmpqqjkee...........',
+            '.......ehhhhlmmrngdgc.....ehmpsqisqqqneee.......',
+            '......ehhhqnnmrrnoc.......eqrpqiiiiiissqqn......',
+            '....eehhnnnrmmrppn..abc..ehmptqsiiiiiiiuk.......',
+            '...ehhhnnvwrmrpppnadgc...elrptuqiiiiiiuk........',
+            '..ehqnlmmmrprppppngc....ehmptttqiiiiquk.........',
+            '.ellmmmrrrpppppprn..abc.elrptttusiiiiqne........',
+            '.emmrppppppnpppppnadgc.ehlrpttttqiiiiisqn.......',
+            '..npnnnnnnnppppmrpngc..ehmptttttqsiiiujk........',
+            '...nmrmmmrlmrrnmrpnabc.elmptttttuqiijkk.........',
+            '....nrrrrrrrrneeeeeno.ellrpttttttqijk...........',
+            '.....nnnnnnnnxmmmrrn..ellrpttttttusn............',
+            '............exxmmmrrneelmrpttujyyysn............',
+            '............exxmmmmmrlplmrpyykkkkkn..........a..',
+            '............ezeeeedeeeplmrprlllmnee.........agc.',
+            '.............nxxmmmlmmprppmellllmern........adc.',
+            '.............ezxxmmlmrpppphelllnndmrn.......abdc',
+            '..............nzxxnnnnnppplelnnllenrpn.....agbAc',
+            '..............eBznhhlmpnpplenhhhllmnppn....adbdc',
+            '..............eCBnhqlmpnppldnhhheeernpne...abddc',
+            '..............exnllmmrpnppmehhqelmrepnmmne.addc.',
+            '..............eznllmrppnpprellllmmrppnmmemeherpn',
+            '...............nnllmrppnpprelllnnnrppnmmemmherpn',
+            '...............enllmrppnpBBemmnhhmnppnrrdmmmepn.',
+            '................nllmppnBBBBernhhlmpnpnrrerrrepn.',
+            '................elmrppnBBBBBnnllmrpnnpppeppppn..',
+            '...............ehlmrpnDnnnEBBnrmmrpnnnppppppn...',
+            '...............ehlrppnDFGGEnn.emmrppnFnnEnnn....',
+            '.............eeelmppnDDHGE..eehhmrpnDFGGE.......',
+            '............ehhllpppnDDGGE.ehhllmppnFHGE........',
+            '............errrpppnHGGGE.errrrrppnGGGE.........',
+            '.............InIpIn.JEJE...nIpIpInJEJE..........',
+            '...............nn............nnnn...............'
+        ]
+    },
     // White Dragon (streamer only): wyvern, wings folded, walks on its wing-hands. Green aether flame on the tail, crown horns, back spikes and wing-finger tips in the same green
     white: {
         pal: ["#1c7a4a", "#5f9fd6", "#58e888", "#b4fbc8", "#0a3e26", "#ffffff", "#1a2044", "#27b865", "#2c3666", "#1d3468", "#6fa6e2", "#2a6aa6", "#7ff6ff", "#3c4a7a", "#d8e4f4", "#4a86d0", "#0c1530", "#95a8d2", "#4b5b8f", "#d4ecfa", "#f6fdff", "#2c5aa4", "#1e3a74", "#9cc0de", "#127a4a", "#6c7eab", "#a4b5d6", "#3a4674", "#12173a", "#fff3c2"],
@@ -2332,17 +2434,23 @@ function drakeSpriteURL(type) {
             { name: { uk: 'Золотий Дрейк 🟨', en: 'Gold Drake 🟨' }, type: 'gold' },
             { name: { uk: 'Фіолетовий Дрейк 🟪', en: 'Purple Drake 🟪' }, type: 'purple' },
             { name: { uk: 'Зелений Дрейк 🟩', en: 'Green Drake 🟩' }, type: 'green' },
-            { name: { uk: 'Білий Дракон 🐉', en: 'White Dragon 🐉' }, type: 'white' }   // streamer only (STREAMER_USER)
+            { name: { uk: 'Білий Дрейк 🤍', en: 'White Drake 🤍' }, type: 'steel' },   // streamer only: regular play
+            { name: { uk: 'Білий Дракон 🐉', en: 'White Dragon 🐉' }, type: 'white' }   // streamer only: god mode
         ];
-        // The White Dragon is the streamer's; viewers (and random picks) only ever get the other six
+        // The streamer's two forms (STREAMER_USER): the White Drake for regular play (its own kit, a fixed title, a bar of
+        // scales on top of HP) and the White Dragon (god mode); !дракон switches between them. Viewers (and random picks)
+        // only ever get the other six
         const DRAGON_TYPE = 'white';
         const DRAGON_TITLE_ID = 999;
-        const VIEWER_DRAKE_TYPES = DRAKE_TYPES.filter(d => d.type !== DRAGON_TYPE);
+        const WHITE_DRAKE_TYPE = 'steel';
+        const WHITE_DRAKE_TITLE_ID = 998;
+        const STREAMER_TYPES = [WHITE_DRAKE_TYPE, DRAGON_TYPE];
+        const VIEWER_DRAKE_TYPES = DRAKE_TYPES.filter(d => !STREAMER_TYPES.includes(d.type));
         const randomViewerDrake = () => VIEWER_DRAKE_TYPES[Math.floor(Math.random() * VIEWER_DRAKE_TYPES.length)];
         // Color words for !drake / !reroll, in both languages
         const COLOR_WORDS = {
             'червоний': 'red', red: 'red', 'синій': 'blue', blue: 'blue', 'чорний': 'black', black: 'black', 'золотий': 'gold', gold: 'gold',
-            'фіолетовий': 'purple', purple: 'purple', 'зелений': 'green', green: 'green', 'білий': 'white', white: 'white'
+            'фіолетовий': 'purple', purple: 'purple', 'зелений': 'green', green: 'green', 'білий': 'steel', white: 'steel'
         };
         const drakeByWord = word => DRAKE_TYPES.find(d => d.type === COLOR_WORDS[word]);
 
@@ -2356,7 +2464,7 @@ function drakeSpriteURL(type) {
             legendary: { name: { uk: 'Легендарний', en: 'Legendary' }, color: '#f1c40f', weight: 4.5 },
             mythic:    { name: { uk: 'Міфічний',    en: 'Mythic' },    color: '#ff4757', weight: 1.3 },
             meme:      { name: { uk: 'Мемний',      en: 'Meme' },      color: '#ff66cc', weight: 0.2 },
-            divine:    { name: { uk: 'Божественний', en: 'Divine' },   color: '#9fe3ff', weight: 0 }   // never rolled: the White Dragon's own title
+            divine:    { name: { uk: 'Божественний', en: 'Divine' },   color: '#9fe3ff', weight: 0 }   // never rolled: the streamer's own titles (998, 999)
         };
 
         const TITLES_DB = [
@@ -2554,6 +2662,7 @@ function drakeSpriteURL(type) {
             { id: 192, rarity: 'meme', icon: '🦥', name: { uk: "Лінивець-берсерк", en: "Berserk Sloth" }, bonus: { type: 'unique', mechanic: 'sleepy', stats: { hp: 5 } } },
             { id: 193, rarity: 'meme', icon: '🐈', name: { uk: "Кіт пройшовся по клавіатурі", en: "Cat Walked on the Keyboard" }, bonus: { type: 'unique', mechanic: 'cat_keyboard', stats: { hp: 18 } } },
             { id: 194, rarity: 'meme', icon: '🍝', name: { uk: "Код-спагеті", en: "Spaghetti Code" }, bonus: { type: 'unique', mechanic: 'cat_keyboard', stats: { hp: 18 } } },
+            { id: 998, rarity: 'divine', icon: '👑', name: { uk: "Біла сталь", en: "White Steel" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },   // the White Drake's, fixed (about a Rare's worth)
             { id: 999, rarity: 'divine', icon: '👑', name: { uk: "Владика Етеру", en: "Sovereign of the Aether" }, bonus: { type: 'unique', mechanic: 'streamer_god' } }
         ].map(t => ({ ...t, rarityName: RARITIES[t.rarity].name, color: RARITIES[t.rarity].color }));
 
@@ -2689,12 +2798,14 @@ function drakeSpriteURL(type) {
             let targetXP1 = 0; for (let l = 1; l < p1Level; l++) targetXP1 += getRequiredXP(l);
             dragon1.xp = targetXP1; dragon1.level = p1Level;
             if (dragon1.drakeObj.type === DRAGON_TYPE) dragon1.title = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
+            if (dragon1.drakeObj.type === WHITE_DRAKE_TYPE) dragon1.title = TITLES_DB.find(t => t.id === WHITE_DRAKE_TITLE_ID);
             db["QA-Tester-Alpha"] = dragon1;
 
             let dragon2 = { name: "QA-Tester-Omega", color: '#00ff7f', drakeObj: DRAKE_TYPES[p2Drake], title: TITLES_DB.find(t => t.id === p2Title), xp: 0, level: 1 };
             let targetXP2 = 0; for (let l = 1; l < p2Level; l++) targetXP2 += getRequiredXP(l);
             dragon2.xp = targetXP2; dragon2.level = p2Level;
             if (dragon2.drakeObj.type === DRAGON_TYPE) dragon2.title = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
+            if (dragon2.drakeObj.type === WHITE_DRAKE_TYPE) dragon2.title = TITLES_DB.find(t => t.id === WHITE_DRAKE_TITLE_ID);
             db["QA-Tester-Omega"] = dragon2;
             
             saveDragonDB(db);
@@ -2975,8 +3086,17 @@ function drakeSpriteURL(type) {
             purpleChance: [0, 3, 5, 10, 15],
             greenHp:      [0, 3, 5, 9, 12]
         };
+        // Level tier: 0 for levels 1-4, 1 for 5-9, 2 for 10-14, 3 for 15-19, 4 for 20
+        const tierIndex = level => level >= 20 ? 4 : level >= 15 ? 3 : level >= 10 ? 2 : level >= 5 ? 1 : 0;
+        // The streamer's White Drake, on top of a viewer drake's numbers (tuned with tests/balance.js whitedrake; viewer
+        // elements and titles never change for it): hp is a % of max HP, def/crit/cast are added points, power is added
+        // crit damage. scales: its bar («Луска Дракона») as % of max HP by level tier, on top of HP: hits take it first, and
+        // while it holds, debuffs bounce off. Перекування's and Удар ковадла's numbers live in EFFECTS and CLASS_ULTIMATES
+        // like every other effect's and ultimate's
+        const WHITE_DRAKE = { hp: -4, def: 0, crit: 0, power: 0, cast: 0, scales: [19.5, 21, 22.5, 23, 24] };
+        const scalesOf = (level, maxHP) => Math.round(maxHP * WHITE_DRAKE.scales[tierIndex(level)] / 100);
         function getTierMultiplier(level) {
-            const i = level >= 20 ? 4 : level >= 15 ? 3 : level >= 10 ? 2 : level >= 5 ? 1 : 0;
+            const i = tierIndex(level);
             const out = {};
             for (const k in ELEMENT_TIERS) out[k] = ELEMENT_TIERS[k][i];
             return out;
@@ -3038,10 +3158,23 @@ function drakeSpriteURL(type) {
                         lasts: 'turns', count: 3, nums: { hp: 3, healCut: 50 },
                         desc: { uk: '{hp}% макс. HP шкоди на початку кожного з {count} ходів цілі, її лікування −{healCut}%',
                                 en: '{hp}% max HP damage at the start of each of the target\'s {count} turns, and its healing is −{healCut}%' } },
+            reforge:  { element: 'steel',  kind: 'buff',   icon: '⚒️', color: '#dfeaf0', name: { uk: 'Перекування', en: 'Reforging' },
+                        lasts: 'attacks', count: 2, nums: { bar: 6, barTop: 8 },
+                        desc: { uk: 'Кожна з наступних {count} власних атак, що завдає шкоди, відновлює луску на {bar}% макс. HP ({barTop}% на найвищому рівні), до її початкового розміру; це не лікування',
+                                en: 'Each of the next {count} own attacks that deals damage rebuilds the scales by {bar}% of max HP ({barTop}% at the top level), up to their starting size; it isn\'t healing' } },
+            magnet:   { element: 'steel',  kind: 'debuff', icon: '🔗', color: '#9fe0c4', name: { uk: 'Магніт', en: 'Magnet' },
+                        lasts: 'attacks', count: 1, nums: {},
+                        desc: { uk: 'Наступна атака цілі: кожен баф, який вона накладає, дістається Білому Дрейку (у межах звичного ліміту бафів); бафи, які вона вже має, лишаються в неї',
+                                en: 'For the target\'s next attack, every buff it casts goes to the White Drake instead (within the usual buff limit); buffs it already has stay put' } },
         };
         const EFFECT_IDS = Object.keys(EFFECTS);
         const BUFF_IDS = EFFECT_IDS.filter(id => EFFECTS[id].kind === 'buff');
         const DEBUFF_IDS = EFFECT_IDS.filter(id => EFFECTS[id].kind === 'debuff');
+        // The shared pool: the 12 any drake can cast, and the random picks (a cast outside the own pair, Chaotic charge, the
+        // cat, the opening buff) — in this order, so viewer fights roll exactly as before. The White Drake's pair is its own
+        const POOL_IDS = EFFECT_IDS.filter(id => !STREAMER_TYPES.includes(EFFECTS[id].element));
+        const POOL_BUFF_IDS = POOL_IDS.filter(id => EFFECTS[id].kind === 'buff');
+        const POOL_DEBUFF_IDS = POOL_IDS.filter(id => EFFECTS[id].kind === 'debuff');
         // Casting: after a hit that dealt damage, castBase% (+ element and title bonuses) to cast something.
         // ownElement% of casts pick one of the caster's own two element effects (50/50 buff or debuff), the rest any of the 12.
         const EFFECT_CAST = { castBase: 30, ownElement: 70, maxPerKind: 2 };
@@ -3055,6 +3188,7 @@ function drakeSpriteURL(type) {
             let chance = EFFECT_CAST.castBase + titleStats(title).effect;
             if (drakeType === 'black') chance += ELEMENT_BASE.blackChance + tier.blackChance;
             if (drakeType === 'purple') chance += ELEMENT_BASE.purpleChance + tier.purpleChance;
+            if (drakeType === WHITE_DRAKE_TYPE) chance += WHITE_DRAKE.cast;
             return chance;
         }
 
@@ -3091,14 +3225,15 @@ function drakeSpriteURL(type) {
 
         // One fighter's state during a fight: active effects { buff: [...], debuff: [...] } (each entry { id, left, power }),
         // plus the ultimate meter (0..METER.max), whether its below-half bonus has been used, and Ice Mirror hits left
-        const newFxState = () => ({ buff: [], debuff: [], meter: 0, halfDone: false, mirror: 0 });
+        // scales: the White Drake's bar { now, max } (null for everyone else)
+        const newFxState = () => ({ buff: [], debuff: [], meter: 0, halfDone: false, mirror: 0, scales: null });
         const hasFx = (st, id) => !!(st && st[EFFECTS[id].kind].find(x => x.id === id));
         const getFx = (st, id) => st && st[EFFECTS[id].kind].find(x => x.id === id);
-        // Counts down every effect of this fighter that lasts `unit`; drops the ones that reach 0
-        function countDownEffects(st, unit) {
+        // Counts down every effect of this fighter that lasts `unit` (only the ones `which` picks); drops the ones that reach 0
+        function countDownEffects(st, unit, which = () => true) {
             if (!st) return;
             ['buff', 'debuff'].forEach(kind => {
-                st[kind].forEach(x => { if (EFFECTS[x.id].lasts === unit) x.left--; });
+                st[kind].forEach(x => { if (EFFECTS[x.id].lasts === unit && which(x.id)) x.left--; });
                 st[kind] = st[kind].filter(x => x.left > 0);
             });
         }
@@ -3144,6 +3279,10 @@ function drakeSpriteURL(type) {
                           attacks: true, nums: { dmgMult: 2.2, perDebuff: 50 },
                           desc: { uk: 'Атака ×{dmgMult} шкоди плюс {perDebuff}% за кожен дебаф на суперникові, потім ці дебафи знімаються',
                                   en: 'An attack for ×{dmgMult} damage plus {perDebuff}% per debuff on the opponent, then those debuffs are removed' } },
+            anvil:      { element: 'steel', icon: '🔨', color: '#e4eef2', name: { uk: 'Удар ковадла', en: 'Anvil Strike' },
+                          attacks: true, heavy: true, nums: { dmgMult: 1.5, topMult: 1.7 },
+                          desc: { uk: 'Важкий удар ×{dmgMult} шкоди (×{topMult} на найвищому рівні), який ще й наново кує луску до повного початкового розміру',
+                                  en: 'A heavy blow for ×{dmgMult} damage (×{topMult} at the top level) that also re-forges the scales to their full starting size' } },
             bloom:      { element: 'green', icon: '🌸', color: '#ff9ad5', name: { uk: 'Цвітіння', en: 'Bloom' },
                           attacks: false, nums: { heal: 25 },
                           desc: { uk: 'Знімає власні дебафи і одразу лікує {heal}% макс. HP',
@@ -3284,11 +3423,41 @@ function drakeSpriteURL(type) {
                 `🛑 <span style="color: ${senderColor};">@${sender}</span>, the White Dragon is the streamer's secret weapon! You can't pick it. Other colors: red, blue, black, gold, purple, green.`;
             addInfo(msg, 'warn');
         }
-        // The streamer's dragon starts at max level with its own title
-        function makeDragon(dragon) {
-            dragon.title = TITLES_DB.find(t => t.id === DRAGON_TITLE_ID);
-            dragon.xp = 1000000;
-            dragon.level = 20;
+        // The streamer's two forms. Switching (!дракон) never costs level, XP or title: while the streamer is the White Dragon,
+        // the regular drake (the White Drake: its type, XP and title) waits in `regular` and comes back exactly. The Dragon
+        // is level 20 (DRAGON_XP) and gains nothing (addXP gives level 20 nothing)
+        const DRAGON_XP = (() => { let x = 0; for (let l = 1; l < 20; l++) x += getRequiredXP(l); return x; })();
+        const titleById = id => TITLES_DB.find(t => t.id === id);
+        const whiteDrakeOf = () => DRAKE_TYPES.find(t => t.type === WHITE_DRAKE_TYPE);
+        // A fresh White Drake: level 1, its fixed title
+        function makeWhiteDrake(d) {
+            d.drakeObj = whiteDrakeOf(); d.title = titleById(WHITE_DRAKE_TITLE_ID); d.xp = 0; d.level = 1;
+            delete d.regular;
+        }
+        // Regular drake → the White Dragon (the regular one waits in d.regular)
+        function toDragon(d) {
+            d.regular = { drakeObj: d.drakeObj || whiteDrakeOf(), title: d.title || titleById(WHITE_DRAKE_TITLE_ID), xp: d.xp || 0 };
+            d.drakeObj = DRAKE_TYPES.find(t => t.type === DRAGON_TYPE);
+            d.title = titleById(DRAGON_TITLE_ID);
+            d.xp = DRAGON_XP; d.level = 20;
+        }
+        // The White Dragon → the regular drake, exactly as it was
+        function fromDragon(d) {
+            const r = d.regular || { drakeObj: whiteDrakeOf(), title: titleById(WHITE_DRAKE_TITLE_ID), xp: 0 };
+            d.drakeObj = r.drakeObj; d.title = r.title; d.xp = r.xp;
+            d.level = calculateLevelAndProgress(d.xp).level;
+            delete d.regular;
+        }
+        // The streamer in a tournament: from signing up until it ends, podium included (knocked out early too: its bracket,
+        // games and podium draw everyone's drake from the save, so the White Drake stays what played)
+        const streamerInTourney = user => !!tourney && tourney.players.some(p => p.name === user);
+        // On the arena now: a ranked fight or duel in its betting window or being fought (#24's arenaMatch)
+        const onArenaNow = user => !!arenaMatch && arenaMatch.stage !== 'result' && (arenaMatch.p1 === user || arenaMatch.p2 === user);
+        // The streamer asked for a viewer's colour: their forms are the White Drake and the White Dragon
+        function streamerForms(sender, senderColor) {
+            addInfo(currentLang === 'uk'
+                ? `🤍 <span style="color: ${senderColor};">@${sender}</span>, стрімер грає Білим Дрейком (<b>!дрейк білий</b>) або Білим Драконом (<b>!дракон</b>).`
+                : `🤍 <span style="color: ${senderColor};">@${sender}</span>, the streamer plays the White Drake (<b>!drake white</b>) or the White Dragon (<b>!dragon</b>).`, 'warn');
         }
 
         function handleChatMessage(target, context, message, self) {
@@ -3337,11 +3506,12 @@ function drakeSpriteURL(type) {
                 }
 
                 let chosen = drakeByWord(args[1]);
-                if (chosen && chosen.type === DRAGON_TYPE && !isStreamer(sender)) { refuseDragon(sender, senderColor); return; }
+                if (chosen && STREAMER_TYPES.includes(chosen.type) && !isStreamer(sender)) { refuseDragon(sender, senderColor); return; }
+                if (chosen && isStreamer(sender) && !STREAMER_TYPES.includes(chosen.type)) { streamerForms(sender, senderColor); return; }
                 if (chosen) {
-                    let dragon = getDragon(sender, senderColor); 
+                    let dragon = getDragon(sender, senderColor);
                     dragon.drakeObj = chosen;
-                    if (chosen.type === DRAGON_TYPE) makeDragon(dragon);
+                    if (chosen.type === WHITE_DRAKE_TYPE) makeWhiteDrake(dragon);
                     let dbUpdate = getDragonDB();
                     dbUpdate[sender] = dragon;
                     saveDragonDB(dbUpdate);
@@ -3357,6 +3527,35 @@ function drakeSpriteURL(type) {
                         `ℹ️ <span style="color: ${senderColor};">@${sender}</span>, to create a Drake, type: <b>!drake [color]</b> (red, blue, black, gold, purple, green).`;
                     addInfo(msg, 'warn');
                 }
+                return;
+            }
+
+            // !дракон: the streamer switches between the regular drake (the White Drake) and the White Dragon, keeping level, XP
+            // and title; between fights only, and never while in a tournament. A place in the queue stays. Viewers get the
+            // White Dragon's refusal
+            if (command === '!дракон' || command === '!dragon') {
+                if (!isStreamer(sender)) { refuseDragon(sender, senderColor); return; }
+                const uk = currentLang === 'uk', who = `<span style="color: ${senderColor}; font-weight: bold;">@${sender}</span>`;
+                if (streamerInTourney(sender)) {
+                    addInfo(uk ? `🏆 ${who}, ви в турнірі: змінити форму можна, коли він закінчиться.` : `🏆 ${who}, you're in the tournament: you can switch forms once it's over.`, 'warn');
+                    return;
+                }
+                if (onArenaNow(sender)) {
+                    addInfo(uk ? `⚔️ ${who}, ви зараз на арені: форму можна змінити між боями.` : `⚔️ ${who}, you're on the arena right now: switch forms between fights.`, 'warn');
+                    return;
+                }
+                const dbNow = getDragonDB();
+                const d = dbNow[sender] || { name: sender, color: senderColor, drakeObj: whiteDrakeOf(), title: titleById(WHITE_DRAKE_TITLE_ID), xp: 0, level: 1 };
+                const from = d.drakeObj.type;
+                if (from === DRAGON_TYPE) fromDragon(d); else toDragon(d);
+                const kept = calculateLevelAndProgress(from === DRAGON_TYPE ? d.xp : d.regular.xp).level;
+                dbNow[sender] = d;
+                saveDragonDB(dbNow);
+                renderLeaderboard();
+                playLog('form', { user: sender, from, to: d.drakeObj.type, level: kept });
+                addInfo(from === DRAGON_TYPE
+                    ? (uk ? `🤍 ${who} знову ${drakeLabel(d.drakeObj)}: рівень ${kept}, нічого не втрачено.` : `🤍 ${who} is the ${drakeLabel(d.drakeObj)} again: level ${kept}, nothing lost.`)
+                    : (uk ? `🐉 ${who} стає Білим Драконом! ${drakeLabel(d.regular.drakeObj)} чекає на рівні ${kept}.` : `🐉 ${who} becomes the White Dragon! The ${drakeLabel(d.regular.drakeObj)} waits at level ${kept}.`), 'ok');
                 return;
             }
 
@@ -3391,18 +3590,23 @@ function drakeSpriteURL(type) {
                 }
 
                 let chosen = drakeByWord(args[1]);
-                if (chosen && chosen.type === DRAGON_TYPE && !isStreamer(sender)) { refuseDragon(sender, senderColor); return; }
+                if (chosen && STREAMER_TYPES.includes(chosen.type) && !isStreamer(sender)) { refuseDragon(sender, senderColor); return; }
+                if (chosen && isStreamer(sender) && !STREAMER_TYPES.includes(chosen.type)) { streamerForms(sender, senderColor); return; }
+                if (chosen && isStreamer(sender) && db[sender] && db[sender].drakeObj.type === DRAGON_TYPE) {
+                    addInfo(currentLang === 'uk'
+                        ? `🐉 <span style="color: ${senderColor};">@${sender}</span>, зараз ви Білий Дракон. Повернутися до Білого Дрейка: <b>!дракон</b>.`
+                        : `🐉 <span style="color: ${senderColor};">@${sender}</span>, you're the White Dragon now. To go back to the White Drake: <b>!dragon</b>.`, 'warn');
+                    return;
+                }
                 if (chosen) {
                     const wasNew = !db[sender];
-                    let dragon = getDragon(sender, senderColor); 
+                    let dragon = getDragon(sender, senderColor);
                     const fromType = dragon.drakeObj.type, levelBefore = calculateLevelAndProgress(dragon.xp).level;
                     dragon.drakeObj = chosen;
-                    if (chosen.type === DRAGON_TYPE) makeDragon(dragon);
-                    else {
-                        dragon.xp = 0; 
-                        dragon.level = 1;
-                        if (dragon.title && dragon.title.id === DRAGON_TITLE_ID) dragon.title = getRandomTitle();   // the dragon's title stays with the dragon
-                    }
+                    dragon.xp = 0;
+                    dragon.level = 1;
+                    if (chosen.type === WHITE_DRAKE_TYPE) makeWhiteDrake(dragon);
+                    else if (dragon.title && [DRAGON_TITLE_ID, WHITE_DRAKE_TITLE_ID].includes(dragon.title.id)) dragon.title = getRandomTitle();   // the streamer's titles stay with their forms
                     
                     let dbUpdate = getDragonDB();
                     dbUpdate[sender] = dragon;
@@ -3413,8 +3617,8 @@ function drakeSpriteURL(type) {
                     playLog('element', { user: sender, from: wasNew ? null : fromType, element: chosen.type, levelBefore: wasNew ? null : levelBefore,
                                          levelLost: wasNew ? 0 : Math.max(0, levelBefore - levelAfter) });
                     let msg = currentLang === 'uk' ?
-                        `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> ПЕРЕРОДИВСЯ! Нова стихія: <b>${dragon.drakeObj.name[currentLang]}</b>. ${chosen.type === DRAGON_TYPE ? `Рівень ${calculateLevelAndProgress(dragon.xp).level}!` : 'Рівень скинуто до 1!'}` :
-                        `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> REBORN! New element: <b>${dragon.drakeObj.name[currentLang]}</b>. ${chosen.type === DRAGON_TYPE ? `Level ${calculateLevelAndProgress(dragon.xp).level}!` : 'Level reset to 1!'}`;
+                        `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> ПЕРЕРОДИВСЯ! Нова стихія: <b>${dragon.drakeObj.name[currentLang]}</b>. Рівень скинуто до 1!` :
+                        `🔥 <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> REBORN! New element: <b>${dragon.drakeObj.name[currentLang]}</b>. Level reset to 1!`;
                     addInfo(msg, 'ok');
                 } else {
                     let msg = currentLang === 'uk' ?
@@ -3444,6 +3648,12 @@ function drakeSpriteURL(type) {
                         `🛑 <span style="color: ${senderColor};">@${sender}</span>, Білому Дракону не потрібні смертні титули — він уже 👑 Владика Етеру!` :
                         `🛑 <span style="color: ${senderColor};">@${sender}</span>, the White Dragon needs no mortal titles — it is already the 👑 Sovereign of the Aether!`;
                     addInfo(msg, 'warn');
+                    return;
+                }
+                if (dragon.drakeObj && dragon.drakeObj.type === WHITE_DRAKE_TYPE) {
+                    addInfo(currentLang === 'uk'
+                        ? `🛑 <span style="color: ${senderColor};">@${sender}</span>, у Білого Дрейка власний титул — 👑 Біла сталь; рулетка титулів його не змінює.`
+                        : `🛑 <span style="color: ${senderColor};">@${sender}</span>, the White Drake has its own title, 👑 White Steel; the title roulette doesn't change it.`, 'warn');
                     return;
                 }
                 if (freeSpin) { honours.spins[sender]--; saveHonours(honours); }
@@ -3767,7 +3977,7 @@ function drakeSpriteURL(type) {
                   usage: 'ℹ️ <b>!турнір [4|8|16]</b> відкриває реєстрацію, <b>!турнір старт</b> закриває її (від 4 учасників), <b>!турнір стоп</b> скасовує турнір.',
                   busy: '⚠️ Турнір уже йде. Скасувати: <b>!турнір стоп</b>.', joined: '✅ {who} у турнірі! ({n}/{size})', left: '👋 {who} виходить з турніру. ({n}/{size})',
                   noDrake: '⚠️ {who}, щоб узяти участь у турнірі, спершу створіть дрейка: <b>!дрейк [колір]</b>.',
-                  dragon: '🛑 {who}, Білий Дракон у турнірах не бере участі — це змагання дрейків глядачів.',
+                  dragon: '🛑 {who}, Білий Дракон у турнірах не бере участі. Щоб зареєструватися, поверніться до Білого Дрейка: <b>!дракон</b>.',
                   inAlready: '⏳ {who}, ви вже в турнірі.', full: '⚠️ {who}, сітка вже заповнена ({size}/{size}).',
                   noSignup: 'ℹ️ {who}, зараз немає реєстрації на турнір.', closedSignup: '⚠️ {who}, реєстрацію на турнір уже закрито.',
                   notIn: 'ℹ️ {who}, вас немає серед учасників турніру.', noLeave: '⚠️ {who}, вийти можна лише під час реєстрації.',
@@ -3791,7 +4001,7 @@ function drakeSpriteURL(type) {
                   usage: 'ℹ️ <b>!tournament [4|8|16]</b> opens sign-up, <b>!tournament start</b> closes it (4 players or more), <b>!tournament stop</b> cancels it.',
                   busy: '⚠️ A tournament is already on. To cancel it: <b>!tournament stop</b>.', joined: '✅ {who} is in the tournament! ({n}/{size})', left: '👋 {who} leaves the tournament. ({n}/{size})',
                   noDrake: '⚠️ {who}, to join the tournament, first create a drake: <b>!drake [color]</b>.',
-                  dragon: "🛑 {who}, the White Dragon doesn't play in tournaments — they're for viewers' drakes.",
+                  dragon: "🛑 {who}, the White Dragon doesn't play in tournaments. To sign up, go back to the White Drake: <b>!dragon</b>.",
                   inAlready: "⏳ {who}, you're already in the tournament.", full: '⚠️ {who}, the bracket is full ({size}/{size}).',
                   noSignup: "ℹ️ {who}, there's no tournament sign-up right now.", closedSignup: '⚠️ {who}, the tournament sign-up is already closed.',
                   notIn: "ℹ️ {who}, you're not in the tournament.", noLeave: '⚠️ {who}, you can only leave during sign-up.',
@@ -4262,6 +4472,7 @@ function drakeSpriteURL(type) {
                 let greenBonusPct = ELEMENT_BASE.greenHp + (tier.greenHp || 0);
                 hp = Math.floor(hp * (1.0 + greenBonusPct / 100));
             }
+            if (drakeType === WHITE_DRAKE_TYPE) hp = Math.floor(hp * (1.0 + WHITE_DRAKE.hp / 100));
             return Math.floor(hp);   // always whole: some titles give fractional HP per level (0.3, 1.1)
         }
 
@@ -4272,6 +4483,7 @@ function drakeSpriteURL(type) {
 
             let baseDef = 5 + titleBonusDef + baseLevel;
             if (drakeType === 'blue') baseDef += ELEMENT_BASE.blueDef + (tier.blueDef || 0);
+            if (drakeType === WHITE_DRAKE_TYPE) baseDef += WHITE_DRAKE.def;
 
             let physDef = baseDef;
             let magDef = baseDef;
@@ -4294,6 +4506,7 @@ function drakeSpriteURL(type) {
             let critPower = 1.5 + titleBonusPower;
 
             if (drakeType === 'red') { baseCrit += ELEMENT_BASE.redCrit + tier.redCrit; critPower += ELEMENT_BASE.redPower + tier.redPower; }
+            if (drakeType === WHITE_DRAKE_TYPE) { baseCrit += WHITE_DRAKE.crit; critPower += WHITE_DRAKE.power; }
 
             const blessing = getFx(fx, 'blessing');
             if (blessing) baseCrit += Math.round(fxNum(blessing, 'crit'));
@@ -4365,6 +4578,17 @@ function drakeSpriteURL(type) {
             if (xpBar) xpBar.style.transform = `scaleX(${(prog.level >= 20 ? 100 : Math.floor(100 * prog.currentXP / prog.requiredXP)) / 100})`;
 
             renderStatsRow(prefix, prog.level, drakeType, dragon.title, fx);
+            // The White Drake's scales during a fight: their own bar above the HP bar (what's left of their starting size) and
+            // the number; at 0 the bar shows a crack
+            const sc = fx && fx.scales, scaleFill = document.getElementById(`scales-${prefix}`), scaleText = document.getElementById(`scale-text-${prefix}`);
+            const broken = !!sc && sc.now <= 0;
+            if (card && card.classList) card.classList.toggle('has-scales', !!sc);
+            if (scaleFill && scaleFill.style) scaleFill.style.transform = `scaleX(${sc && sc.max > 0 ? Math.max(0, Math.min(1, sc.now / sc.max)) : 0})`;
+            if (scaleFill && scaleFill.parentElement && scaleFill.parentElement.classList) scaleFill.parentElement.classList.toggle('cracked', broken);
+            if (scaleText) {
+                scaleText.textContent = sc ? String(Math.max(0, sc.now)) : '';
+                if (scaleText.classList) scaleText.classList.toggle('cracked', broken);
+            }
             fitText(nameEl, 13);
             fitText(badgeContainer.querySelector('.fighter-title-badge'), 9);
             fitText(document.getElementById(`info-${prefix}`), 10);
@@ -4433,6 +4657,8 @@ function drakeSpriteURL(type) {
 
             let fx = { [p1.name]: newFxState(), [p2.name]: newFxState() };
             battleFx = fx;
+            // The White Drake's bar of scales (Луска Дракона): a share of its max HP by level tier, on top of HP
+            [p1, p2].forEach(f => { if (f.drakeObj.type === WHITE_DRAKE_TYPE) { const sc = scalesOf(levelOf(f), maxHPOf(f)); fx[f.name].scales = { now: sc, max: sc }; } });
             fvBegin(p1, p2, isRanked, opts);
             let guardianUsed = { [p1.name]: false, [p2.name]: false };
             // Damage dealt per attack so far (the balance sim estimates what Frost prevented from it)
@@ -4465,9 +4691,10 @@ function drakeSpriteURL(type) {
             addLog(currentLang === 'uk'
                 ? `🎲 Жереб: першим атакує <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span>!`
                 : `🎲 Coin flip: <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> attacks first!`);
+            if ([p1, p2].some(f => f.drakeObj.type === WHITE_DRAKE_TYPE)) addLog(`<b>${fvT('steelIn')}</b>`);
             [p1, p2].forEach(f => {
                 if (titleMechanic(f) === 'opening_buff') {
-                    const id = BUFF_IDS[Math.floor(Math.random() * BUFF_IDS.length)];
+                    const id = POOL_BUFF_IDS[Math.floor(Math.random() * POOL_BUFF_IDS.length)];
                     const other = f === p1 ? p2 : p1;
                     applyEffect(f, other, id, levelOf(f), fx, { silent: true });
                     fvOpening(f, id);
@@ -4625,6 +4852,11 @@ function drakeSpriteURL(type) {
                     // Attacking ultimates: set up their extras, then the attack is rolled and resolved like any other
                     let ultMult = 1, ultForceCrit = false, ultMiss = false, detonated = [];
                     if (ultId === 'firestorm' || ultId === 'theft') ultMult = ult.nums.dmgMult || 1;
+                    if (ultId === 'anvil') {
+                        ultMult = attackerProg.level >= 20 ? ult.nums.topMult : ult.nums.dmgMult;
+                        ultText = `×${ultMult} `;
+                        fvUltInfo({ mult: ultMult });
+                    }
                     if (ultId === 'jackpot') {
                         const reels = [0, 1, 2].map(() => spinReel(Math.random()));
                         const gems = reels.filter(r => r.gem).length, skulls = reels.filter(r => r.skull).length;
@@ -4659,7 +4891,7 @@ function drakeSpriteURL(type) {
                             });
                             defFx.buff = [];
                             ultText = (taken.length ? (currentLang === 'uk' ? `забирає ${taken.map(x => fxName(x.id)).join(', ')}` : `takes ${taken.map(x => fxName(x.id)).join(', ')}`) : '')
-                                + (lost.length ? (currentLang === 'uk' ? `${taken.length ? '; ' : ''}зникає ${lost.map(x => fxName(x.id)).join(', ')}` : `${taken.length ? '; ' : ''}removes ${lost.map(x => fxName(x.id)).join(', ')}`) : '') + '! ';
+                                + (lost.length ? (currentLang === 'uk' ? `${taken.length ? '; ' : ''}${lost.map(x => fxName(x.id)).join(', ')} ${lost.length > 1 ? 'зникають' : 'зникає'}` : `${taken.length ? '; ' : ''}removes ${lost.map(x => fxName(x.id)).join(', ')}`) : '') + '! ';
                             fvUltInfo({ taken: taken.map(x => x.id), lost: lost.map(x => x.id) });
                         }
                     }
@@ -4688,8 +4920,15 @@ function drakeSpriteURL(type) {
                         else { subType = 'heavy'; subTypeNameUk = currentLang === 'uk' ? 'Сильна' : 'Heavy'; baseDmg = (Math.floor(Math.random() * 15) + 30) + levelDmgBonus; }
                     }
 
+                    // Удар ковадла is a heavy blow: the heavy move of whichever type was rolled
+                    if (ult && ult.heavy && subType !== 'heavy') {
+                        subType = 'heavy';
+                        subTypeNameUk = currentLang === 'uk' ? 'Сильна' : 'Heavy';
+                        baseDmg = (attackType === 'vampire' ? Math.floor(Math.random() * 15) + 30 : Math.floor(Math.random() * 10) + 18) + levelDmgBonus;
+                    }
+
                     // Effects that change this hit's damage. Each factor is kept so the balance sim can credit it.
-                    const rage = getFx(atkFx, 'rage'), weakness = getFx(atkFx, 'weakness'), divine = getFx(atkFx, 'divine');
+                    const rage = getFx(atkFx, 'rage'), weakness = getFx(atkFx, 'weakness'), divine = getFx(atkFx, 'divine'), reforge = getFx(atkFx, 'reforge');
                     const defRage = getFx(defFx, 'rage'), shield = getFx(defFx, 'shield'), shadow = getFx(defFx, 'shadow'), mark = getFx(defFx, 'mark');
                     const rageMult = rage ? 1 + fxNum(rage, 'dmg') / 100 : 1;
                     const weakMult = weakness ? 1 - fxNum(weakness, 'cut') / 100 : 1;
@@ -4817,7 +5056,10 @@ function drakeSpriteURL(type) {
                         .map(x => ` [${fxName(x.id)}]`).join('');
                     fvUsed([...atkFx.buff, ...atkFx.debuff].filter(x => EFFECTS[x.id].lasts === 'attacks')
                         .concat([...defFx.buff, ...defFx.debuff].filter(x => EFFECTS[x.id].lasts === 'hits')).map(x => x.id));
-                    countDownEffects(atkFx, 'attacks');
+                    // Магніт works on this attack's casts, which come after the hit: it runs down once they are done (below),
+                    // so a buff cast on the attack it covers still goes to the White Drake
+                    const onCasts = id => id === 'magnet';
+                    countDownEffects(atkFx, 'attacks', id => !onCasts(id));
                     countDownEffects(defFx, 'hits');
 
                     // Ice Mirror on the defender: it absorbs this hit up to cap% of the Blue drake's max HP (the rest goes
@@ -4855,13 +5097,15 @@ function drakeSpriteURL(type) {
                         addLog(msg);
                     }
 
-                    let goldOneHpText = "";
+                    let goldOneHpText = "", fortunePast = false;
                     let goldOneHpChance = ELEMENT_BASE.goldOneHp + attackerTier.goldOneHp;
                     if (attacker.drakeObj.type === 'gold' && finalDmg > 0 && defender.drakeObj.type !== DRAGON_TYPE) {
-                        let targetHPBefore = hpOf(defender);
-                        if (targetHPBefore > 1 && finalDmg < targetHPBefore) {
+                        // Against the White Drake it slips past the scales (they stay as they are): 1 HP is left all the same
+                        let targetHPBefore = hpOf(defender), scalesLeft = defFx.scales ? defFx.scales.now : 0;
+                        if (targetHPBefore > 1 && finalDmg < targetHPBefore + scalesLeft) {
                             if (Math.random() * 100 < goldOneHpChance) {
                                 finalDmg = targetHPBefore - 1;
+                                fortunePast = true;
                                 fvNote('fortune');
                                 goldOneHpText = currentLang === 'uk' ? `🟨 Фортуна (1 HP)! ` : `🟨 Fortune (1 HP)! `;
                                 let msg = currentLang === 'uk' ?
@@ -4875,13 +5119,44 @@ function drakeSpriteURL(type) {
                     fvAttack({ type: attackType, sub: subType, dmg: finalDmg, crit: isCrit, block: ultraBlock, shadow: blockedByShadow, miss: ultMiss,
                                pierce: subType === 'sneaky' && !ultraBlock && attacker.drakeObj.type !== DRAGON_TYPE, sd: turn >= SUDDEN_DEATH.from ? suddenDeathMult : 0 });
                     if (finalDmg > 0) flashSpriteHit(defender === p1 ? 'p1' : 'p2');
-                    setHP(defender, Math.max(0, hpOf(defender) - finalDmg));
+                    // Луска Дракона: the White Drake's scales take the hit first; only what gets through comes off its HP
+                    const toScales = defFx.scales && !fortunePast ? Math.min(defFx.scales.now, finalDmg) : 0;
+                    if (toScales > 0) {
+                        defFx.scales.now -= toScales;
+                        fvNote('scales', toScales);
+                        logExtra += currentLang === 'uk' ? `🤍 Луска: -${toScales}! ` : `🤍 Scales: -${toScales}! `;
+                        if (defFx.scales.now <= 0) {
+                            fvNote('crack');
+                            addLog(`${tag(defender)}: ${fvT('cracked')}`);
+                        }
+                    }
+                    setHP(defender, Math.max(0, hpOf(defender) - (finalDmg - toScales)));
                     dealt[attacker.name].sum += finalDmg; dealt[attacker.name].n++;
                     // Element Power: +1 for an own attack that dealt damage (the ultimate doesn't count)
                     if (!ult && finalDmg > 0 && ultimateFor(attacker.drakeObj.type)) atkFx.meter = Math.min(METER.max, atkFx.meter + 1);
                     if (ult) tallyUltimate(ultId, 'dmg', finalDmg);
                     // Arcane Detonation: the debuffs it counted are gone, whether or not the hit landed
                     if (detonated.length) defFx.debuff = defFx.debuff.filter(x => !detonated.includes(x));
+                    // Перекування: an own attack that dealt damage rebuilds the attacker's scales, up to their starting size; it isn't
+                    // healing, so Poison doesn't cut it. Anyone else holding it (Shadow Theft) has no scales to rebuild
+                    if (reforge && finalDmg > 0 && atkFx.scales) {
+                        const before = atkFx.scales.now;
+                        atkFx.scales.now = Math.min(atkFx.scales.max, before + Math.round(maxHPOf(attacker) * fxNum(reforge, attackerProg.level >= 20 ? 'barTop' : 'bar') / 100));
+                        const rebuilt = atkFx.scales.now - before;
+                        if (rebuilt > 0) {
+                            fvNote('reforge', rebuilt);
+                            tallyEffect('reforge', 'prevented', rebuilt);
+                            logExtra += currentLang === 'uk' ? `${fxName('reforge')}: +${rebuilt} луски! ` : `${fxName('reforge')}: +${rebuilt} scales! `;
+                        }
+                    }
+                    // Удар ковадла re-forges the scales to their full starting size (whatever the hit did)
+                    if (ultId === 'anvil' && atkFx.scales) {
+                        const reforged = atkFx.scales.max - atkFx.scales.now;
+                        atkFx.scales.now = atkFx.scales.max;
+                        fvUltInfo({ reforged });
+                        tallyUltimate('anvil', 'prevented', reforged);
+                        if (reforged > 0) logExtra += currentLang === 'uk' ? `🤍 Луска знову ціла: +${reforged}! ` : `🤍 Scales whole again: +${reforged}! `;
+                    }
 
                     if (attackType === 'vampire' && finalDmg > 0) {
                         let heal = Math.round(healAmount(attacker, finalDmg * 0.5));
@@ -4932,8 +5207,11 @@ function drakeSpriteURL(type) {
 
                     let castChance = getCastChance(attacker.drakeObj.type, attacker.title, attackerProg.level);
                     if (Math.random() * 100 < castChance && finalDmg > 0) applyEffect(attacker, defender, pickEffect(attacker), attackerProg.level, fx);
-                    // Test menu only (never set in normal fights or balance runs): this hit also casts the chosen effect
-                    if (forcedCast && finalDmg > 0) { const id = forcedCast; clearForcedCast(); applyEffect(attacker, defender, id, attackerProg.level, fx); }
+                    // Test menu only (never set in normal fights or balance runs): this hit also casts the chosen effect. The White
+                    // Drake's own pair waits for the White Drake's hit (Магніт's pull goes to it, Перекування rebuilds its scales)
+                    if (forcedCast && finalDmg > 0 && (EFFECTS[forcedCast].element !== WHITE_DRAKE_TYPE || attacker.drakeObj.type === WHITE_DRAKE_TYPE)) {
+                        const id = forcedCast; clearForcedCast(); applyEffect(attacker, defender, id, attackerProg.level, fx);
+                    }
 
                     if (titleMechanic(attacker) === 'chaotic_charge' && finalDmg > 0) {
                         if (Math.random() * 100 < MECH.chaosChance) {
@@ -4942,7 +5220,7 @@ function drakeSpriteURL(type) {
                                 `<span style="color: #f1c40f; font-weight: bold;">⚡ Chaos:</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> creates an explosion!`;
                             addLog(msg);
                             fvNote('chaos');
-                            applyEffect(attacker, defender, DEBUFF_IDS[Math.floor(Math.random() * DEBUFF_IDS.length)], attackerProg.level, fx, { pool: DEBUFF_IDS });
+                            applyEffect(attacker, defender, POOL_DEBUFF_IDS[Math.floor(Math.random() * POOL_DEBUFF_IDS.length)], attackerProg.level, fx, { pool: POOL_DEBUFF_IDS });
                         }
                     }
 
@@ -4951,10 +5229,11 @@ function drakeSpriteURL(type) {
                             ? `<span style="color: #ff66cc; font-weight: bold;">🐈 Кіт пройшовся по клавіатурі!</span> Хтозна, кому цей ефект...`
                             : `<span style="color: #ff66cc; font-weight: bold;">🐈 The cat walked across the keyboard!</span> Who knows who gets this effect...`);
                         fvNote('cat');
-                        const id = EFFECT_IDS[Math.floor(Math.random() * EFFECT_IDS.length)];
-                        if (Math.random() < 0.5) applyEffect(attacker, defender, id, attackerProg.level, fx, { pool: EFFECT_IDS });
-                        else applyEffect(defender, attacker, id, defenderProg.level, fx, { pool: EFFECT_IDS });
+                        const id = POOL_IDS[Math.floor(Math.random() * POOL_IDS.length)];
+                        if (Math.random() < 0.5) applyEffect(attacker, defender, id, attackerProg.level, fx, { pool: POOL_IDS });
+                        else applyEffect(defender, attacker, id, defenderProg.level, fx, { pool: POOL_IDS });
                     }
+                    countDownEffects(atkFx, 'attacks', onCasts);   // Магніт: this attack's casts are done
                     renderCards();
                     fvTurnEnd();
 
@@ -4979,13 +5258,14 @@ function drakeSpriteURL(type) {
             }, TURN_MS);
         }
 
-        // What a cast does: usually one of the caster's own element pair (50/50 buff or debuff), otherwise any of the 12.
-        // The White Dragon (and anything without an element pair) always picks from all 12.
+        // What a cast does: usually one of the caster's own element pair (50/50 buff or debuff), otherwise any of the 12 in
+        // the shared pool. The White Drake's own pair (Перекування, Магніт) is only ever its own cast. The White Dragon (and
+        // anything without an element pair) always picks from the 12.
         // `skip`: effects to leave out (a Dispel that would find no buffs is recast as something else).
         function pickEffect(caster, skip = []) {
             const type = caster.drakeObj.type;
-            const all = EFFECT_IDS.filter(id => !skip.includes(id));
-            const own = all.filter(id => EFFECTS[id].element === type);
+            const all = POOL_IDS.filter(id => !skip.includes(id));
+            const own = EFFECT_IDS.filter(id => EFFECTS[id].element === type && !skip.includes(id));
             if (type !== DRAGON_TYPE && own.length && Math.random() * 100 < EFFECT_CAST.ownElement) return own[Math.floor(Math.random() * own.length)];
             return all[Math.floor(Math.random() * all.length)];
         }
@@ -4996,11 +5276,15 @@ function drakeSpriteURL(type) {
         // A Dispel that would find no buffs is cast as a different effect instead: picked like a normal cast, or from
         // opts.pool when the caller limits the choice (Chaotic charge: debuffs only). Immunity is checked first, so a
         // Dispel on an immune target still counts as cast and is logged as ignored.
-        // Returns 'applied' | 'refreshed' | 'replaced' | 'dispelled' | 'immune'.
+        // Магніт on the caster: a buff it casts goes to its opponent, the White Drake, instead (under the same 2-buff limit;
+        // buffs it already has stay put). The White Drake's scales: while they hold, every debuff bounces off (a Dispel too,
+        // counted as cast, like immunity).
+        // Returns 'applied' | 'refreshed' | 'replaced' | 'dispelled' | 'immune' | 'bounced' | 'pulled'.
         function applyEffect(caster, opponent, id, casterLevel, fx, opts = {}) {
             const e = EFFECTS[id];
             const uk = currentLang === 'uk';
-            const owner = e.kind === 'buff' ? caster : opponent;
+            const pulled = e.kind === 'buff' && !!getFx(fx[caster.name], 'magnet');
+            const owner = e.kind === 'buff' && !pulled ? caster : opponent;
             const who = `<span style="color: ${owner.color}; font-weight: bold;">@${owner.name}</span>`;
             const log = opts.silent ? () => {} : addLog;
             const kindWord = e.kind === 'buff' ? (uk ? 'баф' : 'buff') : (uk ? 'дебаф' : 'debuff');
@@ -5013,6 +5297,12 @@ function drakeSpriteURL(type) {
                 return 'immune';
             }
             const st = fx[owner.name] || (fx[owner.name] = newFxState());
+            if (e.kind === 'debuff' && st.scales && st.scales.now > 0) {
+                log(`${who}: ${fxName(id)} — ${fvT('bounced')}`);
+                if (!opts.silent) fvCast(owner, id, 'bounced');
+                if (effectTally) effectTally.__bounced = (effectTally.__bounced || 0) + 1;   // the balance sims count them
+                return 'bounced';
+            }
             if (e.lasts === 'instant' && !st.buff.length) {
                 const skip = [id];
                 const pool = opts.pool && opts.pool.filter(x => !skip.includes(x));
@@ -5033,10 +5323,18 @@ function drakeSpriteURL(type) {
             }
 
             const list = st[e.kind];
+            // Магніт: the buff goes on the White Drake's list by the usual rules (refreshing it there, or replacing one of
+            // its own); only the log line differs
+            const pulledLine = gone => {
+                log(`${fxName(id)} ${fvT('pulled')}: ${who}${gone ? ` (${fxName(gone.id)} ${fvT('lost')})` : ''}`);
+                if (!opts.silent) fvCast(owner, id, 'pulled', gone ? gone.id : null);
+                return 'pulled';
+            };
             const current = list.find(x => x.id === id);
             if (current) {
                 current.left = e.count;
                 current.power = power;
+                if (pulled) return pulledLine(null);
                 log(uk ? `${who}: ${kindWord} ${fxName(id)} оновлено (${effectLeftText(id, e.count)})`
                        : `${who}: ${kindWord} ${fxName(id)} refreshed (${effectLeftText(id, e.count)})`);
                 if (!opts.silent) fvCast(owner, id, 'refreshed');
@@ -5048,9 +5346,10 @@ function drakeSpriteURL(type) {
                 list.splice(list.indexOf(replaced), 1);
             }
             list.push({ id, left: e.count, power });
+            if (pulled) return pulledLine(replaced);
             if (replaced) {
-                log(uk ? `${who}: ${kindWord} ${fxName(id)} замінює ${fxName(replaced.id)} (${effectLeftText(id, e.count)})`
-                       : `${who}: ${kindWord} ${fxName(id)} replaces ${fxName(replaced.id)} (${effectLeftText(id, e.count)})`);
+                log(uk ? `${who} отримує ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count)}), ${fxName(replaced.id)} зникає`
+                       : `${who} receives ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count)}), ${fxName(replaced.id)} is gone`);
                 if (!opts.silent) fvCast(owner, id, 'replaced', replaced.id);
                 return 'replaced';
             }
@@ -5066,6 +5365,9 @@ function drakeSpriteURL(type) {
             if (p1HP > p2HP) { winner = p1; looser = p2; }
             else if (p2HP > p1HP) { winner = p2; looser = p1; }
             else { winner = null; looser = null; }
+            // The White Drake won or lost (a draw says nothing): one line for it, on the result card too
+            const steelFighter = [p1, p2].find(f => f.drakeObj && f.drakeObj.type === WHITE_DRAKE_TYPE);
+            if (steelFighter && winner) addLog(`<b>${fvT(winner === steelFighter ? 'steelWin' : 'steelLoss')}</b>`);
             const fightTurns = arenaState.turn || 0;
             const fvLvl = fvLevels([p1, p2]);
             const ko = !!winner && (winner === p1 ? p2HP : p1HP) <= 0;
@@ -5274,19 +5576,40 @@ function drakeSpriteURL(type) {
             let changed = false;
             Object.keys(db).forEach(u => {
                 let d = db[u];
+                // The streamer's two forms. A Dragon save from before (makeDragon wrote 1,000,000 XP over the regular drake)
+                // stays the Dragon, and its regular form starts as a level-1 White Drake: that XP was never the drake's. A
+                // regular drake of any element becomes the White Drake with the same XP
+                if (isStreamer(u)) {
+                    if (d.drakeObj && d.drakeObj.type === DRAGON_TYPE) {
+                        if (!d.regular) { d.regular = { drakeObj: whiteDrakeOf(), title: titleById(WHITE_DRAKE_TITLE_ID), xp: 0 }; changed = true; }
+                        if (d.xp !== DRAGON_XP || d.level !== 20) { d.xp = DRAGON_XP; d.level = 20; changed = true; }
+                        if (!d.regular.drakeObj || d.regular.drakeObj.type !== WHITE_DRAKE_TYPE) { d.regular.drakeObj = whiteDrakeOf(); changed = true; }
+                    } else if (d.drakeObj && d.drakeObj.type !== WHITE_DRAKE_TYPE) { d.drakeObj = whiteDrakeOf(); changed = true; }
+                } else {
+                    // Not the streamer (any more): the regular drake comes back, and a White Drake becomes a viewer element
+                    if (d.regular) { fromDragon(d); changed = true; }
+                    if (d.drakeObj && d.drakeObj.type === WHITE_DRAKE_TYPE) { d.drakeObj = randomViewerDrake(); changed = true; }
+                }
                 // 'white' used to be the viewers' White Drake; now it's the streamer's dragon. Everyone else's old
                 // White Drake becomes the Green Drake, which has the same stats (greenHp), so nobody loses anything.
                 if (d.drakeObj && d.drakeObj.type === DRAGON_TYPE && !isStreamer(u)) { d.drakeObj = { ...d.drakeObj, type: 'green' }; changed = true; }
-                // The dragon's title belongs to the dragon only
-                if (d.title && d.title.id === DRAGON_TITLE_ID && (!d.drakeObj || d.drakeObj.type !== DRAGON_TYPE)) { d.title = getRandomTitle(); changed = true; }
-                // Element: refresh by type; unknown types (e.g. removed ones) get a random viewer element
-                let freshDrake = d.drakeObj && DRAKE_TYPES.find(t => t.type === d.drakeObj.type);
-                if (!freshDrake) { d.drakeObj = randomViewerDrake(); changed = true; }
-                else if (JSON.stringify(d.drakeObj) !== JSON.stringify(freshDrake)) { d.drakeObj = freshDrake; changed = true; }
-                // Title: ids 1-100 kept their meaning, so refresh by id (new names, rarity and bonuses); unknown ids re-roll
-                let freshTitle = d.title && TITLES_DB.find(t => t.id === d.title.id);
-                if (!freshTitle) { d.title = getRandomTitle(); changed = true; }
-                else if (JSON.stringify(freshTitle) !== JSON.stringify(d.title)) { d.title = freshTitle; changed = true; }
+                // The streamer's titles go with their forms (998 the White Drake's, 999 the Dragon's; neither is ever rolled)
+                const OWN_TITLE = { [WHITE_DRAKE_TYPE]: WHITE_DRAKE_TITLE_ID, [DRAGON_TYPE]: DRAGON_TITLE_ID };
+                [d, d.regular].filter(Boolean).forEach(f => {
+                    const own = f.drakeObj && OWN_TITLE[f.drakeObj.type];
+                    if (own && (!f.title || f.title.id !== own)) { f.title = titleById(own); changed = true; }
+                    else if (!own && f.title && Object.values(OWN_TITLE).includes(f.title.id)) { f.title = getRandomTitle(); changed = true; }
+                });
+                [d, d.regular].filter(Boolean).forEach(f => {
+                    // Element: refresh by type; unknown types (e.g. removed ones) get a random viewer element
+                    let freshDrake = f.drakeObj && DRAKE_TYPES.find(t => t.type === f.drakeObj.type);
+                    if (!freshDrake) { f.drakeObj = randomViewerDrake(); changed = true; }
+                    else if (JSON.stringify(f.drakeObj) !== JSON.stringify(freshDrake)) { f.drakeObj = freshDrake; changed = true; }
+                    // Title: ids 1-100 kept their meaning, so refresh by id (new names, rarity and bonuses); unknown ids re-roll
+                    let freshTitle = f.title && TITLES_DB.find(t => t.id === f.title.id);
+                    if (!freshTitle) { f.title = getRandomTitle(); changed = true; }
+                    else if (JSON.stringify(freshTitle) !== JSON.stringify(f.title)) { f.title = freshTitle; changed = true; }
+                });
                 if (typeof d.xp !== 'number' || isNaN(d.xp)) { d.xp = 0; changed = true; }
                 if ('gachaBuffs' in d || 'gachaWins' in d) { delete d.gachaBuffs; delete d.gachaWins; changed = true; }
             });
@@ -5692,7 +6015,7 @@ function drakeSpriteURL(type) {
         // Where the crown sits on each viewer drake, in sprite pixels of the sprite as drawn (facing left): x is the column
         // the crown is centred on, y the line its bottom edge sits on, so its bottom row covers the top row of the skull,
         // in front of the horns and crests
-        const SHOW_HEADS = { red: { x: 12, y: 4 }, blue: { x: 10, y: 4 }, black: { x: 11, y: 5 }, gold: { x: 12, y: 4 }, purple: { x: 12, y: 4 }, green: { x: 10, y: 4 } };
+        const SHOW_HEADS = { red: { x: 12, y: 4 }, blue: { x: 10, y: 4 }, black: { x: 11, y: 5 }, gold: { x: 12, y: 4 }, purple: { x: 12, y: 4 }, green: { x: 10, y: 4 }, steel: { x: 12, y: 4 } };
         // Crowns a drake sprite element: it goes into a wrapper (.ts-drake) with the crown, so the crown moves with whatever
         // moves the drake. The crown is scaled like the sprite (its screen pixels per sprite pixel) and placed on whole sprite
         // pixels; a mirrored sprite (a negative scaleX) gets its anchor and the crown mirrored too. Returns the wrapper, or
