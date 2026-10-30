@@ -1205,7 +1205,7 @@
                   pulled: 'притягується до Білого Дрейка', steelIn: '👑 Біла сталь виходить на бій!', steelWin: '👑 Сталь не гнеться', steelLoss: '🐉 Дракон це запам\'ятав…', forced: 'гарантований крит', noBuffs: 'бафів немає',
                   sdBanner: '💀 РАПТОВА СМЕРТЬ з {n}-го ходу · шкода зростає щоходу', timeout: '⏳ ЧАС ВИЙШОВ · ліміт {n} ходів',
                   error: '❌ Помилка симуляції — бій перервано', vs: 'проти', fightStart: '🔔 Бій почався{bets} · 🎲 першим б’є {a}', betsClosed: ' · ставки закрито',
-                  opening: '{title}: {who} починає бій з {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
+                  opening: '{title}: {who} починає бій з бафом {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
                   draw: '🤝 НІЧИЯ · {n} {turns}', dmg: 'шкода', biggest: 'найсильніший удар', crits: 'крити', xp: 'досвід', noXp: 'без досвіду', maxLvl: 'макс. рівень', noRecord: '🐉 Бій з Білим Драконом: без перемоги й поразки в Топі', underdog: '+{n} за сильнішого суперника',
                   cdLabel: 'Старт через', cdBets: 'Ставки відкрито — хто переможе?', cdStart: 'Бій починається!', cdFlip: '🎲 хто б’є першим, вирішить жереб на старті',
                   cdFirst: '🎲 першим б’є {a}', plateBets: '⏳ Ставки відкрито', plateStart: '⏳ Бій починається', levelUp: '⬆️ Новий рівень',
@@ -1274,6 +1274,9 @@
         // Chips with no data-c are compact already (🔥 -9, 🩸 +19, 💀 ×1.6) or keep their word: Firestorm's "unblockable" has no
         // icon of its own, and Chaotic charge's ⚡ alone would read as armour-piercing's
         const fvFxChip = id => `<span class="lk ${EFFECTS[id].kind}" data-c="${EFFECTS[id].icon}">${fxName(id)}</span>`;
+        // The same chip straight after «накладає», «отримує», «оновлює», «знімає», «забирає»: the name in the accusative
+        // («накладає 🎯 Мітку»); everywhere else it stays in the nominative, as on the fighter cards' chips
+        const fvAccChip = id => `<span class="lk ${EFFECTS[id].kind}" data-c="${EFFECTS[id].icon}">${fxAcc(id)}</span>`;
         const fvUsedChip = id => `<span class="lk used" data-c="${EFFECTS[id].icon}">${fxName(id)}</span>`;   // an effect this attack counted down
         const fvTickChip = t => `<span class="lk ${t.v < 0 ? 'debuff' : 'buff'}">${EFFECTS[t.id].icon} ${t.v < 0 ? t.v : '+' + t.v}</span>`;
         const fvLx = text => `<span class="lx">${text}</span>`;
@@ -1549,13 +1552,13 @@
                 const x = rec.ult;
                 if (u.unblockable) g(4, fvLk(fvT('unblockable')));
                 if (x.reels) g(0, fvLk(x.reels.join(' '), 'reels'), x.miss ? fvLk(fvT('miss'), 'hurt') : fvLk(`×${x.mult}`));
-                if (x.id === 'detonation') { g(0, fvLk(`×${x.mult}`)); if (x.removed && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvFxChip)); }
-                if (x.taken && x.taken.length) g(0, fvLx(fvT('takes')), ...x.taken.map(fvFxChip));
+                if (x.id === 'detonation') { g(0, fvLk(`×${x.mult}`)); if (x.removed && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvAccChip)); }
+                if (x.taken && x.taken.length) g(0, fvLx(fvT('takes')), ...x.taken.map(fvAccChip));
                 if (x.lost && x.lost.length) g(0, x.taken && x.taken.length ? fvLx('·') : '', ...x.lost.map(fvFxChip), fvLx(fvT(x.lost.length > 1 ? 'lostMany' : 'lost')));
                 if (x.forced) g(0, fvLk(fvT('noBuffs')), fvLk(fvT('forced')));
                 if (x.immune) g(0, fvLk(fvT('immune')));
                 if (x.hits !== undefined) g(0, fvLk(`${u.icon} ${unitLeftText('hits', x.hits)}`));
-                if (x.removed && x.id === 'bloom' && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvFxChip));
+                if (x.removed && x.id === 'bloom' && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvAccChip));
                 if (x.id === 'anvil') g(0, fvLk(`×${x.mult}`), x.reforged ? fvLk(`🤍 +${x.reforged}`, 'heal') : '');
             }
             const n = rec.notes;
@@ -1592,10 +1595,10 @@
                 if (c.result === 'immune') g(0, fvLk(fvT('immune')), fvFxChip(c.id));
                 else if (c.result === 'bounced') g(0, fvFxChip(c.id), fvLk(fvT('bounced')));
                 else if (c.result === 'pulled') g(0, fvFxChip(c.id), fvLx(fvT('pulled')), ...(c.extra ? [fvLx('·'), fvFxChip(c.extra), fvLx(fvT('lost'))] : []));
-                else if (c.result === 'dispelled') g(0, fvFxChip(c.id), fvLx(fvT('removes')), ...(c.extra || []).map(fvFxChip));
-                else if (c.result === 'refreshed') g(0, fvLx(fvT('refreshes')), fvFxChip(c.id));
+                else if (c.result === 'dispelled') g(0, fvFxChip(c.id), fvLx(fvT('removes')), ...(c.extra || []).map(fvAccChip));
+                else if (c.result === 'refreshed') g(0, fvLx(fvT('refreshes')), fvAccChip(c.id));
                 else if (c.result === 'replaced') g(0, fvFxChip(c.id), fvLx('·'), fvFxChip(c.extra), fvLx(fvT('lost')));   // «🌟 Божественна міць · 🍀 Благословіння зникає»
-                else g(0, fvLx(mine ? (kind === 'buff' ? fvT('gets') : fvT('applies')) : `@${c.owner.name} ${fvT('gets')}`), fvFxChip(c.id));
+                else g(0, fvLx(mine ? (kind === 'buff' ? fvT('gets') : fvT('applies')) : `@${c.owner.name} ${fvT('gets')}`), fvAccChip(c.id));
             });
             const head = u ? `<div class="lc-ult" style="color:${u.color}">${ultLabel(rec.ult.id)}</div>` : '';
             return `<div class="${cls.join(' ')}"><span class="lc-glow"></span>${head}<div class="lc-l1">${l1}</div><div class="lc-l2">${p.join('')}</div></div>`;
@@ -3109,60 +3112,62 @@ function drakeSpriteURL(type) {
         //        'turns' (the start of each of the owner's turns) or 'instant' (acts once, never sits on the card).
         // count: how many of those it lasts. nums: its percentages, scaled by the caster's effect power (Purple, titles);
         //        counts are never scaled. desc: {placeholders} are filled from count and nums.
+        // acc:   the Ukrainian name in the accusative, for straight after «накладає», «отримує», «оновлює», «знімає», «забирає»
+        //        («накладає 🎯 Мітку»; fxAcc); every effect has one, even when it's the name itself. English names don't change.
         const EFFECTS = {
-            rage:     { element: 'red',    kind: 'buff',   icon: '💢', color: '#ff4d4d', name: { uk: 'Лють', en: 'Rage' },
+            rage:     { element: 'red',    kind: 'buff',   icon: '💢', color: '#ff4d4d', name: { uk: 'Лють', en: 'Rage' }, acc: 'Лють',
                         lasts: 'attacks', count: 2, nums: { dmg: 40, taken: 15 },
                         desc: { uk: 'Наступні {count} власні атаки +{dmg}% шкоди, але отримує +{taken}% шкоди, поки діє',
                                 en: 'Next {count} own attacks deal +{dmg}% damage, but takes +{taken}% damage until it ends' } },
-            burn:     { element: 'red',    kind: 'debuff', icon: '🔥', color: '#ff7a1a', name: { uk: 'Підпал', en: 'Burn' },
+            burn:     { element: 'red',    kind: 'debuff', icon: '🔥', color: '#ff7a1a', name: { uk: 'Підпал', en: 'Burn' }, acc: 'Підпал',
                         lasts: 'turns', count: 3, nums: { hp: 5 },
                         desc: { uk: '{hp}% макс. HP шкоди на початку кожного з наступних {count} ходів цілі',
                                 en: '{hp}% max HP damage at the start of each of the target\'s next {count} turns' } },
-            shield:   { element: 'blue',   kind: 'buff',   icon: '🛡️', color: '#00bfff', name: { uk: 'Щит', en: 'Shield' },
+            shield:   { element: 'blue',   kind: 'buff',   icon: '🛡️', color: '#00bfff', name: { uk: 'Щит', en: 'Shield' }, acc: 'Щит',
                         lasts: 'hits', count: 2, nums: { cut: 30 },
                         desc: { uk: 'Наступні {count} отримані удари −{cut}% шкоди (і пробиття броні, і вампіризм)',
                                 en: 'Next {count} hits taken deal −{cut}% damage (armour-piercing and vampire too)' } },
-            frost:    { element: 'blue',   kind: 'debuff', icon: '❄️', color: '#9fe3ff', name: { uk: 'Мороз', en: 'Frost' },
+            frost:    { element: 'blue',   kind: 'debuff', icon: '❄️', color: '#9fe3ff', name: { uk: 'Мороз', en: 'Frost' }, acc: 'Мороз',
                         lasts: 'attacks', count: 1, nums: {},
                         desc: { uk: 'Ціль пропускає свою наступну атаку',
                                 en: 'The target skips its next attack' } },
-            shadow:   { element: 'black',  kind: 'buff',   icon: '🌑', color: '#b27cff', name: { uk: 'Тінь', en: 'Shadow' },
+            shadow:   { element: 'black',  kind: 'buff',   icon: '🌑', color: '#b27cff', name: { uk: 'Тінь', en: 'Shadow' }, acc: 'Тінь',
                         lasts: 'hits', count: 2, nums: { block: 25 },
                         desc: { uk: '+{block}% шансу ультраблоку на наступні {count} отримані удари',
                                 en: '+{block}% ultra-block chance for the next {count} hits taken' } },
-            weakness: { element: 'black',  kind: 'debuff', icon: '🥀', color: '#c77dff', name: { uk: 'Слабкість', en: 'Weakness' },
+            weakness: { element: 'black',  kind: 'debuff', icon: '🥀', color: '#c77dff', name: { uk: 'Слабкість', en: 'Weakness' }, acc: 'Слабкість',
                         lasts: 'attacks', count: 2, nums: { cut: 40 },
                         desc: { uk: 'Наступні {count} атаки цілі −{cut}% шкоди',
                                 en: 'The target\'s next {count} attacks deal −{cut}% damage' } },
-            blessing: { element: 'gold',   kind: 'buff',   icon: '🍀', color: '#ffd700', name: { uk: 'Благословіння', en: 'Blessing' },
+            blessing: { element: 'gold',   kind: 'buff',   icon: '🍀', color: '#ffd700', name: { uk: 'Благословіння', en: 'Blessing' }, acc: 'Благословіння',
                         lasts: 'attacks', count: 2, nums: { crit: 60 },
                         desc: { uk: 'Наступні {count} власні атаки +{crit}% шансу криту',
                                 en: 'Next {count} own attacks get +{crit}% crit chance' } },
-            mark:     { element: 'gold',   kind: 'debuff', icon: '🎯', color: '#ffb000', name: { uk: 'Мітка', en: 'Mark' },
+            mark:     { element: 'gold',   kind: 'debuff', icon: '🎯', color: '#ffb000', name: { uk: 'Мітка', en: 'Mark' }, acc: 'Мітку',
                         lasts: 'hits', count: 1, nums: {},
                         desc: { uk: 'Наступний удар по цілі — гарантований крит',
                                 en: 'The next hit on the target is a guaranteed crit' } },
-            divine:   { element: 'purple', kind: 'buff',   icon: '🌟', color: '#e0a8ff', name: { uk: 'Божественна міць', en: 'Divine Might' },
+            divine:   { element: 'purple', kind: 'buff',   icon: '🌟', color: '#e0a8ff', name: { uk: 'Божественна міць', en: 'Divine Might' }, acc: 'Божественну міць',
                         lasts: 'attacks', count: 1, nums: { dmg: 55 },
                         desc: { uk: 'Наступна власна атака завдає ×{x:dmg} шкоди, її не можна заблокувати',
                                 en: 'Next own attack deals ×{x:dmg} damage and can\'t be blocked' } },
-            dispel:   { element: 'purple', kind: 'debuff', icon: '💨', color: '#d0d0e0', name: { uk: 'Розвіювання', en: 'Dispel' },
+            dispel:   { element: 'purple', kind: 'debuff', icon: '💨', color: '#d0d0e0', name: { uk: 'Розвіювання', en: 'Dispel' }, acc: 'Розвіювання',
                         lasts: 'instant', count: 0, nums: {},
                         desc: { uk: 'Одразу знімає з цілі всі бафи',
                                 en: 'Removes all of the target\'s buffs at once' } },
-            regen:    { element: 'green',  kind: 'buff',   icon: '💚', color: '#41ff41', name: { uk: 'Регенерація', en: 'Regeneration' },
+            regen:    { element: 'green',  kind: 'buff',   icon: '💚', color: '#41ff41', name: { uk: 'Регенерація', en: 'Regeneration' }, acc: 'Регенерацію',
                         lasts: 'turns', count: 3, nums: { hp: 6.5 },
                         desc: { uk: 'Лікує {hp}% макс. HP на початку кожного з наступних {count} власних ходів',
                                 en: 'Heals {hp}% max HP at the start of each of the owner\'s next {count} turns' } },
-            poison:   { element: 'green',  kind: 'debuff', icon: '☠️', color: '#7dff4d', name: { uk: 'Отруєння', en: 'Poison' },
+            poison:   { element: 'green',  kind: 'debuff', icon: '☠️', color: '#7dff4d', name: { uk: 'Отруєння', en: 'Poison' }, acc: 'Отруєння',
                         lasts: 'turns', count: 3, nums: { hp: 3, healCut: 50 },
                         desc: { uk: '{hp}% макс. HP шкоди на початку кожного з {count} ходів цілі, її лікування −{healCut}%',
                                 en: '{hp}% max HP damage at the start of each of the target\'s {count} turns, and its healing is −{healCut}%' } },
-            reforge:  { element: 'steel',  kind: 'buff',   icon: '⚒️', color: '#dfeaf0', name: { uk: 'Перекування', en: 'Reforging' },
+            reforge:  { element: 'steel',  kind: 'buff',   icon: '⚒️', color: '#dfeaf0', name: { uk: 'Перекування', en: 'Reforging' }, acc: 'Перекування',
                         lasts: 'attacks', count: 2, nums: { bar: 6, barTop: 8 },
                         desc: { uk: 'Кожна з наступних {count} власних атак, що завдає шкоди, відновлює луску на {bar}% макс. HP ({barTop}% на найвищому рівні), до її початкового розміру; це не лікування',
                                 en: 'Each of the next {count} own attacks that deals damage rebuilds the scales by {bar}% of max HP ({barTop}% at the top level), up to their starting size; it isn\'t healing' } },
-            magnet:   { element: 'steel',  kind: 'debuff', icon: '🔗', color: '#9fe0c4', name: { uk: 'Магніт', en: 'Magnet' },
+            magnet:   { element: 'steel',  kind: 'debuff', icon: '🔗', color: '#9fe0c4', name: { uk: 'Магніт', en: 'Magnet' }, acc: 'Магніт',
                         lasts: 'attacks', count: 1, nums: {},
                         desc: { uk: 'Наступна атака цілі: кожен баф, який вона накладає, дістається Білому Дрейку (у межах звичного ліміту бафів); бафи, які вона вже має, лишаються в неї',
                                 en: 'For the target\'s next attack, every buff it casts goes to the White Drake instead (within the usual buff limit); buffs it already has stay put' } },
@@ -3193,6 +3198,8 @@ function drakeSpriteURL(type) {
         }
 
         const fxName = id => `${EFFECTS[id].icon} ${EFFECTS[id].name[currentLang]}`;
+        // Straight after «накладає», «отримує», «оновлює», «знімає», «забирає»: «🎯 Мітку» (the table's acc; English as fxName)
+        const fxAcc = (id, lang = currentLang) => `${EFFECTS[id].icon} ${lang === 'uk' ? EFFECTS[id].acc : EFFECTS[id].name[lang]}`;
         // A percentage of an active effect, scaled by the power it was cast with
         function fxNum(inst, key) {
             const v = EFFECTS[inst.id].nums[key] * (inst.power || 1);
@@ -3256,11 +3263,12 @@ function drakeSpriteURL(type) {
         // One ultimate per viewer element. Effect power never scales these numbers; effects an ultimate applies (Burn,
         // Regeneration) follow the usual effect rules. attacks: whether it's an attack (rolled and resolved like any attack,
         // with these extras) or replaces the attack. desc placeholders: {k} = nums.k, {fx:id} = that effect's icon and name,
+        // {acc:id} = the same with the name in the accusative (straight after «накладає» and the other verbs fxAcc is for),
         // {left:k} = nums.k hits in words ("ще 2 удари" / "2 hits left"), {reels} = the Jackpot reels, {maxBuffs} = the buff limit.
         const CLASS_ULTIMATES = {
             firestorm:  { element: 'red', icon: '☄️', color: '#ff6a3d', name: { uk: 'Вогняний шторм', en: 'Firestorm' },
                           attacks: true, nums: { dmgMult: 1.5 }, unblockable: true, applies: 'burn',
-                          desc: { uk: 'Атака ×{dmgMult} шкоди, яку не можна заблокувати; накладає {fx:burn}',
+                          desc: { uk: 'Атака ×{dmgMult} шкоди, яку не можна заблокувати; накладає {acc:burn}',
                                   en: 'An attack for ×{dmgMult} damage that can\'t be blocked; applies {fx:burn}' } },
             mirror:     { element: 'blue', icon: '💠', color: '#7fdcff', name: { uk: 'Крижане дзеркало', en: 'Ice Mirror' },
                           attacks: false, nums: { hits: 2, back: 60, cap: 10 },
@@ -3296,8 +3304,9 @@ function drakeSpriteURL(type) {
         const ultLabel = (id, lang = currentLang) => `${CLASS_ULTIMATES[id].icon} ${METER.label[lang]} · ${CLASS_ULTIMATES[id].name[lang]}`;
         function describeUltimate(id, lang = currentLang) {
             const u = CLASS_ULTIMATES[id];
-            return u.desc[lang].replace(/\{(fx:|left:)?(\w+)\}/g, (_, kind, k) => {
+            return u.desc[lang].replace(/\{(fx:|acc:|left:)?(\w+)\}/g, (_, kind, k) => {
                 if (kind === 'fx:') return `${EFFECTS[k].icon} ${EFFECTS[k].name[lang]}`;
+                if (kind === 'acc:') return fxAcc(k, lang);
                 if (kind === 'left:') return unitLeftText('hits', u.nums[k], lang);
                 if (k === 'reels') return u.reels.map(r => `${r.icon} ${r.chance}%`).join(', ');
                 if (k === 'maxBuffs') return String(EFFECT_CAST.maxPerKind);
@@ -4753,7 +4762,7 @@ function drakeSpriteURL(type) {
                             tallyEffect(inst.id, 'dmg', amount);
                             fvTick(inst.id, -amount);
                             addLog(currentLang === 'uk'
-                                ? `${tag(attacker)} втрачає HP через ${fxName(inst.id)} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${amount} HP</span>) · ${leftAfter}`
+                                ? `${tag(attacker)} втрачає HP через дебаф ${fxName(inst.id)} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${amount} HP</span>) · ${leftAfter}`
                                 : `${tag(attacker)} loses HP from ${fxName(inst.id)} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${amount} HP</span>) · ${leftAfter}`);
                         } else {
                             const hpBefore = hpOf(attacker);
@@ -4763,7 +4772,7 @@ function drakeSpriteURL(type) {
                             tallyEffect(inst.id, 'healed', healed);
                             if (healed > 0) fvTick(inst.id, healed);
                             if (healed > 0) addLog(currentLang === 'uk'
-                                ? `${tag(attacker)} відновлює HP завдяки ${fxName(inst.id)} (<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>) · ${leftAfter}`
+                                ? `${tag(attacker)} відновлює HP завдяки бафу ${fxName(inst.id)} (<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>) · ${leftAfter}`
                                 : `${tag(attacker)} heals HP from ${fxName(inst.id)} (<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>) · ${leftAfter}`);
                         }
                     });
@@ -4835,7 +4844,7 @@ function drakeSpriteURL(type) {
                             const healed = hpOf(attacker) - before;
                             tallyUltimate(ultId, 'healed', healed);
                             fvUltInfo({ healed, removed: removed.map(x => x.id) });
-                            const names = removed.map(x => fxName(x.id)).join(', ');
+                            const names = removed.map(x => fxAcc(x.id)).join(', ');
                             ultText = currentLang === 'uk'
                                 ? `<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>${removed.length ? `, знімає ${names}` : ''}`
                                 : `<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>${removed.length ? `, removes ${names}` : ''}`;
@@ -4890,7 +4899,7 @@ function drakeSpriteURL(type) {
                                 else lost.push(inst);
                             });
                             defFx.buff = [];
-                            ultText = (taken.length ? (currentLang === 'uk' ? `забирає ${taken.map(x => fxName(x.id)).join(', ')}` : `takes ${taken.map(x => fxName(x.id)).join(', ')}`) : '')
+                            ultText = (taken.length ? (currentLang === 'uk' ? `забирає ${taken.map(x => fxAcc(x.id)).join(', ')}` : `takes ${taken.map(x => fxName(x.id)).join(', ')}`) : '')
                                 + (lost.length ? (currentLang === 'uk' ? `${taken.length ? '; ' : ''}${lost.map(x => fxName(x.id)).join(', ')} ${lost.length > 1 ? 'зникають' : 'зникає'}` : `${taken.length ? '; ' : ''}removes ${lost.map(x => fxName(x.id)).join(', ')}`) : '') + '! ';
                             fvUltInfo({ taken: taken.map(x => x.id), lost: lost.map(x => x.id) });
                         }
@@ -5195,7 +5204,7 @@ function drakeSpriteURL(type) {
 
                     let sdLabel = turn >= SUDDEN_DEATH.from ? `<span style="color: #ff0000; font-weight: bold;">[${currentLang === 'uk' ? '💀 Раптова смерть' : '💀 Sudden Death'} x${suddenDeathMult.toFixed(1)}]</span> ` : ``;
 
-                    let damageFormatted = `<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">${finalDmg} ${currentLang === 'uk' ? 'шкоди' : 'damage'}</span>`;
+                    let damageFormatted = `<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">${finalDmg}</span>`;   // «Шкода: 17.» / "Damage: 17."
 
                     let logText = currentLang === 'uk' ?
                         `[Хід ${turn}] <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> ➜ <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> (<span style="color: ${attackTypeColor};">${attackTypeUk} / ${subTypeNameUk}</span>): ${ultTag ? ultTag + ' ' + ultText : ''}${sdLabel}${critLabel}${multLabel}${blockText} ${mirrorText}${goldOneHpText}${blueReflectText} Шкода: ${damageFormatted}. ${logExtra}` :

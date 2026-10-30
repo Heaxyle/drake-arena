@@ -327,7 +327,7 @@ Everything is in `index.html`:
 - `RARITIES` (drop chances), `ELEMENT_BASE` / `ELEMENT_TIERS` (element passives), `MECH` (title abilities): balance numbers — tune these, not the fight code
 - `titleStats`, `getMaxHP`, `getModifiedDefenses`, `getCritStats`, `getEffectMult`, `getTierMultiplier`: stat calculations
 - `handleChatMessage`: command parsing, shared by Twitch and the simulator
-- `EFFECTS`, `EFFECT_CAST`: the 14 buffs/debuffs (`POOL_IDS`: the 12 every drake casts; the White Drake's pair) (icon, names, description, what counts them down, numbers) and the cast rules; `getCastChance` is the cast chance
+- `EFFECTS`, `EFFECT_CAST`: the 14 buffs/debuffs (`POOL_IDS`: the 12 every drake casts; the White Drake's pair) (icon, names and the Ukrainian accusative for after a verb, description, what counts them down, numbers) and the cast rules; `getCastChance` is the cast chance
 - `CLASS_ULTIMATES`, `METER`: the seven class ultimates (six viewer elements and the White Drake) (icon, names, numbers, description) and the Element Power meter; `ultimateFor`, `describeUltimate`, `renderPowerMeter` (the meter row on the fighter cards)
 - `getHonours`, `tourneyAward`, `medalOf`, `showHallOfFame`, `showHallCard`: tournament prizes (badges, spins, medals, the Hall of Fame)
 - `show*` (`showSync`, `showDraw`, `showIntro`, `showBracket`, `showChampion`, `showBoardSync`, `showSound`) and `SHOW_SPRITES`: the tournament show (looks and sounds only)
