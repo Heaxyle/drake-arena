@@ -84,7 +84,8 @@ Meter: «✦ ГОТОВО» / «✦ READY» (`.pm-ready`, 12 px), the test panel
 
 ## 3. Log notes (fight view, `FV_TEXT` and `fvCardHtml`)
 
-All in log line 2 chips (12 px, compact = the icon, `fvIcon` takes the first word), except where noted.
+All in log line 2 chips (12 px, compact = the icon, `fvIcon` takes the first word), except where noted. The glyphs that replace
+them (batch 2) are in style.md, "The second batch"; Quantum Dodge, which shows the block note today, gets one of its own.
 
 | Note | Emoji | Meaning | Where else that emoji shows |
 |---|---|---|---|
@@ -122,6 +123,8 @@ All in log line 2 chips (12 px, compact = the icon, `fvIcon` takes the first wor
 | opening buff | 🌅 | (hidden `addLog` only; the banner uses the title's own icon) | title 181 |
 
 ## 4. Attack types (`ATTACK_ICONS`) and weights
+
+New glyphs (claws, orb, fangs): style.md, "The second batch".
 
 Line 1 of every log card, before the move name (15 px).
 

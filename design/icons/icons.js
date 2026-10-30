@@ -8,7 +8,7 @@
 //   o outline, d dark, m colour, h light, w highlight, p accent (an icon's own second colour), q accent dark
 (function (root) {
     // ----- Sizes by category -----
-    const SIZES = { buff: 10, debuff: 10, ultimate: 12 };
+    const SIZES = { buff: 10, debuff: 10, ultimate: 12, note: 10, attack: 10 };
 
     // ----- Glyphs -----
     const GLYPHS = {
@@ -64,18 +64,18 @@
             'h...h...h.',
             '..........',
         ],
-        // Shadow: a hooded shade with glowing eyes
+        // Shadow: an eclipse, a dark disc with a bright rim (the closest thing to 🌑)
         shadow: [
-            '...oooo...',
-            '..ohhhmo..',
+            '..oowwoo..',
+            '.owwmmwho.',
+            'owmmmdddho',
+            'owmmddddmo',
+            'wmmddddddm',
+            'wmdddddddm',
+            'owddddddmo',
+            'ohddddddmo',
             '.ohmddmmo.',
-            '.omdddddo.',
-            'ohdwdwddmo',
-            'omdddddddo',
-            'omddddddmo',
-            'omdddddddo',
-            'ommdmdmdmo',
-            'oo.o.o.ooo',
+            '..oommoo..',
         ],
         // Weakness: a bold arrow down
         weakness: [
@@ -90,18 +90,18 @@
             '....oo....',
             '..........',
         ],
-        // Blessing: a four-leaf clover with a stem
+        // Blessing: a gold five-point star
         blessing: [
-            '.ooo.ooo..',
-            'ohhhohhho.',
-            'ohmdohmdo.',
-            'ohdmhmddo.',
-            '.oohddoo..',
-            'ohhmdmhho.',
-            'ohmdohmdo.',
-            'ohddohddo.',
-            '.ooo.oood.',
-            '.........d',
+            '....oo....',
+            '...ohho...',
+            '...ohdo...',
+            '.ooowdooo.',
+            'ohhhwmhhho',
+            '.ohmmmmdo.',
+            '..ohmmdo..',
+            '..ohdddo..',
+            '.ohdoohho.',
+            '..oo..oo..',
         ],
         // Mark: a crosshair (ring, centre dot, four ticks)
         mark: [
@@ -129,18 +129,18 @@
             '..ohmmdo..',
             '..oooooo..',
         ],
-        // Dispel: a ring broken in two across a diagonal (round means buff: a broken ring breaks the buffs)
+        // Dispel: Divine Might's arrow up with a slash through it (buffs cancelled)
         dispel: [
-            '..oohho...',
-            '.ohhmmhow.',
-            'ohmdddo.o.',
-            'ohdooo.oho',
-            'hmdo..ohmh',
-            'hmdo..ohmd',
-            'oho.ooohdo',
-            '.o.ohhhmdo',
-            '.wohmmddo.',
-            '...ohdoo..',
+            '....oo..ow',
+            '...ohdoowo',
+            '..ohhmowo.',
+            '.ohhhowoo.',
+            'ohhhowomdo',
+            'oooowodooo',
+            '..owomdo..',
+            '.owommdo..',
+            'owohmmdo..',
+            'wooooooo..',
         ],
         // Regeneration: a bold plus
         regen: [
@@ -199,19 +199,19 @@
             '...ohmmdo...',
             '....oooo....',
         ],
-        // Shadow Theft: a bat with spread wings
+        // Shadow Theft: the classic bat: wings in a V with scalloped points, pointed ears, two bright eyes
         theft: [
             '............',
+            '.o........o.',
+            'oho.o..o.oho',
+            'ohhohoohohdo',
+            'ohmhmhhmhmdo',
+            'ohmmymmymmdo',
+            '.ohmdmmdmdo.',
+            '..ohohdoho..',
+            '...oohdoo...',
+            '.....oo.....',
             '............',
-            '....o..o....',
-            '...omoomo...',
-            '..oohmmhoo..',
-            '.ohhwmmwmmo.',
-            'ohhmmmmmmmdo',
-            'ohmmmmmmmmdo',
-            'omdmmmmmmdmo',
-            'omo.ommo.omo',
-            'oo...oo...oo',
             '............',
         ],
         // Jackpot: a slot reel window with a red seven
@@ -244,20 +244,360 @@
             'oo.omo.omo.o',
             '....o...o...',
         ],
-        // Bloom: a pink blossom on a green stem with two big leaves (green leads)
+        // Bloom: a five-petal flower head, green petals with pink tips, a yellow centre, a short stem
         bloom: [
-            '....oooo....',
-            '...oppwpo...',
-            '..oppwwppo..',
-            '...oppppo...',
-            '....omho....',
-            '.oo.omho.oo.',
-            'ohhoomhoohmo',
-            'ohhhomhomhmo',
-            '.ohhhmhmmdo.',
-            '..ohhmhmdo..',
-            '...oomhoo...',
-            '.....oo.....',
+            '....oppo....',
+            '..oohmmhoo..',
+            '.opohmmdopo.',
+            'opmhmmmmhmpo',
+            'opmmmvymmmpo',
+            'opdmmyymmdpo',
+            '.oohmyymdoo.',
+            '.ohmmmmmmho.',
+            '.opmmddmmpo.',
+            '..oppooppo..',
+            '...ooodoo...',
+            '.....odo....',
+        ],
+        // ----- Batch 2: log notes and title mechanics (10×10, bare) -----
+        // Crit: a bold «!» with impact ticks
+        crit: [
+            'o...oo...o',
+            'ho.ohho.oh',
+            'ohoohdooho',
+            '.o.ohdo.o.',
+            '...ohdo...',
+            '...ohdo...',
+            '....oo....',
+            '...ohho...',
+            '...ohdo...',
+            '....oo....',
+        ],
+        // Ultra-block (Black): a brick wall
+        block: [
+            '.oooooooo.',
+            'ommmmmmmmo',
+            'ommmdmmmmo',
+            'oddddddddo',
+            'omdmmmdmmo',
+            'oddddddddo',
+            'ommmdmmmmo',
+            'ommmdmmmmo',
+            '.oooooooo.',
+            '..........',
+        ],
+        // Quantum Dodge: a figure stepping aside, after-images behind it
+        dodge: [
+            'o..o..oo..',
+            'doomoowwo.',
+            'odoomoowwo',
+            '.odoomooww',
+            '.odoomooww',
+            'odoomoowwo',
+            'doomoowwo.',
+            'o..o..oo..',
+            '..........',
+            '..........',
+        ],
+        // Miss: a whoosh, a swing that hits nothing
+        miss: [
+            '.......oww',
+            '......owww',
+            '.....owooo',
+            '.oooowo...',
+            'ommmmo....',
+            'moooomo...',
+            'mommomo...',
+            'mommomo...',
+            'moooomo...',
+            'ommmmo....',
+        ],
+        // Unblockable: the brick wall crossed out
+        unblockable: [
+            'ppooooooo.',
+            'oppmmmmmmo',
+            'omppdmmmmo',
+            'oddppddddo',
+            'omdmppdmmo',
+            'oddddppddo',
+            'ommmdmppmo',
+            'ommmdmmppo',
+            '.ooooooopp',
+            '........oo',
+        ],
+        // Immune: a bubble with a glint
+        immune: [
+            '..oommoo..',
+            '.ommmmmmo.',
+            'ommddddmmo',
+            'omdwwdddmo',
+            'mmdwddddmm',
+            'mmddddddmm',
+            'omddddhdmo',
+            'ommddddmmo',
+            '.ommmmmmo.',
+            '..oommoo..',
+        ],
+        // Armour-piercing: a spear tip through a cracked armour plate
+        pierce: [
+            '........ow',
+            '..ooo.ooww',
+            '.odddowwmo',
+            '.ododwwmo.',
+            '.oddwwmo..',
+            '.odwwmddo.',
+            '.owwmoodo.',
+            'owwmdddo..',
+            'owmoooo...',
+            'omo.......',
+        ],
+        // Execute: an axe
+        execute: [
+            '..oooppo..',
+            '.owmmppo..',
+            'owmmmppo..',
+            'wwmmmppo..',
+            'wwmmmppo..',
+            'owmmmppo..',
+            '.owmmqqo..',
+            '..oooqqo..',
+            '....oqqo..',
+            '....oqqo..',
+        ],
+        // Sleep: «Zz»
+        sleep: [
+            'mmmmmo....',
+            'ooomo.....',
+            '.omo.ooo..',
+            'omooohhho.',
+            'mmmmmooho.',
+            'ooooooho..',
+            '....ohhho.',
+            '.....ooo..',
+            '..........',
+            '..........',
+        ],
+        // Chaos: a lightning bolt
+        chaos: [
+            '....ohhho.',
+            '...ohmdo..',
+            '..ohmdoo..',
+            '.ohdmmhho.',
+            '..oohmdo..',
+            '..ohmdo...',
+            '.ohddo....',
+            'ohdoo.....',
+            'oho.......',
+            '.o........',
+        ],
+        // Thorns: three thorns on a stem
+        thorns: [
+            '...ommoo..',
+            '.oowmmowo.',
+            'omoommomo.',
+            'wmowmmmmo.',
+            'ommmmmwo..',
+            '.ooommo...',
+            '..owmmo...',
+            '...ommo...',
+            '..oddddo..',
+            '...oooo...',
+        ],
+        // Title lifesteal: a goblet of blood
+        lifesteal: [
+            '.ooooooo..',
+            'ohhhhhhho.',
+            'ohpppppho.',
+            'ohppqppho.',
+            '.ohqqqho..',
+            '..ohmho...',
+            '...omo....',
+            '..oomoo...',
+            '.ommmmmo..',
+            '..ooooo...',
+        ],
+        // Vampire heal (a vampire attack's heal): a blood drop with a plus
+        vampheal: [
+            '..oho.....',
+            '..oho.....',
+            '.ohmho..o.',
+            'ohmmmhoowo',
+            'ohmhmdowww',
+            'ohmmmdoowo',
+            '.ohddo..o.',
+            '..ooo.....',
+            '..........',
+            '..........',
+        ],
+        // Heads or tails: a coin with its star
+        coin: [
+            '..oooooo..',
+            '.ohhhhhho.',
+            'ohmdmmdmho',
+            'ohdmmmmddo',
+            'ohmmmwmmdo',
+            'ohmmwwwmdo',
+            'ohdmmwmddo',
+            'ohmdmmdmdo',
+            '.ohdddddo.',
+            '..oooooo..',
+        ],
+        // Fortune (Gold: leaves 1 HP): a heart nearly empty, a sliver left
+        fortune: [
+            '.oo...oo..',
+            'ommo.ommo.',
+            'moomomoomo',
+            'mo.omo.omo',
+            'mo..o..omo',
+            'omooooomo.',
+            '.omhhhmo..',
+            '..ommmo...',
+            '...omo....',
+            '....o.....',
+        ],
+        // The cat on the keyboard: a cat's head
+        cat: [
+            '.o......o.',
+            'oho....oho',
+            'ohhoooohdo',
+            'ohmhhhhmdo',
+            'ohymmmmydo',
+            'hmmmmmmmmh',
+            'ohmmddmmdo',
+            '.ohdddddo.',
+            '..oooooo..',
+            '..........',
+        ],
+        // Guardian angel: a halo over a plus
+        guardian: [
+            '..owwwwo..',
+            '.owoooowo.',
+            'o.owwwwo.o',
+            'ho.ommo.oh',
+            'hhoommoohh',
+            'hhhmmmmhhh',
+            'ohhommohho',
+            '.ooommooo.',
+            '....oo....',
+            '..........',
+        ],
+        // Opening buff: a sunrise
+        opening: [
+            '....o.....',
+            '.o.oho.o..',
+            'ohoohooho.',
+            '.ohoooho..',
+            'o.ohhho.o.',
+            'hohmmmhoho',
+            'ohmmmmmhoo',
+            'dddddddddd',
+            'oooooooooo',
+            '..........',
+        ],
+        // The Sovereign's passive (the attack dissolves): its crown
+        sovereign: [
+            'o...o...o.',
+            'wo.owo.owo',
+            'hoohmhooho',
+            'hhohmdohdo',
+            'hmhmmmhmdo',
+            'hmmpmpmmdo',
+            'hmmmmmmmdo',
+            'dddddddddo',
+            'ooooooooo.',
+            '..........',
+        ],
+        // Aether wrath: a beam of light striking down
+        wrath: [
+            'o...o...o.',
+            'wooowooowo',
+            'oommmmmmo.',
+            'omoowwoomo',
+            'moowkkwoom',
+            'moowkkwoom',
+            'omoowwoomo',
+            '.ommmmmmo.',
+            '..oooooo..',
+            '..........',
+        ],
+        // Reflect (Blue): a U-turn arrow
+        reflect: [
+            '..ooooo...',
+            '.ommmmmo..',
+            'omooooomo.',
+            'mo.....omo',
+            'mo.o...omo',
+            'moomo..omo',
+            'ommmo..omo',
+            'ommmo...o.',
+            '.ooo......',
+            '..........',
+        ],
+        // Sudden death: a warning triangle
+        suddendeath: [
+            '...ohho...',
+            '...ohdo...',
+            '..ohmmho..',
+            '..ohvvdo..',
+            '.ohmvvmho.',
+            '.ohmvvmdo.',
+            'ohmmmmmmho',
+            'ohmmvvmmdo',
+            'hddddddddh',
+            'oooooooooo',
+        ],
+        // Knockout: a tombstone with a cross
+        knockout: [
+            '..ohhhho..',
+            '.ohmmmmho.',
+            'ohmmwmmmho',
+            'ohmwwwmmdo',
+            'ohmmwmmmdo',
+            'ohmmwmmmdo',
+            'ohmmmmmmdo',
+            'ohmmmmmmdo',
+            'dddddddddd',
+            'oooooooooo',
+        ],
+        // ----- Batch 2: attack types (10×10) -----
+        // Physical attack: three claw slashes
+        physical: [
+            '..o..o..o.',
+            '.owoowoowo',
+            '.omoomoomo',
+            'ommommommo',
+            'omoomoomo.',
+            'mmommommo.',
+            'moomoomo..',
+            'moomoomo..',
+            'o..o..o...',
+            '..........',
+        ],
+        // Magical attack: an orb with a spark
+        magical: [
+            '.......owo',
+            '...oooowww',
+            '..ohhhhowo',
+            '.ohwwmmho.',
+            '.ohwmmmdo.',
+            'ohmmmmmmho',
+            '.ohmmmmdo.',
+            '.ohmmmmdo.',
+            '..ohdddo..',
+            '...oooo...',
+        ],
+        // Vampire attack: two fangs
+        vampire: [
+            '.oooooooo.',
+            'ommmmmmmmo',
+            'mhhhhhhhhm',
+            'mvvmmmmvvm',
+            'ovvoooovvo',
+            'oovo..ovoo',
+            'moooooooom',
+            'ommmmmmmmo',
+            '.oooooooo.',
+            '..........',
         ],
     };
 
@@ -290,10 +630,42 @@
         jackpot:    { kind: 'ultimate', element: 'gold',   name: { uk: 'Джекпот', en: 'Jackpot' },           emoji: '🎰', was: '#ffd700', accent: '#ff4f5a' },
         detonation: { kind: 'ultimate', element: 'purple', name: { uk: 'Арканна детонація', en: 'Arcane Detonation' }, emoji: '✴️', was: '#e0a8ff' },
         bloom:      { kind: 'ultimate', element: 'green',  name: { uk: 'Цвітіння', en: 'Bloom' },             emoji: '🌸', was: '#ff9ad5', accent: '#ff9ad5' },
+
+        // ----- Batch 2: log notes and title mechanics (bare, 10×10; colour = what they belong to) -----
+        // mechanic: the title mechanic this note is the badge of (TITLES_DB bonus.mechanic), so the badge and the note match
+        crit:        { kind: 'note', color: '#ffd23f', name: { uk: 'Крит', en: 'Crit' },                         emoji: '💥' },
+        block:       { kind: 'note', color: '#9b9ba8', name: { uk: 'Ультраблок', en: 'Ultra-block' },            emoji: '🚫' },
+        dodge:       { kind: 'note', color: '#5ee0c8', name: { uk: 'Квантовий ухил', en: 'Quantum Dodge' },       emoji: '🚫', mechanic: 'quantum_dodge' },
+        miss:        { kind: 'note', color: '#a9aecb', name: { uk: 'Промах', en: 'Miss' },                        emoji: '(word)' },
+        unblockable: { kind: 'note', color: '#d9875f', name: { uk: 'Не блокується', en: 'Unblockable' },         emoji: '(word)', accent: '#ff4f5a' },
+        immune:      { kind: 'note', color: '#bfe9ff', name: { uk: 'Імунітет', en: 'Immune' },                   emoji: '🐉', mechanic: 'debuff_immunity' },
+        pierce:      { kind: 'note', color: '#c9cde6', name: { uk: 'Крізь броню', en: 'Armour-piercing' },       emoji: '⚡', mechanic: 'armor_piercer' },
+        execute:     { kind: 'note', color: '#c9cde6', name: { uk: 'Добивання', en: 'Execute' },                 emoji: '⚰️', mechanic: 'executioner', accent: '#a0652a' },
+        sleep:       { kind: 'note', color: '#8ea3cc', name: { uk: 'Проспав хід', en: 'Slept through it' },      emoji: '😴', mechanic: 'sleepy' },
+        chaos:       { kind: 'note', color: '#ff7ad9', name: { uk: 'Хаос', en: 'Chaos' },                        emoji: '⚡', mechanic: 'chaotic_charge' },
+        thorns:      { kind: 'note', color: '#7fd36b', name: { uk: 'Шипи', en: 'Thorns' },                       emoji: '🌵', mechanic: 'thorns' },
+        lifesteal:   { kind: 'note', color: '#c9cde6', name: { uk: 'Вампіризм титулу', en: 'Title lifesteal' },  emoji: '🧛', mechanic: 'lifesteal', accent: '#ff3048' },
+        vampheal:    { kind: 'note', color: '#ff3048', name: { uk: 'Лікування укусом', en: 'Vampire heal' },     emoji: '🩸' },
+        coin:        { kind: 'note', color: '#f2c14e', name: { uk: 'Герб чи число', en: 'Heads or tails' },      emoji: '🪙', mechanic: 'coin_flip' },
+        fortune:     { kind: 'note', color: '#f2c14e', name: { uk: 'Фортуна · 1 HP', en: 'Fortune · 1 HP' },     emoji: '🟨' },
+        cat:         { kind: 'note', color: '#ffa64d', name: { uk: 'Кіт', en: 'Cat' },                           emoji: '🐈', mechanic: 'cat_keyboard' },
+        guardian:    { kind: 'note', color: '#ffd978', name: { uk: 'Ангел-охоронець', en: 'Guardian angel' },    emoji: '👼', mechanic: 'guardian_shield' },
+        opening:     { kind: 'note', color: '#ffb347', name: { uk: 'Баф на старті', en: 'Opening buff' },        emoji: '🌅', mechanic: 'opening_buff' },
+        sovereign:   { kind: 'note', color: '#9fe3ff', name: { uk: 'Атака розсіюється', en: 'The attack dissolves' }, emoji: '👑', mechanic: 'streamer_god', accent: '#4a98ff' },
+        wrath:       { kind: 'note', color: '#9fe3ff', name: { uk: 'Кара етеру', en: 'Aether wrath' },           emoji: '👑' },
+        reflect:     { kind: 'note', color: '#4a98ff', name: { uk: 'Відбиває', en: 'Reflects' },                 emoji: '🟦' },
+        suddendeath: { kind: 'note', color: '#ff4f5a', name: { uk: 'Раптова смерть', en: 'Sudden death' },       emoji: '💀' },
+        knockout:    { kind: 'note', color: '#a7aab4', name: { uk: 'Нокаут', en: 'Knockout' },                   emoji: '💀' },
+        // ----- Batch 2: attack types (line 1 of every log card) -----
+        physical:    { kind: 'attack', color: '#e8e2d0', name: { uk: 'Фізична', en: 'Physical' },                emoji: '🗡️' },
+        magical:     { kind: 'attack', color: '#b9a6ff', name: { uk: 'Магічна', en: 'Magical' },                 emoji: '🔮' },
+        vampire:     { kind: 'attack', color: '#ff5d6c', name: { uk: 'Вампірська', en: 'Vampire' },              emoji: '🧛' },
     };
-    Object.values(ICONS).forEach(ic => { ic.color = ELEMENT_COLORS[ic.element]; });
+    Object.values(ICONS).forEach(ic => { if (ic.element) ic.color = ELEMENT_COLORS[ic.element]; });
     const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison'];
     const ULTIMATE_ICON_IDS = ['firestorm', 'mirror', 'theft', 'jackpot', 'detonation', 'bloom'];
+    const NOTE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'note');
+    const ATTACK_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'attack');
 
     // ----- Palette from one colour -----
     const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
@@ -308,7 +680,78 @@
             w: mix(color, '#ffffff', 0.8),    // highlight
             p: accent,                         // accent
             q: mix(accent, '#000000', 0.35),  // accent dark
+            y: '#ffd23f',                      // yellow (Bloom's centre, the bat's eyes, the cat's eyes)
+            k: '#0b0c10',                      // near-black (the eclipse's disc)
+            v: '#ffffff',                      // white (the warning sign's «!»)
         };
+    }
+
+    // ----- Title badges: the mechanic's (or bonus's) 10×10 glyph in a 12×12 rarity frame -----
+    // The frame is 1 pixel, so the glyph inside is the very same one as the log note: badge and note are one icon. Rarity shows
+    // in the frame's pattern as well as its colour (colour-blind viewers): legendary a solid edge lit top-left with a white gem
+    // on top, mythic a two-tone striped edge with bright corners, meme a dotted edge in two colours (confetti). Common to epic
+    // follow with the bonus glyphs (batch 3). Letters: A light, B colour, C dark, E the plaque inside, W white, Y yellow.
+    const RARITY_COLORS = { common: '#a0a0a0', uncommon: '#2ecc71', rare: '#3498db', epic: '#b36bff', legendary: '#f1c40f', mythic: '#ff4757', meme: '#ff66cc', divine: '#9fe3ff' };
+    const TITLE_FRAMES = {
+        legendary: [
+            '.AAAAWWAAAA.',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            '.CCCCCCCCCC.',
+        ],
+        mythic: [
+            'YACACACACACY',
+            'AEEEEEEEEEEC',
+            'CEEEEEEEEEEA',
+            'AEEEEEEEEEEC',
+            'CEEEEEEEEEEA',
+            'AEEEEEEEEEEC',
+            'CEEEEEEEEEEA',
+            'AEEEEEEEEEEC',
+            'CEEEEEEEEEEA',
+            'AEEEEEEEEEEC',
+            'CEEEEEEEEEEA',
+            'YCACACACACAY',
+        ],
+        meme: [
+            'B.Y.B.Y.B.Y.',
+            '.EEEEEEEEEEB',
+            'YEEEEEEEEEE.',
+            '.EEEEEEEEEEY',
+            'BEEEEEEEEEE.',
+            '.EEEEEEEEEEB',
+            'YEEEEEEEEEE.',
+            '.EEEEEEEEEEY',
+            'BEEEEEEEEEE.',
+            '.EEEEEEEEEEB',
+            'YEEEEEEEEEE.',
+            '.Y.B.Y.B.Y.B',
+        ],
+    };
+    const framePalette = color => ({ A: mix(color, '#ffffff', 0.4), B: color, C: mix(color, '#000000', 0.4), E: mix(color, '#0b0c10', 0.86), W: '#ffffff', Y: '#ffd23f' });
+    const titleCache = {};
+    function makeTitleCanvas(id, rarity, doc = root.document) {
+        const key = id + '|' + rarity;
+        if (titleCache[key]) return titleCache[key];
+        const frame = TITLE_FRAMES[rarity], fpal = framePalette(RARITY_COLORS[rarity]);
+        const c = doc.createElement('canvas');
+        c.width = c.height = 12;
+        const g = c.getContext('2d');
+        frame.forEach((row, y) => { for (let x = 0; x < 12; x++) if (row[x] !== '.') { g.fillStyle = fpal[row[x]]; g.fillRect(x, y, 1, 1); } });
+        g.drawImage(makeIconCanvas(id, doc), 1, 1);
+        return (titleCache[key] = c);
+    }
+    function titleImg(id, rarity, scale = 2, cls = 'px-icon') {
+        const s = Math.max(1, Math.round(scale));
+        return `<img class="${cls}" src="${makeTitleCanvas(id, rarity).toDataURL()}" width="${12 * s}" height="${12 * s}" alt="${ICONS[id].name.en}" style="image-rendering: pixelated">`;
     }
 
     // ----- Rows: the glyph itself (no frame), checked against its category's size -----
@@ -369,5 +812,5 @@
     // The CSS for a chip of this element and kind (the element's text colour goes with it)
     const chipStyle = (element, kind) => `border-style: solid; border-width: 1px ${CHIP.cap}px; border-image: url(${chipURL(element, kind)}) 1 ${CHIP.cap} fill / 1px ${CHIP.cap}px stretch; color: ${mix(ELEMENT_COLORS[element], '#ffffff', 0.35)};`;
 
-    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES,GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
+    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
 })(typeof window !== 'undefined' ? window : globalThis);

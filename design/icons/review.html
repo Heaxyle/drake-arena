@@ -110,6 +110,26 @@
     .glance .gap { grid-column: 1 / -1; height: 2px; }
     .chips-strip { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; background: rgba(6, 7, 11, 0.96); padding: 14px 16px; width: 1460px; font-size: 12px; }
     .chips-strip.f-gray { filter: grayscale(1); }
+    .glance.g2 { grid-template-columns: 150px repeat(26, 36px); gap: 12px 8px; }
+    .glance .word { font-size: 10px; color: var(--dim); }
+    /* A note: the bare glyph and its word in the plain square chip (never the effects' kind shapes) */
+    .lk.px.note { height: 20px; margin: 0; padding: 0 0.67em 0 0.2em; border-radius: 2px; background: rgba(255, 255, 255, 0.08); border: 0; color: #c9cde6; font-weight: 700; }
+    .lk.px.note img { margin-left: 0; }
+    .lk.px.note.heal { color: #4dff7a; background: rgba(77, 255, 122, 0.12); }
+    .lk.px.note.hurt { color: #ff9a8a; background: rgba(255, 93, 82, 0.14); }
+    .lk.px.note.sd { color: #ff7a7a; background: rgba(255, 60, 60, 0.18); }
+    .lc-critchip { flex-shrink: 0; font-size: 12px; line-height: 14px; font-weight: 700; padding: 2px 8px; border-radius: 2px; color: #ffd23f; background: rgba(255, 200, 40, 0.16); text-transform: uppercase; }
+    .lc-critchip.px { display: inline-flex; align-items: center; gap: 4px; height: 20px; box-sizing: border-box; padding: 0 8px 0 2px; line-height: 20px; }
+    .log-banner { text-align: center; font-size: 13px; color: #c9cbe3; padding: 3px 0 5px; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .log-banner.sd { font-weight: 700; font-size: 14px; padding: 5px 8px; color: #ff6b6b; background: rgba(255, 40, 40, 0.08); border: 1px solid rgba(255, 80, 80, 0.5); border-radius: 2px; }
+    .lc-cell.ko { border: 1px solid rgba(255, 93, 82, 0.45); background: rgba(255, 93, 82, 0.08); color: #ff8a80; }
+    .titles { display: grid; grid-template-columns: 150px 330px 330px 330px 330px 70px; gap: 10px 14px; align-items: center; background: var(--card); padding: 16px 20px; width: max-content; }
+    .titles .f-h { font-size: 13px; color: var(--muted); }
+    .titles .th { font-family: var(--pixel); font-size: 9px; color: var(--dim); }
+    .tbadge { font-size: 13px; font-weight: 600; padding: 3px 9px; border-radius: 2px; white-space: nowrap; overflow: hidden; background: rgba(255, 255, 255, 0.05); border: 1px solid currentColor; justify-self: start; max-width: 100%; box-sizing: border-box; }
+    .tbadge.px { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px 0 0; }
+    .tbadge.px img { flex-shrink: 0; }
+    .lbsub { font-size: 12px; color: var(--dim); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
     .filters .f-h { font-size: 13px; color: var(--muted); }
     .filters .cell { display: flex; justify-content: center; }
     .f-gray img, .f-gray .emo { filter: grayscale(1); }
@@ -125,10 +145,11 @@
 </svg>
 <div class="page" id="page">
     <div>
-        <h1>ICONS · BATCH 1</h1>
-        <div class="sub">The 12 effects and the 6 class ultimates, pass 3. Pixel art like the drakes: one palette and pixel map per icon, drawn once, shown only
-            at whole-number scales. No frames: an effect's glyph has the whole 10×10, an ultimate its own 12×12 silhouette. Buff or debuff is the chip's shape
-            (rounded or angled ends), colour is the element. Each icon is shown next to the emoji it replaces, at the size it has in the game.</div>
+        <h1>ICONS · BATCH 1 + 2</h1>
+        <div class="sub">Batch 1 (sections 1–5): the 12 effects and the 6 class ultimates, pass 4. Batch 2 (sections 6–8): the log notes, the title mechanics and the
+            attack types. Pixel art like the drakes: one palette and pixel map per icon, drawn once, shown only at whole-number scales. No frames: an effect's or a
+            note's glyph has the whole 10×10, an ultimate its own 12×12 silhouette. Buff or debuff is the chip's shape (rounded or angled ends), colour is the
+            element. A title badge is its mechanic's note glyph in a 12×12 rarity frame. Each icon is shown next to the emoji it replaces, at the size it has in the game.</div>
     </div>
 
     <section>
@@ -170,6 +191,29 @@
         <div class="chips-strip f-gray" id="chips-gray" style="margin-top: 6px"></div>
         <div class="note">The 12 effect chips (and the tick chips) in colour and in greyscale: rounded ends = buff, angled ends = debuff, with no colour at all.</div>
     </section>
+
+    <section>
+        <h2>6 · BATCH 2 AT A GLANCE</h2>
+        <div class="glance g2" id="glance2"></div>
+        <div class="note">The 23 notes and the 3 attack types at ×2 with no names, the emoji they replace («—»: today it's a word, no emoji), both in greyscale.</div>
+    </section>
+
+    <section>
+        <h2>7 · NOTES IN THE BATTLE LOG</h2>
+        <div class="pair">
+            <div><div class="col-h">NOW · EMOJI</div><div class="log-panel frame-sm logs" id="notes-old"></div></div>
+            <div><div class="col-h">NEW · PIXEL ICONS</div><div class="log-panel frame-sm logs" id="notes-new"></div></div>
+        </div>
+        <div class="note">A note is a bare glyph (no chip shape: notes are events, not effects) next to its word, in the plain square chip; the attack type leads line 1. Quantum Dodge shows «🚫 блок» today, the same as ultra-block; here it gets its own note.</div>
+    </section>
+
+    <section>
+        <h2>8 · TITLE BADGES</h2>
+        <div class="titles" id="titles"></div>
+        <div class="note">Each mechanic is shared by two titles of the same rarity. Today the two show different emoji; here both show the mechanic's note glyph in the
+            rarity frame (legendary solid with a gem, mythic striped, meme dotted), and the log note (last column) is the same glyph, bare. ×2 on the fighter card's
+            badge (24 px: the badge grows from ~21 to 26 px), ×1 in the Top (12 px).</div>
+    </section>
 </div>
 
 <script src="icons.js"></script>
@@ -181,16 +225,16 @@
         burn:     { kind: 'debuff', left: 'ще 3 ходи',  glyph: 'flame', tick: -9 },
         shield:   { kind: 'buff',   left: 'ще 2 удари', glyph: 'shield' },
         frost:    { kind: 'debuff', left: 'ще 1 атака', glyph: 'snowflake' },
-        shadow:   { kind: 'buff',   left: 'ще 2 удари', glyph: 'hooded shade' },
+        shadow:   { kind: 'buff',   left: 'ще 2 удари', glyph: 'eclipse' },
         weakness: { kind: 'debuff', left: 'ще 2 атаки', glyph: 'arrow down' },
-        blessing: { kind: 'buff',   left: 'ще 2 атаки', glyph: 'four-leaf clover' },
+        blessing: { kind: 'buff',   left: 'ще 2 атаки', glyph: 'five-point star' },
         mark:     { kind: 'debuff', left: 'ще 1 удар',  glyph: 'crosshair' },
         divine:   { kind: 'buff',   left: 'ще 1 атака', glyph: 'arrow up' },
-        dispel:   { kind: 'debuff', left: null,         glyph: 'broken ring' },
+        dispel:   { kind: 'debuff', left: null,         glyph: 'arrow up, slashed' },
         regen:    { kind: 'buff',   left: 'ще 3 ходи',  glyph: 'plus', tick: 12 },
         poison:   { kind: 'debuff', left: 'ще 3 ходи',  glyph: 'skull', tick: -5 },
     };
-    const ULT_GLYPH = { firestorm: 'meteor', mirror: 'mirror shard', theft: 'bat', jackpot: 'slot seven', detonation: 'blast', bloom: 'flower' };
+    const ULT_GLYPH = { firestorm: 'meteor', mirror: 'mirror shard', theft: 'bat', jackpot: 'slot seven', detonation: 'blast', bloom: 'flower head' };
     const chipCss = id => D.chipStyle(D.ICONS[id].element, EFFECT_INFO[id].kind);
     const ELEMENT_UK = { red: 'Червоний', blue: 'Синій', black: 'Чорний', gold: 'Золотий', purple: 'Фіолетовий', green: 'Зелений' };
     const nm = id => D.ICONS[id].name.uk;
@@ -302,6 +346,74 @@
         + D.EFFECT_ICON_IDS.map(id => lk(id, true, false)).join('');
     $('chips-col').innerHTML = strip();
     $('chips-gray').innerHTML = strip();
+    // 6 · Batch 2 at a glance
+    {
+        const ids = [...D.NOTE_ICON_IDS, ...D.ATTACK_ICON_IDS];
+        const emo = id => D.ICONS[id].emoji === '(word)' ? '<span class="word">—</span>' : `<span class="emo" style="font-size:16px;width:auto">${D.ICONS[id].emoji}</span>`;
+        const row = (label, cls, emoji) => `<div class="f-h">${label}</div>` + ids.map(id => `<div class="cell ${cls}">${emoji ? emo(id) : img(id, 2)}</div>`).join('');
+        $('glance2').innerHTML = row('Icons ×2', '') + row('Emoji', '', true) + '<div class="gap"></div>' + row('Icons, greyscale', 'f-gray') + row('Emoji, greyscale', 'f-gray', true);
+    }
+
+    // 7 · Notes in the battle log: the same fights, with today's emoji and with the new glyphs
+    function noteRows(px) {
+        const rows = [];
+        const pair = (a, b) => rows.push(`<div class="log-row">${a}${b}</div>`);
+        // A note chip: today «💥 Крит», new: the glyph and the word
+        const nt = (id, emoji, word, cls = '') => px ? `<span class="lk px note ${cls}">${img(id)}${word}</span>` : `<span class="lk ${cls}">${emoji}${word ? ' ' + word : ''}</span>`;
+        const atk = (type, name) => px ? `<img class="px-icon" src="${D.iconURL(type)}" width="20" height="20" alt="">` + ` ${name}` : `${D.ICONS[type].emoji} ${name}`;
+        const card = (side, el, n, type, name, num, line2, crit) => {
+            const c = crit ? (px ? `<span class="lc-critchip px">${img('crit')}Крит</span>` : `<span class="lc-critchip">💥 Крит</span>`) : '';
+            const l1 = move(side, n, atk(type, name), num, side === 'left' ? BLUE : RED);
+            return lcard(side, el, c ? l1.replace('<span class="lc-sp"></span>', `<span class="lc-sp"></span>${c}`) : l1, line2);
+        };
+        pair(card('left', 'red', 1, 'physical', 'Удар хвостом', '-41', nt('pierce', '⚡', 'крізь броню'), true),
+             card('right', 'black', 2, 'vampire', 'Нічна спрага', '-17', nt('vampheal', '🩸', '+19', 'heal') + nt('lifesteal', '🧛', 'титул +6', 'heal')));
+        pair(card('left', 'gold', 3, 'magical', 'Сяйво', '0', nt('block', '🚫', 'блок')),
+             card('right', 'purple', 4, 'physical', 'Удар аркани', '0', nt('dodge', '🚫', px ? 'ухил' : 'блок')));
+        pair(card('left', 'green', 5, 'physical', 'Удар лози', '0', nt('sovereign', '👑', 'атака розсіюється')),
+             card('right', 'blue', 6, 'magical', 'Крижаний подих', '-20', nt('wrath', '👑', 'кара етеру') + nt('immune', '🐉', 'імунітет')));
+        pair(card('left', 'red', 7, 'physical', 'Кігті', '-33', nt('execute', '⚰️', 'добивання') + nt('coin', '🪙', '×1.5')),
+             card('right', 'gold', 8, 'physical', 'Золоті кігті', '0', nt('sleep', '😴', 'проспав хід') + nt('chaos', '⚡', 'хаос') + nt('cat', '🐈', 'кіт')));
+        pair(card('left', 'black', 9, 'physical', 'Темні кігті', '-12', nt('thorns', '🌵', 'шипи -4', 'hurt') + nt('reflect', '🟦', 'відбиває -3', 'hurt')),
+             card('right', 'gold', 10, 'magical', 'Сліпучий промінь', '-26', nt('fortune', '🟨', 'фортуна · 1 HP') + nt('guardian', '👼', 'ангел-охоронець +31', 'heal')));
+        pair(card('left', 'purple', 11, 'magical', 'Вибух чарів', '-58', nt('unblockable', '', 'не блокується').replace('<span class="lk ">', '<span class="lk">')),
+             card('right', 'gold', 12, 'physical', 'Джекпот', '0', nt('miss', '', 'промах', 'hurt')));
+        rows.push(`<div class="log-banner">${px ? img('opening') : '🌅'} Прокинувся в ударі: <b style="color:${RED}">@ПолумʼянийЛіс</b> починає бій з ${px ? `<span class="lk px" style="${chipCss('rage')}">${img('rage')}Лють</span>` : '💢 Лють'}</div>`);
+        rows.push(`<div class="log-banner sd">${px ? img('suddendeath') : '💀'} РАПТОВА СМЕРТЬ з 16-го ходу · шкода зростає щоходу</div>`);
+        pair(card('left', 'red', 31, 'physical', 'Удар хвостом', '-64', nt('suddendeath', '💀', '×2.5', 'sd')),
+             `<div class="lc-cell ko">${px ? img('knockout') : '💀'}<span><b>@goldfinch</b>&nbsp;вибуває</span></div>`);
+        return rows.join('');
+    }
+    $('notes-old').innerHTML = noteRows(false);
+    $('notes-new').innerHTML = noteRows(true);
+
+    // 8 · Title badges: each mechanic's two titles, today's emoji and the new badge, and the log note
+    {
+        const T = [
+            ['legendary', 'guardian', [96, '👼', 'Ангел-охоронець стрімера'], [176, '🛡️', 'Незламний модератор']],
+            ['legendary', 'pierce', [97, '🧠', 'Надмозок всесвіту'], [177, '📜', 'Той, хто прочитав патчноут']],
+            ['legendary', 'immune', [98, '🐉', 'Абсолютний Дрейк'], [178, '🧘', 'Дзен при 1 HP']],
+            ['legendary', 'dodge', [99, '🌀', 'Володар матриці'], [179, '👻', 'Привид лагу']],
+            ['legendary', 'chaos', [100, '⚡', 'Творець хаосу'], [180, '🎆', 'Феєрверк хаосу']],
+            ['mythic', 'opening', [181, '🌅', 'Прокинувся в ударі'], [182, '☕', 'Перша кава дня']],
+            ['mythic', 'thorns', [183, '🌵', 'Кактус з характером'], [184, '🦔', 'Їжак-ображака']],
+            ['mythic', 'lifesteal', [185, '🧛', 'Енергетичний вампір'], [186, '🍷', 'Граф Дракула чату']],
+            ['mythic', 'execute', [187, '⚰️', 'Добивач на 1 HP'], [188, '🪓', 'Кат лоу-хп']],
+            ['meme', 'coin', [189, '🪙', 'Герб чи число'], [190, '🥔', 'Картопля Шредінгера']],
+            ['meme', 'sleep', [191, '😴', 'Заснув на стрімі'], [192, '🦥', 'Лінивець-берсерк']],
+            ['meme', 'cat', [193, '🐈', 'Кіт пройшовся по клавіатурі'], [194, '🍝', 'Код-спагеті']],
+        ];
+        const col = r => D.RARITY_COLORS[r];
+        const old = (r, t) => `<span class="tbadge" style="color:${col(r)}">${t[1]} ${t[2]}</span>`;
+        const neu = (r, id, t) => `<span class="tbadge px" style="color:${col(r)}">${D.titleImg(id, r, 2)}${t[2]}</span>`;
+        let h = '<span class="th">MECHANIC</span><span class="th">NOW · TITLE A</span><span class="th">NOW · TITLE B</span><span class="th">NEW · TITLE A</span><span class="th">NEW · TITLE B</span><span class="th">NOTE</span>';
+        T.forEach(([r, id, a, b]) => {
+            h += `<div class="f-h">${D.ICONS[id].name.en} · <span style="color:${col(r)}">${r}</span></div>${old(r, a)}${old(r, b)}${neu(r, id, a)}${neu(r, id, b)}<span>${img(id, 2)}</span>`;
+        });
+        h += `<div class="f-h">In the Top (×1)</div><span class="lbsub">Рівень 14 · 🌵 Кактус з характером</span><span></span><span class="lbsub">Рівень 14 · ${D.titleImg('thorns', 'mythic', 1)} Кактус з характером</span><span></span><span></span>`;
+        $('titles').innerHTML = h;
+    }
+
     $('filters').innerHTML = fRow('Colour', '') + fRow('Greyscale', 'f-gray') + fRow('Deuteranopia', 'f-deut') + fRow('Protanopia', 'f-prot') + fRow('Tritanopia', 'f-trit') + fRow('Emoji, greyscale', 'f-gray', true);
 </script>
 </body>
