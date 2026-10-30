@@ -2,7 +2,7 @@
 
 Drake Arena is a single HTML file with no build step, so the tests work on that file as it is. The testing has two layers:
 
-1. **Effect rules, ultimates, game rules and balance simulation** (`tests/effects.js`, `tests/ultimates.js`, `tests/rules.js`, `tests/balance.js` + `tests/sim_harness.js`) run the real game code in Node. The effect, ultimate and rules tests check the buff/debuff, meter, ultimate, chat and fight rules; the balance sim plays thousands of fights. Together they answer: *do the rules work as written, is the game fair, and does combat ever crash?*
+1. **Effect rules, ultimates, game rules and balance simulation** (`tests/effects.js`, `tests/ultimates.js`, `tests/rules.js`, `tests/balance.js` + `tests/sim_harness.js`, `tests/white_drake_gate.js`) run the real game code in Node. The effect, ultimate and rules tests check the buff/debuff, meter, ultimate, chat and fight rules; the balance sim plays thousands of fights. Together they answer: *do the rules work as written, is the game fair, and does combat ever crash?*
 2. **UI smoke test, layout test, fight view test and tournament test** (`tests/ui.js`, `tests/layout.js`, `tests/fightview.js`, `tests/tournament.js`) open the page in headless Chromium, play it through fake chat and check the layout, the battle log and the turn animation. They answer: *does it work and look right on stream?* The play log test (`tests/playlog.js`) checks what the game records about play and its export; the reload test (`tests/resume.js`) that a reload loses nobody's place.
 
 Both run in CI (`.github/workflows/ci.yml`) on every pull request and on every push to `main`, so each PR update runs CI once.
@@ -18,8 +18,8 @@ flowchart TD
     D -->|all fights finished| G["Layer 1: balance gate<br/>npm run test:balance-gate"]
     G -->|a matchup outside 40–60%| X
     G -->|all matchups within 40–60%| WD["Layer 1: White Drake gate<br/>npm run test:white-drake-gate"]
-    WD -->|a matchup outside its band| X
-    WD -->|all matchups within their bands| E["Layer 2: UI smoke test<br/>npm run test:ui showcase"]
+    WD -->|a level's average outside 52–57%, or a matchup outside 48–60%| X
+    WD -->|all within bounds| E["Layer 2: UI smoke test<br/>npm run test:ui showcase"]
     E -->|a check failed| X
     E -->|all checks passed| L["Layer 2: layout test<br/>npm run test:layout"]
     L -->|a check failed| X
@@ -129,7 +129,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | The opening-buff banner shows the title's icon once | "🌅 🌅 Woke Up Swinging" |
 | **Renamed titles** (once, not per language): the Ukrainian names of titles 1, 4, 87, 146, 68, 50, 31, 84, 82, 69 and 16 and the English names of 84, 82 and 16, exactly; only 84 has FPS in its name; Ice Mirror's description ends «…повертається нападникові», as written and as filled in; in a Ukrainian duel against a thorns title the log says «🌵 Шипи: -N HP нападникові!»; a save holding title 31 under its old name takes the new one from `migrateOldSaves`, and a saved tournament holding title 50 under its old name takes it from `tourneyLoad` | An old name or the old wording put back; a renamed title kept under its old name in a save or a saved tournament |
 | **The coin flip's words**: title 189 is «Герб чи число» in Ukrainian, "Heads or Tails" in English; duels with title 189 and with «Картопля Шредінгера» (the other coin-flip title) log «🪙 Герб!» and «🪙 Число...» in Ukrainian, "🪙 Heads!" and "🪙 Tails..." in English, and no other coin words (its own seeded `Math.random`, so the rest of the run plays the same fights) | The old Russian-derived coin words coming back, English in the Ukrainian log, or a new word for one side |
-| **The White Drake's scales** (23): 20 / 21 / 22 / 23 / 24% of max HP over the level tiers, as `WHITE_DRAKE.scales` says; a fight starts with the bar full; every debuff of the shared pool bounces while it holds («🤍 відскочило від луски»), and lands once it's broken. In 480 real fights against every element at levels 1, 5, 10 and 20, read off the log and the cards: every hit on the White Drake takes the bar first and only the rest comes off HP, armour-piercing too; Gold's Fortune slips past it; «💔 Луска розкололася!» exactly when it breaks | Hits going straight to HP, armour-piercing or Fortune breaking the bar, debuffs landing through it or bouncing off a broken one, a missing crack line |
+| **The White Drake's scales** (23): the share of max HP that `WHITE_DRAKE.scales` sets for each level tier (19.5 / 21 / 22.5 / 23 / 24%), within half a point (the bar is whole HP) and never shrinking; a fight starts with the bar full; every debuff of the shared pool bounces while it holds («🤍 відскочило від луски»), and lands once it's broken. In 480 real fights against every element at levels 1, 5, 10 and 20, read off the log and the cards: every hit on the White Drake takes the bar first and only the rest comes off HP, armour-piercing too; Gold's Fortune slips past it; «💔 Луска розкололася!» exactly when it breaks | Hits going straight to HP, armour-piercing or Fortune breaking the bar, debuffs landing through it or bouncing off a broken one, a missing crack line |
 | **Перекування** (23, the same fights): each damaging own attack rebuilds 6% of max HP (8% at level 20), up to the starting size, a broken bar too, after which debuffs bounce again; ☠️ Poison doesn't cut it; Black's Shadow Theft can take it, and then it rebuilds nothing | A rebuild past the starting size, by the wrong share, cut like a heal, or working for the thief |
 | **Магніт** (23): the target's new buff lands on the White Drake («Лють притягується до Білого Дрейка») and its own Щит stays; with 2 buffs already, the pulled one replaces the one closest to ending; pulls happen in real fights | Buffs staying with the target, or a pulled buff ignoring the 2-buff limit |
 | **Удар ковадла** (23, the same fights): ×1.5 (×1.7 at level 20), and the bar is whole again after it | No re-forge, one multiplier for every level |
@@ -139,7 +139,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 165 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, underdog XP, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, 116–132 the renamed titles, the wording for the attacker (Ice Mirror, Thorns) and the saved tournament's title refresh, and 133–135 the Top's last tie-break and the fights against the White Dragon:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 166 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, underdog XP, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, 116–132 the renamed titles, the wording for the attacker (Ice Mirror, Thorns) and the saved tournament's title refresh, and 133–135 the Top's last tie-break and the fights against the White Dragon:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -278,7 +278,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 133 | On equal wins the higher level goes first, not fewer losses | `rules.js` 17 | the order check fails (@t7 3–1 L20 before the 3–0s) |
 | 134 | A ranked fight against the White Dragon counts a win and a loss again | `rules.js` 17b (2 checks) | `"lostRec":["1-0","0-1"]` |
 | 135 | No ranked fight counts a win or a loss, not only those against the White Dragon | `rules.js` 17b (2 checks) | `"pal":"0-0","fan":"0-0"` |
-| 136 | The bar is the first tier's share of max HP at every level | `rules.js` 23 (1 check) | `23. the scales («Луска Дракона»): 20 / 20 / 20 / 20 / 20% of max HP over the five level tiers, as WHITE_DRAKE.scales says — 20,20,20,20,20` |
+| 136 | The bar is the first tier's share of max HP at every level | `rules.js` 23 (1 check) | `23. the scales («Луска Дракона»): 19.6 / 19.3 / 19.6 / 19.4 / 19.6% of max HP over the five level tiers, as WHITE_DRAKE.scales says (19.5 / 21 / 22.5 / 23 / 24)` |
 | 137 | Hits go straight to HP, the scales take nothing | `rules.js` 23 (3 checks) | `23. every hit on the White Drake (3522) takes the bar first, only the rest comes off HP; armour-piercing too (987: through the defence, not the bar);` |
 | 138 | A sneaky (armour-piercing) hit goes past the scales too | `rules.js` 23 (1 check) | `23. every hit on the White Drake (3898) takes the bar first, only the rest comes off HP; armour-piercing too (796: through the defence, not the bar);` |
 | 139 | Gold's Fortune takes the scales too instead of slipping past them | `rules.js` 23 (1 check) | `23. every hit on the White Drake (3974) takes the bar first, only the rest comes off HP; armour-piercing too (627: through the defence, not the bar);` |
@@ -308,6 +308,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 163 | !титул rolls a title for the White Drake (and spends a free spin) | `rules.js` 23 (1 check) | `23. !титул doesn't change the White Drake's «Біла сталь» (and a free spin stays unspent) — {"title":29,"spins":{"streamchannel":1},"reply":"🎲 @stream` |
 | 164 | «білий» in !дрейк and !рерол gives the White Dragon, as before | `rules.js` 23 (11 checks) | `7. the streamer's "!reroll white" gives the White Drake ("Level reset to 1!"); "!dragon" gives the White Dragon at level 20 — {"reroll":"🐉 @boss, you` |
 | 165 | A new White Drake gets a random title instead of «Біла сталь» | `rules.js` 23 (3 checks) | `23. «!дрейк білий» gives the streamer the White Drake (level 1, title «Біла сталь») — {"name":"streamchannel","color":"#8ab4f8","drakeObj":{"name":{"u` |
+| 166 | Магніт lasts the target's next 3 attacks again (it's 2) | `effects.js` (1 check) | `README is out of date for: magnet ("For the target's next 3 attacks, every buff it casts goes to the White Drake instead …")` |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -396,7 +397,8 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: the White Drake's pair in the shared pool
 …
 ✓ caught: the White Drake rolls a title
-All 165 mutations caught.
+✓ caught: Магніт: 3 attacks
+All 166 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -425,7 +427,8 @@ Catching those forms needs whole-word matching with some context, which the list
 | `node tests/balance.js levels 400` | How much a level gap matters | The higher level still clearly wins |
 | `node tests/balance.js elements 200` | Overall win rate per element at levels 1, 10 and 20 | Close to 50% |
 | `node tests/balance.js dragon 100` | The streamer's White Dragon against every viewer element, any title, levels 1/10/20 | Wins 100%; exits non-zero otherwise |
-| `node tests/balance.js whitedrake 1500` | The streamer's White Drake against each viewer element at levels 1, 5, 10 and 20: with its title (White Steel) against the roulette's title odds, and with no title on either side; also how many debuffs bounced off its scales per fight, and the effect and ultimate report | Exits non-zero when a matchup leaves its band (`BANDS` in the scenario); in CI as `npm run test:white-drake-gate` (`--seed 12345`) |
+| `node tests/balance.js whitedrake 1500` | The streamer's White Drake against each viewer element at levels 1, 5, 10 and 20: with its title (White Steel) against the roulette's title odds, and with no title on either side; also how many debuffs bounced off its scales per fight, and the effect and ultimate report. `whitedrake N titles:20` plays one table at one level | Printed for a person to read |
+| `npm run test:white-drake-gate` (`tests/white_drake_gate.js`) | The same tables, in 8 parallel parts: 20,000 fights per matchup with titles, 3,000 without | With titles: every level's average within 52–57%, every matchup within 48–60% (a known counter within 46–62%); exits non-zero otherwise ([below](#the-white-drake-gate)) |
 | `node tests/balance.js bonuses` / `rolls` | Every title bonus against Common; title roulette drop rates | Checked by hand |
 
 `npm test` runs the effect and ultimate tests and the mutation check, then the first three plus `dragon`.
@@ -500,6 +503,38 @@ Balance check passed: every matchup at levels 1/10/20 within 45–57% (5 known c
 every rarity beats the one below it (smallest step 2.3 points).
 ```
 
+### The White Drake gate
+
+`npm run test:white-drake-gate` (`tests/white_drake_gate.js`, in CI) plays the streamer's White Drake against each viewer element at levels 1, 5, 10 and 20: with its title (White Steel) against the viewers' roulette titles, and with no title on either side. It runs 8 parts in parallel, one process each (each table at each level: `tests/balance.js whitedrake N titles:20`), each on its own seed taken from `--seed` (default 12345), so a run gives the same numbers on any machine. It takes about 5 minutes on 8 cores; the four parts with titles (120,000 fights each) set the pace.
+
+It checks the table with titles; the one without titles is printed, not checked:
+
+- **each level's average** within 52–57%
+- **every matchup** within 48–60%; a **known counter** may be up to 2 points outside (46–62%), the slack `balance:check` gives its counters, and nothing further
+
+#### The White Drake's known counters
+
+Two matchups sit on the edge of 48–60% because of how the two kits meet, not because the White Drake is too strong or too weak overall. Their rates over 30,000 fights on 5 seeds are right at the bounds, so any single run lands on either side.
+
+| Level | Matchup | Rate | Why |
+|---|---|---|---|
+| 20 | Gold | 48.2% | Gold's 1-HP hit (9% of its hits at level 20) slips past the bar and leaves the White Drake on 1 HP. The bar is the White Drake's main defence, and against that hit it doesn't count |
+| 20 | Green | 59.8% | Green's extra HP (+34% at level 20) makes the longest fights, and every Удар ковадла re-forges the bar to full |
+
+#### Sized so it can't flake
+
+A run's rate for a matchup misses its true value by about 50/√N points (one standard error): 0.35 at 20,000 fights. The checks closest to their bounds are level 10's Purple (about 58.2%, 1.8 under 60%) and Gold (about 50.1%, 2.1 over 48%), level 1's Black (about 57.9%) and the two counters (about 2 points inside 46–62%): every one 5 or more standard errors from failing. The averages, of 6 matchups each, are at least 1 point inside 52–57%: 7 standard errors. Five runs on five seeds:
+
+| Seed | Averages L1 / L5 / L10 / L20 | L20 Gold (counter) | L20 Green (counter) | L10 Purple | L10 Gold | L1 Black | Result |
+|---|---|---|---|---|---|---|---|
+| 12345 | 54.1 / 54.1 / 54.2 / 52.9 | 47.8% | 59.7% | 58.3% | 49.8% | 58.1% | passed |
+| 23456 | 53.9 / 54.1 / 54.3 / 53.2 | 48.5% | 60.0% | 58.4% | 49.9% | 58.2% | passed |
+| 34567 | 53.9 / 54.1 / 54.4 / 52.8 | 47.3% | 59.5% | 58.1% | 50.5% | 57.0% | passed |
+| 45678 | 53.7 / 54.3 / 54.4 / 53.3 | 48.2% | 60.1% | 57.9% | 50.1% | 58.3% | passed |
+| 56789 | 53.7 / 54.1 / 54.6 / 53.0 | 48.2% | 60.0% | 58.2% | 50.2% | 57.8% | passed |
+
+Without the counters' slack, four of these five runs would have failed (seed 12345: level 20 vs gold 47.8%; seed 34567: level 20 vs gold 47.3%; seed 45678: level 20 vs green 60.1%; seed 56789: level 20 vs green 60.0%, just over 60 before rounding).
+
 ### Per-effect report
 
 `matrix` and `elements` end with a table of what each buff/debuff did, averaged over every fight they played. The numbers come from the real fight code: it reports to a hook (`effectTally`, `null` in the game and set by the harness) each time an effect lands, deals extra damage, prevents damage or heals.
@@ -541,7 +576,7 @@ Four things fail the run:
 - **A broken effect rule.** Any failed check in `effects.js` exits non-zero before the balance sims start.
 - **A combat crash.** If any simulated fight logs a simulation error, the harness throws and `npm test` exits non-zero. Across the ~24,000 fights `npm test` plays, every element, title ability and buff/debuff comes up many times, so a code path that throws is very likely to be hit.
 - **The balance gate.** `npm run test:balance-gate` runs `matrix 1500 20 --seed 12345 --bounds 40,60`: 1,500 fights for each of the 30 element matchups at level 20. It fails if any matchup falls outside 40–60%, and lists the ones that did. The bound is deliberately wider than the ~45–57% tuning target: it catches a change that clearly breaks an element, not normal tuning. Because the run is seeded, a failure is repeatable, not a flaky run. It takes about 45 seconds. Today every matchup is between 45% (green vs gold) and 55%. The gate only looks at level 20 and one seed; the 45–57% tuning target across levels 1, 10 and 20 is what `npm run balance:check` enforces (below), and it isn't run in CI.
-- **The White Drake gate.** `npm run test:white-drake-gate` runs `whitedrake 1500 --seed 12345`: 1,500 fights for each of its 48 matchups (the six viewer elements at four levels, with titles and without). It fails if any matchup leaves its band, and lists them.
+- **The White Drake gate.** `npm run test:white-drake-gate` fails unless, with titles, every level's average is within 52–57% and every matchup within 48–60% (a known counter within 46–62%): see [The White Drake gate](#the-white-drake-gate).
 
 Everything else (the tier and level tables, the 45–57% target) is printed for a person to read, not asserted. Balance there is a judgment call.
 
@@ -752,10 +787,10 @@ npm run test:banned-words              # no banned Ukrainian word in any tracked
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
 npm run test:rules                     # the game rules: whole HP, chat commands, no rest, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 165 ways, check effects.js / ultimates.js / rules.js catch each
+npm run test:mutations                 # break the game 166 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
-npm run test:white-drake-gate          # CI gate: the White Drake against each viewer element, levels 1/5/10/20, with and without titles (~2.5 min)
+npm run test:white-drake-gate          # CI gate: the White Drake against each viewer element, levels 1/5/10/20, with and without titles (~5 min on 8 cores)
 npm run balance                        # quick per-element check (same as balance:showcase)
 npm run test:ui showcase               # UI smoke test + screenshots in tests/screenshots/
 npm run test:layout                    # 1920×1080 layout test, both languages

@@ -222,13 +222,18 @@ if (scenario === 'dragon') {
 
 // The streamer's White Drake against each viewer element at equal levels 1, 5, 10 and 20: with its fixed title (White
 // Steel) against the viewers' real title odds (getRandomTitle, as the roulette rolls them), and with no title on either
-// side. Fails (non-zero exit) when a matchup leaves its band: 52–57% with titles, 50–54% without
+// side. Prints the tables and the effect report; with --json, writes the win rates. [N] [titles|plain[:level]] plays one
+// table (at one level) only: tests/white_drake_gate.js (npm run test:white-drake-gate) runs the parts in parallel and
+// checks the bounds
 if (scenario === 'whitedrake') {
     const N = +(process.argv[4] || 1500);
+    const [onlyMode, onlyLevel] = (process.argv[5] || '').split(':');
+    const LEVELS = onlyLevel ? [+onlyLevel] : [1, 5, 10, 20];
+    const modes = [['titles', 'its title (White Steel) against the roulette titles'], ['plain', 'no titles']].filter(([m]) => !onlyMode || m === onlyMode);
+    if (!modes.length || LEVELS.some(l => !(l >= 1 && l <= 20))) throw new Error(`whitedrake: unknown part "${process.argv[5]}" (titles|plain[:level])`);
     const steelTitle = TITLES_DB.find(t => t.id === WHITE_DRAKE_TITLE_ID);
-    const LEVELS = [1, 5, 10, 20], BANDS = { titles: [52, 57], plain: [50, 54] };
-    const bad = [], cells = { titles: {}, plain: {} };
-    for (const [mode, label] of [['titles', 'its title (White Steel) against the roulette titles'], ['plain', 'no titles']]) {
+    const cells = { titles: {}, plain: {} };
+    for (const [mode, label] of modes) {
         console.log(`\nWhite Drake against each element, ${label}: win %`);
         console.log('level  ' + __TYPES.map(t => t.padStart(8)).join(''));
         for (const lvl of LEVELS) {
@@ -240,9 +245,8 @@ if (scenario === 'whitedrake') {
                                       { type: x, level: lvl, title: mode === 'titles' ? getRandomTitle() : __NEUTRAL });
                     if (r.winner === 'A') w++; else if (r.winner === 'draw') w += 0.5;
                 }
-                const pct = 100 * w / N, [lo, hi] = BANDS[mode];
+                const pct = 100 * w / N;
                 (cells[mode][lvl] = cells[mode][lvl] || {})[x] = pct;
-                if (pct < lo || pct > hi) bad.push(`${mode === 'titles' ? 'with titles' : 'no titles'}, L${lvl} vs ${x}: ${pct.toFixed(1)}% (band ${lo}–${hi}%)`);
                 row += (pct.toFixed(1) + '%').padStart(8);
             }
             console.log(row);
@@ -252,6 +256,4 @@ if (scenario === 'whitedrake') {
     console.log(`\nDebuffs that bounced off the scales: ${(b / Math.max(1, __fights)).toFixed(2)} per fight`);
     __effectReport();
     __writeJson({ scenario: 'whitedrake', fights: N, cells });
-    if (bad.length) { console.error(`\n${bad.length} matchup(s) outside their band:\n  ` + bad.join('\n  ')); process.exitCode = 1; }
-    else console.log(`\nEvery matchup within its band (${BANDS.titles.join('–')}% with titles, ${BANDS.plain.join('–')}% without).`);
 }

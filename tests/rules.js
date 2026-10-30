@@ -943,8 +943,10 @@ for (const lang of ['en', 'uk']) {
     G.setLang('uk');
     fresh();
     const WD = G.WHITE_DRAKE_TYPE, steelTitle = G.TITLES_DB.find(x => x.id === G.WHITE_DRAKE_TITLE_ID), common = G.TITLES_DB.find(x => x.rarity === 'common');
-    const tiers = [1, 5, 10, 15, 20].map(l => { const max = G.getMaxHP(l, WD, steelTitle); return Math.round(100 * G.scalesOf(l, max) / max); });
-    check(tiers.join() === G.WHITE_DRAKE.scales.join() && tiers.every((x, i) => !i || x >= tiers[i - 1]), `23. the scales («Луска Дракона»): ${tiers.join(' / ')}% of max HP over the five level tiers, as WHITE_DRAKE.scales says`, tiers.join());
+    // The bar's share of max HP at each level tier: the table's, within half a point (the bar is whole HP), never shrinking
+    const tiers = [1, 5, 10, 15, 20].map(l => { const max = G.getMaxHP(l, WD, steelTitle); return 100 * G.scalesOf(l, max) / max; });
+    check(tiers.every((x, i) => Math.abs(x - G.WHITE_DRAKE.scales[i]) <= 0.5 && (!i || x >= tiers[i - 1])),
+        `23. the scales («Луска Дракона»): ${tiers.map(x => x.toFixed(1)).join(' / ')}% of max HP over the five level tiers, as WHITE_DRAKE.scales says (${G.WHITE_DRAKE.scales.join(' / ')})`, tiers.join());
     make('wdfighter', WD, { level: 10, title: steelTitle }); make('foe', 'red', { level: 10 });
     G.runBattle('wdfighter', '#fff', 'foe', '#fff', false);
     const st0 = G.battleFx.wdfighter.scales, max10 = G.getMaxHP(10, WD, steelTitle);
@@ -967,7 +969,7 @@ for (const lang of ['en', 'uk']) {
     // Магніт: the target's new buffs go to the White Drake, under the 2-buff limit; buffs it already has stay put
     const fxM = { wd: { ...G.newFxState(), scales: { now: 30, max: 30 } }, v: G.newFxState() };
     fxM.v.buff.push({ id: 'shield', left: 2, power: 1 });
-    fxM.v.debuff.push({ id: 'magnet', left: 3, power: 1 });
+    fxM.v.debuff.push({ id: 'magnet', left: G.EFFECTS.magnet.count, power: 1 });
     logs = [];
     const r1 = G.applyEffect(vF, wdF, 'rage', 10, fxM);
     const pulledOk = r1 === 'pulled' && fxM.wd.buff.map(x => x.id).join() === 'rage' && fxM.v.buff.map(x => x.id).join() === 'shield' && logs.some(l => l.includes('Лють притягується до Білого Дрейка'));

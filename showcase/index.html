@@ -3089,7 +3089,7 @@ function drakeSpriteURL(type) {
         // crit damage. scales: its bar («Луска Дракона») as % of max HP by level tier, on top of HP: hits take it first, and
         // while it holds, debuffs bounce off. Перекування's and Удар ковадла's numbers live in EFFECTS and CLASS_ULTIMATES
         // like every other effect's and ultimate's
-        const WHITE_DRAKE = { hp: -5, def: 0, crit: 0, power: 0, cast: 0, scales: [20, 21, 22, 23, 24] };
+        const WHITE_DRAKE = { hp: -4, def: 0, crit: 0, power: 0, cast: 0, scales: [19.5, 21, 22.5, 23, 24] };
         const scalesOf = (level, maxHP) => Math.round(maxHP * WHITE_DRAKE.scales[tierIndex(level)] / 100);
         function getTierMultiplier(level) {
             const i = tierIndex(level);
@@ -3159,7 +3159,7 @@ function drakeSpriteURL(type) {
                         desc: { uk: 'Кожна з наступних {count} власних атак, що завдає шкоди, відновлює луску на {bar}% макс. HP ({barTop}% на найвищому рівні), до її початкового розміру; це не лікування',
                                 en: 'Each of the next {count} own attacks that deals damage rebuilds the scales by {bar}% of max HP ({barTop}% at the top level), up to their starting size; it isn\'t healing' } },
             magnet:   { element: 'steel',  kind: 'debuff', icon: '🔗', color: '#9fe0c4', name: { uk: 'Магніт', en: 'Magnet' },
-                        lasts: 'attacks', count: 3, nums: {},
+                        lasts: 'attacks', count: 2, nums: {},
                         desc: { uk: 'Наступні {count} атаки цілі: кожен баф, який вона накладає, дістається Білому Дрейку (у межах звичного ліміту бафів); бафи, які вона вже має, лишаються в неї',
                                 en: 'For the target\'s next {count} attacks, every buff it casts goes to the White Drake instead (within the usual buff limit); buffs it already has stay put' } },
         };

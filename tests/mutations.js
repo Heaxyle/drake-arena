@@ -357,6 +357,9 @@ const MUTATIONS = [
         "'білий': 'steel', white: 'steel'", "'білий': 'white', white: 'white'"],
     ["the White Drake rolls a title", "a new White Drake gets a random title instead of «Біла сталь»",
         'd.drakeObj = whiteDrakeOf(); d.title = titleById(WHITE_DRAKE_TITLE_ID); d.xp = 0; d.level = 1;', 'd.drakeObj = whiteDrakeOf(); d.title = getRandomTitle(); d.xp = 0; d.level = 1;'],
+    ['Магніт: 3 attacks', "Магніт lasts the target's next 3 attacks again (it's 2)",
+        "lasts: 'attacks', count: 2, nums: {},\n                        desc: { uk: 'Наступні {count} атаки цілі",
+        "lasts: 'attacks', count: 3, nums: {},\n                        desc: { uk: 'Наступні {count} атаки цілі"],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported
