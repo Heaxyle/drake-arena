@@ -263,6 +263,12 @@
         .lc.right .lc-l2 { padding-left: 0; padding-right: 24px; }
         .lc.right .lc-l2 > :first-child { margin-left: auto; }
         .lc-l2 .squeeze > * + * { margin-left: 6px; }
+        /* A second line that doesn't fit even with its lower-priority items compact wraps (fvFitLine): the card grows to a
+           third line (.l3) and the other card of its row grows with it (.tall), so the row stays even */
+        .lc-l2.wrap { flex-wrap: wrap; height: auto; row-gap: 2px; }
+        .lc.right .lc-l2.wrap { justify-content: flex-end; }
+        .lc.l3, .lc-cell.l3, .log-row.tall > .lc, .log-row.tall > .lc-cell { height: auto; min-height: 58px; }
+        .lc.has-ult.l3, .log-row.tall > .lc.has-ult { min-height: 76px; }
         .lc-turn { font-size: 11px; color: var(--dim); min-width: 16px; text-align: center; flex-shrink: 0; }
         .lc-move { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; min-width: 0; }
         .lc-sp { flex: 1 1 0; min-width: 0; }
@@ -281,7 +287,6 @@
         .lk.hurt { color: #ff9a8a; background: rgba(255, 93, 82, 0.14); }
         .lk.sd { color: #ff7a7a; background: rgba(255, 60, 60, 0.18); }
         .lk.reels { letter-spacing: 2px; color: #ffe38a; background: rgba(255, 215, 0, 0.12); }
-        .lk.more { font-weight: 600; color: var(--dim); background: transparent; border: 1px dashed rgba(255, 255, 255, 0.22); }   /* "+2": items not shown */
         .lg { display: contents; }
         .lc-cell { display: flex; flex-direction: column; justify-content: center; gap: 3px; height: 58px; box-sizing: border-box; padding: 7px 12px; min-width: 0; border-radius: 2px;
             font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; }
@@ -1241,11 +1246,15 @@
         const fvEl = id => document.getElementById(id);
         const fvSide = f => f === fv.p1 ? 'p1' : 'p2';
         const fvWho = f => `<b class="pname" style="color:${f.color}">@${f.name}</b>`;
-        const fvFxChip = id => `<span class="lk ${EFFECTS[id].kind}">${fxName(id)}</span>`;
-        const fvUsedChip = id => `<span class="lk used">${fxName(id)}</span>`;   // an effect this attack counted down (shown last, dropped first)
+        // A chip's compact form (data-c), used when its line is too long (fvFitLine): the icon and the number, no words.
+        // Chips with no data-c are compact already (🔥 -9, 🩸 +19, 💀 ×1.6) or keep their word: Firestorm's "unblockable" has no
+        // icon of its own, and Chaotic charge's ⚡ alone would read as armour-piercing's
+        const fvFxChip = id => `<span class="lk ${EFFECTS[id].kind}" data-c="${EFFECTS[id].icon}">${fxName(id)}</span>`;
+        const fvUsedChip = id => `<span class="lk used" data-c="${EFFECTS[id].icon}">${fxName(id)}</span>`;   // an effect this attack counted down
         const fvTickChip = t => `<span class="lk ${t.v < 0 ? 'debuff' : 'buff'}">${EFFECTS[t.id].icon} ${t.v < 0 ? t.v : '+' + t.v}</span>`;
         const fvLx = text => `<span class="lx">${text}</span>`;
-        const fvLk = (text, cls = '') => `<span class="lk ${cls}">${text}</span>`;
+        const fvLk = (text, cls = '', compact = null) => `<span class="lk ${cls}"${compact === null ? '' : ` data-c="${compact}"`}>${text}</span>`;
+        const fvIcon = key => fvT(key).split(' ')[0];   // a hit note's icon: the first word of its text in both languages (👑, 🚫, ⚡, 🌵 …)
 
         // Turn records: the fight fills one per turn while it resolves the turn (no rolls, just what happened)
         function fvTurn(turn, attacker, defender) {
@@ -1398,26 +1407,49 @@
                 el.querySelectorAll('.lr-title, .lr-grid > span, .lr-note').forEach(s => fitText(s, 10));
             }
         }
-        // A card's second line: shrinks to at most 90% of its normal size; if it still doesn't fit, the least important
-        // groups drop out (see fvCardHtml), and a muted "+N" at the end says how many items aren't shown
+        // A card's second line never hides anything (on stream nobody can hover or scroll). It shrinks to at most 90% of
+        // its normal size; if it still doesn't fit, what the attack did stays first, in full, the lower-priority groups
+        // (see fvCardHtml) follow, most important first, and take their compact form (fvLk's data-c: the icon and the
+        // number, no words), the least important first, until it fits; if even all of them compact don't fit, the line
+        // wraps and the card grows to a third line (.l3; its row gets .tall). Nothing is ever left out
         const FV_LINE_PX = 12, FV_MIN_SCALE = 0.9;
+        const FV_GROUPS = [4, 3, 2, 1];   // fvCardHtml's lower-priority groups, most important first
         function fvFitLine(l) {
             const min = FV_LINE_PX * FV_MIN_SCALE;
             const unsqueeze = () => { const sq = l.firstElementChild; if (sq && sq.classList.contains('squeeze') && l.childNodes.length === 1) l.innerHTML = sq.innerHTML; };
             const over = () => l.scrollWidth > l.clientWidth + 0.5 || !!l.querySelector('.squeeze');
             fitText(l, min);
-            let dropped = 0;
-            for (const level of [1, 2, 3, 4]) {
-                if (!over()) break;
-                unsqueeze();
-                const groups = l.querySelectorAll(`.lg[data-drop="${level}"]`);
-                if (!groups.length) { fitText(l, min); continue; }
-                groups.forEach(x => { dropped += +x.dataset.n; x.remove(); });
-                let more = l.querySelector('.lk.more');
-                if (!more) { more = document.createElement('span'); more.className = 'lk more'; l.appendChild(more); }
-                more.textContent = `+${dropped}`;
+            if (!over()) return;
+            unsqueeze();
+            FV_GROUPS.forEach(p => l.querySelectorAll(`.lg[data-p="${p}"]`).forEach(g => l.appendChild(g)));
+            for (const p of [...FV_GROUPS].reverse()) {
+                const groups = l.querySelectorAll(`.lg[data-p="${p}"]`);
+                if (!groups.length) continue;
+                groups.forEach(g => {
+                    g.querySelectorAll('.lx').forEach(x => x.remove());
+                    g.querySelectorAll('.lk[data-c]').forEach(k => { k.textContent = k.dataset.c; k.classList.add('compact'); });
+                });
                 fitText(l, min);
+                if (!over()) return;
+                unsqueeze();
             }
+            // A third line: the full size again if two lines hold it, otherwise 90% (and more lines rather than anything cut)
+            l.style.fontSize = '';
+            l.classList.add('wrap');
+            const card = l.closest('.lc, .lc-cell'), row = l.closest('.log-row');
+            if (card) card.classList.add('l3');
+            if (row) row.classList.add('tall');
+            if (fvLineCount(l) > 2 || l.scrollWidth > l.clientWidth + 0.5) l.style.fontSize = min + 'px';
+        }
+        // How many lines a wrapped second line takes: an item starts a new line when it starts below the current one
+        // (chips and words of one line sit at slightly different heights, centred on it)
+        function fvLineCount(l) {
+            let n = 0, bottom = -Infinity;
+            l.querySelectorAll('.lk, .lx').forEach(x => {
+                const top = x.offsetTop, end = top + x.offsetHeight;
+                if (top >= bottom - 0.5) { n++; bottom = end; } else bottom = Math.max(bottom, end);
+            });
+            return n;
         }
         function fvBannerHtml(item) {
             const d = item.data;
@@ -1476,16 +1508,16 @@
             const l1 = side === 'left'
                 ? `${turnNo}${move}<span class="lc-sp"></span>${crit}${dmg}`
                 : `${dmg}${crit}<span class="lc-sp"></span>${move}${turnNo}`;
-            // Line 2: what happened, in words. Parts that may drop out when the line is too long are grouped by priority
-            // (fvFitLine): 1 = effects this attack only counted down, 2 = start-of-turn ticks (they also pop on the
-            // card), 3 = the sudden-death multiplier (the banner says damage grows), 4 = the other hit notes.
-            // What the attack applied, removed or stole, and what an ultimate did, are level 0: never dropped.
+            // Line 2: what happened, in words. When the line is too long (fvFitLine) the lower-priority parts go after the
+            // rest and take a compact form, by priority: 1 = effects this attack only counted down (compact first),
+            // 2 = start-of-turn ticks (they also pop on the card), 3 = the sudden-death multiplier, 4 = the other hit notes.
+            // What the attack applied, removed or stole, and what an ultimate did, are level 0: always first and in full.
+            // Nothing is ever left out
             const p = [];
             const g = (level, ...parts) => {
                 parts = parts.filter(Boolean);
                 if (!parts.length) return;
-                const n = parts.filter(x => x.startsWith('<span class="lk')).length;
-                p.push(level ? `<span class="lg" data-drop="${level}" data-n="${n}">${parts.join('')}</span>` : parts.join(''));
+                p.push(level ? `<span class="lg" data-p="${level}">${parts.join('')}</span>` : parts.join(''));
             };
             if (rec.frozen) g(0, fvLx(fvT('frozen')));
             if (u) {
@@ -1502,28 +1534,28 @@
             }
             const n = rec.notes;
             if (a && a.sd) g(3, fvLk(`💀 ×${Math.round(a.sd * 10) / 10}`, 'sd'));
-            if (n.wrath) g(4, fvLk(fvT('wrath')));
-            if (n.sovereign) g(4, fvLk(fvT('sovereign')));
-            else if (a && a.block) g(4, a.shadow ? fvFxChip('shadow') : '', fvLk(fvT('block')));
-            if (n.unblock && n.unblock === 'divine') g(4, fvLk(`${EFFECTS.divine.icon} ${fvT('unblockable')}`));
-            if (a && a.pierce) g(4, fvLk(fvT('pierce')));
-            if (n.execute) g(4, fvLk(fvT('execute')));
+            if (n.wrath) g(4, fvLk(fvT('wrath'), '', fvIcon('wrath')));
+            if (n.sovereign) g(4, fvLk(fvT('sovereign'), '', fvIcon('sovereign')));
+            else if (a && a.block) g(4, a.shadow ? fvFxChip('shadow') : '', fvLk(fvT('block'), '', fvIcon('block')));
+            if (n.unblock && n.unblock === 'divine') g(4, fvLk(`${EFFECTS.divine.icon} ${fvT('unblockable')}`, '', EFFECTS.divine.icon));
+            if (a && a.pierce) g(4, fvLk(fvT('pierce'), '', fvIcon('pierce')));
+            if (n.execute) g(4, fvLk(fvT('execute'), '', fvIcon('execute')));
             if (n.coin) g(4, fvLk(`🪙 ×${n.coin}`));
-            if (n.sleep) g(4, fvLk(fvT('sleep')));
-            if (n.mirror) g(4, fvLk(`${CLASS_ULTIMATES.mirror.icon} ${n.mirror.would} → ${n.mirror.would - n.mirror.absorbed}`), n.mirror.back ? fvLk(`-${n.mirror.back} ${fvT('back')}`, 'hurt') : '');
-            if (n.fortune) g(4, fvLk(fvT('fortune')));
-            if (n.reflect) g(4, fvLk(`${fvT('reflect')} -${n.reflect}`, 'hurt'));
+            if (n.sleep) g(4, fvLk(fvT('sleep'), '', fvIcon('sleep')));
+            if (n.mirror) g(4, fvLk(`${CLASS_ULTIMATES.mirror.icon} ${n.mirror.would} → ${n.mirror.would - n.mirror.absorbed}`), n.mirror.back ? fvLk(`-${n.mirror.back} ${fvT('back')}`, 'hurt', `${CLASS_ULTIMATES.mirror.icon} -${n.mirror.back}`) : '');
+            if (n.fortune) g(4, fvLk(fvT('fortune'), '', `${fvIcon('fortune')} 1 HP`));
+            if (n.reflect) g(4, fvLk(`${fvT('reflect')} -${n.reflect}`, 'hurt', `${fvIcon('reflect')} -${n.reflect}`));
             if (n.vamp) g(4, fvLk(`🩸 +${n.vamp}`, 'heal'));
-            if (n.lifesteal) g(4, fvLk(`${fvT('lifesteal')} +${n.lifesteal}`, 'heal'));
-            if (n.thorns) g(4, fvLk(`${fvT('thorns')} -${n.thorns}`, 'hurt'));
+            if (n.lifesteal) g(4, fvLk(`${fvT('lifesteal')} +${n.lifesteal}`, 'heal', `${fvIcon('lifesteal')} +${n.lifesteal}`));
+            if (n.thorns) g(4, fvLk(`${fvT('thorns')} -${n.thorns}`, 'hurt', `${fvIcon('thorns')} -${n.thorns}`));
             // One attack touching the same effect twice (Firestorm's Burn, then a cast of Burn that refreshes it) shows it once
             const seen = new Set(), casts = rec.casts.filter(c => { const k = c.owner.name + '|' + c.id; if (seen.has(k)) return false; seen.add(k); return true; });
             const castIds = new Set(casts.map(c => c.id));
             rec.used.filter(id => !(id === 'shadow' && a && a.shadow) && !castIds.has(id)).forEach(id => g(1, fvUsedChip(id)));
-            if (n.guardian) g(2, fvLk(`${fvT('guardian')} +${n.guardian}`, 'heal'));
+            if (n.guardian) g(2, fvLk(`${fvT('guardian')} +${n.guardian}`, 'heal', `${fvIcon('guardian')} +${n.guardian}`));
             if (rec.ticks.length) g(2, fvLx(fvT('start')), ...rec.ticks.map(fvTickChip));
-            if (n.chaos) g(4, fvLk(fvT('chaos')));
-            if (n.cat) g(4, fvLk(fvT('cat')));
+            if (n.chaos) g(4, fvLk(fvT('chaos')));   // keeps its word when compact: a bare ⚡ is armour-piercing
+            if (n.cat) g(4, fvLk(fvT('cat'), '', fvIcon('cat')));
             casts.forEach(c => {
                 const kind = EFFECTS[c.id].kind;
                 const mine = (kind === 'buff' && c.owner === rec.atk) || (kind === 'debuff' && c.owner === rec.def);
