@@ -1246,7 +1246,8 @@
         const fvSide = f => f === fv.p1 ? 'p1' : 'p2';
         const fvWho = f => `<b class="pname" style="color:${f.color}">@${f.name}</b>`;
         // A chip's compact form (data-c), used when its line is too long (fvFitLine): the icon and the number, no words.
-        // Chips with no data-c are compact already (🔥 -9, 🩸 +19, 💀 ×1.6) or have no icon to stand for their word
+        // Chips with no data-c are compact already (🔥 -9, 🩸 +19, 💀 ×1.6) or keep their word: Firestorm's "unblockable" has no
+        // icon of its own, and Chaotic charge's ⚡ alone would read as armour-piercing's
         const fvFxChip = id => `<span class="lk ${EFFECTS[id].kind}" data-c="${EFFECTS[id].icon}">${fxName(id)}</span>`;
         const fvUsedChip = id => `<span class="lk used" data-c="${EFFECTS[id].icon}">${fxName(id)}</span>`;   // an effect this attack counted down
         const fvTickChip = t => `<span class="lk ${t.v < 0 ? 'debuff' : 'buff'}">${EFFECTS[t.id].icon} ${t.v < 0 ? t.v : '+' + t.v}</span>`;
@@ -1552,7 +1553,7 @@
             rec.used.filter(id => !(id === 'shadow' && a && a.shadow) && !castIds.has(id)).forEach(id => g(1, fvUsedChip(id)));
             if (n.guardian) g(2, fvLk(`${fvT('guardian')} +${n.guardian}`, 'heal', `${fvIcon('guardian')} +${n.guardian}`));
             if (rec.ticks.length) g(2, fvLx(fvT('start')), ...rec.ticks.map(fvTickChip));
-            if (n.chaos) g(4, fvLk(fvT('chaos'), '', fvIcon('chaos')));
+            if (n.chaos) g(4, fvLk(fvT('chaos')));   // keeps its word when compact: a bare ⚡ is armour-piercing
             if (n.cat) g(4, fvLk(fvT('cat'), '', fvIcon('cat')));
             casts.forEach(c => {
                 const kind = EFFECTS[c.id].kind;

@@ -165,9 +165,10 @@ function busiestRecs(A, B) {
     };
 }
 // What a painted card shows against what it has (page side): every chip of the card as fvCardHtml writes it must be on
-// the card, in full or in its compact form (data-c); a card whose line didn't fit (compact chips, or wrapped) shows what
-// the attack did (the chips outside a priority group) first, in full and in order. Returns the problems, the second
-// line's chips, how many are compact and how many lines the second line takes (the game's own fvLineCount)
+// the card, in full or in its compact form (data-c), and no two different chips may be shown alike (a bare ⚡ for both
+// armour-piercing and Chaotic charge); a card whose line didn't fit (compact chips, or wrapped) shows what the attack did
+// (the chips outside a priority group) first, in full and in order. Returns the problems, the second line's chips, how
+// many are compact and how many lines the second line takes (the game's own fvLineCount)
 function cardShowsAll(el, rec, side, lang) {
     const keep = currentLang; currentLang = lang;
     const box = document.createElement('div'); box.innerHTML = fvCardHtml(rec, side);
@@ -175,8 +176,15 @@ function cardShowsAll(el, rec, side, lang) {
     const want = [...box.querySelectorAll('.lc-l2 .lk')].map(k => ({ text: k.textContent, c: k.dataset.c, first: !k.closest('.lg') }));
     const got = [...el.querySelectorAll('.lc-l2 .lk')].map(k => k.textContent);
     const out = [], left = [...got];
-    want.forEach(w => { const i = left.findIndex(g => g === w.text || (w.c !== undefined && g === w.c)); if (i === -1) out.push(`missing "${w.text}"`); else left.splice(i, 1); });
+    const alike = {};
+    want.forEach(w => {
+        const i = left.findIndex(g => g === w.text || (w.c !== undefined && g === w.c));
+        if (i === -1) { out.push(`missing "${w.text}"`); return; }
+        (alike[left[i]] = alike[left[i]] || new Set()).add(w.text);
+        left.splice(i, 1);
+    });
     if (left.length) out.push(`extra ${JSON.stringify(left)}`);
+    Object.entries(alike).filter(([, s]) => s.size > 1).forEach(([shown, s]) => out.push(`"${shown}" stands for ${[...s].map(t => `"${t}"`).join(' and ')}`));
     const l2 = el.querySelector('.lc-l2'), compact = el.querySelectorAll('.lc-l2 .lk.compact').length, wrap = l2.classList.contains('wrap');
     const firsts = want.filter(w => w.first).map(w => w.text);
     if ((compact || wrap) && got.slice(0, firsts.length).join('|') !== firsts.join('|')) out.push(`what the attack did isn't first and in full: ${JSON.stringify(got.slice(0, firsts.length))} vs ${JSON.stringify(firsts)}`);
@@ -905,6 +913,8 @@ async function popAtStep2(page, turn) {
                 `the crowded cards (turns 24–26, both languages) show all their items, the lower-priority ones compact: ${crowded.map(x => `[${x.lang}] ${x.turn}: ${x.got.length} chips, ${x.compact} compact, ${x.lines} line${x.lines > 1 ? 's' : ''}`).join(' · ')}`,
                 JSON.stringify(crowded));
             const busiest = crowded.filter(x => x.turn === 25);
+            const pierceChaos = busiest.every(x => x.got.includes(cmd(x.lang, '⚡ хаос', '⚡ chaos')) && x.got.filter(t => t === '⚡').length === 1);
+            check(pierceChaos, 'on the busiest turn armour-piercing is a bare ⚡ and Chaotic charge keeps its word («⚡ хаос» / "⚡ chaos")', JSON.stringify(busiest.map(x => x.got)));
             check(busiest.length === 2 && busiest.every(x => x.got.length === 17 && !x.out.length),
                 `the busiest turn there can be (an ultimate, a crit in sudden death, effects landing and ticking, title mechanics): all 17 items in both languages, nothing cut off; ${busiest.map(x => `[${x.lang}] its second line wraps onto ${x.lines} lines`).join(', ')} (the card grows rather than hide anything)`,
                 JSON.stringify(busiest));
