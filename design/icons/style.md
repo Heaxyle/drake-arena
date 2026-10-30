@@ -29,6 +29,7 @@ Press Start 2P is an 8×8 font shown at 2× (16 px). The icons use the same pixe
 | title (rarity frame) | 12×12: a 1-pixel frame around the note's 10×10 glyph | 24 px | the bare glyph, 10 px (no frame) | 36 px |
 | ultimate | 12×12 | 24 px | 12 px | 36 px |
 | medal (1st, 2nd, 3rd) | 12×12: a round 10 px disc under a ribbon | 24 px | 12 px | 36 px (the podium) |
+| the title roulette (a wheel) | 11×11: an odd grid, so the wheel has a centre pixel | 22 px | 11 px | 33 px |
 | trophy, crown, laurel (the show) | as `SHOW_SPRITES` | | | |
 
 Why these sizes, from the inventory: the rows that hold icons in the fight are 20–22 px (log lines 20 px, chips 21 px), so a
@@ -237,7 +238,7 @@ The skull is Poison's: KO is the tombstone, sudden death the warning sign, Jackp
 | Icon | Today | Glyph | Where |
 |---|---|---|---|
 | Attacking | ⚔ | two crossed swords, steel blades, gold guards (×2) | the card's «АТАКУЄ» tab (it grows from 18 to 22 px, upward over the card's frame), the log's «⚔ @x атакує…» cell |
-| The title roulette | 🎰 (odds), 🎲 (the roll card) | a prize wheel: six sectors in the rarities' colours on a gold rim, a white hub, the pointer on top | the odds card (`!шанси`), the roll card's head, the Twitch reward |
+| The title roulette | 🎰 (odds), 🎲 (the roll card) | a prize wheel, 11×11 (a centre pixel, so the spokes are clean 1-pixel lines): eight sectors in the rarities' colours split by dark spokes, a gold rim and hub, a white pointer triangle on top pointing down into the wheel (a pointer sitting on the rim like a cap read as a bauble) | the odds card (`!шанси`), the roll card's head, the Twitch reward |
 | The meter full | ✦ | the drake's own ultimate icon (×1, 12 px in the 14 px row) | «ГОТОВО» on the Element Power meter |
 | A top-rarity roll | 🌟 / 🔥 / 🤪 | the rolled title's own badge at ×3 in its rarity frame, beside the shout | the roll's info card (legendary, mythic, meme; the card keeps its glow) |
 | The arena's title plate | six coloured squares | the six drake emblems at ×2, three either side of «ДРЕЙК-АРЕНА» | `.plaque` (the plate gets about 70 px wider; it stays centred) |
@@ -261,7 +262,8 @@ The skull is Poison's: KO is the tombstone, sudden death the warning sign, Jackp
 
 **Twitch channel-point rewards.** `design/icons/twitch-rewards/`: the game's two rewards (`REWARD_ID_TITLE` the title
 roulette, `REWARD_ID_REROLL` the reroll; there are no others) as `title-roulette-28/56/112.png` and `reroll-28/56/112.png`,
-transparent, the same 10×10 icon at ×2, ×5 and ×11, centred (4, 3 and 1 px either side), made by
+transparent, at whole-number scales and centred exactly (the largest scale that leaves the same margin both sides): the
+11×11 wheel at ×2, ×4 and ×10, the 10×10 reroll at ×2, ×5 and ×11. Made by
 `node design/icons/export-twitch.js` (re-run it after a glyph changes). Set the reroll's reward colour to anything but purple
 (gold, dark or Twitch's default); the wheel reads on any colour.
 

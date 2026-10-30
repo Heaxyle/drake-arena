@@ -1036,18 +1036,21 @@
             'opo.oo.opo',
             '.o......o.',
         ],
-        // The title roulette (!титул, !шанси, the reward): a prize wheel in the rarities’ colours, the pointer on top
+        // The title roulette (!титул, !шанси, the reward): a prize wheel, 11×11 so it has a centre pixel and its spokes are clean
+        // 1-pixel lines: eight sectors in the rarities' colours split by dark spokes, a gold rim and hub, a white pointer
+        // triangle on top pointing down into the wheel
         roulette: [
-            '...ovvo...',
-            '.oohvvmoo.',
-            '.ohffggdo.',
-            'ohfffgggdo',
-            'oheewwaado',
-            'oheewwaado',
-            'omcccbbbdo',
-            '.omccbbdo.',
-            '.oommddoo.',
-            '...oooo...',
+            '..ovvvvvo..',
+            '..oovvvoo..',
+            '.ohgovonmo.',
+            'ohfogonormo',
+            'ohffooorrdo',
+            'oooooyooooo',
+            'oheeoooaado',
+            'omeocoboado',
+            '.omccobbdo.',
+            '..ommoddo..',
+            '...ooooo...',
         ],
     };
 
@@ -1150,8 +1153,8 @@
         reroll:      { kind: 'ui', color: '#b47aff', name: { uk: 'Рерол', en: 'Reroll' },                        emoji: '🔥' },
         // ----- Batch 4 -----
         attacking:   { kind: 'ui', color: '#c9cde6', name: { uk: 'Атакує', en: 'Attacking' },                    emoji: '⚔', accent: '#f2c14e' },
-        roulette:    { kind: 'ui', color: '#f2c14e', name: { uk: 'Рулетка титулів', en: 'Title roulette' },     emoji: '🎰',
-                       pal: { a: '#a0a0a0', b: '#2ecc71', c: '#3498db', e: '#b36bff', f: '#f1c40f', g: '#ff4757' } },   // the rarities' colours
+        roulette:    { kind: 'ui', size: 11, color: '#f2c14e', name: { uk: 'Рулетка титулів', en: 'Title roulette' }, emoji: '🎰',
+                       pal: { a: '#a0a0a0', b: '#2ecc71', c: '#3498db', e: '#b36bff', f: '#f1c40f', g: '#ff4757', n: '#ff66cc', r: '#9fe3ff' } },   // the rarities' colours
     };
     Object.values(ICONS).forEach(ic => { if (ic.element) ic.color = ELEMENT_COLORS[ic.element]; });
     const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison'];
@@ -1322,7 +1325,7 @@
 
     // ----- Rows: the glyph itself (no frame), checked against its category's size -----
     function iconRows(id) {
-        const rows = GLYPHS[id], size = SIZES[ICONS[id].kind];
+        const rows = GLYPHS[id], size = ICONS[id].size || SIZES[ICONS[id].kind];
         if (rows.length !== size || rows.some(r => r.length !== size)) throw new Error(`${id}: not ${size}×${size}`);
         return rows;
     }

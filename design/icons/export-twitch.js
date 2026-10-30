@@ -1,5 +1,6 @@
 // Twitch channel-point reward icons: the game's rewards (REWARD_ID_TITLE: the title roulette, REWARD_ID_REROLL: the reroll) as
-// the same pixel icons the overlay shows, at Twitch's three sizes (28, 56, 112 px), transparent, at whole-number scales, centred.
+// the same pixel icons the overlay shows, at Twitch's three sizes (28, 56, 112 px), transparent, at whole-number scales, centred
+// (the largest scale that fits and leaves the same margin on both sides).
 //   node design/icons/export-twitch.js   →   design/icons/twitch-rewards/<reward>-<size>.png
 const fs = require('fs');
 const path = require('path');
@@ -19,13 +20,14 @@ const SIZES = [28, 56, 112];
         for (const size of SIZES) {
             const { data, scale } = await page.evaluate(([id, size]) => {
                 const icon = DrakeIcons.makeIconCanvas(id);
-                const scale = Math.floor(size / Math.max(icon.width, icon.height));   // the largest whole-number scale that fits
+                let scale = Math.floor(size / Math.max(icon.width, icon.height));   // the largest whole-number scale that fits…
+                while ((size - icon.width * scale) % 2) scale--;                      // …and centres exactly
                 const c = document.createElement('canvas');
                 c.width = c.height = size;
                 const g = c.getContext('2d');
                 g.imageSmoothingEnabled = false;
                 const w = icon.width * scale, h = icon.height * scale;
-                g.drawImage(icon, Math.floor((size - w) / 2), Math.floor((size - h) / 2), w, h);
+                g.drawImage(icon, (size - w) / 2, (size - h) / 2, w, h);
                 return { data: c.toDataURL('image/png').split(',')[1], scale };
             }, [id, size]);
             fs.writeFileSync(path.join(OUT, `${file}-${size}.png`), Buffer.from(data, 'base64'));
