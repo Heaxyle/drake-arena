@@ -893,7 +893,8 @@ async function startupNetwork(browser) {
                     if (!fx) await page.evaluate(() => setShowFx(false));
                     const results = await tourneyScreens(page, lang, n, name => page.screenshot({ path: path.join(SHOTS, `layout-tourney-${tag}-${name}-${lang}.png`) }));
                     for (const [screen, problems] of results) {
-                        check(!problems.length, `[${lang}] ${label}, ${screen}: every name at 12 px or more (cut in the middle, not squeezed), nothing overflowing, outside the log area or overlapping`, problems.slice(0, 4).join(' | '));
+                        const podium = /podium/.test(screen) ? '; the name, the medal (before the name), the sprite and the number never overlap, and each step holds only its number, centred inside it' : '';
+                        check(!problems.length, `[${lang}] ${label}, ${screen}: every name at 12 px or more (cut in the middle, not squeezed), nothing overflowing, outside the log area or overlapping${podium}`, problems.slice(0, 4).join(' | '));
                     }
                     check(!errors.length, `[${lang}] ${label}: no page errors`, errors.join(' | '));
                     await context.close();

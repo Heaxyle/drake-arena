@@ -9,7 +9,8 @@
 //   qualifier  the first qualifier game's countdown, with the bracket (13 and 15 players)
 //   bracket    the betting window of a round-1 match, with finished matches (a winner, a loser) and the live one
 //   plate      that match being fought: the plate shows the cut names in full on a second line
-//   podium     the podium with three worst-case names
+//   podium     the podium with three worst-case names (with the effects on, the show's «Чемпіон арени»; then, at the same
+//              size, the plain podium the effects-off setting shows: plain podium), checked by podiumProblems too
 //   hall       the Hall of Fame on the arena: five tournaments with worst-case podiums, two players tied for most wins
 //              (both on its most-wins line)
 //   hall card  the same as the !зала card in the chat panel
@@ -77,6 +78,47 @@ function tourneyScreenProblems() {
     [plate, type, ...plate.querySelectorAll('.pl-label, .pl-names')].forEach(e => { if (shown(e) && tooWide(e)) out.push(`${label(e)} wider than its box`); });
     plate.querySelectorAll('.pl-names').forEach(e => { if (parseFloat(getComputedStyle(e).fontSize) < 12) out.push(`${label(e)} under 12 px`); });
     return [...new Set(out)];
+}
+
+// In the page, on the podium (the plain one or the show's «Чемпіон арени»): what's wrong with its three places. Each step
+// holds only its place number, at least 20 px, centred (within 2 px) inside the step with 4 px of room or more; the medal
+// sits right before the name, on its line; no two of the names, medals, sprites (the champion's crown counts as part of
+// its drake) and numbers overlap, in any column
+function podiumProblems() {
+    const out = [], R = e => e.getBoundingClientRect();
+    const overlap = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+    const union = rs => ({ left: Math.min(...rs.map(r => r.left)), right: Math.max(...rs.map(r => r.right)), top: Math.min(...rs.map(r => r.top)), bottom: Math.max(...rs.map(r => r.bottom)) });
+    const cols = [...document.querySelectorAll('#log-countdown .pd-col')];
+    if (cols.length !== 3) return [`${cols.length} podium places, not 3`];
+    const items = [];
+    cols.forEach(col => {
+        const place = (col.className.match(/\bpd-(\d)\b/) || [])[1];
+        const step = col.querySelector('.pd-step'), num = step && step.querySelector('.pd-place');
+        const name = col.querySelector('.pd-name'), medal = col.querySelector('.pd-medal');
+        const sprite = col.querySelector('.pd-sprite'), crown = col.querySelector('.ts-crown-img');
+        if (!step || !num) { out.push(`place ${place}: no step, or no number on it`); return; }
+        if (step.textContent.trim() !== place || step.children.length !== 1) out.push(`place ${place}: the step holds «${step.textContent.trim()}», not only its number`);
+        const s = R(step), n = R(num), cs = getComputedStyle(step);
+        const box = { left: s.left + parseFloat(cs.borderLeftWidth), right: s.right - parseFloat(cs.borderRightWidth), top: s.top + parseFloat(cs.borderTopWidth), bottom: s.bottom - parseFloat(cs.borderBottomWidth) };
+        const room = Math.min(n.left - box.left, box.right - n.right, n.top - box.top, box.bottom - n.bottom);
+        if (room < 4) out.push(`place ${place}: the number has ${room.toFixed(1)} px of room inside its step (4 at least)`);
+        const dx = (n.left + n.right - box.left - box.right) / 2, dy = (n.top + n.bottom - box.top - box.bottom) / 2;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) out.push(`place ${place}: the number is ${dx.toFixed(1)}, ${dy.toFixed(1)} px off its step's centre`);
+        const px = parseFloat(getComputedStyle(num).fontSize);
+        if (px < 20) out.push(`place ${place}: the number at ${px} px`);
+        if (name && name.textContent.trim()) {
+            if (!medal) out.push(`place ${place}: no medal next to the name`);
+            else {
+                const m = R(medal), a = R(name);
+                if (Math.abs((m.top + m.bottom - a.top - a.bottom) / 2) > 4) out.push(`place ${place}: the medal isn't on the name's line`);
+                if (m.right > a.left + 0.5 || a.left - m.right > 12) out.push(`place ${place}: the medal isn't right before the name (${(a.left - m.right).toFixed(1)} px apart)`);
+            }
+        }
+        if (sprite) items.push({ what: `place ${place}'s sprite`, r: crown ? union([R(sprite), R(crown)]) : R(sprite) });
+        [['name', name], ['medal', medal], ['number', num]].forEach(([what, e]) => { if (e && R(e).width > 0) items.push({ what: `place ${place}'s ${what}`, r: R(e) }); });
+    });
+    for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) if (overlap(items[i].r, items[j].r)) out.push(`${items[i].what} overlaps ${items[j].what}`);
+    return out;
 }
 
 // In the page, at the end of the show's draw: what's wrong with its cards (the slots' plates). Each must have landed, sit
@@ -219,8 +261,17 @@ async function tourneyScreens(page, lang, n, shot) {
     results[results.length - 1][0] = plate.cut.length ? 'plate (the cut names in full)' : 'plate (no name cut: one line)';
     // The podium with three worst-case names
     await resumeWith(page, ns => { tourney.phase = 'podium'; tourney.podium = ns; }, names.slice(0, 3));
-    if (await until(page, () => arenaState.kind === 'podium', 20)) await look('podium', show ? 3000 : 300);   // the show's champion: the jump and the crown drop take 2.5 s
-    else results.push(['podium', ['no podium']]);
+    if (await until(page, () => arenaState.kind === 'podium', 20)) {
+        await look('podium', show ? 3000 : 300);   // the show's champion: the jump and the crown drop take 2.5 s
+        results[results.length - 1][1].push(...await page.evaluate(podiumProblems));
+        if (show) {
+            // The same podium as the effects-off setting shows it, at this size too
+            await page.evaluate(() => { setShowFx(false); tourneyShowPodium(); });
+            await look('plain podium', 300);
+            results[results.length - 1][1].push(...await page.evaluate(podiumProblems));
+            await page.evaluate(() => setShowFx(true));
+        }
+    } else results.push(['podium', ['no podium']]);
     // The Hall of Fame: five tournaments with the worst-case names on every podium; two of them tied for most wins
     await resumeWith(page, ns => {
         const [a, b, c, d] = ns, h = getHonours();
@@ -239,4 +290,4 @@ async function tourneyScreens(page, lang, n, shot) {
     return results;
 }
 
-module.exports = { tourneyScreens, tourneyScreenProblems, tourneyDrawProblems, tourneyNames, WORST, SIZES, signUp, until, resumeWith };
+module.exports = { tourneyScreens, tourneyScreenProblems, tourneyDrawProblems, podiumProblems, tourneyNames, WORST, SIZES, signUp, until, resumeWith };
