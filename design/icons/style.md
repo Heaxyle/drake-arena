@@ -49,17 +49,36 @@ The frame is the category; it still reads without colour (review.html, "Without 
 - **Log note: a bare glyph.** No frame, 8×8. Crit, block, immune, pierce, reflect, fortune, thorns, lifesteal, execute… are
   events, not states, so they never wear a badge.
 - **Title: a rarity frame.** A square frame (a plaque, like the title badge), 10×10, in the rarity's colour, holding a 6×6 glyph.
-  Rarity also shows in the frame's shape, for colour-blind viewers: common plain, uncommon with corner studs, rare with a double
-  edge, epic with notched corners, legendary with a crest on top, mythic / meme / divine each with their own ornament. (To draw
-  with the titles batch.)
+  Rarity also shows in the frame's shape, for colour-blind viewers, richer up the ladder: common plain, uncommon with corner
+  studs, rare with a double edge, epic with notched corners, legendary with a crest on top. Mythic and meme hold the same
+  mechanic glyphs as legendary, so their frames carry the difference: mythic a crest plus flame-tipped corners and a two-tone
+  edge, meme a wobbly (offset) edge with confetti studs. Divine is a frame of its own around its own icon. (To draw with the
+  titles batch.)
 - **Drake emblems:** the element's sigil (flame, wave, moon, coin, crystal, leaf; the Dragon's crown-wing) in a 10×10 shield.
   They replace 🟥🟦⬛🟨🟪🟩🐉 in names and banners. (Later batch.)
 
 ## Colour tells the element
 
-- Each icon's colour is the one in the effects table (`EFFECTS[id].color`, `CLASS_ULTIMATES[id].color`). Titles use the rarity
-  colour, notes the colour of what they belong to (reflect blue, fortune gold, crit the crit yellow #ffd23f).
+- **Colour = element, everywhere.** Each element has one colour family, and all its effects and its ultimate use it
+  (`ELEMENT_COLORS` in icons.js):
+
+  | Element | Colour | From |
+  |---|---|---|
+  | red | #ff4f5a | the red card frame's light edge |
+  | blue | #4a98ff | the blue card frame |
+  | black | #9b9ba8 | the card swatch's slate #4a4a60, 45% lighter (the swatch is too dark to read on the dark UI); a neutral grey, never purple |
+  | gold | #f2c14e | `ELEMENT_COLORS.gold` (the gold frame's #ae8513 is too dark) |
+  | purple | #b47aff | the purple card frame |
+  | green | #6fe896 | the green card frame |
+
+  When the icons go in, these become every `color` in `EFFECTS` and `CLASS_ULTIMATES` (visual only). That moves Black's
+  Shadow and Weakness off purple, Purple's Dispel off Black-like grey (#d0d0e0), Green's Bloom off pink (#ff9ad5; a pink accent
+  on its petal tips stays, green leads), Burn from orange to red, Frost from pale cyan (which was the divine rarity's colour) to
+  blue. An icon may carry a small accent of its own (palette letter `p`), never as its main colour.
+- Titles use the rarity colour, notes the colour of what they belong to (reflect blue, fortune gold, crit the crit yellow
+  #ffd23f).
 - Light edge, colour, dark edge and the dark inside are all made from that one colour, so every icon has the same light and depth.
+- Within an element the buff, the debuff and the ultimate now share a colour, so the frame and the glyph tell them apart.
 - The shape still works without colour: within an element, the buff and the debuff have different frames; across elements, every
   glyph has its own silhouette. Checked in review.html with greyscale and simulated deuteranopia, protanopia and tritanopia.
 
@@ -80,16 +99,23 @@ Each icon has to read when a 1080p screenshot is shrunk to 360p, a phone viewer 
 - A mechanic's title badge and its log note are one icon: the legendary title Absolute Drake's badge is the immune glyph in the
   legendary frame, and the immune note in the log is the same glyph, bare.
 - One meaning never gets two icons: today 1st place is both 🏆 and 🥇, block is 🚫 and 🛡️, reflect is 🟦 and 🔵 (inventory.md).
+- **1st place is the gold medal**, one icon in the badge (the Top, the fighter card's name, `!стата`), on the podium and in the
+  Hall of Fame; the silver and bronze medals are the same medal in their metals, so the three read as a set. The trophy means
+  the tournament itself (the plate, the sign-up strip, the bracket's `SHOW_SPRITES.trophy`), never a place. Ranked, victory and
+  knockout get icons of their own in the UI batch, so 🏆 stops meaning five things.
 - Before adding an icon, look it up in the inventory's "more than one meaning" table and in `icons.js`.
 
 ## Titles
 
-- Common to legendary show what the title gives, in its rarity frame: its mechanic (legendary: guardian, pierce, immune, dodge,
-  chaos), otherwise its main bonus. Main bonuses in use: HP (HP and HP per level), crit (crit chance and crit power),
-  defence, effect chance, buff power. So there are 5 bonus glyphs and 5 legendary mechanic glyphs, each in up to 5 frames.
-- Mythic, meme and divine titles get an icon of their own (8 + 6 + 1 = 15 icons): the cactus, the hedgehog, the count's goblet,
-  the coin, the potato, the cat, the crown of the aether… Their mechanic's log note keeps the mechanic glyph (thorns, coin flip…).
-- The joke stays in the name. Two titles with the same bonus show the same icon; the name tells them apart.
+- Every title shows what it gives, in its rarity frame: its mechanic, otherwise its main bonus. Main bonuses in use: HP (HP
+  and HP per level), crit (crit chance and crit power), defence, effect chance, buff power.
+- Mechanics: legendary (guardian, pierce, immune, dodge, chaos), mythic (opening buff, thorns, lifesteal, execute), meme (coin
+  flip, sleep, cat). Each is shared by two titles of the same rarity, and the badge is the same glyph as the mechanic's log
+  note, so the two titles visibly do the same thing and the note in the log matches the badge.
+- In all: 5 bonus glyphs and 12 mechanic glyphs (the mechanic glyphs are also the log notes), in 7 frames.
+- Icons of their own: only the divine title 999 «Владика Етеру» and, with the White Drake, «Біла сталь» (998).
+- The joke stays in the name. Two titles with the same bonus show the same icon; the name tells them apart. Title 163
+  «Магніт для критів» is a crit title, so a crit glyph in a rare frame, not a magnet.
 
 ## The first batch (effects and ultimates)
 
@@ -98,13 +124,13 @@ Each icon has to read when a 1080p screenshot is shrunk to 360p, a phone viewer 
 | Rage | buff | an angry face | the emoji's anger, as a face (bold brows, frown) |
 | Burn | debuff | a flame | |
 | Shield | buff | a heater shield | |
-| Frost | debuff | a snowflake (a ring with eight points) | |
+| Frost | debuff | icicles hanging from a ledge | a snowflake at 6×6 read as Blessing's star (pass 2) |
 | Shadow | buff | a crescent moon | the black element's night |
 | Weakness | debuff | an arrow down | the target's attacks get weaker |
 | Blessing | buff | a lucky star | crit luck (a four-leaf clover doesn't hold at 6×6) |
 | Mark | debuff | a target | |
 | Divine Might | buff | an arrow up | one mighty attack; the opposite of Weakness |
-| Dispel | debuff | a gust | blows the buffs away |
+| Dispel | debuff | a ring cracked across | round means buff, so a broken ring breaks the buffs; it also reads as ⊘ (pass 2; the gust read as "≡") |
 | Regeneration | buff | a plus | healing |
 | Poison | debuff | a drop | |
 | Firestorm | ultimate | a meteor | |
@@ -112,17 +138,22 @@ Each icon has to read when a 1080p screenshot is shrunk to 360p, a phone viewer 
 | Shadow Theft | ultimate | a bat | |
 | Jackpot | ultimate | a seven | |
 | Arcane Detonation | ultimate | an X blast | |
-| Bloom | ultimate | a flower | |
+| Bloom | ultimate | a flower | green, pink petal tips (the accent) |
 
 Reserved for later batches, so the first batch avoids them: the heart (HP), the burst (crit), a plain sword (attacks), the drop
 in red (vampire heal: a fang instead, so it doesn't look like Poison), the horseshoe / U shape (the White Drake's Магніт).
 
-## Open questions
+## The White Drake (after `streamer-white-drake` merges)
 
-1. The black element's effect colours (#b27cff, #c77dff) are purple, close to the purple element's (#e0a8ff), while the black
-   element's frame is grey (#a7aab4). With colour telling the element, Shadow and Weakness look like purple effects. Change the
-   two colours in `EFFECTS` (a visual change only), or keep them?
-2. Frost (#9fe3ff) and the divine rarity use the same colour.
-3. Jackpot's reels (💎 🪙 💀) and the remaining notes are emoji until the notes batch; Jackpot needs three reel glyphs of its own.
-4. Mythic / meme titles: their own icon on the badge, the mechanic glyph in the log note (this guide). The other reading of
-   "one meaning per icon" would put the mechanic glyph in a mythic frame instead.
+Waits for that branch: then `icon-set` is rebased on main and these are added, in white steel (#e8ecf2 to #8a93a3) with a green
+accent (the `.el-steel` frame's green shimmer), so they never read as Black's grey:
+- the bar «Луска Дракона» (a scale), and its bounce and break notes (bare glyphs: a debuff glancing off, a cracked scale);
+- Перекування (buff) and Магніт (its effect, by its kind's frame), Удар ковадла (ultimate burst: an anvil);
+- «Біла сталь» (title 998: its own icon in the divine-style frame) and the 🤍 emblem.
+The magnet glyph is free for Магніт: title 163 becomes a crit badge.
+
+## Still open
+
+1. Jackpot's reels (💎 🪙 💀) and the other notes stay emoji until the notes batch; Jackpot needs three reel glyphs of its own.
+2. Under deuteranopia and protanopia, Red and Gold come out as close yellows (review.html, "Without colour"). The frames and
+   glyphs keep every pair apart, so nothing needs a colour change for it.

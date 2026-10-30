@@ -4,9 +4,10 @@
 //   buff     10×10 round badge (octagon ring), glyph 6×6 in the middle
 //   debuff   10×10 spiky badge (square ring with 8 spikes), glyph 6×6
 //   ultimate 12×12 burst (a round badge with long rays), glyph 6×6 in the middle
-// Colours come from the effect's / ultimate's `color` in EFFECTS / CLASS_ULTIMATES (copied here; the game's tables stay
-// the only source when this is wired in). The palette letters:
-//   h light edge, m colour, l dark edge, d badge inside, g glyph, w glyph highlight
+// Colour = element: every effect and the ultimate of an element share its colour family (ELEMENT_COLORS). When this is wired
+// in, these become the `color` values in EFFECTS / CLASS_ULTIMATES (a visual-only change), which stay the only source. The
+// palette letters:
+//   h light edge, m colour, l dark edge, d badge inside, g glyph, w glyph highlight, p accent (an icon's own second colour)
 (function (root) {
     // ----- Frames -----
     const FRAMES = {
@@ -79,14 +80,14 @@
             '.gwgg.',
             '..gg..',
         ],
-        // Frost: a snowflake (a ring with eight points)
+        // Frost: icicles hanging from a ledge (a snowflake read as Blessing's star)
         frost: [
-            'g.gg.g',
-            '.gwwg.',
-            'gw..wg',
-            'gw..wg',
-            '.gwwg.',
-            'g.gg.g',
+            'gggggg',
+            'gwggwg',
+            '.wg.wg',
+            '.wg..g',
+            '..g..g',
+            '.....g',
         ],
         // Shadow: a crescent moon
         shadow: [
@@ -133,14 +134,14 @@
             '..wg..',
             '..gg..',
         ],
-        // Dispel: a gust that blows things away
+        // Dispel: a ring cracked across (round means buff: a broken ring breaks the buffs; also reads as ⊘)
         dispel: [
-            'gggw..',
-            '....g.',
-            'wgggg.',
-            '......',
-            'ggw.g.',
-            '...g..',
+            '.ggg..',
+            'g...w.',
+            'g..w.g',
+            'g.w..g',
+            '.w...g',
+            '..ggg.',
         ],
         // Regeneration: a plus
         regen: [
@@ -206,38 +207,48 @@
             '.g..g.',
             'g....g',
         ],
-        // Bloom: a flower
+        // Bloom: a flower, green with pink petal tips
         bloom: [
-            '..gg..',
+            '..pp..',
             '.gggg.',
-            'ggwwgg',
-            'ggwwgg',
+            'pgwwgp',
+            'pgwwgp',
             '.gggg.',
-            '..gg..',
+            '..pp..',
         ],
     };
 
-    // ----- The icons: frame + glyph + colour -----
-    const ICONS = {
-        rage:       { frame: 'buff',     color: '#ff4d4d', name: { uk: 'Лють', en: 'Rage' },                  emoji: '💢', element: 'red' },
-        burn:       { frame: 'debuff',   color: '#ff7a1a', name: { uk: 'Підпал', en: 'Burn' },                emoji: '🔥', element: 'red' },
-        shield:     { frame: 'buff',     color: '#00bfff', name: { uk: 'Щит', en: 'Shield' },                 emoji: '🛡️', element: 'blue' },
-        frost:      { frame: 'debuff',   color: '#9fe3ff', name: { uk: 'Мороз', en: 'Frost' },                emoji: '❄️', element: 'blue' },
-        shadow:     { frame: 'buff',     color: '#b27cff', name: { uk: 'Тінь', en: 'Shadow' },                emoji: '🌑', element: 'black' },
-        weakness:   { frame: 'debuff',   color: '#c77dff', name: { uk: 'Слабкість', en: 'Weakness' },         emoji: '🥀', element: 'black' },
-        blessing:   { frame: 'buff',     color: '#ffd700', name: { uk: 'Благословіння', en: 'Blessing' },     emoji: '🍀', element: 'gold' },
-        mark:       { frame: 'debuff',   color: '#ffb000', name: { uk: 'Мітка', en: 'Mark' },                 emoji: '🎯', element: 'gold' },
-        divine:     { frame: 'buff',     color: '#e0a8ff', name: { uk: 'Божественна міць', en: 'Divine Might' }, emoji: '🌟', element: 'purple' },
-        dispel:     { frame: 'debuff',   color: '#d0d0e0', name: { uk: 'Розвіювання', en: 'Dispel' },         emoji: '💨', element: 'purple' },
-        regen:      { frame: 'buff',     color: '#41ff41', name: { uk: 'Регенерація', en: 'Regeneration' },   emoji: '💚', element: 'green' },
-        poison:     { frame: 'debuff',   color: '#7dff4d', name: { uk: 'Отруєння', en: 'Poison' },            emoji: '☠️', element: 'green' },
-        firestorm:  { frame: 'ultimate', color: '#ff6a3d', name: { uk: 'Вогняний шторм', en: 'Firestorm' },   emoji: '☄️', element: 'red' },
-        mirror:     { frame: 'ultimate', color: '#7fdcff', name: { uk: 'Крижане дзеркало', en: 'Ice Mirror' }, emoji: '💠', element: 'blue' },
-        theft:      { frame: 'ultimate', color: '#b27cff', name: { uk: 'Крадіжка тіні', en: 'Shadow Theft' }, emoji: '🦇', element: 'black' },
-        jackpot:    { frame: 'ultimate', color: '#ffd700', name: { uk: 'Джекпот', en: 'Jackpot' },           emoji: '🎰', element: 'gold' },
-        detonation: { frame: 'ultimate', color: '#e0a8ff', name: { uk: 'Арканна детонація', en: 'Arcane Detonation' }, emoji: '✴️', element: 'purple' },
-        bloom:      { frame: 'ultimate', color: '#ff9ad5', name: { uk: 'Цвітіння', en: 'Bloom' },             emoji: '🌸', element: 'green' },
+    // ----- Element colours: one family per element -----
+    // Red, blue, purple and green are the card frames' light edges (.el-*), gold is ELEMENT_COLORS.gold (the card's #ae8513
+    // is too dark on the dark UI), black is the card swatch's slate #4a4a60 lightened 45% towards white (the swatch itself
+    // doesn't read on the dark UI; this stays a neutral grey, never a purple)
+    const ELEMENT_COLORS = {
+        red: '#ff4f5a', blue: '#4a98ff', black: '#9b9ba8', gold: '#f2c14e', purple: '#b47aff', green: '#6fe896',
     };
+
+    // ----- The icons: frame + glyph + element (accent: an icon's own second colour, kept small) -----
+    // was: the effect's own colour in EFFECTS / CLASS_ULTIMATES today
+    const ICONS = {
+        rage:       { frame: 'buff',     element: 'red',    name: { uk: 'Лють', en: 'Rage' },                  emoji: '💢', was: '#ff4d4d' },
+        burn:       { frame: 'debuff',   element: 'red',    name: { uk: 'Підпал', en: 'Burn' },                emoji: '🔥', was: '#ff7a1a' },
+        shield:     { frame: 'buff',     element: 'blue',   name: { uk: 'Щит', en: 'Shield' },                 emoji: '🛡️', was: '#00bfff' },
+        frost:      { frame: 'debuff',   element: 'blue',   name: { uk: 'Мороз', en: 'Frost' },                emoji: '❄️', was: '#9fe3ff' },
+        shadow:     { frame: 'buff',     element: 'black',  name: { uk: 'Тінь', en: 'Shadow' },                emoji: '🌑', was: '#b27cff' },
+        weakness:   { frame: 'debuff',   element: 'black',  name: { uk: 'Слабкість', en: 'Weakness' },         emoji: '🥀', was: '#c77dff' },
+        blessing:   { frame: 'buff',     element: 'gold',   name: { uk: 'Благословіння', en: 'Blessing' },     emoji: '🍀', was: '#ffd700' },
+        mark:       { frame: 'debuff',   element: 'gold',   name: { uk: 'Мітка', en: 'Mark' },                 emoji: '🎯', was: '#ffb000' },
+        divine:     { frame: 'buff',     element: 'purple', name: { uk: 'Божественна міць', en: 'Divine Might' }, emoji: '🌟', was: '#e0a8ff' },
+        dispel:     { frame: 'debuff',   element: 'purple', name: { uk: 'Розвіювання', en: 'Dispel' },         emoji: '💨', was: '#d0d0e0' },
+        regen:      { frame: 'buff',     element: 'green',  name: { uk: 'Регенерація', en: 'Regeneration' },   emoji: '💚', was: '#41ff41' },
+        poison:     { frame: 'debuff',   element: 'green',  name: { uk: 'Отруєння', en: 'Poison' },            emoji: '☠️', was: '#7dff4d' },
+        firestorm:  { frame: 'ultimate', element: 'red',    name: { uk: 'Вогняний шторм', en: 'Firestorm' },   emoji: '☄️', was: '#ff6a3d' },
+        mirror:     { frame: 'ultimate', element: 'blue',   name: { uk: 'Крижане дзеркало', en: 'Ice Mirror' }, emoji: '💠', was: '#7fdcff' },
+        theft:      { frame: 'ultimate', element: 'black',  name: { uk: 'Крадіжка тіні', en: 'Shadow Theft' }, emoji: '🦇', was: '#b27cff' },
+        jackpot:    { frame: 'ultimate', element: 'gold',   name: { uk: 'Джекпот', en: 'Jackpot' },           emoji: '🎰', was: '#ffd700' },
+        detonation: { frame: 'ultimate', element: 'purple', name: { uk: 'Арканна детонація', en: 'Arcane Detonation' }, emoji: '✴️', was: '#e0a8ff' },
+        bloom:      { frame: 'ultimate', element: 'green',  name: { uk: 'Цвітіння', en: 'Bloom' },             emoji: '🌸', was: '#ff9ad5', accent: '#ff9ad5' },
+    };
+    Object.values(ICONS).forEach(ic => { ic.color = ELEMENT_COLORS[ic.element]; });
     const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison'];
     const ULTIMATE_ICON_IDS = ['firestorm', 'mirror', 'theft', 'jackpot', 'detonation', 'bloom'];
 
@@ -245,8 +256,9 @@
     const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
     const toHex = rgb => '#' + rgb.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
     const mix = (a, b, t) => toHex(hex(a).map((v, i) => v + (hex(b)[i] - v) * t));
-    function paletteOf(color) {
+    function paletteOf(color, accent = color) {
         return {
+            p: accent,                         // accent
             h: mix(color, '#ffffff', 0.45),   // light edge (top left)
             m: color,                          // the colour
             l: mix(color, '#000000', 0.45),   // dark edge (bottom right)
@@ -269,7 +281,7 @@
     const cache = {};
     function makeIconCanvas(id, doc = root.document) {
         if (cache[id]) return cache[id];
-        const rows = iconRows(id), pal = paletteOf(ICONS[id].color);
+        const rows = iconRows(id), pal = paletteOf(ICONS[id].color, ICONS[id].accent);
         const c = doc.createElement('canvas');
         c.width = rows[0].length; c.height = rows.length;
         const g = c.getContext('2d');
@@ -283,5 +295,5 @@
         return `<img class="${cls}" src="${iconURL(id)}" width="${c.width * s}" height="${c.height * s}" alt="${ICONS[id].name.en}" style="image-rendering: pixelated">`;
     }
 
-    root.DrakeIcons = { FRAMES, GLYPHS, ICONS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
+    root.DrakeIcons = { FRAMES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
 })(typeof window !== 'undefined' ? window : globalThis);

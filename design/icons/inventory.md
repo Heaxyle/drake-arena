@@ -8,8 +8,10 @@ Not counted as "shown": `addLog` lines (the hidden text record the tests read; t
 test panel (`#cam-col`, hidden with `?obs`), tooltips (`title=` attributes: nobody can hover on stream).
 
 The White Drake's kit (Перекування, Магніт, Удар ковадла, «Луска Дракона», the `steel` banner) lives on the
-`streamer-white-drake` branch, not on `main`; it gets added here when that branch lands. Two clashes are already known: Магніт
-against title 163's 🧲, and the anvil against the 🛠️ / ⚙️ titles.
+`streamer-white-drake` branch, not on `main`; it gets added here when that branch merges and `icon-set` is rebased on main
+(style.md, "The White Drake"). The 🧲 clash goes away then: title 163 «Магніт для критів» is a plain crit title, so its
+badge is the crit glyph in a rare frame, not a magnet. The anvil against the 🛠️ / ⚙️ titles goes the same way (those are
+stat titles too).
 
 ## Where things show, and how big
 
@@ -59,8 +61,9 @@ Theft lists in line 2.
 | Регенерація / Regeneration | 💚 | buff | green | #41ff41 | heals 6.5% max HP at the start of the next 3 own turns |
 | Отруєння / Poison | ☠️ | debuff | green | #7dff4d | 3% max HP for 3 turns, healing −50% |
 
-Black's effect colours (#b27cff, #c77dff) are purple, close to purple's own (#e0a8ff), while the black element's frame is grey
-(#a7aab4). See style.md, open questions.
+The colours above are today's. Several break "colour = element": Black's two are purple, Dispel is Black-like grey, Bloom is
+pink, Burn is orange next to Rage's red. Decided: each element gets one colour family for its effects and its ultimate
+(style.md, "Colour tells the element"), a visual-only change to `EFFECTS` / `CLASS_ULTIMATES` when the icons go in.
 
 ## 2. Class ultimates (`CLASS_ULTIMATES`) and the meter (`METER`)
 
@@ -145,9 +148,10 @@ Emoji shared by more than one title today: 📦 1, 144 · 🛋️ 3, 39, 47 · �
 🥔 136, 190 · ⌨️ 63, 105 · 🎲 91, 115 · 🃏 61, 68 · 🏆 67, 94 · 👻 69, 179 · 🛡️ 76, 151, 176 · ⚡ 82, 100, 169 · 👑 86, 999 · 🐉 92, 98.
 Several of these pair titles with different bonuses (☕ 20 is HP, 95 HP, 182 the opening buff), so today the emoji tells nothing.
 
-"Proposed icon" follows style.md: common to legendary show what the title gives (its mechanic, or its biggest stat bonus) in
-its rarity frame; mythic, meme and divine get their own icon. The "main bonus" is the stat with the biggest share of the title's
-value; crit and crit power count as one (crit).
+"Proposed icon" follows style.md: every title shows what it gives in its rarity frame: its mechanic (legendary, mythic, meme:
+the same glyph as the mechanic's log note), otherwise its biggest stat bonus. Only the divine title (and, later, the White
+Drake's «Біла сталь») has an icon of its own. The "main bonus" is the stat with the biggest share of the title's value; crit
+and crit power count as one (crit).
 
 | id | rarity | now | name (uk / en) | gives | proposed icon |
 |---|---|---|---|---|---|
@@ -331,27 +335,27 @@ value; crit and crit power count as one (crit).
 | 178 | legendary | 🧘 | Дзен при 1 HP / Zen at 1 HP | debuff_immunity + HP +15 | mechanic: immune |
 | 179 | legendary | 👻 | Привид лагу / Lag Ghost | quantum_dodge + HP +16 | mechanic: dodge |
 | 180 | legendary | 🎆 | Феєрверк хаосу / Chaos Fireworks | chaotic_charge + effect chance +15% | mechanic: chaos |
-| 181 | mythic | 🌅 | Прокинувся в ударі / Woke Up Swinging | opening_buff + HP +20, effect chance +10%, HP/level +1.1 | own icon (opening buff mechanic) |
-| 182 | mythic | ☕ | Перша кава дня / First Coffee of the Day | opening_buff + HP +20, effect chance +10%, HP/level +1.1 | own icon (opening buff mechanic) |
-| 183 | mythic | 🌵 | Кактус з характером / Cactus With Attitude | thorns + HP +15, HP/level +1.1 | own icon (thorns mechanic) |
-| 184 | mythic | 🦔 | Їжак-ображака / Grumpy Hedgehog | thorns + HP +15, HP/level +1.1 | own icon (thorns mechanic) |
-| 185 | mythic | 🧛 | Енергетичний вампір / Energy Vampire | lifesteal + HP +15, crit +8%, HP/level +1.1 | own icon (lifesteal mechanic) |
-| 186 | mythic | 🍷 | Граф Дракула чату / Count Dracula of Chat | lifesteal + HP +15, crit +8%, HP/level +1.1 | own icon (lifesteal mechanic) |
-| 187 | mythic | ⚰️ | Добивач на 1 HP / 1 HP Finisher | executioner + crit +12%, HP +20, HP/level +1.1 | own icon (execute mechanic) |
-| 188 | mythic | 🪓 | Кат лоу-хп / Low-HP Executioner | executioner + crit +12%, HP +20, HP/level +1.1 | own icon (execute mechanic) |
-| 189 | meme | 🪙 | Герб чи число / Heads or Tails | coin_flip + HP +20 | own icon (coin flip mechanic) |
-| 190 | meme | 🥔 | Картопля Шредінгера / Schrödinger's Potato | coin_flip + HP +20 | own icon (coin flip mechanic) |
-| 191 | meme | 😴 | Заснув на стрімі / Fell Asleep on Stream | sleepy + HP +5 | own icon (sleep mechanic) |
-| 192 | meme | 🦥 | Лінивець-берсерк / Berserk Sloth | sleepy + HP +5 | own icon (sleep mechanic) |
-| 193 | meme | 🐈 | Кіт пройшовся по клавіатурі / Cat Walked on the Keyboard | cat_keyboard + HP +18 | own icon (cat mechanic) |
-| 194 | meme | 🍝 | Код-спагеті / Spaghetti Code | cat_keyboard + HP +18 | own icon (cat mechanic) |
-| 999 | divine | 👑 | Владика Етеру / Sovereign of the Aether | streamer_god | own icon (sovereign mechanic) |
+| 181 | mythic | 🌅 | Прокинувся в ударі / Woke Up Swinging | opening_buff + HP +20, effect chance +10%, HP/level +1.1 | mechanic: opening buff |
+| 182 | mythic | ☕ | Перша кава дня / First Coffee of the Day | opening_buff + HP +20, effect chance +10%, HP/level +1.1 | mechanic: opening buff |
+| 183 | mythic | 🌵 | Кактус з характером / Cactus With Attitude | thorns + HP +15, HP/level +1.1 | mechanic: thorns |
+| 184 | mythic | 🦔 | Їжак-ображака / Grumpy Hedgehog | thorns + HP +15, HP/level +1.1 | mechanic: thorns |
+| 185 | mythic | 🧛 | Енергетичний вампір / Energy Vampire | lifesteal + HP +15, crit +8%, HP/level +1.1 | mechanic: lifesteal |
+| 186 | mythic | 🍷 | Граф Дракула чату / Count Dracula of Chat | lifesteal + HP +15, crit +8%, HP/level +1.1 | mechanic: lifesteal |
+| 187 | mythic | ⚰️ | Добивач на 1 HP / 1 HP Finisher | executioner + crit +12%, HP +20, HP/level +1.1 | mechanic: execute |
+| 188 | mythic | 🪓 | Кат лоу-хп / Low-HP Executioner | executioner + crit +12%, HP +20, HP/level +1.1 | mechanic: execute |
+| 189 | meme | 🪙 | Герб чи число / Heads or Tails | coin_flip + HP +20 | mechanic: coin flip |
+| 190 | meme | 🥔 | Картопля Шредінгера / Schrödinger's Potato | coin_flip + HP +20 | mechanic: coin flip |
+| 191 | meme | 😴 | Заснув на стрімі / Fell Asleep on Stream | sleepy + HP +5 | mechanic: sleep |
+| 192 | meme | 🦥 | Лінивець-берсерк / Berserk Sloth | sleepy + HP +5 | mechanic: sleep |
+| 193 | meme | 🐈 | Кіт пройшовся по клавіатурі / Cat Walked on the Keyboard | cat_keyboard + HP +18 | mechanic: cat |
+| 194 | meme | 🍝 | Код-спагеті / Spaghetti Code | cat_keyboard + HP +18 | mechanic: cat |
+| 999 | divine | 👑 | Владика Етеру / Sovereign of the Aether | streamer_god | own icon (the Sovereign of the Aether) |
 
 ## 6. Rarities (`RARITIES`)
 
 No emoji of their own: a colour (#a0a0a0 common, #2ecc71 uncommon, #3498db rare, #b36bff epic, #f1c40f legendary, #ff4757 mythic,
 #ff66cc meme, #9fe3ff divine), the roulette's banner lines (🌟 / 🔥 / 🤪) and the roulette odds card (🎰).
-Divine's colour is the same as Frost's (#9fe3ff).
+Divine's colour is the same as Frost's today (#9fe3ff); with Frost in the blue family (#4a98ff) that clash goes.
 
 ## 7. Drake emblems (`DRAKE_TYPES`)
 
@@ -401,7 +405,7 @@ fortune notes, and 🟥 / ⬛ start the hidden crit and ultra-block log lines.
 | 🧛 | the vampire attack type; title lifesteal; title 185 |
 | 🛡️ | the Shield effect; ultra-block (hidden log); defence in `!стата`; the loser's mark in the hidden result line; titles 76, 151, 176 |
 | 🏆 | ranked; victory; knockout; tournament; 1st place badge; Hall of Fame wins; titles 67, 94 |
-| 1st place | 🏆 as a badge, 🥇 on the podium and in the Hall: two icons for one meaning |
+| 1st place | 🏆 as a badge, 🥇 on the podium and in the Hall: two icons for one meaning (decided: one icon, the gold medal; style.md) |
 | ⏳ | waiting; up next; betting open; time-out; already in the queue; title 36, 88 |
 | 💀 | KO; sudden death; Jackpot's skull; losses |
 | 🎲 | first strike; the tournament draw; title roulette; titles 91, 115 |
