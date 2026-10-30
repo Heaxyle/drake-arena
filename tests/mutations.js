@@ -98,7 +98,7 @@ const MUTATIONS = [
         '${CLASS_ULTIMATES.mirror.icon} ${unitLeftText(', '💠 ${unitLeftText('],
     // Interaction choices (each flipped)
     ['attacking ultimate is not an attack', "an attacking ultimate doesn't count down the attacker's \"own attacks\" effects",
-        "countDownEffects(atkFx, 'attacks');", "if (!ult) countDownEffects(atkFx, 'attacks');"],
+        "countDownEffects(atkFx, 'attacks', id => !onCasts(id));", "if (!ult) countDownEffects(atkFx, 'attacks', id => !onCasts(id));"],
     ['Ice Mirror / Bloom count as attacks', 'a no-attack ultimate still counts down "own attacks" effects',
         '                        if (ult.applies) applyEffect(attacker, defender, ult.applies, attackerProg.level, fx);',
         "                        countDownEffects(atkFx, 'attacks'); if (ult.applies) applyEffect(attacker, defender, ult.applies, attackerProg.level, fx);"],
@@ -115,7 +115,7 @@ const MUTATIONS = [
     ['immunity forces the crit', 'Shadow Theft forces a crit whenever the theft is stopped by immunity',
         'ultForceCrit = had.length === 0;', 'ultForceCrit = had.length === 0 || isDebuffImmune(defender);'],
     ['Jackpot miss counts nothing', "a Jackpot miss doesn't count down the attacker's \"own attacks\" effects",
-        "countDownEffects(atkFx, 'attacks');", "if (!ultMiss) countDownEffects(atkFx, 'attacks');"],
+        "countDownEffects(atkFx, 'attacks', id => !onCasts(id));", "if (!ultMiss) countDownEffects(atkFx, 'attacks', id => !onCasts(id));"],
     ['Detonation keeps debuffs on a block', 'Arcane Detonation only removes the debuffs when its hit lands',
         'if (detonated.length) defFx.debuff = defFx.debuff.filter(x => !detonated.includes(x));', 'if (detonated.length && finalDmg > 0) defFx.debuff = defFx.debuff.filter(x => !detonated.includes(x));'],
     ['below-half bonus waits for room', 'the below-half bonus is kept until the meter has room for it',
@@ -357,11 +357,13 @@ const MUTATIONS = [
         "'білий': 'steel', white: 'steel'", "'білий': 'white', white: 'white'"],
     ["the White Drake rolls a title", "a new White Drake gets a random title instead of «Біла сталь»",
         'd.drakeObj = whiteDrakeOf(); d.title = titleById(WHITE_DRAKE_TITLE_ID); d.xp = 0; d.level = 1;', 'd.drakeObj = whiteDrakeOf(); d.title = getRandomTitle(); d.xp = 0; d.level = 1;'],
-    ['Магніт: 3 attacks', "Магніт lasts the target's next 3 attacks again (it's 2)",
-        "lasts: 'attacks', count: 2, nums: {},\n                        desc: { uk: 'Наступні {count} атаки цілі",
-        "lasts: 'attacks', count: 3, nums: {},\n                        desc: { uk: 'Наступні {count} атаки цілі"],
+    ['Магніт: 2 attacks', "Магніт lasts the target's next 2 attacks (it's 1, as its text says: «Наступна атака цілі»)",
+        "lasts: 'attacks', count: 1, nums: {},\n                        desc: { uk: 'Наступна атака цілі",
+        "lasts: 'attacks', count: 2, nums: {},\n                        desc: { uk: 'Наступна атака цілі"],
     ['Магніт: «замінює» + a name', "the pulled buff's line names the buff it replaces after «замінює» again (the name would need the accusative)",
         "${gone ? ` (${fxName(gone.id)} ${fvT('lost')})` : ''}", "${gone ? ` (замінює ${fxName(gone.id)})` : ''}"],
+    ['Магніт: gone before the cast', "Магніт runs down with the other attack effects, before the attack's casts again, so a buff cast on the attack it covers stays with the target",
+        "const onCasts = id => id === 'magnet';", "const onCasts = id => false;"],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported

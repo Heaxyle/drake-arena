@@ -985,7 +985,9 @@ for (const lang of ['en', 'uk']) {
     const KEEP = Math.random;
     Math.random = mulberry32(2323);
     const obs = { hits: 0, pierced: 0, fortune: 0, wrongHit: [], cracks: 0, wrongCrack: [], rebuilds: 0, poisoned: 0, fromZero: 0, bounceAfterZero: 0, wrongRebuild: [],
-                  anvils: 0, wrongAnvil: [], theft: 0, blackRebuilt: 0, pulled: 0, wdKo: 0 };
+                  anvils: 0, wrongAnvil: [], theft: 0, blackRebuilt: 0, pulled: 0, wdKo: 0,
+                  keptUnderMagnet: [], pulledOn: new Array(G.EFFECTS.magnet.count + 1).fill(0), magnetMax: 0 };
+    const magnetName = `${G.EFFECTS.magnet.icon} ${G.EFFECTS.magnet.name.uk}`;
     let snap = null, ctx = null;
     // Each fighter's HP as the cards show it (which side each one is on, then the HP of both sides)
     const sideOf = {}, hpNow = {};
@@ -999,6 +1001,16 @@ for (const lang of ['en', 'uk']) {
         if (!now) return;
         if (line.includes('💔 Луска розкололася!')) { obs.cracks++; if (now.sc !== 0) obs.wrongCrack.push(line.slice(0, 80)); }
         if (line.includes('притягується до Білого Дрейка')) obs.pulled++;
+        // Магніт: the viewer's attacks it covers (their lines name it: «[🔗 Магніт]»), counted from the line where it lands
+        // (or is refreshed); a buff the viewer casts during one of them goes to the White Drake
+        const v = `@${ctx.v}`;
+        if (line.startsWith(`${v} отримує дебаф ${magnetName}`) || line.startsWith(`${v}: дебаф ${magnetName} оновлено`)) ctx.magnetN = 0;
+        if (/^\[Хід \d+\]/.test(line)) {
+            const a = line.match(/^\[Хід \d+\] @(\S+) ➜ /);
+            ctx.magnetAttack = a && a[1] === ctx.v && line.includes(`[${magnetName}]`) ? ++ctx.magnetN : 0;
+            obs.magnetMax = Math.max(obs.magnetMax, ctx.magnetAttack);
+        } else if (ctx.magnetAttack && (line.startsWith(`${v} отримує баф `) || line.startsWith(`${v}: баф `))) obs.keptUnderMagnet.push(line.slice(0, 100));
+        else if (ctx.magnetAttack && line.includes('притягується до Білого Дрейка')) obs.pulledOn[ctx.magnetAttack] = (obs.pulledOn[ctx.magnetAttack] || 0) + 1;
         if (line.includes('🤍 відскочило від луски') && ctx.zero && now.sc > 0) obs.bounceAfterZero++;
         const m = line.match(/^\[Хід \d+\] @(\S+) ➜ @(\S+) /);
         // Turn lines without an attack (frozen) and the start-of-turn ticks move the snapshot on too
@@ -1035,7 +1047,7 @@ for (const lang of ['en', 'uk']) {
         fresh();
         const level = [1, 5, 10, 20][i % 4], vt = G.VIEWER_DRAKE_TYPES[Math.floor(i / 4) % 6].type;
         make('wdx', WD, { level, title: steelTitle }); make('vx', vt, { level, title: G.TITLES_DB[(i * 37) % 150] });
-        ctx = { wd: 'wdx', v: 'vx', level, maxHP: G.getMaxHP(level, WD, steelTitle), zero: false };
+        ctx = { wd: 'wdx', v: 'vx', level, maxHP: G.getMaxHP(level, WD, steelTitle), zero: false, magnetN: 0, magnetAttack: 0 };
         snap = null;
         G.runBattle('wdx', '#fff', 'vx', '#fff', false);
         snap = state();
@@ -1053,6 +1065,10 @@ for (const lang of ['en', 'uk']) {
     check(!obs.wrongAnvil.length && obs.anvils > 50, `23. Удар ковадла: ×${G.CLASS_ULTIMATES.anvil.nums.dmgMult} (×${G.CLASS_ULTIMATES.anvil.nums.topMult} at level 20), and the bar is whole again after it (${obs.anvils} strikes)`, obs.wrongAnvil.slice(0, 3).join(' | '));
     check(obs.theft > 0 && obs.blackRebuilt === 0, `23. Чорний's Крадіжка тіні can take Перекування (${obs.theft} times), and in its hands it rebuilds nothing`, JSON.stringify({ theft: obs.theft, blackRebuilt: obs.blackRebuilt }));
     check(obs.pulled > 20, `23. Магніт pulls buffs in real fights (${obs.pulled})`, String(obs.pulled));
+    const mc = G.EFFECTS.magnet.count, pulledOn = obs.pulledOn.slice(1, mc + 1);
+    check(!obs.keptUnderMagnet.length && pulledOn.every(n => n > 0) && obs.magnetMax === mc,
+        `23. Магніт covers ${mc === 1 ? "the target's next attack (its line names it), and a buff the target casts on it" : `each of the target's next ${mc} attacks (their lines name it), and a buff the target casts on any of them`} goes to the White Drake (${pulledOn.map((n, i) => `${n} pulled on attack ${i + 1}`).join(', ')}), none stays with the target`,
+        JSON.stringify({ kept: obs.keptUnderMagnet.slice(0, 3), pulledOn: obs.pulledOn, magnetMax: obs.magnetMax }));
 
     // The two forms, through chat
     fresh();
@@ -1068,6 +1084,8 @@ for (const lang of ['en', 'uk']) {
     G.say('streamchannel', '!дракон');
     const asDragon = me(), toMsg = lastInfo();
     const dragonGain = G.addXP('streamchannel', 40);
+    G.say('streamchannel', '!рерол білий');
+    const stayMsg = lastInfo(), stayed = me().drakeObj.type;
     G.say('streamchannel', '!дракон');
     const back = me(), backMsg = lastInfo();
     check(/Білий Дрейк чекає на рівні 7\.$/.test(toMsg) && /знову Білий Дрейк: рівень 7, нічого не втрачено\.$/.test(backMsg),
@@ -1076,6 +1094,8 @@ for (const lang of ['en', 'uk']) {
         && back.drakeObj.type === WD && back.xp === xpFor(7) + 13 && back.title.id === G.WHITE_DRAKE_TITLE_ID && G.queue.join() === 'q1,streamchannel,q2',
         "23. !дракон and back: the Dragon at level 20 gains nothing (+0 XP for a win's 40), the White Drake returns with its exact XP (level 7) and title; the queue place stays (#2)",
         JSON.stringify({ asDragon: [asDragon.drakeObj.type, asDragon.xp], dragonGain, back: [back.drakeObj.type, back.xp, back.title.id], queue: G.queue }));
+    check(stayed === G.DRAGON_TYPE && stayMsg === '🐉 @streamchannel, зараз ви Білий Дракон. Повернутися до Білого Дрейка: !дракон.',
+        `23. «!рерол білий» as the Dragon changes nothing and says how to go back: «${stayMsg}»`, JSON.stringify({ stayed, stayMsg }));
     const forms = plays.filter(p => p.type === 'form');
     check(hasPlayLog && forms.length === 2 && forms[0].from === WD && forms[0].to === G.DRAGON_TYPE && forms[0].level === 7 && forms[1].from === G.DRAGON_TYPE && forms[1].to === WD && forms[1].level === 7,
         "23. the play log: one 'form' event per switch, with the form before and after and the level kept (7)", JSON.stringify(forms));

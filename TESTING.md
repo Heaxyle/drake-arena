@@ -51,7 +51,7 @@ flowchart TD
 | Refresh: casting an active effect resets its count and is logged. Replacement: a third buff/debuff replaces the one closest to ending (the older one on a tie), and the log names both. Dispel removes every buff and takes no slot | Stacking duplicates, replacing the wrong effect, silent replacements |
 | Debuff immunity (title and White Dragon) ignores all 7 debuffs, Dispel and Магніт included, and keeps its own buffs | Immunity lost in the rework, or a debuff that skips the check |
 | Casting split: Red picks its own pair ~75% of the time (70% + 30% × 2/12), half of those the buff; the White Dragon picks evenly from the 12 of the shared pool, never the White Drake's pair | A wrong split, a broken random pick, or the White Drake's pair leaking into random casts |
-| **Real fights** (300 per language, all elements, ability titles, the White Dragon and the White Drake): before every `[Turn N]` log line, every active effect's count is compared with the state after the previous turn or cast. Own-attack effects must drop by 1 when their owner attacks, hits-taken effects when their owner is attacked (blocked or not), turn effects when their owner's turn starts. On a frozen turn only the owner's turn effects and Frost itself go down. An effect may only disappear when its count reaches 0 | A count going down on the wrong event, by 2, or not at all; Frost eating other buffs; effects vanishing early |
+| **Real fights** (300 per language, all elements, ability titles, the White Dragon and the White Drake): before every `[Turn N]` log line, every active effect's count is compared with the state after the previous turn or cast. Own-attack effects must drop by 1 when their owner attacks (Магніт only once that attack's casts are done, so it shows on the next line), hits-taken effects when their owner is attacked (blocked or not), turn effects when their owner's turn starts. On a frozen turn only the owner's turn effects and Frost itself go down. An effect may only disappear when its count reaches 0 | A count going down on the wrong event, by 2, or not at all; Frost eating other buffs; effects vanishing early |
 | No internal effect id (`rage`, `mark`, ..., or the old `stoneskin`) appears in any battle-log line, in either language, and all 14 effect names show up | Log text built from the id instead of the table |
 | An immune fighter never carries a debuff during a real fight | Immunity bypassed by a title mechanic (chaos, cat) |
 | No effect name (uk or en, whole word) or icon appears anywhere in `showcase/index.html` outside the `EFFECTS` block, comments excepted. Lines that use an icon or word for something unrelated (🛡️ on Ultra Block and the defence label, title icons like 🎯 Missed the Button, the Guardian title's "Щит надії / Shield of Hope", ...) are listed in `EFFECT_TEXT_ALLOWLIST` in `effects.js`, each with its reason. An allowlist entry that no longer matches a line also fails | An effect name or icon typed into the code instead of read from `EFFECTS`, which would go out of date on the next rename |
@@ -76,7 +76,7 @@ flowchart TD
 | ☠️ Poison | −`hp`% of max HP per turn (−10 / −18), and the target's healing is ×(1 − `healCut`%): Regeneration +22 → +11, a vampire hit's heal +21 → +10 (×1.8: +2 / +2) |
 | All lasting effects | Effect power never changes the count (13 effects at ×1 and ×1.8) |
 
-It also checks that the effect descriptions come from the table: every number in `nums` appears as a `{placeholder}` (`{cut}` → "30", `{x:dmg}` → "×1.55"), no digit is typed into the text, changing the table's numbers changes the text, and the README's effect table shows exactly the game's English descriptions. After the next balance change, the descriptions update on their own and `npm test` says if the README needs the new numbers.
+It also checks that the effect descriptions come from the table: every number in `nums` appears as a `{placeholder}` (`{cut}` → "30", `{x:dmg}` → "×1.55"), no digit is typed into the text, changing the table's numbers changes the text, a text without `{count}` («Наступна атака цілі») belongs to an effect that lasts exactly one, and the README's effect table shows exactly the game's English descriptions. After the next balance change, the descriptions update on their own and `npm test` says if the README needs the new numbers.
 
 A Dispel that would find no buffs is cast as a different effect instead (from the caller's pool for Chaotic charge, so it stays a debuff). On an immune target it still counts as cast and is logged as ignored. In the fight run, every Dispel cast is checked: none may land on a target with no buffs.
 
@@ -131,15 +131,15 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | **The coin flip's words**: title 189 is «Герб чи число» in Ukrainian, "Heads or Tails" in English; duels with title 189 and with «Картопля Шредінгера» (the other coin-flip title) log «🪙 Герб!» and «🪙 Число...» in Ukrainian, "🪙 Heads!" and "🪙 Tails..." in English, and no other coin words (its own seeded `Math.random`, so the rest of the run plays the same fights) | The old Russian-derived coin words coming back, English in the Ukrainian log, or a new word for one side |
 | **The White Drake's scales** (23): the share of max HP that `WHITE_DRAKE.scales` sets for each level tier (19.5 / 21 / 22.5 / 23 / 24%), within half a point (the bar is whole HP) and never shrinking; a fight starts with the bar full; every debuff of the shared pool bounces while it holds («🤍 відскочило від луски»), and lands once it's broken. In 480 real fights against every element at levels 1, 5, 10 and 20, read off the log and the cards: every hit on the White Drake takes the bar first and only the rest comes off HP, armour-piercing too; Gold's Fortune slips past it; «💔 Луска розкололася!» exactly when it breaks | Hits going straight to HP, armour-piercing or Fortune breaking the bar, debuffs landing through it or bouncing off a broken one, a missing crack line |
 | **Перекування** (23, the same fights): each damaging own attack rebuilds 6% of max HP (8% at level 20), up to the starting size, a broken bar too, after which debuffs bounce again; ☠️ Poison doesn't cut it; Black's Shadow Theft can take it, and then it rebuilds nothing | A rebuild past the starting size, by the wrong share, cut like a heal, or working for the thief |
-| **Магніт** (23): the target's new buff lands on the White Drake («Лють притягується до Білого Дрейка») and its own Щит stays; with 2 buffs already, the pulled one replaces the one closest to ending and the line names that one first: «🍀 Благословіння притягується до Білого Дрейка: @wd (⚒️ Перекування зникає)»; pulls happen in real fights | Buffs staying with the target, a pulled buff ignoring the 2-buff limit, or the dropped buff's name after «замінює» |
+| **Магніт** (23): the target's new buff lands on the White Drake («Лють притягується до Білого Дрейка») and its own Щит stays; with 2 buffs already, the pulled one replaces the one closest to ending and the line names that one first: «🍀 Благословіння притягується до Білого Дрейка: @wd (⚒️ Перекування зникає)»; pulls happen in real fights, where Магніт covers the target's next attack (its line names it) and a buff cast on it goes to the White Drake: none stays with the target | Buffs staying with the target, a pulled buff ignoring the 2-buff limit, the dropped buff's name after «замінює», or Магніт running out before that attack's cast |
 | **Удар ковадла** (23, the same fights): ×1.5 (×1.7 at level 20), and the bar is whole again after it | No re-forge, one multiplier for every level |
-| **The streamer's forms** (7, 23): «!дрейк білий» gives the streamer the White Drake (level 1, «Біла сталь»); `!дракон` and back: the Dragon at level 20 gains nothing, the White Drake comes back with its exact XP and title, the queue place stays, both messages name its level; one `form` event per switch in the play log; a viewer's `!дракон`, «!дрейк білий» and «!рерол білий» refused, the streamer's «!рерол червоний» answered with the two forms; refused mid-fight; `!титул` leaves «Біла сталь» (a free spin unspent) | Lost XP or level, a Dragon below level 20 or gaining XP, a lost queue place, viewers getting a form, a switch on the arena, a rolled title |
+| **The streamer's forms** (7, 23): «!дрейк білий» gives the streamer the White Drake (level 1, «Біла сталь»); `!дракон` and back: the Dragon at level 20 gains nothing, the White Drake comes back with its exact XP and title, the queue place stays, both messages name its level; «!рерол білий» as the Dragon changes nothing and answers «🐉 @нік, зараз ви Білий Дракон. Повернутися до Білого Дрейка: !дракон.»; one `form` event per switch in the play log; a viewer's `!дракон`, «!дрейк білий» and «!рерол білий» refused, the streamer's «!рерол червоний» answered with the two forms; refused mid-fight; `!титул` leaves «Біла сталь» (a free spin unspent) | Lost XP or level, a Dragon below level 20 or gaining XP, a lost queue place, viewers getting a form, a switch on the arena, a rolled title |
 | **Records, the Top, tournaments** (23): a ranked fight against the White Drake counts for both; the streamer is off the Top in both forms; the White Drake signs up, `!дракон` is refused while it's signed up and works after `!вийти`; the Dragon can't sign up; `!дракон` refused until the tournament ends (sign-up closed, being played, knocked out with the final to come, the podium), and works after | A fight that doesn't count, the streamer in the Top, a form switched mid-tournament |
 | **Migration** (23, each run twice: idempotent): the streamer's old Dragon save (1,000,000 XP) stays the Dragon at level 20 with a White Drake at level 1 behind it; the streamer's regular drake (Red, level 9) becomes the White Drake with the same XP; an old viewer `'white'` save loads as Green; someone no longer the streamer gets a viewer element with the same XP, never the streamer's titles | A level-20 White Drake, a lost XP, a viewer with a streamer form or title |
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 167 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, underdog XP, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, 116–132 the renamed titles, the wording for the attacker (Ice Mirror, Thorns) and the saved tournament's title refresh, and 133–135 the Top's last tie-break and the fights against the White Dragon:
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 168 specific ways and checks that `effects.js`, `ultimates.js` or `rules.js` fails on each one (all three run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, underdog XP, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, 116–132 the renamed titles, the wording for the attacker (Ice Mirror, Thorns) and the saved tournament's title refresh, and 133–135 the Top's last tie-break and the fights against the White Dragon:
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -308,8 +308,9 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 163 | !титул rolls a title for the White Drake (and spends a free spin) | `rules.js` 23 (1 check) | `23. !титул doesn't change the White Drake's «Біла сталь» (and a free spin stays unspent) — {"title":29,"spins":{"streamchannel":1},"reply":"🎲 @stream` |
 | 164 | «білий» in !дрейк and !рерол gives the White Dragon, as before | `rules.js` 23 (11 checks) | `7. the streamer's "!reroll white" gives the White Drake ("Level reset to 1!"); "!dragon" gives the White Dragon at level 20 — {"reroll":"🐉 @boss, you` |
 | 165 | A new White Drake gets a random title instead of «Біла сталь» | `rules.js` 23 (3 checks) | `23. «!дрейк білий» gives the streamer the White Drake (level 1, title «Біла сталь») — {"name":"streamchannel","color":"#8ab4f8","drakeObj":{"name":{"u` |
-| 166 | Магніт lasts the target's next 3 attacks again (it's 2) | `effects.js` (1 check) | `README is out of date for: magnet ("For the target's next 3 attacks, every buff it casts goes to the White Drake instead …")` |
+| 166 | Магніт lasts the target's next 2 attacks (it's 1, as its text says: «Наступна атака цілі») | `effects.js` (1 check) | `magnet: uk text has no {count}, so it says one, but count is 2: "Наступна атака цілі: кожен баф, який вона накладає, дістається Білому Дрейку…"` |
 | 167 | The pulled buff's line names the buff it replaces after «замінює» again (the name would need the accusative) | `rules.js` 23 (1 check) | `23. Магніт: … with 2 buffs already the pulled one replaces the one closest to ending: «🍀 Благословіння притягується до Білого Дрейка: @wd (замінює ⚒️ Перекування)»` |
+| 168 | Магніт runs down with the other attack effects, before the attack's casts again, so a buff cast on the attack it covers stays with the target | `effects.js` (1 check), `rules.js` 23 (2 checks) | `78 wrong count change(s), first: turn 10 (attacker @A): @A's magnet (attacks) went 1 → gone, expected 1` |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
@@ -398,9 +399,10 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: the White Drake's pair in the shared pool
 …
 ✓ caught: the White Drake rolls a title
-✓ caught: Магніт: 3 attacks
+✓ caught: Магніт: 2 attacks
 ✓ caught: Магніт: «замінює» + a name
-All 167 mutations caught.
+✓ caught: Магніт: gone before the cast
+All 168 mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -516,12 +518,12 @@ It checks the table with titles; the one without titles is printed, not checked:
 
 #### The White Drake's known counters
 
-Two matchups sit on the edge of 48–60% because of how the two kits meet, not because the White Drake is too strong or too weak overall. Their rates over 30,000 fights on 5 seeds are right at the bounds, so any single run lands on either side.
+Two matchups sit on the edge of 48–60% because of how the two kits meet, not because the White Drake is too strong or too weak overall. Their rates over the five runs below (100,000 fights a matchup in all) are right at the bounds, so any single run lands on either side.
 
 | Level | Matchup | Rate | Why |
 |---|---|---|---|
-| 20 | Gold | 48.2% | Gold's 1-HP hit (9% of its hits at level 20) slips past the bar and leaves the White Drake on 1 HP. The bar is the White Drake's main defence, and against that hit it doesn't count |
-| 20 | Green | 59.8% | Green's extra HP (+34% at level 20) makes the longest fights, and every Удар ковадла re-forges the bar to full |
+| 20 | Gold | 48.0% | Gold's 1-HP hit (9% of its hits at level 20) slips past the bar and leaves the White Drake on 1 HP. The bar is the White Drake's main defence, and against that hit it doesn't count |
+| 20 | Green | 59.9% | Green's extra HP (+34% at level 20) makes the longest fights, and every Удар ковадла re-forges the bar to full |
 
 #### Sized so it can't flake
 
@@ -531,11 +533,11 @@ A run's rate for a matchup misses its true value by about 50/√N points (one st
 |---|---|---|---|---|---|---|---|
 | 12345 | 54.1 / 54.1 / 54.2 / 52.9 | 47.8% | 59.7% | 58.3% | 49.8% | 58.1% | passed |
 | 23456 | 53.9 / 54.1 / 54.3 / 53.2 | 48.5% | 60.0% | 58.4% | 49.9% | 58.2% | passed |
-| 34567 | 53.9 / 54.1 / 54.4 / 52.8 | 47.3% | 59.5% | 58.1% | 50.5% | 57.0% | passed |
-| 45678 | 53.7 / 54.3 / 54.4 / 53.3 | 48.2% | 60.1% | 57.9% | 50.1% | 58.3% | passed |
+| 34567 | 53.9 / 54.1 / 54.4 / 52.8 | 47.3% | 59.4% | 58.1% | 50.5% | 57.0% | passed |
+| 45678 | 53.7 / 54.3 / 54.4 / 53.3 | 48.2% | 60.2% | 57.9% | 50.0% | 58.3% | passed |
 | 56789 | 53.7 / 54.1 / 54.6 / 53.0 | 48.2% | 60.0% | 58.2% | 50.2% | 57.8% | passed |
 
-Without the counters' slack, four of these five runs would have failed (seed 12345: level 20 vs gold 47.8%; seed 34567: level 20 vs gold 47.3%; seed 45678: level 20 vs green 60.1%; seed 56789: level 20 vs green 60.0%, just over 60 before rounding).
+Without the counters' slack, three of these five runs would have failed (seed 12345: level 20 vs gold 47.8%; seed 34567: level 20 vs gold 47.3%; seed 45678: level 20 vs green 60.2%).
 
 ### Per-effect report
 
@@ -791,7 +793,7 @@ npm run test:banned-words              # no banned Ukrainian word in any tracked
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
 npm run test:rules                     # the game rules: whole HP, chat commands, no rest, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 167 ways, check effects.js / ultimates.js / rules.js catch each
+npm run test:mutations                 # break the game 168 ways, check effects.js / ultimates.js / rules.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run test:white-drake-gate          # CI gate: the White Drake against each viewer element, levels 1/5/10/20, with and without titles (~5 min on 8 cores)

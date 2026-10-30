@@ -103,6 +103,8 @@ for (const id of EFFECT_IDS) {
     for (const l of ['uk', 'en']) {
         for (const k of Object.keys(e.nums)) if (!e.desc[l].includes(`{${k}}`) && !e.desc[l].includes(`{x:${k}}`)) bad.push(`${l} text never shows nums.${k}`);
         if (/\d/.test(e.desc[l].replace(/\{[^}]*\}/g, ''))) bad.push(`${l} text has a number typed in instead of a {placeholder}: "${e.desc[l]}"`);
+        // A text without {count} reads as one ("its next attack"), so the effect must last exactly one
+        if (e.lasts !== 'instant' && !e.desc[l].includes('{count}') && e.count !== 1) bad.push(`${l} text has no {count}, so it says one, but count is ${e.count}: "${e.desc[l]}"`);
         // Change every number in the table: the text must follow
         const before = G.describeEffect(id, l), saved = { ...e.nums }, savedCount = e.count;
         for (const k of Object.keys(e.nums)) e.nums[k] = e.nums[k] + 7;
@@ -518,7 +520,8 @@ for (const [pLabel, pCaster] of POWERS) {
 // Before every "[Хід N]" / "[Turn N]" line the state is compared with the state after the previous line (or the last
 // cast). Between the two, the only things allowed to change counts are: the attacker's turn starting ('turns' −1),
 // the attacker attacking ('attacks' −1), the defender being attacked ('hits' −1) — or, on a frozen turn, only the
-// attacker's 'turns' effects and Frost itself. An effect may only vanish when its count reached 0.
+// attacker's 'turns' effects and Frost itself. Магніт ('attacks') runs down once its owner's attack has made its casts,
+// after that attack's line, so it shows one line later. An effect may only vanish when its count reached 0.
 console.log(`\nReal fights (${FIGHTS} per language, all elements, ability titles, the White Dragon and the White Drake)`);
 const ID_RE = new RegExp(`\\b(${[...EFFECT_IDS, ...G.ULTIMATE_IDS].join('|')}|stoneskin|armorbreak|divinepower)\\b`);
 const types = G.VIEWER_DRAKE_TYPES.map(d => d.type);
@@ -539,6 +542,7 @@ G.wrapApplyEffect((r, a, targetBuffs) => {
 
 const stats = { turns: 0, checked: 0, frozen: 0, wrong: [], idLeaks: [], seen: new Set(), ultimates: new Set(), immuneHad: [], unitsSeen: { attacks: 0, hits: 0, turns: 0 } };
 let current = null;      // { A, B, immune: Set(names) }
+let lastAttacker = null; // who made the previous line's attack (null after a turn without one): its Магніт ran down since
 G.wrapAddLog(raw => {
     if (!current) return;
     const line = strip(raw);
@@ -562,7 +566,8 @@ G.wrapAddLog(raw => {
         const own = before.owner === attacker;
         if (ult === 'theft' && e.kind === 'buff') continue;
         const mayVanish = (ult === 'detonation' && !own && e.kind === 'debuff') || (ult === 'bloom' && own && e.kind === 'debuff');
-        const d = noAttack ? (own && (e.lasts === 'turns' || (frozen && before.id === 'frost')) ? 1 : 0)
+        const d = before.id === 'magnet' ? (before.owner === lastAttacker ? 1 : 0)
+                : noAttack ? (own && (e.lasts === 'turns' || (frozen && before.id === 'frost')) ? 1 : 0)
                            : (own ? (e.lasts === 'turns' || e.lasts === 'attacks' ? 1 : 0) : (e.lasts === 'hits' ? 1 : 0));
         const want = before.left - d;
         const after = now.get(inst);
@@ -574,6 +579,7 @@ G.wrapAddLog(raw => {
     }
     for (const name of current.immune) if (G.battleFx[name] && G.battleFx[name].debuff.length) stats.immuneHad.push(`@${name} has ${G.battleFx[name].debuff.map(x => x.id)}`);
     baseline = now;
+    lastAttacker = noAttack ? null : attacker;
 });
 
 for (const lang of ['uk', 'en']) {
@@ -589,7 +595,7 @@ for (const lang of ['uk', 'en']) {
         const A = mk('A'), B = mk('B');
         const db = G.getDragonDB(); db.A = A; db.B = B; G.saveDragonDB(db);
         current = { immune: new Set([A, B].filter(f => f.title && ['debuff_immunity', 'streamer_god'].includes(f.title.bonus.mechanic)).map(f => f.name)) };
-        baseline = null;
+        baseline = null; lastAttacker = null;
         G.setRunning(true);
         G.runBattle('A', '#fff', 'B', '#fff', false);
         // runBattle sets up the fight synchronously; take the baseline before the first turn runs

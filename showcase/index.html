@@ -2268,9 +2268,7 @@ const DRAKE_SPRITES = {
             '...............dd............dddd...............'
         ]
     },
-    // White Drake (the streamer's regular form, made from the White Dragon's scales): the drakes' own body in polished white
-    // steel. A bright green eye, a small white-steel crown with a green gem, plate lines with green seams, steel wing ribs,
-    // and a small green flame on the tail tip in the White Dragon's green
+    // White Drake (the streamer's regular form, made from the White Dragon's scales): the drakes' own body in polished white steel. A bright green eye, a small white-steel crown with a green gem, plate lines with green seams, steel wing ribs, and a small green flame on the tail tip in the White Dragon's green
     steel: {
         pal: ["#ffffff", "#0e1328", "#dfe7f3", "#3a466e", "#1e2644", "#9dffbf", "#9aa9c8", "#f1f5fb", "#6a78a2", "#232c48", "#090c1c", "#27b865", "#5a6890", "#93a3c4", "#283050", "#cdd8ea", "#56648c", "#b2bfd6", "#4c5a86", "#36416a", "#3fd27a", "#adbad1", "#151b30", "#1c7a4a", "#7a88a6", "#58e888", "#0a3e26", "#b4fbc8", "#f4fff7", "#46536f", "#dbe3ef", "#7b8aae", "#0a0e20", "#56638a", "#1a2038", "#343f60", "#f4f8ff", "#8e9cba"],
         rows: [
@@ -3165,9 +3163,9 @@ function drakeSpriteURL(type) {
                         desc: { uk: 'Кожна з наступних {count} власних атак, що завдає шкоди, відновлює луску на {bar}% макс. HP ({barTop}% на найвищому рівні), до її початкового розміру; це не лікування',
                                 en: 'Each of the next {count} own attacks that deals damage rebuilds the scales by {bar}% of max HP ({barTop}% at the top level), up to their starting size; it isn\'t healing' } },
             magnet:   { element: 'steel',  kind: 'debuff', icon: '🔗', color: '#9fe0c4', name: { uk: 'Магніт', en: 'Magnet' },
-                        lasts: 'attacks', count: 2, nums: {},
-                        desc: { uk: 'Наступні {count} атаки цілі: кожен баф, який вона накладає, дістається Білому Дрейку (у межах звичного ліміту бафів); бафи, які вона вже має, лишаються в неї',
-                                en: 'For the target\'s next {count} attacks, every buff it casts goes to the White Drake instead (within the usual buff limit); buffs it already has stay put' } },
+                        lasts: 'attacks', count: 1, nums: {},
+                        desc: { uk: 'Наступна атака цілі: кожен баф, який вона накладає, дістається Білому Дрейку (у межах звичного ліміту бафів); бафи, які вона вже має, лишаються в неї',
+                                en: 'For the target\'s next attack, every buff it casts goes to the White Drake instead (within the usual buff limit); buffs it already has stay put' } },
         };
         const EFFECT_IDS = Object.keys(EFFECTS);
         const BUFF_IDS = EFFECT_IDS.filter(id => EFFECTS[id].kind === 'buff');
@@ -3231,11 +3229,11 @@ function drakeSpriteURL(type) {
         const newFxState = () => ({ buff: [], debuff: [], meter: 0, halfDone: false, mirror: 0, scales: null });
         const hasFx = (st, id) => !!(st && st[EFFECTS[id].kind].find(x => x.id === id));
         const getFx = (st, id) => st && st[EFFECTS[id].kind].find(x => x.id === id);
-        // Counts down every effect of this fighter that lasts `unit`; drops the ones that reach 0
-        function countDownEffects(st, unit) {
+        // Counts down every effect of this fighter that lasts `unit` (only the ones `which` picks); drops the ones that reach 0
+        function countDownEffects(st, unit, which = () => true) {
             if (!st) return;
             ['buff', 'debuff'].forEach(kind => {
-                st[kind].forEach(x => { if (EFFECTS[x.id].lasts === unit) x.left--; });
+                st[kind].forEach(x => { if (EFFECTS[x.id].lasts === unit && which(x.id)) x.left--; });
                 st[kind] = st[kind].filter(x => x.left > 0);
             });
         }
@@ -3596,8 +3594,8 @@ function drakeSpriteURL(type) {
                 if (chosen && isStreamer(sender) && !STREAMER_TYPES.includes(chosen.type)) { streamerForms(sender, senderColor); return; }
                 if (chosen && isStreamer(sender) && db[sender] && db[sender].drakeObj.type === DRAGON_TYPE) {
                     addInfo(currentLang === 'uk'
-                        ? `🐉 <span style="color: ${senderColor};">@${sender}</span>, зараз ви Білий Дракон: до Білого Дрейка повертає <b>!дракон</b>.`
-                        : `🐉 <span style="color: ${senderColor};">@${sender}</span>, you're the White Dragon now: <b>!dragon</b> brings back the White Drake.`, 'warn');
+                        ? `🐉 <span style="color: ${senderColor};">@${sender}</span>, зараз ви Білий Дракон. Повернутися до Білого Дрейка: <b>!дракон</b>.`
+                        : `🐉 <span style="color: ${senderColor};">@${sender}</span>, you're the White Dragon now. To go back to the White Drake: <b>!dragon</b>.`, 'warn');
                     return;
                 }
                 if (chosen) {
@@ -5058,7 +5056,10 @@ function drakeSpriteURL(type) {
                         .map(x => ` [${fxName(x.id)}]`).join('');
                     fvUsed([...atkFx.buff, ...atkFx.debuff].filter(x => EFFECTS[x.id].lasts === 'attacks')
                         .concat([...defFx.buff, ...defFx.debuff].filter(x => EFFECTS[x.id].lasts === 'hits')).map(x => x.id));
-                    countDownEffects(atkFx, 'attacks');
+                    // Магніт works on this attack's casts, which come after the hit: it runs down once they are done (below),
+                    // so a buff cast on the attack it covers still goes to the White Drake
+                    const onCasts = id => id === 'magnet';
+                    countDownEffects(atkFx, 'attacks', id => !onCasts(id));
                     countDownEffects(defFx, 'hits');
 
                     // Ice Mirror on the defender: it absorbs this hit up to cap% of the Blue drake's max HP (the rest goes
@@ -5232,6 +5233,7 @@ function drakeSpriteURL(type) {
                         if (Math.random() < 0.5) applyEffect(attacker, defender, id, attackerProg.level, fx, { pool: POOL_IDS });
                         else applyEffect(defender, attacker, id, defenderProg.level, fx, { pool: POOL_IDS });
                     }
+                    countDownEffects(atkFx, 'attacks', onCasts);   // Магніт: this attack's casts are done
                     renderCards();
                     fvTurnEnd();
 
