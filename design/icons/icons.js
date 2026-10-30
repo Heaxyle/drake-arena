@@ -1092,18 +1092,18 @@
             '...orsso..',
             '....roo...',
         ],
-        // Перекування (Reforging): a smith’s hammer, green sparks off the blow
+        // Перекування (Reforging): a sledgehammer tilted 45°, head up, green sparks off its striking face
         reforge: [
-            '.oooooooo.',
-            'ohwhhmmmdo',
-            'ohhmmmmddo',
-            '.oooooooo.',
-            'p..osso..p',
-            '.p.osso.p.',
-            '...osso...',
-            '...osso...',
-            '...osso...',
-            '....oo....',
+            '...odho...',
+            '..odmmho..',
+            '..odmmmho.',
+            '...odmmmho',
+            '...oddmmho',
+            '..odsodhop',
+            '.odso.oo..',
+            'odso....p.',
+            'dso...p..v',
+            'so........',
         ],
         // Магніт (Magnet): a horseshoe magnet, its poles green
         magnet: [
@@ -1146,8 +1146,113 @@
             '.ooossooo.',
             '....pp....',
         ],
-        // The White Drake: its head on a rune tile, open-jawed, the green mane down its neck
+        // The White Drake (symbol set): its neck, the green mane along it
         emSteel: [
+            '.mmmmmmmm.',
+            'mddddddpdm',
+            'mddddpdppm',
+            'mddpdppwdm',
+            'mdpppwwddm',
+            'mddpwwdddm',
+            'mdpwwddddm',
+            'mdwwdddddm',
+            'mddddddddm',
+            '.mmmmmmmm.',
+        ],
+        // ----- Emblems, the other set: the drakes’ heads, each from its sprite, facing left (10×10) -----
+        // Head emblems (the other set): Red, a cream horn and orange neck spikes
+        hdRed: [
+            '.mmmmmmmm.',
+            'mssssssqpm',
+            'msssshhpsm',
+            'msshhhkhqm',
+            'mswhhhhhsm',
+            'mshhhhnnqm',
+            'mssnnnnnsm',
+            'mssssnnnqm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Head emblem, Blue: a cyan fin frill down the back of the head
+        hdBlue: [
+            '.mmmmmmmm.',
+            'msssssspsm',
+            'msssshhqpm',
+            'msshhhkhpm',
+            'mswhhhhhqm',
+            'mshhhhnnpm',
+            'mssnnnnnqm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Head emblem, Black: a near-black head on a grey tile, a pale streak swept back, a pink eye
+        hdBlack: [
+            '.mmmmmmmm.',
+            'mssssspppm',
+            'msssshhppm',
+            'msshhhkhsm',
+            'mswhhhhhsm',
+            'mshhhhnnsm',
+            'mssnnnnnsm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Head emblem, Gold: a cream horn curling back
+        hdGold: [
+            '.mmmmmmmm.',
+            'msssssppqm',
+            'msssshhspm',
+            'msshhhkhpm',
+            'mswhhhhqsm',
+            'mshhhhnnsm',
+            'mssnnnnnsm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Head emblem, Purple: a flat lavender crest swept back, a cyan eye
+        hdPurple: [
+            '.mmmmmmmm.',
+            'mssssqppsm',
+            'msssshhppm',
+            'msshhhkhqm',
+            'mswhhhhhsm',
+            'mshhhhnnsm',
+            'mssnnnnnsm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Head emblem, Green: a crest of leaves
+        hdGreen: [
+            '.mmmmmmmm.',
+            'msssssqpsm',
+            'msssshqppm',
+            'msshhhkhqm',
+            'mswhhhhppm',
+            'mshhhhnqsm',
+            'mssnnnnnsm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Head emblem, the White Dragon: a long white head, the green mane on top and down its neck
+        hdDragon: [
+            '.mmmmmmmm.',
+            'mssspppppm',
+            'mshhhhhppm',
+            'mwhhhkhhsm',
+            'mhhhhhhnpm',
+            'msnnnnnnpm',
+            'mssssnnnsm',
+            'mssssnnnpm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Head emblem, the White Drake: open-jawed, the green mane down its neck
+        hdSteel: [
             '.mmmmmmmm.',
             'mssssspssm',
             'msssswwppm',
@@ -1274,6 +1379,15 @@
         anvil:       { kind: 'ultimate', element: 'steel', name: { uk: 'Удар ковадла', en: 'Anvil Strike' },         emoji: '🔨', was: '#e4eef2', ...STEEL },
         whiteSteel:  { kind: 'note',     element: 'steel', name: { uk: 'Біла сталь', en: 'White Steel' },           emoji: '👑', ...STEEL },
         emSteel:     { kind: 'emblem',   element: 'steel', name: { uk: 'Білий Дрейк', en: 'White Drake' },          emoji: '🤍', ...STEEL },
+        // ----- Emblems, the other set: the drakes' heads (m the tile, s its fill, h / n the head, k the eye, p / q the feature) -----
+        hdRed:       { kind: 'emblem', element: 'red', name: { uk: 'Червоний Дрейк', en: 'Red Drake' }, emoji: '🟥', pal: { p: '#f3e2bd', q: '#ffb030', s: '#2a0a0d', h: '#ff7a82', n: '#c92f3a', k: '#ffd23f', w: '#ffd0d3' } },
+        hdBlue:      { kind: 'emblem', element: 'blue', name: { uk: 'Синій Дрейк', en: 'Blue Drake' }, emoji: '🟦', pal: { p: '#8ff0ff', q: '#2fb6d8', s: '#081a33', h: '#7fb8ff', n: '#2c6fd0', k: '#ffd23f', w: '#d6ecff' } },
+        hdBlack:     { kind: 'emblem', element: 'black', name: { uk: 'Чорний Дрейк', en: 'Black Drake' }, emoji: '⬛', pal: { p: '#cbbcff', s: '#55566a', h: '#2a2346', n: '#0e0c16', k: '#ff7ad9', w: '#6a5aa8' } },
+        hdGold:      { kind: 'emblem', element: 'gold', name: { uk: 'Золотий Дрейк', en: 'Gold Drake' }, emoji: '🟨', pal: { p: '#f6ead0', q: '#c9b48a', s: '#2d2006', h: '#ffd970', n: '#c08a1a', k: '#b36bff', w: '#fff4c8' } },
+        hdPurple:    { kind: 'emblem', element: 'purple', name: { uk: 'Фіолетовий Дрейк', en: 'Purple Drake' }, emoji: '🟪', pal: { p: '#eadcff', q: '#a98be0', s: '#1d0c33', h: '#c79bff', n: '#7d45c9', k: '#5ee0f0', w: '#efe2ff' } },
+        hdGreen:     { kind: 'emblem', element: 'green', name: { uk: 'Зелений Дрейк', en: 'Green Drake' }, emoji: '🟩', pal: { p: '#c4ff8f', q: '#2f9a3e', s: '#0a2412', h: '#8ff0a8', n: '#2f9c55', k: '#ffd23f', w: '#dcffe4' } },
+        hdDragon:    { kind: 'emblem', color: '#bfe9ff', name: { uk: 'Білий Дракон', en: 'White Dragon' }, emoji: '🐉', pal: { p: '#58e888', s: '#16264a', h: '#f2f8ff', n: '#8fb2dc', k: '#1a2044', w: '#ffffff' } },
+        hdSteel:     { kind: 'emblem',   element: 'steel', name: { uk: 'Білий Дрейк', en: 'White Drake' },          emoji: '🤍', ...STEEL },
     };
     Object.values(ICONS).forEach(ic => { if (ic.element) ic.color = ELEMENT_COLORS[ic.element]; });
     const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison'];
@@ -1281,8 +1395,11 @@
     const NOTE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'note' && ICONS[id].element !== 'steel');
     const ATTACK_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'attack');
     const BATCH4_ICON_IDS = ['attacking', 'roulette'];
-    const STEEL_ICON_IDS = ['scales', 'bounce', 'cracked', 'reforge', 'magnet', 'anvil', 'whiteSteel', 'emSteel'];
-    const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'emblem', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind) && !BATCH4_ICON_IDS.includes(id) && ICONS[id].element !== 'steel');
+    const STEEL_ICON_IDS = ['scales', 'bounce', 'cracked', 'reforge', 'magnet', 'anvil', 'whiteSteel', 'hdSteel'];
+    // The emblems, two sets to pick from: the element symbols (emSteel is the White Drake's for this set) and the heads
+    const SYMBOL_EMBLEM_IDS = ['emRed', 'emBlue', 'emBlack', 'emGold', 'emPurple', 'emGreen', 'emDragon', 'emSteel'];
+    const HEAD_EMBLEM_IDS = ['hdRed', 'hdBlue', 'hdBlack', 'hdGold', 'hdPurple', 'hdGreen', 'hdDragon', 'hdSteel'];
+    const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'emblem', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind) && !BATCH4_ICON_IDS.includes(id) && ICONS[id].element !== 'steel' && !id.startsWith('hd'));
 
     // ----- Palette from one colour -----
     const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
@@ -1502,5 +1619,5 @@
     // The CSS for a chip of this element and kind (the element's text colour goes with it)
     const chipStyle = (element, kind) => `border-style: solid; border-width: 1px ${CHIP.cap}px; border-image: url(${chipURL(element, kind)}) 1 ${CHIP.cap} fill / 1px ${CHIP.cap}px stretch; color: ${mix(ELEMENT_COLORS[element], '#ffffff', 0.35)};`;
 
-    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
+    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, SYMBOL_EMBLEM_IDS, HEAD_EMBLEM_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -278,11 +278,11 @@ sprite's navy outline and slate shade, never Black's neutral grey). Review: revi
 | Луска Дракона | the bare number; 🤍 in the log | a white scale layered over a darker one (bare, 10×10) | ×1 before the scale bar's number on the card (10 px in its 12 px row), ×2 in the log («луска -14», the anvil's «+38») |
 | Bounced off the scales | 🤍 | an arrow glancing off a steel plate, a green spark where it hits | the log, after the debuff's own chip: «відскочило від луски» |
 | The scales cracked | 💔 | the scale split down a red crack (#ff8a8a, the bar's own crack colour) | the log's «Луска розкололася!»; the card's number while the bar is broken |
-| Перекування | ⚒️ | a smith's hammer, green sparks off the blow | its buff chip (the card, the log, «+9») |
+| Перекування | ⚒️ | a sledgehammer tilted 45°, head up, green sparks off its striking face (upright, it read as a «T») | its buff chip (the card, the log, «+9») |
 | Магніт | 🔗 | a horseshoe magnet with green poles | its debuff chip; it lasts the target's next attack («ще 1 атака») |
 | Удар ковадла | 🔨 | an anvil, sparks flying off its face (12×12) | line 1 of its log card, the pending cell |
 | «Біла сталь» (title 998) | 👑 | an upright sword in white steel, a green gem in the guard | its badge in the divine frame; the `steel` banner, «Сталь не гнеться» |
-| The White Drake | 🤍 | its head on a white-steel tile, open-jawed, the Dragon's green mane down its neck | in names, the intro banner, replies that name it, the streamer card |
+| The White Drake | 🤍 | its head on a white-steel tile, open-jawed, the Dragon's green mane down its neck (`hdSteel`); in the symbol set, its neck with the mane along it (`emSteel`) | in names, the intro banner, replies that name it, the streamer card |
 
 - **The scale is the bar's icon, not the emblem.** A single scale read as Jackpot's gem, the Shield or a drop at 10 px; the
   layered pair doesn't. The emblem shows the drake itself, with the mane its sprite took from the Dragon.
@@ -297,6 +297,12 @@ sprite's navy outline and slate shade, never Black's neutral grey). Review: revi
 - The review's streamer card uses the game's two sprites, copied by `node design/icons/ref-sprites.js` into `ref/`.
 
 ## Still open
+
+0. **The emblem set** (review.html, section 16): the element symbols (`SYMBOL_EMBLEM_IDS`, today's batch-3 tiles plus a White
+   Drake symbol to match) or the drakes' heads (`HEAD_EMBLEM_IDS`: each drawn from its sprite, one pose facing left, on its
+   colour tile). One set for all eight; the other is deleted when the choice is made. Compared at ×1 and ×2 in the queue
+   (where the emblem replaces the 14 px colour square), the Top (before the level; the sprite stays), the card's name line,
+   a log banner and the title plate.
 
 1. Under deuteranopia and protanopia, Red and Gold come out as close yellows (review.html, "Without colour"). The chips and
    glyphs keep every pair apart, so nothing needs a colour change for it.

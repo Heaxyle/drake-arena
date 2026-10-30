@@ -2,7 +2,7 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<title>Drake Arena icons · batches 1–4, the White Drake</title>
+<title>Drake Arena icons · batches 1–4, the White Drake, emblems</title>
 <!-- Design review only: not part of the game. The screenshot script (shoot.js) swaps this link for the game's embedded fonts
      and blocks the network, so the screenshots match the stream. -->
 <link id="web-fonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rubik:wght@400;600;700;800&display=swap">
@@ -225,6 +225,16 @@
     .msc .wl i { color: var(--dim); font-weight: 400; font-style: normal; }
     .msc .gray { filter: grayscale(1) brightness(0.5); }
     .mscs { display: grid; grid-template-columns: 428px; gap: 10px; }
+    /* Section 16: the two emblem sets in the queue, the Top, the card's name line, a banner and the plate */
+    .glance.g16 { grid-template-columns: 150px repeat(8, 56px); }
+    .glance .em-n { font-size: 10px; color: var(--muted); text-align: center; white-space: nowrap; }
+    .mq-strip { display: flex; flex-wrap: wrap; gap: 6px; }
+    .mq { display: flex; align-items: center; gap: 8px; padding: 5px 12px; background: rgba(255, 255, 255, 0.05); font-size: 15px; font-weight: 600; white-space: nowrap; }
+    .mq .qn { font-size: 12px; color: var(--dim); font-weight: 400; }
+    .mlb2 { display: grid; grid-template-columns: 22px 48px minmax(0, 1fr) auto; align-items: center; gap: 10px; height: 44px; padding: 0 8px; }
+    .mlb2 .lb-sp { width: 48px; height: 36px; image-rendering: pixelated; }
+    .mlb2 .lbsub { display: flex; align-items: center; gap: 5px; }
+    .mcl { display: flex; flex-direction: column; gap: 8px; background: var(--card); padding: 10px 16px; width: 404px; box-sizing: border-box; }
     .filters .f-h { font-size: 13px; color: var(--muted); }
     .filters .cell { display: flex; justify-content: center; }
     .f-gray img, .f-gray .emo { filter: grayscale(1); }
@@ -242,7 +252,7 @@
     <div>
         <h1>ICONS · BATCHES 1–4 · THE WHITE DRAKE</h1>
         <div class="sub">Batch 1 (sections 1–5): the 12 effects and the 6 class ultimates. Batch 2 (sections 6–8): the log notes, the title mechanics and the
-            attack types. Batch 3 (sections 9–10): Jackpot's reels, the drake emblems, the title bonuses and frames, the medals and the UI. The White Drake (sections 14–15): its scale bar, Перекування, Магніт, Удар ковадла, «Біла сталь», its emblem, and the streamer card. Batch 4 (sections 11–13): attacking, the title roulette, the meter's «ready», the title-roll card, the arena plate and the Twitch reward icons. Pixel art like the drakes: one palette and pixel map per icon, drawn once, shown only at whole-number scales. No frames: an effect's or a
+            attack types. Batch 3 (sections 9–10): Jackpot's reels, the drake emblems, the title bonuses and frames, the medals and the UI. The White Drake (sections 14–15): its scale bar, Перекування, Магніт, Удар ковадла, «Біла сталь», its emblem, and the streamer card. Emblems (section 16): the element symbols or the drakes' heads, to pick. Batch 4 (sections 11–13): attacking, the title roulette, the meter's «ready», the title-roll card, the arena plate and the Twitch reward icons. Pixel art like the drakes: one palette and pixel map per icon, drawn once, shown only at whole-number scales. No frames: an effect's or a
             note's glyph has the whole 10×10, an ultimate its own 12×12 silhouette. Buff or debuff is the chip's shape (rounded or angled ends), colour is the
             element. A title badge is its mechanic's note glyph in a 12×12 rarity frame. Each icon is shown next to the emoji it replaces, at the size it has in the game.</div>
     </div>
@@ -370,11 +380,11 @@
             of its mane (#58e888) as the accent. <b>Луска Дракона</b>: a white scale layered over a darker one (a single scale read as Jackpot's gem, the Shield or
             a drop), bare, at ×1 before the bar's number on the card and ×2 in the log. <b>Bounced</b>: an arrow glancing off a steel plate, a green spark where it
             hits, after the debuff's own chip. <b>Cracked</b>: the same scale split down a red crack (#ff8a8a, the bar's own crack colour). <b>Перекування</b>: a
-            smith's hammer, green sparks off the blow, in a buff chip. <b>Магніт</b>: a horseshoe magnet with green poles, in a debuff chip; it lasts the target's
+            sledgehammer tilted 45°, head up, green sparks off its striking face, in a buff chip. <b>Магніт</b>: a horseshoe magnet with green poles, in a debuff chip; it lasts the target's
             next attack («ще 1 атака»). <b>Удар ковадла</b>: an anvil with sparks off its face, 12×12, a silhouette no other ultimate has. <b>«Біла сталь»</b>: an
             upright sword in white steel with a green gem in the guard (a single sword was kept free for it), in the divine frame like title 999, so the White
             Drake has no crown: 👑 stays the Sovereign's. <b>The emblem</b>: the White Drake's head on a white-steel tile, open-jawed, the Dragon's green mane down
-            its neck (the sprite's young form), in place of 🤍; the scale is its bar's icon, not its emblem. Below the set: each new icon beside the ones it could
+            its neck (the sprite's young form), in place of 🤍; the scale is its bar's icon, not its emblem (the emblem set is still to pick: section 16). Below the set: each new icon beside the ones it could
             be taken for, in colour and greyscale.</div>
     </section>
 
@@ -392,6 +402,27 @@
             (settled): the title line carries the form's title badge (Біла сталь or Владика Етеру, ×1), the line under the name the emblem of the form the
             streamer is in (×1, by its name), so the card changes with !дракон; with no drake yet or no streamer set, the title line shows the White Dragon's
             emblem greyed, like the sprite beside it. 👑 leaves the card.</div>
+    </section>
+
+    <section>
+        <h2>16 · EMBLEMS: THE SYMBOLS OR THE HEADS</h2>
+        <div class="glance g16" id="emsets"></div>
+        <div class="pair" style="margin-top:16px">
+            <div><div class="col-h">SYMBOLS · ×1</div><div class="inplace" id="em-sym1"></div></div>
+            <div><div class="col-h">HEADS · ×1</div><div class="inplace" id="em-head1"></div></div>
+        </div>
+        <div class="pair" style="margin-top:16px">
+            <div><div class="col-h">SYMBOLS · ×2</div><div class="inplace" id="em-sym2"></div></div>
+            <div><div class="col-h">HEADS · ×2</div><div class="inplace" id="em-head2"></div></div>
+        </div>
+        <div class="note">Pick one set for all eight drakes. <b>Symbols</b>: today's element symbols on their colour tiles (fire, waves, the moon, a coin, a
+            crystal, a leaf, the Dragon's wing), with a symbol for the White Drake to match (its neck with the green mane along it). <b>Heads</b>: each drake's
+            head from its own sprite, all in one pose (facing left like the sprites, the snout a pixel off the tile's edge), on its colour tile: Red's cream horn
+            and orange neck spikes, Blue's fin frill, Black's near-black head on a grey tile with the pale streak and pink eye, Gold's curled horn, Purple's
+            swept crest, Green's leaf crest, the Dragon's long white head with the green mane, the White Drake's open-jawed head as drawn last round. The
+            heads say which drake at ×2; at ×1 (10 px) both sets come down to the tile's colour and a mark, and the symbols' single mark is the plainer of the
+            two there. Shown at ×1 and ×2 in the queue (instead of today's 14 px colour square), the Top (the sprite already names the drake; the emblem would sit
+            before the level), the card's name line, a log banner and the arena's title plate (the six viewer drakes).</div>
     </section>
 </div>
 
@@ -705,10 +736,10 @@
     }
 
     // 14 · The White Drake's kit at a glance, the set, and beside its look-alikes
-    EFFECT_INFO.reforge = { kind: 'buff', left: 'ще 2 атаки', glyph: "smith's hammer", tick: 9 };
+    EFFECT_INFO.reforge = { kind: 'buff', left: 'ще 2 атаки', glyph: 'sledgehammer at 45°', tick: 9 };
     EFFECT_INFO.magnet = { kind: 'debuff', left: 'ще 1 атака', glyph: 'horseshoe magnet' };
-    const STEEL_GLYPH = { scales: 'a scale over a scale', bounce: 'an arrow glancing off', cracked: 'the scale, cracked', reforge: "smith's hammer", magnet: 'horseshoe magnet',
-                          anvil: 'anvil', whiteSteel: 'upright sword', emSteel: 'head, green mane' };
+    const STEEL_GLYPH = { scales: 'a scale over a scale', bounce: 'an arrow glancing off', cracked: 'the scale, cracked', reforge: 'sledgehammer at 45°', magnet: 'horseshoe magnet',
+                          anvil: 'anvil', whiteSteel: 'upright sword', hdSteel: 'head, green mane' };
     {
         const ids = D.STEEL_ICON_IDS;
         const row = (label, cls, emoji) => `<div class="f-h">${label}</div>` + ids.map(id => `<div class="cell ${cls}">${emoji ? `<span class="emo" style="font-size:16px;width:auto">${D.ICONS[id].emoji}</span>` : img(id, 2)}</div>`).join('');
@@ -735,7 +766,7 @@
             ['The White Drake\'s chips', [[chipImg('reforge'), 'Перекування'], [chipImg('magnet'), 'Магніт']], [[chipImg('shadow'), 'Тінь'], [chipImg('weakness'), 'Слабкість'], [chipImg('shield'), 'Щит'], [chipImg('dispel'), 'Розвіювання']]],
             ['The hammer, the anvil', [[img('reforge', 2), 'hammer'], [img('anvil', 2), 'anvil']], [[img('execute', 2), 'axe'], [img('theft', 2), 'bat'], [img('mirror', 2), 'mirror'], [img('detonation', 2), 'blast']]],
             ['The sword, its badge', [[img('whiteSteel', 2), 'sword'], [D.titleImg('whiteSteel', 'divine', 2), '998']], [[img('attacking', 2), 'attacking'], [img('physical', 2), 'physical'], [img('pierce', 2), 'pierce'], [D.titleImg('sovereign', 'divine', 2), '999']]],
-            ['The emblem', [[img('emSteel', 2), 'White Drake']], [[img('emDragon', 2), 'Dragon'], [img('emBlack', 2), 'Black'], [img('emBlue', 2), 'Blue'], [img('emGreen', 2), 'Green']]],
+            ['The emblem', [[img('hdSteel', 2), 'White Drake']], [[img('emDragon', 2), 'Dragon'], [img('emBlack', 2), 'Black'], [img('emBlue', 2), 'Blue'], [img('emGreen', 2), 'Green']]],
         ];
         $('steelvs').innerHTML = G.map(([label, mine, others]) => `<div class="f-h">${label}</div><div style="display:flex;gap:28px">${set(false, mine, others)}${set(true, mine, others)}</div>`).join('');
     }
@@ -779,7 +810,7 @@
              `<div class="lc-cell pending el-steel">${px ? `<img class="px-icon" src="${D.iconURL('anvil')}" width="24" height="24" alt="">` : '🔨'}<span><b style="color:${ST}">@kuznya_tv</b>&nbsp;· Удар ковадла…</span></div>`);
         parts.push(`<div class="ip-h">BATTLE LOG</div><div class="log-panel" style="width:100%">${rows.join('')}</div>`);
         // Banners and the result card
-        parts.push(`<div class="ip-h">LOG BANNERS, THE RESULT CARD</div><div class="mbanner">${I('ranked')} Рейтинговий бій · ${I('emSteel', 2)} ${who('kuznya_tv', ST)} проти ${who('nightowl_ua', BLUE)} ${I('emBlue', 2, '🟦')}</div>`);
+        parts.push(`<div class="ip-h">LOG BANNERS, THE RESULT CARD</div><div class="mbanner">${I('ranked')} Рейтинговий бій · ${I('hdSteel', 2)} ${who('kuznya_tv', ST)} проти ${who('nightowl_ua', BLUE)} ${I('emBlue', 2, '🟦')}</div>`);
         parts.push(`<div class="mbanner" style="color:${ST};font-weight:700">${I('whiteSteel', 2)} Біла сталь виходить на бій!</div>`);
         parts.push(`<div class="mresult"><div class="mr-t">${I('victory')} НОКАУТ · ${who('kuznya_tv', ST)} перемагає за 12 ходів</div><div class="mr-r">${I('whiteSteel')} Сталь не гнеться</div></div>`);
         parts.push(`<div class="mresult"><div class="mr-t">${I('victory')} НОКАУТ · ${who('nightowl_ua', BLUE)} перемагає за 15 ходів</div><div class="mr-r">${I('emDragon', 2, '🐉')} Дракон це запамʼятав…</div></div>`);
@@ -790,15 +821,15 @@
         const em = (id, emoji) => px ? img(id, 1) + ' ' : '';
         const lead = e => px ? '' : e + ' ';
         parts.push(`<div class="ip-h">INFO CARDS (×1)</div><div class="icards">
-            <div class="icard"><div style="color:var(--text2)">${lead('🤍')}${who('arcane_kit', '#b197fc')}, стрімер грає ${em('emSteel')}Білим Дрейком (<b>!дрейк білий</b>) або ${em('emDragon')}Білим Драконом (<b>!дракон</b>).</div></div>
-            <div class="icard"><div style="color:var(--text2)">${lead('🤍')}${who('kuznya_tv', ST)} знову ${em('emSteel')}Білий Дрейк: рівень 14, нічого не втрачено.</div></div>
-            <div class="icard"><div style="color:var(--text2)">${lead('🛑')}${who('kuznya_tv', ST)}, у ${em('emSteel')}Білого Дрейка власний титул — ${px ? D.titleImg('whiteSteel', 'divine', 1) : '👑'} Біла сталь; рулетка титулів його не змінює.</div></div></div>`);
+            <div class="icard"><div style="color:var(--text2)">${lead('🤍')}${who('arcane_kit', '#b197fc')}, стрімер грає ${em('hdSteel')}Білим Дрейком (<b>!дрейк білий</b>) або ${em('emDragon')}Білим Драконом (<b>!дракон</b>).</div></div>
+            <div class="icard"><div style="color:var(--text2)">${lead('🤍')}${who('kuznya_tv', ST)} знову ${em('hdSteel')}Білий Дрейк: рівень 14, нічого не втрачено.</div></div>
+            <div class="icard"><div style="color:var(--text2)">${lead('🛑')}${who('kuznya_tv', ST)}, у ${em('hdSteel')}Білого Дрейка власний титул — ${px ? D.titleImg('whiteSteel', 'divine', 1) : '👑'} Біла сталь; рулетка титулів його не змінює.</div></div></div>`);
         // The streamer card: the form's title badge, the form's emblem by its name
         const sprite = (f, gray) => `<img class="sc-sprite${f === 'drake' ? ' drake' : ''}${gray ? ' gray' : ''}" src="ref/white-${f}.png" alt="">`;
         const sc = (f, title, name, sub, wl, gray) => `<div class="msc frame-sm">${sprite(f, gray)}<div class="sc-id"><span class="sc-title">${title}</span>${name ? `<span class="sc-name" style="color:${ST}">@kuznya_tv</span>` : ''}<span class="sc-sub">${sub}</span></div>${wl ? '<span class="wl">31<i> – </i>12</span>' : ''}</div>`;
         const grayEm = px ? `<span class="gray" style="display:inline-flex">${img('emDragon', 1)}</span>` : '👑';
         parts.push(`<div class="ip-h">THE STREAMER CARD: THE WHITE DRAKE, THE WHITE DRAGON, NO DRAKE YET, NO STREAMER SET</div><div class="mscs">
-            ${sc('drake', px ? `${D.titleImg('whiteSteel', 'divine', 1)} Біла сталь` : '👑 Біла сталь', true, `${em('emSteel')}Білий Дрейк · Рівень 14`, true)}
+            ${sc('drake', px ? `${D.titleImg('whiteSteel', 'divine', 1)} Біла сталь` : '👑 Біла сталь', true, `${em('hdSteel')}Білий Дрейк · Рівень 14`, true)}
             ${sc('dragon', px ? `${D.titleImg('sovereign', 'divine', 1)} Владика Етеру` : '👑 Владика Етеру', true, `${em('emDragon')}Білий Дракон · Рівень 20`, true)}
             ${sc('dragon', `${grayEm} Стрімер`, true, 'ще без дракона: !дрейк білий', false, true)}
             ${sc('dragon', `${grayEm} Стрімер`, false, 'Стрімера ще не вказано', false, true)}</div>`);
@@ -806,6 +837,38 @@
     }
     $('b5-old').innerHTML = inPlaceSteel(false);
     $('b5-new').innerHTML = inPlaceSteel(true);
+
+    // 16 · Emblems: the element symbols or the drakes' heads, side by side in every place an emblem goes
+    {
+        const S = D.SYMBOL_EMBLEM_IDS, H = D.HEAD_EMBLEM_IDS, NAMES = ['Червоний', 'Синій', 'Чорний', 'Золотий', 'Фіолетовий', 'Зелений', 'Білий Дракон', 'Білий Дрейк'];
+        const row = (label, ids, s, cls = '') => `<div class="f-h">${label}</div>` + ids.map(id => `<div class="cell ${cls}">${img(id, s)}</div>`).join('');
+        $('emsets').innerHTML = `<div class="f-h"></div>${NAMES.map(n => `<div class="cell em-n">${n}</div>`).join('')}` +
+            row('Symbols ×4', S, 4) + row('Heads ×4', H, 4) + row('Symbols ×2', S, 2) + row('Heads ×2', H, 2) + row('Symbols ×1', S, 1) + row('Heads ×1', H, 1) +
+            row('Symbols, greyscale', S, 2, 'f-gray') + row('Heads, greyscale', H, 2, 'f-gray');
+
+        const P = [
+            { n: 'ПолумʼянийЛіс', c: RED, i: 0, sp: 'red', lab: 'Червоний Дрейк', lvl: 18, rec: '24 – 6' },
+            { n: 'goldfinch', c: '#ffd43b', i: 3, sp: 'gold', lvl: 16, rec: '19 – 8' },
+            { n: 'arcane_kit', c: '#b197fc', i: 4, sp: 'purple', lvl: 15, rec: '17 – 9' },
+            { n: 'nightowl_ua', c: BLUE, i: 2, sp: 'black', lab: 'Чорний Дрейк', lvl: 14, rec: '15 – 9' },
+            { n: 'kuznya_tv', c: '#e6edf6', i: 7, sp: 'white-drake', lab: 'Білий Дрейк', lvl: 14, rec: '31 – 12' },
+        ];
+        const block = (ids, s) => {
+            const E = i => img(ids[i], s);
+            const parts = [];
+            parts.push(`<div class="ip-h">THE QUEUE</div><div class="mq-strip">${[P[0], P[1], P[2], P[3], { n: 'leafy_ua', c: '#69db7c', i: 5 }, { n: 'tidecaller', c: BLUE, i: 1 }].map((p, k) =>
+                `<span class="mq"><span class="qn">${k + 1}</span>${E(p.i)}<span style="color:${p.c}">@${p.n}</span></span>`).join('')}</div>`);
+            parts.push(`<div class="ip-h">THE TOP (THE SPRITE STAYS; THE EMBLEM BEFORE THE LEVEL)</div><div class="mlbs">${P.slice(0, 4).map((p, k) =>
+                `<div class="mlb2"><span class="mlb-r">${k + 1}</span><img class="lb-sp" src="ref/${p.sp}.png" alt=""><div class="mlb-id"><span class="mlb-n" style="color:${p.c}">@${p.n}</span><span class="lbsub">${E(p.i)} Рівень ${p.lvl}</span></div><span class="mlb-w">${p.rec}</span></div>`).join('')}</div>`);
+            parts.push(`<div class="ip-h">THE CARD'S NAME LINE</div><div class="mcl">${[P[0], P[3], P[4]].map(p => `<div class="fc-line" style="justify-content:flex-start;gap:6px;align-items:center">${E(p.i)} ${p.lab} · Рівень ${p.lvl}</div>`).join('')}</div>`);
+            parts.push(`<div class="ip-h">A LOG BANNER</div><div class="mbanner">${img('ranked')} Рейтинговий бій · ${E(0)} <b style="color:${RED}">@ПолумʼянийЛіс</b> проти <b style="color:#e6edf6">@kuznya_tv</b> ${E(7)}</div>
+                <div class="mbanner">${img('friendly')} Товариська дуель · ${E(6)} <b style="color:#e6edf6">@kuznya_tv</b> проти <b style="color:${BLUE}">@nightowl_ua</b> ${E(2)}</div>`);
+            parts.push(`<div class="ip-h">THE TITLE PLATE</div><div class="ip-row"><div class="mplaque frame-sm"><span class="plaque-dots px">${[0, 1, 2].map(E).join('')}</span><span class="plaque-text">ДРЕЙК-АРЕНА</span><span class="plaque-dots px">${[3, 4, 5].map(E).join('')}</span></div></div>`);
+            return parts.join('');
+        };
+        $('em-sym1').innerHTML = block(S, 1); $('em-head1').innerHTML = block(H, 1);
+        $('em-sym2').innerHTML = block(S, 2); $('em-head2').innerHTML = block(H, 2);
+    }
 
     $('filters').innerHTML = fRow('Colour', '') + fRow('Greyscale', 'f-gray') + fRow('Deuteranopia', 'f-deut') + fRow('Protanopia', 'f-prot') + fRow('Tritanopia', 'f-trit') + fRow('Emoji, greyscale', 'f-gray', true);
 </script>
