@@ -364,6 +364,22 @@ const MUTATIONS = [
         "${gone ? ` (${fxName(gone.id)} ${fvT('lost')})` : ''}", "${gone ? ` (замінює ${fxName(gone.id)})` : ''}"],
     ['Магніт: gone before the cast', "Магніт runs down with the other attack effects, before the attack's casts again, so a buff cast on the attack it covers stays with the target",
         "const onCasts = id => id === 'magnet';", "const onCasts = id => false;"],
+    ['an effect without its accusative', 'an effect has no Ukrainian accusative in EFFECTS, as a new effect could',
+        "name: { uk: 'Лють', en: 'Rage' }, acc: 'Лють',", "name: { uk: 'Лють', en: 'Rage' },"],
+    ['Мітку is Мітка again', "Мітка's accusative is the nominative again («накладає 🎯 Мітка»)",
+        "acc: 'Мітку',", "acc: 'Мітка',"],
+    ['the log cards: the nominative after a verb', 'the log cards name an effect after «накладає», «отримує», «оновлює», «знімає», «забирає» in the nominative again',
+        '${fxAcc(id)}</span>`;', '${fxName(id)}</span>`;'],
+    ["the accusative on the fighter cards' chips", "the fighter cards' chips name the effect in the accusative («🎯 Мітку · ще 1 удар»)",
+        '${EFFECTS[inst.id].icon} ${EFFECTS[inst.id].name[lang]} · ${effectLeftText', "${EFFECTS[inst.id].icon} ${lang === 'uk' ? EFFECTS[inst.id].acc : EFFECTS[inst.id].name[lang]} · ${effectLeftText"],
+    ['Shadow Theft: «забирає» + the nominative', "Shadow Theft's log line names the buffs it takes in the nominative again («забирає 💚 Регенерація»)",
+        '`забирає ${taken.map(x => fxAcc(x.id))', '`забирає ${taken.map(x => fxName(x.id))'],
+    ['Bloom: «знімає» + the nominative', "Bloom's log line names the debuffs it removes in the nominative again («знімає 🎯 Мітка»)",
+        "const names = removed.map(x => fxAcc(x.id)).join(', ');", "const names = removed.map(x => fxName(x.id)).join(', ');"],
+    ['Firestorm: {fx:} after «накладає»', "Firestorm's description names its Burn after «накладає» with the nominative placeholder",
+        'накладає {acc:burn}', 'накладає {fx:burn}'],
+    ['«Шкода: 17 шкоди» again', 'the attack line names the damage twice again («Шкода: 17 шкоди.» / "Damage: 17 damage.")',
+        '${finalDmg}</span>`;', "${finalDmg} ${currentLang === 'uk' ? 'шкоди' : 'damage'}</span>`;"],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported

@@ -1017,7 +1017,7 @@ for (const lang of ['en', 'uk']) {
         if (!m) { if (/^\[Хід \d+\]/.test(line) || /втрачає HP через|відновлює HP завдяки/.test(line)) snap = now; return; }
         const before = snap || now;
         if (m[2] === ctx.wd) {
-            const dmg = +(line.match(/(\d+) шкоди/) || [0, 0])[1];
+            const dmg = +(line.match(/Шкода: (\d+)/) || [0, 0])[1];
             const fortune = line.includes('Фортуна (1 HP)');
             const toScales = fortune ? 0 : Math.min(before.sc, dmg);
             const hpLost = Math.min(before.hp, dmg - toScales);

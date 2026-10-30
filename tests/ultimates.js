@@ -69,8 +69,8 @@ const reelRoll = icon => { let acc = 0; for (const r of U.jackpot.reels) { if (r
 
 // Plays scripted turns: A (fighter 1) attacks on odd turns. who: { A, B } fighter overrides; setup(fx) runs after the
 // fight is set up. Each turn gets its own dice. Returns per-turn damage, HP, log lines and the meter afterwards.
-function scripted({ A = {}, B = {}, setup = null, turns }) {
-    G.setLang('en');
+function scripted({ A = {}, B = {}, setup = null, turns, lang = 'en' }) {
+    G.setLang(lang);
     const db = G.getDragonDB();
     db.A = { ...drake('A'), ...A, name: 'A' }; db.B = { ...drake('B'), ...B, name: 'B' };
     G.saveDragonDB(db);
@@ -89,7 +89,7 @@ function scripted({ A = {}, B = {}, setup = null, turns }) {
         const out = turns.map(d => {
             queue = [...d]; const from = lines.length; tick();
             const l = lines.slice(from), all = l.join('\n');
-            const dm = all.match(/Damage: (\d+) damage/);
+            const dm = all.match(/(?:Damage|Шкода): (\d+)/);
             return { lines: l, text: all, dmg: dm ? Number(dm[1]) : null, hpA: hp('hp-text-p1'), hpB: hp('hp-text-p2'),
                      meterA: fx.A.meter, meterB: fx.B.meter, fx: { A: JSON.parse(JSON.stringify(fx.A)), B: JSON.parse(JSON.stringify(fx.B)) } };
         });
@@ -121,6 +121,8 @@ for (const id of ULTIMATE_IDS) {
         const text = G.describeUltimate(id, l);
         if (/[{}]|undefined|NaN/.test(text)) bad.push(`${l} text not filled in: "${text}"`);
         if (/\d/.test(u.desc[l].replace(/\{[^}]*\}/g, ''))) bad.push(`${l} text has a number typed in instead of a {placeholder}`);
+        // An effect straight after one of these verbs takes the accusative: {acc:id}, not {fx:id}
+        if (/(?:накладає|отримує|оновлює|знімає|забирає) \{fx:/i.test(u.desc[l])) bad.push(`${l} text has {fx:…} straight after a verb: use {acc:…}, the accusative`);
         for (const k of Object.keys(u.nums)) if (!new RegExp(`\\{(\\w+:)?${k}\\}`).test(u.desc[l])) bad.push(`${l} text never shows nums.${k}`);
         const saved = { ...u.nums };
         for (const k of Object.keys(u.nums)) u.nums[k] = u.nums[k] + 7;
@@ -252,6 +254,10 @@ const full = fx => { fx.A.meter = METER.max; };
     const im = scripted({ A: drake('A', 'black'), B: drake('B', 'plain', 20, IMMUNE_TITLE), setup: fx => { full(fx); castOn(fx, 'B', 'regen'); }, turns: [dice()] }).turns[0];
     check(own(im, 'B') === 'regen:3' && own(im, 'A') === '' && im.dmg > 0 && /Immunity/.test(im.text),
         `🦇 Shadow Theft vs debuff immunity: the target keeps 💚 Regeneration, the attack still lands (${im.dmg})`, `target ${own(im, 'B')}, thief ${own(im, 'A')}, dmg ${im.dmg}`);
+    // In Ukrainian: what it takes is named in the accusative, what's lost («… зникає») in the nominative
+    const uk = scripted({ lang: 'uk', A: drake('A', 'black'), setup: fx => { full(fx); castOn(fx, 'A', 'rage'); castOn(fx, 'B', 'regen'); castOn(fx, 'B', 'divine'); }, turns: [dice()] }).turns[0];
+    const ukLine = `забирає ${EFFECTS.regen.icon} Регенерацію; ${EFFECTS.divine.icon} ${EFFECTS.divine.name.uk} зникає!`;
+    check(uk.text.includes(ukLine), `🦇 Shadow Theft in Ukrainian: «${ukLine}»`, `text "${uk.text.slice(0, 220)}"`);
 }
 // 🎰 Jackpot: all 27 reel combinations
 {
@@ -309,6 +315,10 @@ const full = fx => { fx.A.meter = METER.max; };
     check(isUltLine(t3, 'bloom') && t3.dmg === null && t3.text.includes(`+${want} HP`) && t3.hpA === t2.hpA - tick + want && t3.fx.A.debuff.length === 0 && gained === 0 && missing > want,
         `🌸 Bloom: +${want} HP (${U.bloom.nums.heal}% of ${maxA}, not halved: ☠️ Poison is removed first), own debuffs cleared, no buff gained, no attack (A was ${missing} HP down)`,
         `text "${t3.text.slice(0, 160)}", HP ${t2.hpA} → ${t3.hpA} (tick ${tick}), debuffs ${JSON.stringify(t3.fx.A.debuff)}, buffs ${JSON.stringify(t3.fx.A.buff)}, missing ${missing}`);
+    // In Ukrainian the debuffs it removes are named in the accusative
+    const uk = scripted({ lang: 'uk', A: drake('A', 'green'), setup: fx => { full(fx); castOn(fx, 'A', 'mark'); castOn(fx, 'A', 'poison'); }, turns: [dice()] }).turns[0];
+    const ukLine = `знімає ${EFFECTS.mark.icon} Мітку, ${EFFECTS.poison.icon} ${EFFECTS.poison.name.uk}`;
+    check(uk.text.includes(ukLine), `🌸 Bloom in Ukrainian: «${ukLine}»`, `text "${uk.text.slice(0, 200)}"`);
 }
 
 // ---------------------------------------------------------------- 3b. Interaction choices

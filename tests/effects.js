@@ -39,6 +39,7 @@ eval(gameScript(FILE) + `
     EFFECTS, EFFECT_IDS, BUFF_IDS, DEBUFF_IDS, EFFECT_CAST, CLASS_ULTIMATES, ULTIMATE_IDS, ultLabel, TITLES_DB, DRAKE_TYPES, VIEWER_DRAKE_TYPES, DRAGON_TYPE, DRAGON_TITLE_ID,
     POOL_IDS, STREAMER_TYPES, WHITE_DRAKE_TYPE, WHITE_DRAKE_TITLE_ID,
     applyEffect: (...a) => applyEffect(...a), pickEffect, countDownEffects, newFxState, describeEffect, effectLeftText, effectChipText,
+    fxName, fxAcc, fvCardHtml, fvT,
     fxNum, getEffectMult, ELEMENT_BASE, getTierMultiplier, getRequiredXP, getDragonDB, saveDragonDB,
     runBattle: (...a) => runBattle(...a),
     get battleFx() { return battleFx; },
@@ -71,6 +72,12 @@ const logged = fn => { capture = []; const r = fn(); const lines = capture; capt
 // ---------------------------------------------------------------- 1. The table
 console.log('\nEFFECTS table');
 const UNITS = ['attacks', 'hits', 'turns', 'instant'];
+// The accusative (acc) is the Ukrainian name with other endings at most: as many words, each the same but for its last
+// two letters («Божественна міць» → «Божественну міць»)
+const sameWords = (a, b) => { const x = a.split(' '), y = b.split(' ');
+    return x.length === y.length && x.every((w, i) => { let k = 0; while (k < w.length && w[k] === y[i][k]) k++; return k >= Math.max(w.length, y[i].length) - 2; }); };
+// The names whose accusative isn't the name itself; the rest read the same after a verb («накладає 🔥 Підпал»)
+const ACC_UK = { mark: 'Мітку', regen: 'Регенерацію', divine: 'Божественну міць' };
 check(EFFECT_IDS.length === 14 && G.POOL_IDS.length === 12 && G.POOL_IDS.every(id => !G.STREAMER_TYPES.includes(EFFECTS[id].element)),
     "there are 14 effects: the 12 of the shared pool (every viewer element's pair) and the White Drake's own pair, which isn't in it",
     `expected 14 effects (12 in the pool), found ${EFFECT_IDS.length}: ${EFFECT_IDS.join(', ')}; pool ${G.POOL_IDS.join(', ')}`);
@@ -86,7 +93,15 @@ for (const id of EFFECT_IDS) {
     if (!UNITS.includes(e.lasts)) bad.push(`lasts "${e.lasts}"`);
     if (e.lasts === 'instant' ? e.count !== 0 : !(Number.isInteger(e.count) && e.count > 0)) bad.push(`count ${e.count}`);
     if (!e.color) bad.push('no chip color');
-    check(!bad.length, `${e.icon} ${e.name.uk} / ${e.name.en}: ${G.describeEffect(id, 'en')}`, `${id}: ${bad.join(', ')}`);
+    // Every effect, a new one too, has its Ukrainian accusative in the table, even when it's the name itself
+    if (typeof e.acc !== 'string' || !e.acc.trim()) bad.push(`no Ukrainian accusative (acc): add it, even when it's the name itself (acc: '${e.name && e.name.uk}')`);
+    else if (e.name && e.name.uk && !sameWords(e.name.uk, e.acc)) bad.push(`acc «${e.acc}» isn't «${e.name.uk}» with other endings`);
+    check(!bad.length, `${e.icon} ${e.name.uk} (accusative: ${e.acc}) / ${e.name.en}: ${G.describeEffect(id, 'en')}`, `${id}: ${bad.join(', ')}`);
+}
+{
+    const wrong = Object.entries(ACC_UK).filter(([id, acc]) => EFFECTS[id].acc !== acc);
+    check(!wrong.length, `the accusative after a verb: ${Object.entries(ACC_UK).map(([id, acc]) => `${EFFECTS[id].name.uk} → ${acc}`).join(', ')}`,
+        `wrong accusative: ${wrong.map(([id, acc]) => `${id} has «${EFFECTS[id].acc}», want «${acc}»`).join(', ')}`);
 }
 for (const d of [...G.VIEWER_DRAKE_TYPES, G.DRAKE_TYPES.find(t => t.type === G.WHITE_DRAKE_TYPE)]) {
     const own = EFFECT_IDS.filter(id => EFFECTS[id].element === d.type).map(id => EFFECTS[id].kind).sort().join('+');
@@ -152,7 +167,7 @@ console.log('\nEffect and ultimate names and icons only in their tables (EFFECTS
     const [start, end] = tableLines('EFFECTS'), [uStart, uEnd] = tableLines('CLASS_ULTIMATES');
     const bare = s => s.replace(/️/g, '');                       // 🛡️ and 🛡 are the same icon
     const terms = [...new Set([...EFFECT_IDS.map(id => EFFECTS[id]), ...G.ULTIMATE_IDS.map(id => G.CLASS_ULTIMATES[id])]
-        .flatMap(x => [x.name.uk, x.name.en, bare(x.icon)]))];
+        .flatMap(x => [x.name.uk, x.name.en, x.acc, bare(x.icon)]).filter(Boolean))];
     const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     // Whole words only (so "blockedByShadow" or "Розвіювання" inside another word don't count); icons anywhere
     const words = terms.filter(t => /\p{L}/u.test(t));
@@ -190,6 +205,50 @@ const chipCases = [
 for (const [inst, lang, want] of chipCases) {
     const got = G.effectChipText(inst, lang);
     check(got === want, `"${got}"`, `chip ${inst.id} ${inst.left} (${lang}): got "${got}", want "${want}"`);
+}
+{
+    const bad = EFFECT_IDS.filter(id => EFFECTS[id].lasts !== 'instant').flatMap(id => ['uk', 'en'].map(l => G.effectChipText({ id, left: 1 }, l))
+        .filter((t, i) => !t.startsWith(`${EFFECTS[id].icon} ${EFFECTS[id].name[['uk', 'en'][i]]} · `)));
+    check(!bad.length, "the fighter cards' chips name every effect in the nominative, both languages («🎯 Мітка · ще 1 удар»)", `chips not in the nominative: ${bad.join(', ')}`);
+}
+
+// The log cards, built from turn records as the fight view gets them: straight after «накладає», «отримує», «оновлює»,
+// «знімає», «забирає», an effect's name is in the accusative (every name of a list); everywhere else in the nominative
+console.log('\nEffect names on the log cards: the accusative straight after a verb, the nominative elsewhere');
+{
+    const A = fighter('A', 'red'), B = fighter('B', 'blue');
+    const V = { uk: { applies: 'накладає', gets: 'отримує', refreshes: 'оновлює', removes: 'знімає', takes: 'забирає' },
+                en: { applies: 'applies', gets: 'gets', refreshes: 'refreshes', removes: 'removes', takes: 'takes' } };
+    const nom = (id, l) => `${EFFECTS[id].icon} ${EFFECTS[id].name[l]}`;
+    const acc = (id, l) => `${EFFECTS[id].icon} ${l === 'uk' ? ACC_UK[id] || EFFECTS[id].name.uk : EFFECTS[id].name.en}`;
+    // A card's second line: its words and chips in order, one space between
+    const line2 = (o, l) => {
+        G.setLang(l);
+        const html = G.fvCardHtml({ turn: 3, atk: A, def: B, side: 'left', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: null, frozen: false, ...o }, 'left');
+        return [...html.slice(html.indexOf('<div class="lc-l2">')).matchAll(/<span class="l[kx]\b[^"]*"[^>]*>([^<]*)<\/span>/g)].map(m => m[1]).join(' ');
+    };
+    const cast = (id, result, owner, extra) => ({ casts: [{ id, result, owner, extra }] });
+    const cases = [   // [what, the turn record, its second line in language l]
+        ['a debuff cast', cast('mark', 'applied', B), l => `${V[l].applies} ${acc('mark', l)}`],
+        ['a buff cast', cast('regen', 'applied', A), l => `${V[l].gets} ${acc('regen', l)}`],
+        ['a buff cast', cast('divine', 'applied', A), l => `${V[l].gets} ${acc('divine', l)}`],
+        ['a buff on the other fighter', cast('regen', 'applied', B), l => `@B ${V[l].gets} ${acc('regen', l)}`],
+        ['a refresh', cast('mark', 'refreshed', B), l => `${V[l].refreshes} ${acc('mark', l)}`],
+        ['Dispel', cast('dispel', 'dispelled', B, ['regen', 'divine']), l => `${nom('dispel', l)} ${V[l].removes} ${acc('regen', l)} ${acc('divine', l)}`],
+        ['Shadow Theft, one buff taken and one lost', { ult: { id: 'theft', taken: ['regen'], lost: ['divine'] } }, l => `${V[l].takes} ${acc('regen', l)} · ${nom('divine', l)} ${G.fvT('lost')}`],
+        ['Arcane Detonation', { ult: { id: 'detonation', mult: 2.7, removed: ['mark'] } }, l => `×2.7 ${V[l].removes} ${acc('mark', l)}`],
+        ['Bloom', { ult: { id: 'bloom', healed: 30, removed: ['mark', 'poison'] } }, l => `${V[l].removes} ${acc('mark', l)} ${acc('poison', l)}`],
+        ['a replacement', cast('regen', 'replaced', A, 'divine'), l => `${nom('regen', l)} · ${nom('divine', l)} ${G.fvT('lost')}`],
+        ['a buff pulled by Магніт, replacing one', cast('divine', 'pulled', A, 'regen'), l => `${nom('divine', l)} ${G.fvT('pulled')} · ${nom('regen', l)} ${G.fvT('lost')}`],
+        ['an effect only counted down', { used: ['mark'] }, l => nom('mark', l)],
+    ];
+    const bad = [], shown = [];
+    for (const [what, rec, want] of cases) for (const l of ['uk', 'en']) {
+        const got = line2(rec, l), w = want(l);   // line2 sets the language fvT reads
+        if (got !== w) bad.push(`${what} (${l}): «${got}», want «${w}»`);
+        else if (l === 'uk') shown.push(`«${got}»`);
+    }
+    check(!bad.length, `${cases.length} cards, both languages: ${shown.join(', ')}`, bad.slice(0, 4).join(' | '));
 }
 const plural = [[5, 'ще 5 атак'], [11, 'ще 11 атак'], [21, 'ще 21 атака'], [22, 'ще 22 атаки'], [12, 'ще 12 атак']];
 const badPlural = plural.filter(([n, w]) => G.effectLeftText('rage', n, 'uk') !== w);
@@ -347,7 +406,7 @@ function scripted(setup, turns, who = {}) {   // who: { A: {...}, B: {...} } ove
         res = setup ? setup() : null;
         const hp = id => Number(document.getElementById(id).innerText.split('/')[0])   // the card shows "44/150";
         const out = turns.map(d => { queue = [...d]; const from = lines.length; tick(); const l = lines.slice(from);
-            const dm = l.join('\n').match(/Damage: (\d+) damage/);
+            const dm = l.join('\n').match(/Damage: (\d+)/);
             return { lines: l, dmg: dm ? Number(dm[1]) : null, hpA: hp('hp-text-p1'), hpB: hp('hp-text-p2') }; });
         return { turns: out, setup: res };
     } finally {
@@ -540,7 +599,8 @@ G.wrapApplyEffect((r, a, targetBuffs) => {
     else if (!targetBuffs) { if (r === 'dispelled') dispel.wasted++; else dispel.recast++; }
 });
 
-const stats = { turns: 0, checked: 0, frozen: 0, wrong: [], idLeaks: [], seen: new Set(), ultimates: new Set(), immuneHad: [], unitsSeen: { attacks: 0, hits: 0, turns: 0 } };
+const stats = { turns: 0, checked: 0, frozen: 0, wrong: [], idLeaks: [], seen: new Set(), ultimates: new Set(), immuneHad: [], unitsSeen: { attacks: 0, hits: 0, turns: 0 },
+                afterVerb: 0, notAcc: [], damageLines: 0, damageTwice: [] };
 let current = null;      // { A, B, immune: Set(names) }
 let lastAttacker = null; // who made the previous line's attack (null after a turn without one): its Магніт ran down since
 G.wrapAddLog(raw => {
@@ -549,6 +609,18 @@ G.wrapAddLog(raw => {
     const idHit = line.match(ID_RE);
     if (idHit && stats.idLeaks.length < 5) stats.idLeaks.push(`"${idHit[1]}" in: ${line.slice(0, 140)}`);
     for (const id of EFFECT_IDS) if (line.includes(EFFECTS[id].name.uk) || line.includes(EFFECTS[id].name.en)) stats.seen.add(id);
+    // Straight after «накладає», «отримує», «оновлює», «знімає», «забирає» every effect name of the list is in the accusative
+    for (const v of line.matchAll(/(?:накладає|отримує|оновлює|знімає|забирає) ([^;!()]+)/g)) for (const item of v[1].split(', ')) {
+        const id = EFFECT_IDS.find(id => item.startsWith(`${EFFECTS[id].icon} `));
+        if (!id) continue;
+        stats.afterVerb++;
+        if (!item.startsWith(`${EFFECTS[id].icon} ${ACC_UK[id] || EFFECTS[id].name.uk}`)) stats.notAcc.push(line.slice(0, 140));
+    }
+    // The attack line says the word once: «Шкода: 17.» / "Damage: 17."
+    if (/Шкода:|Damage:/.test(line)) {
+        stats.damageLines++;
+        if (!/(?:Шкода|Damage): \d+\./.test(line)) stats.damageTwice.push(line.slice(0, 160));
+    }
     const m = line.match(/^\[(?:Хід|Turn) (\d+)\] @(\S+)/);
     if (!m || !baseline) return;
     stats.turns++;
@@ -611,6 +683,10 @@ check(stats.wrong.length === 0, `${stats.checked} effect counts checked over ${s
 check(stats.unitsSeen.attacks > 0 && stats.unitsSeen.hits > 0 && stats.unitsSeen.turns > 0 && stats.frozen > 0,
     'every kind of countdown (and a frozen turn) actually happened', `some countdown never happened: ${JSON.stringify(stats.unitsSeen)}, frozen ${stats.frozen}`);
 check(stats.idLeaks.length === 0, 'no internal effect id appears in the battle log (uk and en)', `effect ids in the log: ${stats.idLeaks.join(' | ')}`);
+check(stats.afterVerb > 0 && !stats.notAcc.length, `${stats.afterVerb} effect names straight after a verb in the Ukrainian log («забирає 💚 Регенерацію», «знімає 🎯 Мітку»): all in the accusative`,
+    `a name after a verb that isn't in the accusative (or none seen: ${stats.afterVerb}): ${stats.notAcc.slice(0, 3).join(' | ')}`);
+check(stats.damageLines > 0 && !stats.damageTwice.length, `${stats.damageLines} attack lines name the damage once («Шкода: 17.» / "Damage: 17.")`,
+    `an attack line with the damage word twice (or none seen: ${stats.damageLines}): ${stats.damageTwice.slice(0, 3).join(' | ')}`);
 const unseen = EFFECT_IDS.filter(id => !stats.seen.has(id));
 check(!unseen.length, `all ${EFFECT_IDS.length} effects showed up in fight logs by name`, `never seen in a fight log: ${unseen.join(', ')}`);
 check(dispel.wasted === 0 && dispel.recast > 0,

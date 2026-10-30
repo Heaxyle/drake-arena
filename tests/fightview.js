@@ -709,24 +709,25 @@ async function popAtStep2(page, turn) {
                     await toFightTime(page, (t + 1) * TURN + HIT + 1);
                     await settleArena(page);
                     found = await page.evaluate(id => {
-                        const name = fxName(id), c = [...document.querySelectorAll('#log-feed .lc')].pop();
-                        if (!c || !c.textContent.includes(name)) return null;
+                        const c = [...document.querySelectorAll('#log-feed .lc')].pop();
+                        if (!c || !(c.textContent.includes(fxName(id)) || c.textContent.includes(fxAcc(id)))) return null;
                         const ownerChips = ['p1', 'p2'].flatMap(p => [...document.querySelectorAll(`#status-${p} .status-item`)].map(x => x.textContent));
                         return { l2: [...c.querySelectorAll('.lc-l2 .lk, .lc-l2 .lx')].map(x => x.textContent.trim()).join(' '), chip: EFFECTS[id].lasts === 'instant' ? '' : effectChipText({ id, left: EFFECTS[id].count }), ownerChips, forced: forcedCast };
                     }, id);
                 }
                 if (!found) { results.push({ id, ok: false, why: 'never cast' }); continue; }
-                const e = await page.evaluate(id => ({ kind: EFFECTS[id].kind, lasts: EFFECTS[id].lasts, name: fxName(id) }), id);
+                const e = await page.evaluate(id => ({ kind: EFFECTS[id].kind, lasts: EFFECTS[id].lasts, name: fxName(id), acc: fxAcc(id) }), id);
                 const label = { uk: e.kind === 'buff' ? 'отримує' : 'накладає', en: e.kind === 'buff' ? 'gets' : 'applies' }[lang];
                 const refresh = { uk: 'оновлює', en: 'refreshes' }[lang], removes = { uk: 'знімає', en: 'removes' }[lang], lost = { uk: 'зникає', en: 'lost' }[lang];
+                // After the verb the accusative («накладає 🎯 Мітку»); a replacement names it first, in the nominative: «X · Y зникає»
                 const textOk = e.lasts === 'instant' ? found.l2.includes(`${e.name} ${removes}`)
-                    : found.l2.includes(`${label} ${e.name}`) || found.l2.includes(`${refresh} ${e.name}`) || (found.l2.includes(`${e.name} ·`) && found.l2.includes(lost));   // a replacement: «X · Y зникає»
+                    : found.l2.includes(`${label} ${e.acc}`) || found.l2.includes(`${refresh} ${e.acc}`) || (found.l2.includes(`${e.name} ·`) && found.l2.includes(lost));
                 const chipOk = e.lasts === 'instant' || found.ownerChips.some(c => c.startsWith(e.name));
                 results.push({ id, ok: textOk && chipOk && found.forced === null, why: JSON.stringify(found) });
             }
             await page.selectOption('#debug-force-cast', '');
             const bad = results.filter(r => !r.ok);
-            check(!bad.length && results.length === 12, `[${lang}] all 12 effects cast from "next hit casts": the card says it ("накладає 🔥 Підпал", refresh / Dispel in words, a replacement «X · Y зникає») and the fighter card shows the chip`,
+            check(!bad.length && results.length === 12, `[${lang}] all 12 effects cast from "next hit casts": the card says it ("накладає 🎯 Мітку", the name after the verb in the accusative; refresh / Dispel in words, a replacement «X · Y зникає») and the fighter card shows the chip, in the nominative`,
                 bad.slice(0, 3).map(r => `${r.id}: ${r.why}`).join(' | '));
             if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
@@ -739,7 +740,7 @@ async function popAtStep2(page, turn) {
             await page.click('button[data-i18n="btn_settings"]');
             await page.evaluate(() => setStreamerUser('stalwart'));
             await register(page, lang, [['stalwart', 'steel', '#e8f6ff'], ['ruby', 'red', '#ff7f50']]);
-            const W = await page.evaluate(() => ({ magnet: fxName('magnet'), reforge: fxName('reforge'), rage: fxName('rage'), burn: fxName('burn'),
+            const W = await page.evaluate(() => ({ magnet: fxAcc('magnet'), reforge: fxAcc('reforge'), rage: fxName('rage'), burn: fxName('burn'),   // the first two after a verb
                 bounced: fvT('bounced'), pulled: fvT('pulled'), cracked: fvT('cracked'), scales: fvT('scales'), steelIn: fvT('steelIn'), steelWin: fvT('steelWin'), steelLoss: fvT('steelLoss') }));
             const applies = cmd(lang, 'накладає', 'applies'), gets = cmd(lang, 'отримує', 'gets');
             const pick = async id => { await page.selectOption('#debug-force-cast', ''); if (id) await page.selectOption('#debug-force-cast', id); };
