@@ -15,7 +15,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 - **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 12 buffs/debuffs (one of each per element), class ultimates on an Element Power meter, and a sudden-death phase
 - **Ranked queue** with level-based matchmaking, plus friendly duels that give no XP
 - **Tournaments:** single elimination with a main bracket of 4, 8 or 16 drakes (level decides who goes straight in and keeps the two highest apart until the final or the 3rd-place match; the rest play a qualifier), best of 3, everyone at level 20; a bracket during the betting window, the score on the arena plate, a podium at the end, and prizes: badges, free title spins, medals and a Hall of Fame (see [below](#tournaments))
-- **Progression:** XP, levels 1–20 and a win/loss leaderboard (the Top drakes, ordered by wins − losses, then wins, then level; ranked fights only), saved in `localStorage`
+- **Progression:** XP, levels 1–20 and a win/loss leaderboard (the Top drakes, ordered by wins, then fewer losses, then level; ranked fights only, and a fight against the streamer's White Dragon counts for neither side), saved in `localStorage`
 - **Channel-point rewards** for title rolls and element rerolls
 - **1920×1080 overlay** with pixel-art gold frames: the arena and a side column (streamer card, top drakes, chat replies) on the right, the camera column and the strip above the arena left free. Outside OBS the demo controls sit in the camera column and the whole stage scales down to fit the window
 - **Battle log as attack cards:** one row per round, the left fighter's attack on the left and the right fighter's on the right. Each card names the move (from the drake's element, the attack type and its strength), the damage with an arrow toward the target, and what happened in words: blocks, crits (gold cards), armour-piercing, vampire heals, start-of-turn ticks, effects cast, refreshed or replaced. Ultimates get a header strip; sudden death gets a banner and the damage multiplier on each card. The log starts empty for every fight
@@ -134,6 +134,8 @@ All element numbers live in `ELEMENT_BASE` (the level-1 value) and `ELEMENT_TIER
 - 99,999 HP, 100% defense, 100% crit at ×100, 100% effect chance
 - Every hit it deals ignores ultra-blocks and armor; every hit it takes is dissolved to 0
 - Ignores Blue reflect, Gold's 1-HP hit and Thorns, and is immune to debuffs
+
+It can't be beaten, so a ranked fight against it doesn't count against the viewer: no win or loss for either side in the Top. The XP is as usual (+10 for the viewer), and the fight's result card says «🐉 Бій з Білим Драконом: без перемоги й поразки в Топі» / "🐉 A fight with the White Dragon: no win or loss in the Top".
 
 When the streamer setting changes, the White Dragon stays with the streamer only (see saves below). The Test Panel can also put the White Dragon on a test fighter.
 
