@@ -285,8 +285,8 @@ const key = (a, b) => [a, b].sort().join('-');
         moments.podium = await tryForm();
         await until(page, () => !tourney);
         moments.over = await tryForm();
-        check(card.type === 'steel' && card.level === 20 && card.scales && /^🤍 \d+$/.test(card.text),
-            `the streamer fights as the White Drake at level 20, its scales on its card («${card.text}»)`, JSON.stringify(card));
+        check(card.type === 'steel' && card.level === 20 && card.scales && /^\d+$/.test(card.text),
+            `the streamer fights as the White Drake at level 20, its scales' bar and number on its card («${card.text}»)`, JSON.stringify(card));
         const waited = ['countdown', 'midGame', 'knockedOut', 'podium'];
         check(waited.every(k => moments[k].type === 'steel' && /змінити форму/.test(moments[k].reply)) && moments.over.type === 'white',
             `!дракон refused in its game's countdown, mid-game, knocked out (3rd-place game and final to come) and on the podium («${moments.countdown.reply}»); after the tournament it works`,

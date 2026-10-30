@@ -710,6 +710,57 @@ async function startupNetwork(browser) {
             await context.close();
         }
 
+        console.log('\nThe White Drake\'s scale bar');
+        for (const lang of ['uk', 'en']) {
+            const { page, context, errors } = await open(browser, { lang });
+            // Both cards: the White Drake (scales part-gone), then a viewer drake for the HP bar's place; then broken
+            const look = await page.evaluate(() => {
+                const xpFor = n => { let x = 0; for (let i = 1; i < n; i++) x += getRequiredXP(i); return x; };
+                const title = TITLES_DB.find(t => t.id === WHITE_DRAKE_TITLE_ID);
+                const wd = { name: 'streamer', color: '#e8f6ff', drakeObj: DRAKE_TYPES.find(d => d.type === WHITE_DRAKE_TYPE), title, xp: xpFor(10) };
+                const red = { name: 'viewer', color: '#ff7f50', drakeObj: DRAKE_TYPES.find(d => d.type === 'red'), title: TITLES_DB[3], xp: xpFor(10) };
+                const max = scalesOf(10, getMaxHP(10, WHITE_DRAKE_TYPE, title));
+                const fx = now => ({ buff: [], debuff: [], meter: 3, halfDone: false, mirror: 0, scales: { now, max } });
+                const plain = { buff: [], debuff: [], meter: 3, halfDone: false, mirror: 0, scales: null };
+                setArenaState({ kind: 'fight', ranked: true, turn: 5 });
+                const r = el => { const b = el.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, w: b.width }; };
+                const read = p => {
+                    const card = document.getElementById(`card-${p}`), row = card.querySelector('.scale-row'), track = card.querySelector('.scale-track');
+                    const fill = document.getElementById(`scales-${p}`), num = document.getElementById(`scale-text-${p}`);
+                    return { shown: getComputedStyle(row).display !== 'none', track: r(track), hp: r(document.getElementById(`bar-${p}`).parentElement),
+                             meter: r(document.getElementById(`power-${p}`)), hpText: r(document.getElementById(`hp-text-${p}`)), num: r(num), text: num.textContent,
+                             fillScale: new DOMMatrix(getComputedStyle(fill).transform).a, cracked: track.classList.contains('cracked') && num.classList.contains('cracked'),
+                             fillOrigin: getComputedStyle(fill).transformOrigin.split(' ')[0] };
+                };
+                const out = {};
+                for (const p of ['p1', 'p2']) {
+                    updateFighterCard(p, red, plain); const viewer = read(p);
+                    updateFighterCard(p, wd, fx(Math.round(max * 0.4))); const part = read(p);
+                    updateFighterCard(p, wd, fx(0)); const broken = read(p);
+                    out[p] = { viewer, part, broken, max, partNow: Math.round(max * 0.4) };
+                }
+                return out;
+            });
+            await page.waitForTimeout(400);   // the fill's transition
+            const bad = [];
+            for (const [p, x] of Object.entries(look)) {
+                const { viewer: v, part: a, broken: b } = x;
+                if (v.shown) bad.push(`${p}: a scale bar on a viewer drake's card`);
+                if (!a.shown) bad.push(`${p}: no scale bar on the White Drake's card`);
+                if (Math.abs(a.track.left - a.hp.left) > 0.5 || Math.abs(a.track.right - a.hp.right) > 0.5) bad.push(`${p}: the bar (${a.track.left}–${a.track.right}) isn't over the HP bar (${a.hp.left}–${a.hp.right})`);
+                if (!(a.track.bottom + 1 <= a.hp.top - 2 - 1 && a.track.top - 1 >= a.meter.bottom)) bad.push(`${p}: the bar (${a.track.top}–${a.track.bottom}) isn't in the gap between the СИЛА row (${a.meter.bottom}) and the HP bar (${a.hp.top})`);
+                if (a.num.bottom > a.hpText.top + 0.5 || Math.abs((p === 'p1' ? a.num.right - a.hpText.right : a.num.left - a.hpText.left)) > 0.5) bad.push(`${p}: the number isn't over the HP number`);
+                if (Math.abs(a.hp.top - v.hp.top) > 0.1 || Math.abs(a.hp.left - v.hp.left) > 0.1 || Math.abs(a.hp.w - v.hp.w) > 0.1) bad.push(`${p}: the HP bar moved (${JSON.stringify(v.hp)} → ${JSON.stringify(a.hp)})`);
+                if (a.text !== String(x.partNow) || a.cracked) bad.push(`${p}: part-gone shows "${a.text}"${a.cracked ? ', cracked' : ''}`);
+                if (b.text !== '0' || !b.cracked) bad.push(`${p}: broken shows "${b.text}", cracked ${b.cracked}`);
+                if (a.fillOrigin !== (p === 'p1' ? '0px' : `${a.track.w}px`)) bad.push(`${p}: the bar drains from the wrong side (origin ${a.fillOrigin})`);
+            }
+            check(!bad.length, `[${lang}] the White Drake's scales: their own bar right above the HP bar, as wide and lined up with it on both cards, in the gap under the СИЛА row, the number over the HP number; it drains from the VS side like HP, cracks at 0 («0»); the HP bar is where a viewer drake's is`,
+                bad.join(' | '));
+            if (errors.length) fail(`[${lang}] page errors: ${errors.join(' | ')}`);
+            await context.close();
+        }
+
         console.log('\nHP number and bar agree');
         for (const lang of ['uk', 'en']) {
             const { page, context, errors } = await open(browser, { lang });

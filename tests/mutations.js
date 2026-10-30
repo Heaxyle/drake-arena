@@ -360,6 +360,8 @@ const MUTATIONS = [
     ['Магніт: 3 attacks', "Магніт lasts the target's next 3 attacks again (it's 2)",
         "lasts: 'attacks', count: 2, nums: {},\n                        desc: { uk: 'Наступні {count} атаки цілі",
         "lasts: 'attacks', count: 3, nums: {},\n                        desc: { uk: 'Наступні {count} атаки цілі"],
+    ['Магніт: «замінює» + a name', "the pulled buff's line names the buff it replaces after «замінює» again (the name would need the accusative)",
+        "${gone ? ` (${fxName(gone.id)} ${fvT('lost')})` : ''}", "${gone ? ` (замінює ${fxName(gone.id)})` : ''}"],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported

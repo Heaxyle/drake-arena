@@ -171,20 +171,26 @@
         .pm-count { font-size: 12px; color: var(--dim); }
         .pm-ready { font-size: 12px; font-weight: 800; letter-spacing: 1px; color: var(--meter); }
         .pm-mirror { font-size: 12px; font-weight: 600; color: #7fdcff; }
-        .fc-hp { display: flex; align-items: center; gap: 12px; margin-top: auto; flex-shrink: 0; }
+        .fc-hp { position: relative; display: flex; align-items: center; gap: 12px; margin-top: auto; flex-shrink: 0; }
         .hp-bar-container { height: 20px; }
-        /* The White Drake's scales (Луска Дракона) on top of HP: a white-steel strip over the HP bar and its number beside it */
-        .scale-bar { position: absolute; left: 0; top: 0; height: 7px; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(#ffffff, #c9d8e0); box-shadow: inset 0 -1px 0 rgba(63, 212, 127, 0.9); transition: transform 0.3s ease; }
-        .scale-text { display: none; font-family: var(--pixel); font-size: 12px; color: #e9f6f8; width: 64px; white-space: nowrap; overflow: hidden; flex-shrink: 0; }
-        .fighter-card.has-scales .scale-text { display: block; }
-        .scale-text.cracked { color: #ff8a8a; }
+        /* The White Drake's scales (Луска Дракона): their own thin white-steel bar right above the HP bar, in the gap under
+           the СИЛА row, laid out like the HP row so the bar lines up with the HP bar and its number with the HP number. It
+           empties as it's hit (from the VS side, like HP) and cracks when it breaks. Only on its card (.has-scales) */
+        .scale-row { display: none; position: absolute; left: 0; right: 0; top: -9px; height: 4px; align-items: center; gap: 12px; pointer-events: none; }
+        .fighter-card.has-scales .scale-row { display: flex; }
+        .scale-track { position: relative; flex: 1; height: 4px; background: #1b2238; box-shadow: 0 0 0 1px #8796b6; overflow: hidden; }
+        .scale-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(#ffffff, #d2dbea 50%, #8e9cba); transition: transform 0.3s ease; }
+        .scale-track.cracked { background: #2c1420 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 4' preserveAspectRatio='none'%3E%3Cpolyline points='0,2 9,0 15,4 24,1 31,4 40,0 47,3 56,0 62,4 71,1 79,4 87,0 94,3 103,0 110,4 120,1' fill='none' stroke='%23ff8a8a' stroke-width='1.1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; box-shadow: 0 0 0 1px #ff8a8a; }
+        .scale-num { width: 118px; flex-shrink: 0; font-family: var(--pixel); font-size: 12px; line-height: 12px; color: #e6edf6; text-align: right; white-space: nowrap; }
+        .scale-num.cracked { color: #ff8a8a; }
         .hp-text { font-family: var(--pixel); font-size: 16px; color: var(--text); width: 118px; text-align: right; white-space: nowrap; overflow: hidden; }
         /* The right card's bars are mirrored, so lost HP disappears on the VS side of both cards: the HP number sits next to
            the VS badge, the HP, ghost and XP bars and the СИЛА pips fill from the outer edge (info line, stats and chips stay left-aligned) */
         #card-p2 .fc-hp { flex-direction: row-reverse; }
         #card-p2 .hp-text { text-align: left; }
-        #card-p2 .px-fill, #card-p2 .hp-ghost, #card-p2 .scale-bar { transform-origin: 100% 50%; }
-        #card-p2 .scale-text { text-align: right; }
+        #card-p2 .px-fill, #card-p2 .hp-ghost, #card-p2 .scale-fill { transform-origin: 100% 50%; }
+        #card-p2 .scale-row { flex-direction: row-reverse; }
+        #card-p2 .scale-num { text-align: left; }
         #card-p2 .power-meter, #card-p2 .pm-pips { flex-direction: row-reverse; }
 
         /* ===== Turn animation: pre-drawn layers that only fade (opacity) or move (transform), so OBS doesn't drop frames ===== */
@@ -759,8 +765,8 @@
                 <div class="fc-chips" id="status-p1"></div>
                 <div class="power-meter" id="power-p1"></div>
                 <div class="fc-hp">
-                    <span class="scale-text" id="scale-text-p1"></span>
-                    <div class="px-track hp-bar-container"><div class="hp-ghost" id="ghost-p1"></div><div class="px-fill hp-bar" id="bar-p1"></div><div class="scale-bar" id="scales-p1"></div></div>
+                    <div class="scale-row"><div class="scale-track"><div class="scale-fill" id="scales-p1"></div></div><span class="scale-num" id="scale-text-p1"></span></div>
+                    <div class="px-track hp-bar-container"><div class="hp-ghost" id="ghost-p1"></div><div class="px-fill hp-bar" id="bar-p1"></div></div>
                     <span class="hp-text" id="hp-text-p1">—</span>
                 </div>
                 <span class="result-tag frame-sm" id="result-p1"></span>
@@ -784,8 +790,8 @@
                 <div class="fc-chips" id="status-p2"></div>
                 <div class="power-meter" id="power-p2"></div>
                 <div class="fc-hp">
-                    <span class="scale-text" id="scale-text-p2"></span>
-                    <div class="px-track hp-bar-container"><div class="hp-ghost" id="ghost-p2"></div><div class="px-fill hp-bar" id="bar-p2"></div><div class="scale-bar" id="scales-p2"></div></div>
+                    <div class="scale-row"><div class="scale-track"><div class="scale-fill" id="scales-p2"></div></div><span class="scale-num" id="scale-text-p2"></span></div>
+                    <div class="px-track hp-bar-container"><div class="hp-ghost" id="ghost-p2"></div><div class="px-fill hp-bar" id="bar-p2"></div></div>
                     <span class="hp-text" id="hp-text-p2">—</span>
                 </div>
                 <span class="result-tag frame-sm" id="result-p2"></span>
@@ -1191,8 +1197,8 @@
 
         const FV_TEXT = {
             uk: { attacks: 'атаки', physical: 'фізична', magical: 'магічна', vampire: 'вампірська', tab: '⚔ Атакує', attacking: 'атакує…', upNext: '⏳ хід',
-                  ko: 'вибуває', start: 'початок ходу', applies: 'накладає', gets: 'отримує', refreshes: 'оновлює', replaces: 'замінює', removes: 'знімає',
-                  takes: 'забирає', lost: 'зникає', immune: '🐉 імунітет', block: '🚫 блок', sovereign: '👑 атака розсіюється', pierce: '⚡ крізь броню',
+                  ko: 'вибуває', start: 'початок ходу', applies: 'накладає', gets: 'отримує', refreshes: 'оновлює', removes: 'знімає',
+                  takes: 'забирає', lost: 'зникає', lostMany: 'зникають', immune: '🐉 імунітет', block: '🚫 блок', sovereign: '👑 атака розсіюється', pierce: '⚡ крізь броню',
                   unblockable: 'не блокується', crit: '💥 Крит', miss: 'промах', frozen: 'атаку пропущено', back: 'назад', reflect: '🟦 відбиває',
                   fortune: '🟨 фортуна · 1 HP', thorns: '🌵 шипи', lifesteal: '🧛 титул', execute: '⚰️ добивання', sleep: '😴 проспав хід', wrath: '👑 кара етеру',
                   guardian: '👼 ангел-охоронець', chaos: '⚡ хаос', cat: '🐈 кіт', bounced: '🤍 відскочило від луски', cracked: '💔 Луска розкололася!', scales: '🤍 луска',
@@ -1206,8 +1212,8 @@
                   reaches: '{who} досягає {n}-го рівня', atkGain: '+{n} до атаки', tierGain: 'стихія сильнішає', meterBtn: '✦ {meter}: {side}',
                   left: 'лівий', right: 'правий', noCast: '— випадково —', newTurns: '↓ нові ходи ({n})' },
             en: { attacks: 'attacks', physical: 'physical', magical: 'magic', vampire: 'vampire', tab: '⚔ Attacks', attacking: 'attacks…', upNext: '⏳ up next:',
-                  ko: 'is knocked out', start: 'start of turn', applies: 'applies', gets: 'gets', refreshes: 'refreshes', replaces: 'replaces', removes: 'removes',
-                  takes: 'takes', lost: 'lost', immune: '🐉 immune', block: '🚫 block', sovereign: '👑 the attack dissolves', pierce: '⚡ armour-piercing',
+                  ko: 'is knocked out', start: 'start of turn', applies: 'applies', gets: 'gets', refreshes: 'refreshes', removes: 'removes',
+                  takes: 'takes', lost: 'lost', lostMany: 'lost', immune: '🐉 immune', block: '🚫 block', sovereign: '👑 the attack dissolves', pierce: '⚡ armour-piercing',
                   unblockable: 'unblockable', crit: '💥 Crit', miss: 'miss', frozen: 'attack skipped', back: 'back', reflect: '🟦 reflects',
                   fortune: '🟨 fortune · 1 HP', thorns: '🌵 thorns', lifesteal: '🧛 title', execute: '⚰️ execute', sleep: '😴 slept through it', wrath: '👑 aether wrath',
                   guardian: '👼 guardian angel', chaos: '⚡ chaos', cat: '🐈 cat', bounced: '🤍 bounced off the scales', cracked: '💔 The scales cracked!', scales: '🤍 scales',
@@ -1545,7 +1551,7 @@
                 if (x.reels) g(0, fvLk(x.reels.join(' '), 'reels'), x.miss ? fvLk(fvT('miss'), 'hurt') : fvLk(`×${x.mult}`));
                 if (x.id === 'detonation') { g(0, fvLk(`×${x.mult}`)); if (x.removed && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvFxChip)); }
                 if (x.taken && x.taken.length) g(0, fvLx(fvT('takes')), ...x.taken.map(fvFxChip));
-                if (x.lost && x.lost.length) g(0, fvLx(fvT('lost')), ...x.lost.map(fvFxChip));
+                if (x.lost && x.lost.length) g(0, x.taken && x.taken.length ? fvLx('·') : '', ...x.lost.map(fvFxChip), fvLx(fvT(x.lost.length > 1 ? 'lostMany' : 'lost')));
                 if (x.forced) g(0, fvLk(fvT('noBuffs')), fvLk(fvT('forced')));
                 if (x.immune) g(0, fvLk(fvT('immune')));
                 if (x.hits !== undefined) g(0, fvLk(`${u.icon} ${unitLeftText('hits', x.hits)}`));
@@ -1585,10 +1591,10 @@
                 const mine = (kind === 'buff' && c.owner === rec.atk) || (kind === 'debuff' && c.owner === rec.def);
                 if (c.result === 'immune') g(0, fvLk(fvT('immune')), fvFxChip(c.id));
                 else if (c.result === 'bounced') g(0, fvFxChip(c.id), fvLk(fvT('bounced')));
-                else if (c.result === 'pulled') g(0, fvFxChip(c.id), fvLx(fvT('pulled')), ...(c.extra ? [fvLx(fvT('replaces')), fvFxChip(c.extra)] : []));
+                else if (c.result === 'pulled') g(0, fvFxChip(c.id), fvLx(fvT('pulled')), ...(c.extra ? [fvLx('·'), fvFxChip(c.extra), fvLx(fvT('lost'))] : []));
                 else if (c.result === 'dispelled') g(0, fvFxChip(c.id), fvLx(fvT('removes')), ...(c.extra || []).map(fvFxChip));
                 else if (c.result === 'refreshed') g(0, fvLx(fvT('refreshes')), fvFxChip(c.id));
-                else if (c.result === 'replaced') g(0, fvFxChip(c.id), fvLx(fvT('replaces')), fvFxChip(c.extra));
+                else if (c.result === 'replaced') g(0, fvFxChip(c.id), fvLx('·'), fvFxChip(c.extra), fvLx(fvT('lost')));   // «🌟 Божественна міць · 🍀 Благословіння зникає»
                 else g(0, fvLx(mine ? (kind === 'buff' ? fvT('gets') : fvT('applies')) : `@${c.owner.name} ${fvT('gets')}`), fvFxChip(c.id));
             });
             const head = u ? `<div class="lc-ult" style="color:${u.color}">${ultLabel(rec.ult.id)}</div>` : '';
@@ -2262,48 +2268,48 @@ const DRAKE_SPRITES = {
             '...............dd............dddd...............'
         ]
     },
-    // White Drake (the streamer's regular form): polished white-steel plates with rivets, steel wing ribs, a faint green glow
-    // in the seams (the White Dragon's green flame), crown-tipped horns and a small white-steel crown with a green gem. It
-    // stands, wing spread, tail straight back to a steel spade: not a viewer drake's shape
+    // White Drake (the streamer's regular form, made from the White Dragon's scales): the drakes' own body in polished white
+    // steel. A bright green eye, a small white-steel crown with a green gem, plate lines with green seams, steel wing ribs,
+    // and a small green flame on the tail tip in the White Dragon's green
     steel: {
-        pal: ["#1b2433", "#ffffff", "#8affb8", "#3fd47f", "#9fb1be", "#dfe8ee", "#b7c6d1", "#76899a", "#1d7a4a", "#d8fff0", "#55687a", "#5e7080", "#8899a8", "#f7fbff", "#55687a", "#3c4a5a", "#f0f4f6"],
+        pal: ["#ffffff", "#0e1328", "#dfe7f3", "#3a466e", "#1e2644", "#9dffbf", "#9aa9c8", "#f1f5fb", "#6a78a2", "#232c48", "#090c1c", "#27b865", "#5a6890", "#93a3c4", "#283050", "#cdd8ea", "#56648c", "#b2bfd6", "#4c5a86", "#36416a", "#3fd27a", "#adbad1", "#151b30", "#1c7a4a", "#7a88a6", "#58e888", "#0a3e26", "#b4fbc8", "#f4fff7", "#46536f", "#dbe3ef", "#7b8aae", "#0a0e20", "#56638a", "#1a2038", "#343f60", "#f4f8ff", "#8e9cba"],
         rows: [
-            '......aabbaa....abcca..............aa...........',
-            '.....ababaaba..abdbda.....aa......aefa..........',
-            '.....abbccbbaaabffaa.....aefa....aefea..........',
-            '.....aggddggbbbffa.......aefea..aefhha..........',
-            '......abbbfbbfffa........ahfheaaefhhha..........',
-            '....aabbbbbffffa........aehfhheehfhhhea..aaaa...',
-            '...abbbffffgggga........ahfhhhhhfhhhhhaaahhhha..',
-            '.aabffffijdggggfa.......ahfhhhhfhhhhhhhhhkkkffa.',
-            'abbfffggggggggglba......ahfhhhfhhhhhkkkkkfffaa..',
-            'bflgggggggggmmlffba.....ahfhhfhhhhkkkkfffkka....',
-            'ggggggggggmmmlfffffa....ahfhfhhhkkkkffkkkka.....',
-            'allllggmmmmmlffffgga...aehfhfhkkkfffkkkkka......',
-            '.agggllllmmaafiiiggfa..ahfhfkkfffkkkkkkkkaa.....',
-            '..aaaaaaaaa.afgggigmaaaahfffffkkkkkkkkkkkhma....',
-            '............agggggmmabbbmffkkkkkkkkkkkkkkmfba...',
-            '.............agiiimmmfmmbbfmmmmkkkkkkkkaaffffa..',
-            '.............aggmmilmfmbnfffmggmkaaaaaa.affgcfa.',
-            '..............amlmlbfmmffofmggggmfa.....amgdddga',
-            '...............ablbfffmmfgmgggggggfa...aggmgmma.',
-            '...............abbffffmgmmggggggmmmgaaagmmmlmma.',
-            '...............abfnffgmiggggggmmmmmmaggmmmlama..',
-            '..............abfffoggmiggggmmmmmmmlgmmmlla.a...',
-            '..............affffgggmdgmmmmfffmmmmmmllla......',
-            '..............afffgggmgimmfnfffggmmmlllaa.......',
-            '..............amfggngmmimmffoggggmmllla.........',
-            '..............agmmmmomimmmfgggngglllla..........',
-            '...............affffgmimmmmggggommmla...........',
-            '................affggmmmmnmggmmmmlla............',
-            '................aiiigmmmmmolmmmmllla............',
-            '................agggglmmllllmiiimmla............',
-            '...............afggmmmalllllmfggmllma...........',
-            '...............aggmnma.aaaaagggnlllpa...........',
-            '...............agmmmoa.....aggmmollpa...........',
-            '..............afmmmmla.....ammmlllppa...........',
-            '..............aqaqaqaqa....aqaqaqaqa............',
-            '...............a.a.a.a......a.a.a.a.............'
+            '............a...................................',
+            '........babbcbbab............d.ee...............',
+            '........baccfccgb...........dheijk..............',
+            '........bggglggmb..........dhnoaajkdd...........',
+            '.......dhhhhpnnqb.........dhnorairaaabddd.......',
+            '......dhhhabbnqqb.........daqoaiiiiiirraab......',
+            '....ddhhbbbqnnqoob.......dhnosariiiiiiitk.......',
+            '...dhhhbbfuqnqooob.......dpqostaiiiiiitk........',
+            '..dhabpnnnqoqoooob......dhnosssaiiiiatk.........',
+            '.dppnnnqqqooooooqb......dpqossstriiiiabd........',
+            '.dnnqoooooobooooob.....dhpqossssaiiiiirab.......',
+            '..bobbbbbbboooonqob....dhnosssssariiitjk........',
+            '...bnqnnnqpnqqbnqob....dpnossssstaiijkk.........',
+            '....bqqqqqqqqbdddddb..dppqossssssaijk...........',
+            '.....bbbbbbbbvnnnqqb..dppqosssssstrb............',
+            '............dvvnnnqqbddpnqosstjwwwrb............',
+            '............dvvnnnnnqpopnqowwkkkkkb..........x..',
+            '............dyddddzdddopnqoqpppnbdd.........xlA.',
+            '.............bvvnnnpnnoqoondppppndqb........xzA.',
+            '.............dyvvnnpnqoooohdpppbbznqb.......xBzA',
+            '..............byvvbbbbbooopdpbbppdbqob.....xlBCA',
+            '..............dDybhhpnoboopdbhhhppnboob....xzBzA',
+            '..............dEDbhapnoboopzbhhhdddqbobd...xBzzA',
+            '..............dvbppnnqoboondhhadpnqdobnnbd.xzzA.',
+            '..............dybppnqoobooqdppppnnqoobnndndhdqob',
+            '...............bbppnqoobooqdpppbbbqoobnndnnhdqob',
+            '...............dbppnqooboDDdnnbhhnboobqqznnndob.',
+            '................bppnoobDDDDdqbhhpnobobqqdqqqdob.',
+            '................dpnqoobDDDDDbbppnqobbooodoooob..',
+            '...............dhpnqobFbbbGDDbqnnqobbboooooob...',
+            '...............dhpqoobFHIIGbb.dnnqoobHbbGbbb....',
+            '.............dddpnoobFFJIG..ddhhnqobFHIIG.......',
+            '............dhhppooobFFIIG.dhhppnoobHJIG........',
+            '............dqqqooobJIIIG.dqqqqqoobIIIG.........',
+            '.............KbKoKb.LGLG...bKoKoKbLGLG..........',
+            '...............bb............bbbb...............'
         ]
     },
     // White Dragon (streamer only): wyvern, wings folded, walks on its wing-hands. Green aether flame on the tail, crown horns, back spikes and wing-finger tips in the same green
@@ -4574,13 +4580,16 @@ function drakeSpriteURL(type) {
             if (xpBar) xpBar.style.transform = `scaleX(${(prog.level >= 20 ? 100 : Math.floor(100 * prog.currentXP / prog.requiredXP)) / 100})`;
 
             renderStatsRow(prefix, prog.level, drakeType, dragon.title, fx);
-            // The White Drake's scales during a fight: the strip over the HP bar (as a share of max HP) and the number
-            const sc = fx && fx.scales, scaleBar = document.getElementById(`scales-${prefix}`), scaleText = document.getElementById(`scale-text-${prefix}`);
+            // The White Drake's scales during a fight: their own bar above the HP bar (what's left of their starting size) and
+            // the number; at 0 the bar shows a crack
+            const sc = fx && fx.scales, scaleFill = document.getElementById(`scales-${prefix}`), scaleText = document.getElementById(`scale-text-${prefix}`);
+            const broken = !!sc && sc.now <= 0;
             if (card && card.classList) card.classList.toggle('has-scales', !!sc);
-            if (scaleBar && scaleBar.style) scaleBar.style.transform = `scaleX(${sc ? Math.min(1, sc.now / getMaxHP(prog.level, drakeType, dragon.title)) : 0})`;
+            if (scaleFill && scaleFill.style) scaleFill.style.transform = `scaleX(${sc && sc.max > 0 ? Math.max(0, Math.min(1, sc.now / sc.max)) : 0})`;
+            if (scaleFill && scaleFill.parentElement && scaleFill.parentElement.classList) scaleFill.parentElement.classList.toggle('cracked', broken);
             if (scaleText) {
-                scaleText.textContent = sc ? (sc.now > 0 ? `🤍 ${sc.now}` : '💔 0') : '';
-                if (scaleText.classList) scaleText.classList.toggle('cracked', !!sc && sc.now <= 0);
+                scaleText.textContent = sc ? String(Math.max(0, sc.now)) : '';
+                if (scaleText.classList) scaleText.classList.toggle('cracked', broken);
             }
             fitText(nameEl, 13);
             fitText(badgeContainer.querySelector('.fighter-title-badge'), 9);
@@ -4884,7 +4893,7 @@ function drakeSpriteURL(type) {
                             });
                             defFx.buff = [];
                             ultText = (taken.length ? (currentLang === 'uk' ? `забирає ${taken.map(x => fxName(x.id)).join(', ')}` : `takes ${taken.map(x => fxName(x.id)).join(', ')}`) : '')
-                                + (lost.length ? (currentLang === 'uk' ? `${taken.length ? '; ' : ''}зникає ${lost.map(x => fxName(x.id)).join(', ')}` : `${taken.length ? '; ' : ''}removes ${lost.map(x => fxName(x.id)).join(', ')}`) : '') + '! ';
+                                + (lost.length ? (currentLang === 'uk' ? `${taken.length ? '; ' : ''}${lost.map(x => fxName(x.id)).join(', ')} ${lost.length > 1 ? 'зникають' : 'зникає'}` : `${taken.length ? '; ' : ''}removes ${lost.map(x => fxName(x.id)).join(', ')}`) : '') + '! ';
                             fvUltInfo({ taken: taken.map(x => x.id), lost: lost.map(x => x.id) });
                         }
                     }
@@ -5315,8 +5324,7 @@ function drakeSpriteURL(type) {
             // Магніт: the buff goes on the White Drake's list by the usual rules (refreshing it there, or replacing one of
             // its own); only the log line differs
             const pulledLine = gone => {
-                log(uk ? `${fxName(id)} ${fvT('pulled')}: ${who}${gone ? ` (замінює ${fxName(gone.id)})` : ''}`
-                       : `${fxName(id)} ${fvT('pulled')}: ${who}${gone ? ` (replaces ${fxName(gone.id)})` : ''}`);
+                log(`${fxName(id)} ${fvT('pulled')}: ${who}${gone ? ` (${fxName(gone.id)} ${fvT('lost')})` : ''}`);
                 if (!opts.silent) fvCast(owner, id, 'pulled', gone ? gone.id : null);
                 return 'pulled';
             };
@@ -5338,8 +5346,8 @@ function drakeSpriteURL(type) {
             list.push({ id, left: e.count, power });
             if (pulled) return pulledLine(replaced);
             if (replaced) {
-                log(uk ? `${who}: ${kindWord} ${fxName(id)} замінює ${fxName(replaced.id)} (${effectLeftText(id, e.count)})`
-                       : `${who}: ${kindWord} ${fxName(id)} replaces ${fxName(replaced.id)} (${effectLeftText(id, e.count)})`);
+                log(uk ? `${who} отримує ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count)}), ${fxName(replaced.id)} зникає`
+                       : `${who} receives ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count)}), ${fxName(replaced.id)} is gone`);
                 if (!opts.silent) fvCast(owner, id, 'replaced', replaced.id);
                 return 'replaced';
             }
@@ -6005,7 +6013,7 @@ function drakeSpriteURL(type) {
         // Where the crown sits on each viewer drake, in sprite pixels of the sprite as drawn (facing left): x is the column
         // the crown is centred on, y the line its bottom edge sits on, so its bottom row covers the top row of the skull,
         // in front of the horns and crests
-        const SHOW_HEADS = { red: { x: 12, y: 4 }, blue: { x: 10, y: 4 }, black: { x: 11, y: 5 }, gold: { x: 12, y: 4 }, purple: { x: 12, y: 4 }, green: { x: 10, y: 4 }, steel: { x: 9, y: 0 } };
+        const SHOW_HEADS = { red: { x: 12, y: 4 }, blue: { x: 10, y: 4 }, black: { x: 11, y: 5 }, gold: { x: 12, y: 4 }, purple: { x: 12, y: 4 }, green: { x: 10, y: 4 }, steel: { x: 12, y: 0 } };
         // Crowns a drake sprite element: it goes into a wrapper (.ts-drake) with the crown, so the crown moves with whatever
         // moves the drake. The crown is scaled like the sprite (its screen pixels per sprite pixel) and placed on whole sprite
         // pixels; a mirrored sprite (a negative scaleX) gets its anchor and the crown mirrored too. Returns the wrapper, or

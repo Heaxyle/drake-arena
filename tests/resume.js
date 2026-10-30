@@ -231,7 +231,7 @@ async function main() {
             const want = await page.evaluate(() => { const d = getDragonDB().stream_owner, lvl = calculateLevelAndProgress(d.xp).level; return scalesOf(lvl, getMaxHP(lvl, d.drakeObj.type, d.title)); });
             const card = await page.evaluate(() => { const side = document.getElementById('name-p1').textContent.includes('stream_owner') ? 'p1' : 'p2';
                 return { text: document.getElementById(`scale-text-${side}`).textContent, on: document.getElementById(`card-${side}`).classList.contains('has-scales') }; });
-            check(fresh && fresh.turn <= 1 && fresh.scales.now === want && fresh.scales.max === want && card.on && card.text === `🤍 ${want}`,
+            check(fresh && fresh.turn <= 1 && fresh.scales.now === want && fresh.scales.max === want && card.on && card.text === String(want),
                 `the fight starts again with the scales full at their starting size (${want}), the card showing «${card.text}»`, JSON.stringify({ fresh, want, card }));
             check(fresh && !fresh.debuffs.length && fresh.buffs.every(([id, left]) => left === counts[id]),
                 `no effect carried over from before the reload (before: ${before.buffs.length + before.debuffs.length} up; now: ${fresh ? fresh.buffs.map(b => b[0]).join(', ') || 'none' : '?'}, fresh)`, JSON.stringify({ before, fresh }));

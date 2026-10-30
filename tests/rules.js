@@ -975,8 +975,10 @@ for (const lang of ['en', 'uk']) {
     const pulledOk = r1 === 'pulled' && fxM.wd.buff.map(x => x.id).join() === 'rage' && fxM.v.buff.map(x => x.id).join() === 'shield' && logs.some(l => l.includes('Лють притягується до Білого Дрейка'));
     fxM.wd.buff = [{ id: 'reforge', left: 1, power: 1 }, { id: 'regen', left: 3, power: 1 }];
     const r2 = G.applyEffect(vF, wdF, 'blessing', 10, fxM);
-    check(pulledOk && r2 === 'pulled' && fxM.wd.buff.map(x => x.id).sort().join() === 'blessing,regen' && fxM.v.buff.map(x => x.id).join() === 'shield',
-        "23. Магніт: the target's new buff lands on the White Drake («Лють притягується до Білого Дрейка»), its own Щит stays; with 2 buffs already the pulled one replaces the one closest to ending",
+    const goneLine = logs.find(l => l.includes('Благословіння притягується до Білого Дрейка')) || '';
+    check(pulledOk && r2 === 'pulled' && fxM.wd.buff.map(x => x.id).sort().join() === 'blessing,regen' && fxM.v.buff.map(x => x.id).join() === 'shield'
+        && strip(goneLine).endsWith(': @wd (⚒️ Перекування зникає)'),
+        `23. Магніт: the target's new buff lands on the White Drake («Лють притягується до Білого Дрейка»), its own Щит stays; with 2 buffs already the pulled one replaces the one closest to ending: «${strip(goneLine)}»`,
         JSON.stringify({ r1, r2, wd: fxM.wd.buff, v: fxM.v.buff, logs }));
 
     // Real fights, the White Drake against every element at every level tier: what the game logs, checked against its state

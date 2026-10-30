@@ -718,15 +718,15 @@ async function popAtStep2(page, turn) {
                 if (!found) { results.push({ id, ok: false, why: 'never cast' }); continue; }
                 const e = await page.evaluate(id => ({ kind: EFFECTS[id].kind, lasts: EFFECTS[id].lasts, name: fxName(id) }), id);
                 const label = { uk: e.kind === 'buff' ? 'отримує' : 'накладає', en: e.kind === 'buff' ? 'gets' : 'applies' }[lang];
-                const refresh = { uk: 'оновлює', en: 'refreshes' }[lang], replace = { uk: 'замінює', en: 'replaces' }[lang], removes = { uk: 'знімає', en: 'removes' }[lang];
+                const refresh = { uk: 'оновлює', en: 'refreshes' }[lang], removes = { uk: 'знімає', en: 'removes' }[lang], lost = { uk: 'зникає', en: 'lost' }[lang];
                 const textOk = e.lasts === 'instant' ? found.l2.includes(`${e.name} ${removes}`)
-                    : found.l2.includes(`${label} ${e.name}`) || found.l2.includes(`${refresh} ${e.name}`) || found.l2.includes(`${e.name} ${replace}`);
+                    : found.l2.includes(`${label} ${e.name}`) || found.l2.includes(`${refresh} ${e.name}`) || (found.l2.includes(`${e.name} ·`) && found.l2.includes(lost));   // a replacement: «X · Y зникає»
                 const chipOk = e.lasts === 'instant' || found.ownerChips.some(c => c.startsWith(e.name));
                 results.push({ id, ok: textOk && chipOk && found.forced === null, why: JSON.stringify(found) });
             }
             await page.selectOption('#debug-force-cast', '');
             const bad = results.filter(r => !r.ok);
-            check(!bad.length && results.length === 12, `[${lang}] all 12 effects cast from "next hit casts": the card says it ("накладає 🔥 Підпал", refresh / replace / Dispel in words) and the fighter card shows the chip`,
+            check(!bad.length && results.length === 12, `[${lang}] all 12 effects cast from "next hit casts": the card says it ("накладає 🔥 Підпал", refresh / Dispel in words, a replacement «X · Y зникає») and the fighter card shows the chip`,
                 bad.slice(0, 3).map(r => `${r.id}: ${r.why}`).join(' | '));
             if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
@@ -1044,12 +1044,22 @@ async function popAtStep2(page, turn) {
             // re-forge, the banner and both result lines
             const steelMissing = await page.evaluate(() => {
                 const t = document.getElementById('review-sheet').innerText;
-                const want = ['uk', 'en'].flatMap(l => { currentLang = l; return ['bounced', 'pulled', 'replaces', 'cracked', 'steelIn', 'steelWin', 'steelLoss'].map(k => fvT(k)); });
+                const want = ['uk', 'en'].flatMap(l => { currentLang = l; return ['bounced', 'pulled', 'cracked', 'steelIn', 'steelWin', 'steelLoss'].map(k => fvT(k))
+                    .concat(`${fvT('pulled')} · ${fxName('regen')} ${fvT('lost')}`); });   // the pulled card (turn 31): «… · 💚 Регенерація зникає»
                 currentLang = 'uk';
-                return [...new Set(want)].concat([`${EFFECTS.reforge.icon} +15`, '🤍 +31', `${CLASS_ULTIMATES.anvil.icon} `]).filter(w => !t.includes(w));
+                return [...new Set(want)].concat([`${EFFECTS.reforge.icon} +15`, '🤍 +31', `${CLASS_ULTIMATES.anvil.icon} `]).filter(w => !t.replace(/\s+/g, ' ').includes(w));
             });
             check(!steelMissing.length, "the White Drake's cards on the sheet, both languages: a debuff bounced off its scales, a buff pulled to it (replacing one), the scales cracking, Перекування's rebuild, Удар ковадла re-forging them, its banner and both result lines",
                 steelMissing.join(' | '));
+            // A dropped effect is named first, then «зникає» (its name stays in the nominative): a replaced buff (turn 9), a
+            // replaced debuff (the busiest turn), Shadow Theft's lost buff (turn 18); no card says «замінює» any more
+            const dropped = await page.evaluate(() => {
+                const t = document.getElementById('review-sheet').innerText.replace(/\s+/g, ' ');
+                const want = ['uk', 'en'].flatMap(l => { currentLang = l; return [`${fxName('divine')} · ${fxName('blessing')} ${fvT('lost')}`, `· ${fxName('weakness')} ${fvT('lost')}`, `${fxName('shield')} · ${fxName('blessing')} ${fvT('lost')}`]; });
+                currentLang = 'uk';
+                return { missing: want.filter(w => !t.includes(w)), replaces: /замінює|\breplaces\b/.test(t) };
+            });
+            check(!dropped.missing.length && !dropped.replaces, 'a dropped effect is named first, then «зникає» / "lost" (a replaced buff, a replaced debuff, Shadow Theft\'s), and no card says «замінює»', JSON.stringify(dropped));
             const idsLeft = await page.evaluate(() => { const t = document.getElementById('review-sheet').innerText; return [...EFFECT_IDS, ...ULTIMATE_IDS].filter(id => new RegExp(`(?<![\\p{L}_])${id}(?![\\p{L}_])`, 'u').test(t)).concat(['undefined', 'NaN', '{'].filter(w => t.includes(w))); });
             check(!idsLeft.length, 'no internal ids on any kind of card', idsLeft.join(', '));
             await page.waitForTimeout(500);   // the sheet sits outside the stage, so let its cells' fade-in finish too
