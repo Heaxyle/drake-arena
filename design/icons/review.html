@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Drake Arena icons · batch 1</title>
+<!-- Design review only: not part of the game. The screenshot script (shoot.js) swaps this link for the game's embedded fonts
+     and blocks the network, so the screenshots match the stream. -->
+<link id="web-fonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rubik:wght@400;600;700;800&display=swap">
+<style>
+    /* Copied from showcase/index.html (tokens, frames, fighter card, chips, log cards), so the icons sit on the real backgrounds */
+    :root {
+        --ui: 'Rubik', 'Segoe UI', Tahoma, sans-serif;
+        --pixel: 'Press Start 2P', 'Segoe UI', monospace;
+        --text: #eef0fa; --text2: #d7daf0; --muted: #a9aecb; --dim: #6f7496; --faint: #4c5070;
+        --gold: #f2c14e; --gold-hi: #ffd978; --gold-lo: #b8862c; --gold-deep: #1b1206; --plate: #17120a;
+        --card: #1a1c28; --track: #262938; --edge: #06070b;
+    }
+    html, body { margin: 0; }
+    body { width: 1920px; background: #15171e; font-family: var(--ui); color: var(--text); }
+    .frame-sm { box-shadow: 0 -2px 0 0 var(--hi, var(--gold-hi)), -2px 0 0 0 var(--hi, var(--gold-hi)), 0 2px 0 0 var(--lo, var(--gold-lo)), 2px 0 0 0 var(--lo, var(--gold-lo)),
+        0 -4px 0 0 var(--deep, var(--gold-deep)), 0 4px 0 0 var(--deep, var(--gold-deep)), -4px 0 0 0 var(--deep, var(--gold-deep)), 4px 0 0 0 var(--deep, var(--gold-deep)),
+        -2px -2px 0 0 var(--deep, var(--gold-deep)), 2px -2px 0 0 var(--deep, var(--gold-deep)), -2px 2px 0 0 var(--deep, var(--gold-deep)), 2px 2px 0 0 var(--deep, var(--gold-deep)); }
+    .el-red    { --hi: #ff4f5a; --lo: #b0232e; --deep: #1c0507; --meter: #ff4f5a; }
+    .el-green  { --hi: #6fe896; --lo: #2b8a4b; --deep: #06180c; --meter: #6fe896; }
+    .el-blue   { --hi: #4a98ff; --lo: #1f5fb8; --deep: #050d1c; --meter: #4a98ff; }
+    .el-black  { --hi: #a7aab4; --lo: #6f7380; --deep: #000000; --meter: #a7aab4; }
+    .el-gold   { --hi: #ae8513; --lo: #6e4f06; --deep: #1a1102; --meter: #d9a520; }
+    .el-purple { --hi: #b47aff; --lo: #6a35b0; --deep: #12061f; --meter: #b47aff; }
+
+    .fighter-card { position: relative; width: 404px; box-sizing: border-box; padding: 16px 18px 18px; background: var(--card); display: flex; flex-direction: column; gap: 8px;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 -2px 0 0 var(--hi), -2px 0 0 0 var(--hi), 0 2px 0 0 var(--lo), 2px 0 0 0 var(--lo),
+            0 -4px 0 0 var(--deep), 0 4px 0 0 var(--deep), -4px 0 0 0 var(--deep), 4px 0 0 0 var(--deep),
+            -2px -2px 0 0 var(--deep), 2px -2px 0 0 var(--deep), -2px 2px 0 0 var(--deep), 2px 2px 0 0 var(--deep); }
+    .fighter-name { font-size: 24px; font-weight: 700; white-space: nowrap; line-height: 1.2; }
+    .fc-line { display: flex; justify-content: space-between; font-size: 15px; color: var(--muted); }
+    .fc-chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px 8px; height: 46px; flex-shrink: 0; overflow: hidden; }
+    .status-item { font-size: 13px; font-weight: 600; padding: 1px 8px; border-radius: 2px; white-space: nowrap; overflow: hidden; min-width: 0; max-width: calc(50% - 4px); box-sizing: border-box; line-height: 17px; height: 21px; }
+    .status-item.buff { color: #6bff9a; background: rgba(60, 255, 120, 0.08); border: 1px solid rgba(107, 255, 154, 0.45); }
+    .status-item.debuff { color: #ff9a6b; background: rgba(255, 120, 60, 0.10); border: 1px solid rgba(255, 154, 107, 0.5); }
+    /* Proposal: a chip with a 20 px icon is 22 px tall (two rows of 22 + a 2 px gap = the same 46 px block) */
+    .fc-chips.px { gap: 2px 8px; }
+    .status-item.px { display: flex; align-items: center; gap: 5px; height: 22px; line-height: 20px; padding: 0 8px 0 0; }
+    .status-item.px img { flex-shrink: 0; }
+    .hp-row { display: flex; align-items: center; gap: 10px; }
+    .hp-bar { flex: 1; height: 18px; background: var(--track); box-shadow: 0 0 0 2px var(--edge); }
+    .hp-bar i { display: block; height: 100%; width: 64%; background: #4dff7a; }
+    .hp-text { font-family: var(--pixel); font-size: 16px; width: 118px; text-align: right; }
+
+    .log-panel { position: relative; box-sizing: border-box; width: 920px; padding: 10px 16px 14px; background: rgba(6, 7, 11, 0.96); display: flex; flex-direction: column; gap: 8px; }
+    .log-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+    .lc { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 4px; height: 58px; box-sizing: border-box; padding: 6px 12px; min-width: 0;
+        background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 2px; }
+    .lc.has-ult { height: 76px; border-color: var(--hi); background: color-mix(in srgb, var(--lo) 22%, #1a1c28); }
+    .lc-ult { height: 13px; line-height: 13px; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+    .lc-l1, .lc-l2 { display: flex; align-items: center; min-width: 0; white-space: nowrap; }
+    .lc-l1 { gap: 8px; height: 20px; line-height: 20px; }
+    .lc-l2 { gap: 6px; height: 20px; line-height: 20px; font-size: 12px; overflow: hidden; padding-left: 24px; }
+    .lc-turn { font-size: 11px; color: var(--dim); min-width: 16px; text-align: center; flex-shrink: 0; }
+    .lc-move { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; min-width: 0; }
+    .lc-sp { flex: 1 1 0; }
+    .lc-num { font-family: var(--pixel); font-size: 16px; color: #ff5d52; white-space: nowrap; }
+    .lc-num.heal { color: #4dff7a; }
+    .lc-arrow { font-size: 17px; font-weight: 700; }
+    .lx { color: var(--dim); white-space: nowrap; }
+    .lk { font-weight: 700; padding: 0.1em 0.67em; line-height: 1.17em; border-radius: 2px; white-space: nowrap; color: #c9cde6; background: rgba(255, 255, 255, 0.08); }
+    .lk.buff { font-weight: 600; color: #6bff9a; background: rgba(60, 255, 120, 0.08); border: 1px solid rgba(107, 255, 154, 0.45); }
+    .lk.debuff { font-weight: 600; color: #ff9a6b; background: rgba(255, 120, 60, 0.10); border: 1px solid rgba(255, 154, 107, 0.5); }
+    .lk.heal { color: #4dff7a; background: rgba(77, 255, 122, 0.12); }
+    .lk.hurt { color: #ff9a8a; background: rgba(255, 93, 82, 0.14); }
+    /* Proposal: a log chip with a 20 px icon has no top/bottom padding and fills the 20 px line */
+    .lk.px { display: inline-flex; align-items: center; gap: 4px; height: 20px; box-sizing: border-box; padding: 0 0.67em 0 0; line-height: 18px; }
+    .lk.px.compact { padding: 0; background: none; border: 0; }
+    .lk.px.compact.num { padding-right: 0.5em; }
+    .lc-cell { display: flex; align-items: center; justify-content: center; gap: 8px; height: 58px; box-sizing: border-box; padding: 7px 12px; border-radius: 2px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+    .lc-cell.pending { border: 1px solid var(--hi); background: color-mix(in srgb, var(--lo) 18%, transparent); color: var(--hi); }
+    /* Proposal: an ultimate's 24 px burst stands in line 1 next to the move (2 px over the 20 px line, into the 4 px gaps) */
+    .ult-ico { flex-shrink: 0; margin: -2px 0; }
+    /* …and in line 2 (Ice Mirror's counter) it may draw 2 px past the line: overflow-clip-margin instead of overflow: hidden */
+    .lc-l2:has(.ult-ico) { overflow: clip; overflow-clip-margin: 2px; }
+    img.px-icon { image-rendering: pixelated; vertical-align: middle; }
+
+    /* The review sheet itself */
+    .page { padding: 28px 20px 40px; display: flex; flex-direction: column; gap: 34px; }
+    h1 { margin: 0; font-family: var(--pixel); font-size: 24px; color: var(--gold); text-shadow: 0 3px 0 #5a3e0c; }
+    h2 { margin: 0 0 14px; font-family: var(--pixel); font-size: 16px; color: var(--gold); text-shadow: 0 2px 0 #5a3e0c; }
+    .sub { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 1600px; line-height: 1.45; }
+    .note { color: var(--dim); font-size: 13px; margin-top: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+    .tile { background: var(--card); padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 8px; border: 1px solid rgba(255, 255, 255, 0.06); }
+    .tile-top { display: flex; align-items: center; gap: 14px; }
+    .zoom { background: #0f1016; padding: 6px; line-height: 0; }
+    .sizes { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--dim); }
+    .sizes span { display: flex; align-items: center; gap: 8px; }
+    .emo { font-size: 13px; width: 20px; text-align: center; }
+    .t-name { font-weight: 700; font-size: 15px; }
+    .t-meta { font-size: 12px; color: var(--muted); }
+    .t-meta b { font-weight: 700; }
+    .k-buff { color: #6bff9a; } .k-debuff { color: #ff9a6b; } .k-ult { color: var(--gold); }
+    .pair { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 0 24px; }
+    .col-h { font-family: var(--pixel); font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+    .cards { display: flex; gap: 26px; flex-wrap: wrap; max-width: 880px; padding: 4px; }
+    .logs { display: flex; flex-direction: column; gap: 8px; }
+    .filters { display: grid; grid-template-columns: 170px repeat(18, 46px); align-items: center; gap: 10px 8px; background: #1a1c28; padding: 16px; width: max-content; }
+    .filters .f-h { font-size: 13px; color: var(--muted); }
+    .filters .cell { display: flex; justify-content: center; }
+    .f-gray img, .f-gray .emo { filter: grayscale(1); }
+    .f-deut img { filter: url(#deut); } .f-prot img { filter: url(#prot); } .f-trit img { filter: url(#trit); }
+</style>
+</head>
+<body>
+<!-- Colour-blind simulations (Machado et al. 2009, severity 1.0) -->
+<svg width="0" height="0" style="position: absolute">
+    <filter id="deut" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.367 0.861 -0.228 0 0  0.280 0.673 0.047 0 0  -0.012 0.043 0.969 0 0  0 0 0 1 0"/></filter>
+    <filter id="prot" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.152 1.053 -0.205 0 0  0.115 0.786 0.099 0 0  -0.004 -0.048 1.052 0 0  0 0 0 1 0"/></filter>
+    <filter id="trit" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="1.256 -0.077 -0.179 0 0  -0.078 0.931 0.148 0 0  0.005 0.691 0.304 0 0  0 0 0 1 0"/></filter>
+</svg>
+<div class="page" id="page">
+    <div>
+        <h1>ICONS · BATCH 1</h1>
+        <div class="sub">The 12 effects and the 6 class ultimates. Pixel art like the drakes: one palette and pixel map per icon, drawn once, shown only at
+            whole-number scales. Shape tells the category (buff: round badge, debuff: spiky badge, ultimate: a larger burst), colour tells the element.
+            Each icon is shown next to the emoji it replaces, at the size it has in the game.</div>
+    </div>
+
+    <section>
+        <h2>1 · THE SET</h2>
+        <div class="grid" id="set"></div>
+        <div class="note">Zoom ×6 for review only; the game shows ×2 (20 px badges, 24 px ultimates), ×1 in the side column, ×3 for big moments.</div>
+    </section>
+
+    <section>
+        <h2>2 · ON THE FIGHTER CARD</h2>
+        <div class="pair">
+            <div><div class="col-h">NOW · EMOJI</div><div class="cards" id="cards-old"></div></div>
+            <div><div class="col-h">NEW · PIXEL ICONS</div><div class="cards" id="cards-new"></div></div>
+        </div>
+        <div class="note">The chip block stays 46 px tall: two rows of 22 px chips with a 2 px gap (now 21 + 4 + 21).</div>
+    </section>
+
+    <section>
+        <h2>3 · IN THE BATTLE LOG</h2>
+        <div class="pair">
+            <div><div class="col-h">NOW · EMOJI</div><div class="log-panel frame-sm logs" id="log-old"></div></div>
+            <div><div class="col-h">NEW · PIXEL ICONS</div><div class="log-panel frame-sm logs" id="log-new"></div></div>
+        </div>
+        <div class="note">Rows: what an attack applies; start-of-turn ticks; the compact form (icon and number, no words) that fvFitLine uses on a crowded line; the ultimates.</div>
+    </section>
+
+    <section>
+        <h2>4 · WITHOUT COLOUR</h2>
+        <div class="filters" id="filters"></div>
+        <div class="note">Greyscale, and simulated deuteranopia, protanopia and tritanopia. Without colour the frame still gives the category and the glyph gives the effect.</div>
+    </section>
+</div>
+
+<script src="icons.js"></script>
+<script>
+    const D = DrakeIcons;
+    const img = (id, s = 2) => D.iconImg(id, s);
+    const EFFECT_INFO = {
+        rage:     { kind: 'buff',   left: 'ще 2 атаки', glyph: 'angry face' },
+        burn:     { kind: 'debuff', left: 'ще 3 ходи',  glyph: 'flame', tick: -9 },
+        shield:   { kind: 'buff',   left: 'ще 2 удари', glyph: 'shield' },
+        frost:    { kind: 'debuff', left: 'ще 1 атака', glyph: 'snowflake' },
+        shadow:   { kind: 'buff',   left: 'ще 2 удари', glyph: 'crescent' },
+        weakness: { kind: 'debuff', left: 'ще 2 атаки', glyph: 'arrow down' },
+        blessing: { kind: 'buff',   left: 'ще 2 атаки', glyph: 'lucky star' },
+        mark:     { kind: 'debuff', left: 'ще 1 удар',  glyph: 'target' },
+        divine:   { kind: 'buff',   left: 'ще 1 атака', glyph: 'arrow up' },
+        dispel:   { kind: 'debuff', left: null,         glyph: 'gust' },
+        regen:    { kind: 'buff',   left: 'ще 3 ходи',  glyph: 'plus', tick: 12 },
+        poison:   { kind: 'debuff', left: 'ще 3 ходи',  glyph: 'drop', tick: -5 },
+    };
+    const ULT_GLYPH = { firestorm: 'meteor', mirror: 'diamond mirror', theft: 'bat', jackpot: 'seven', detonation: 'X blast', bloom: 'flower' };
+    const ELEMENT_UK = { red: 'Червоний', blue: 'Синій', black: 'Чорний', gold: 'Золотий', purple: 'Фіолетовий', green: 'Зелений' };
+    const nm = id => D.ICONS[id].name.uk;
+    const $ = id => document.getElementById(id);
+
+    // 1 · The set: zoom, game sizes, the emoji it replaces
+    [...D.EFFECT_ICON_IDS, ...D.ULTIMATE_ICON_IDS].forEach(id => {
+        const ic = D.ICONS[id], ult = ic.frame === 'ultimate';
+        const kind = ult ? '<b class="k-ult">ultimate</b>' : `<b class="k-${ic.frame}">${ic.frame}</b>`;
+        $('set').insertAdjacentHTML('beforeend', `<div class="tile">
+            <div class="tile-top"><div class="zoom">${img(id, 6)}</div>
+                <div class="sizes"><span>${img(id, 1)} ×1</span><span>${img(id, 2)} ×2</span><span><span class="emo">${ic.emoji}</span> now</span></div></div>
+            <div class="t-name">${ic.name.uk} · ${ic.name.en}</div>
+            <div class="t-meta">${kind} · ${ic.element} · ${ult ? ULT_GLYPH[id] : EFFECT_INFO[id].glyph} · <span style="color:${ic.color}">${ic.color}</span></div>
+        </div>`);
+    });
+
+    // 2 · Fighter cards: every effect that sits on a card (Dispel is instant), two buffs and two debuffs a card, as in a fight
+    const CARDS = [
+        { el: 'red', name: '@ПолумʼянийЛіс', fx: ['rage', 'shield', 'burn', 'frost'] },
+        { el: 'black', name: '@nightowl_ua', fx: ['shadow', 'blessing', 'weakness', 'mark'] },
+        { el: 'purple', name: '@arcane_kit', fx: ['divine', 'regen', 'poison', 'burn'] },
+    ];
+    function card(c, px) {
+        const chip = id => {
+            const e = EFFECT_INFO[id];
+            return px ? `<span class="status-item px ${e.kind}">${img(id)}${nm(id)} · ${e.left}</span>`
+                      : `<span class="status-item ${e.kind}">${D.ICONS[id].emoji} ${nm(id)} · ${e.left}</span>`;
+        };
+        return `<div class="fighter-card el-${c.el}"><div class="fighter-name">${c.name}</div>
+            <div class="fc-line"><span>Рівень 14 · ${ELEMENT_UK[c.el]} Дрейк</span><span>12 – 5</span></div>
+            <div class="fc-chips${px ? ' px' : ''}">${c.fx.map(chip).join('')}</div>
+            <div class="hp-row"><div class="hp-bar"><i></i></div><span class="hp-text">118/184</span></div></div>`;
+    }
+    CARDS.forEach(c => { $('cards-old').insertAdjacentHTML('beforeend', card(c, false)); $('cards-new').insertAdjacentHTML('beforeend', card(c, true)); });
+    // The game's fitText in short: shrink a chip's text (not its icon) until it fits, never below 9 px
+    function fitChips() {
+        document.querySelectorAll('.status-item').forEach(el => {
+            for (let px = 13; px > 9 && el.scrollWidth > el.clientWidth + 0.5; px -= 0.5) el.style.fontSize = px - 0.5 + 'px';
+        });
+    }
+    document.fonts.ready.then(fitChips);
+    window.fitChips = fitChips;
+
+    // 3 · Battle log
+    const lk = (id, px, word = true) => {
+        const e = EFFECT_INFO[id];
+        if (!px) return `<span class="lk ${e.kind}">${D.ICONS[id].emoji}${word ? ' ' + nm(id) : ''}</span>`;
+        return word ? `<span class="lk px ${e.kind}">${img(id)}${nm(id)}</span>` : `<span class="lk px compact">${img(id)}</span>`;
+    };
+    const tick = (id, px) => {
+        const v = EFFECT_INFO[id].tick, t = v < 0 ? v : '+' + v, cls = v < 0 ? 'debuff' : 'buff';
+        return px ? `<span class="lk px ${cls}">${img(id)}${t}</span>` : `<span class="lk ${cls}">${D.ICONS[id].emoji} ${t}</span>`;
+    };
+    const move = (side, n, text, num, defColor, extra = '') => {
+        const arrow = `<span class="lc-arrow" style="color:${defColor}">${side === 'left' ? '→' : '←'}</span>`;
+        const dmg = num ? `<span class="lc-num${num[0] === '+' ? ' heal' : ''}">${num}</span>` : '';
+        return side === 'left'
+            ? `<div class="lc-l1"><span class="lc-turn">${n}</span>${extra}<span class="lc-move">${text}</span><span class="lc-sp"></span>${dmg}${num && num[0] !== '+' ? arrow : ''}</div>`
+            : `<div class="lc-l1">${num && num[0] !== '+' ? arrow : ''}${dmg}<span class="lc-sp"></span>${extra}<span class="lc-move">${text}</span><span class="lc-turn">${n}</span></div>`;
+    };
+    const l2 = (side, html) => `<div class="lc-l2"${side === 'right' ? ' style="padding-left:0;padding-right:24px;justify-content:flex-end"' : ''}>${html}</div>`;
+    const lcard = (side, el, l1, line2, head = '') => `<div class="lc ${side} el-${el}${head ? ' has-ult' : ''}">${head}${l1}${l2(side, line2)}</div>`;
+    const RED = '#ff6b6b', BLUE = '#4dabf7';
+    function logRows(px) {
+        const rows = [];
+        const pair = (a, b) => rows.push(`<div class="log-row">${a}${b}</div>`);
+        const applied = (id, n, side, el) => lcard(side, el, move(side, n, '🗡️ Кігті', '-14', side === 'left' ? BLUE : RED), `<span class="lx">${EFFECT_INFO[id].kind === 'buff' ? 'отримує' : 'накладає'}</span>${lk(id, px)}`);
+        // What a hit applies: all 12 effects, two a row
+        const ids = D.EFFECT_ICON_IDS;
+        for (let i = 0; i < ids.length; i += 2) pair(applied(ids[i], i + 1, 'left', 'red'), applied(ids[i + 1], i + 2, 'right', 'blue'));
+        // Start-of-turn ticks
+        pair(lcard('left', 'green', move('left', 13, '🔮 Гострий лист', '-11', BLUE), `<span class="lx">початок ходу</span>${tick('burn', px)}${tick('poison', px)}`),
+             lcard('right', 'green', move('right', 14, '🗡️ Удар лози', '-9', RED), `<span class="lx">початок ходу</span>${tick('regen', px)}`));
+        // Compact: icon only
+        pair(lcard('left', 'purple', move('left', 15, '🔮 Вибух чарів', '-27', BLUE), `<span class="lx">накладає</span>${['poison', 'weakness', 'mark', 'frost'].map(id => lk(id, px, false)).join('')}`),
+             lcard('right', 'gold', move('right', 16, '🔮 Сяйво', '-21', RED), `<span class="lx">отримує</span>${['blessing', 'shield', 'divine', 'regen'].map(id => lk(id, px, false)).join('')}`));
+        // Ultimates
+        const U = D.ICONS;
+        const head = id => `<div class="lc-ult" style="color:${U[id].color}">${px ? '' : U[id].emoji + ' '}Ультимейт · ${nm(id)}</div>`;
+        const umove = (side, n, id, num, def) => px ? move(side, n, nm(id), num, def, `<img class="px-icon ult-ico" src="${D.iconURL(id)}" width="24" height="24" alt="">`)
+                                                   : move(side, n, `${num && num[0] !== '+' ? '' : U[id].emoji + ' '}${nm(id)}`, num, def);
+        pair(lcard('left', 'red', umove('left', 17, 'firestorm', '-38', BLUE), `<span class="lk">не блокується</span><span class="lx">накладає</span>${lk('burn', px)}`, head('firestorm')),
+             lcard('right', 'blue', umove('right', 18, 'mirror', '', RED), px ? `<span class="lk px"><img class="px-icon ult-ico" src="${D.iconURL('mirror')}" width="24" height="24" alt="">ще 2 удари</span>` : `<span class="lk">💠 ще 2 удари</span>`, head('mirror')));
+        pair(lcard('left', 'black', umove('left', 19, 'theft', '-30', BLUE), `<span class="lx">забирає</span>${lk('shield', px)}${lk('regen', px)}`, head('theft')),
+             lcard('right', 'gold', umove('right', 20, 'jackpot', '-44', RED), `<span class="lk" style="letter-spacing:2px;color:#ffe38a;background:rgba(255,215,0,.12)">💎 🪙 💎</span><span class="lk">×3</span>`, head('jackpot')));
+        pair(lcard('left', 'purple', umove('left', 21, 'detonation', '-52', BLUE), `<span class="lk">×3.2</span><span class="lx">знімає</span>${lk('burn', px)}${lk('poison', px)}`, head('detonation')),
+             lcard('right', 'green', umove('right', 22, 'bloom', '+46', RED), `<span class="lx">знімає</span>${lk('weakness', px)}${lk('mark', px)}`, head('bloom')));
+        // Pending cells (the attack in the air)
+        pair(`<div class="lc-cell pending el-red">${px ? `<img class="px-icon" src="${D.iconURL('firestorm')}" width="24" height="24" alt="">` : '☄️'}<span><b style="color:${RED}">@ПолумʼянийЛіс</b>&nbsp;· Вогняний шторм…</span></div>`,
+             `<div class="lc-cell pending el-gold">${px ? `<img class="px-icon" src="${D.iconURL('jackpot')}" width="24" height="24" alt="">` : '🎰'}<span><b style="color:${BLUE}">@goldfinch</b>&nbsp;· Джекпот…</span></div>`);
+        return rows.join('');
+    }
+    $('log-old').innerHTML = logRows(false);
+    $('log-new').innerHTML = logRows(true);
+
+    // 4 · Without colour
+    const all = [...D.EFFECT_ICON_IDS, ...D.ULTIMATE_ICON_IDS];
+    const fRow = (label, cls, emoji) => `<div class="f-h">${label}</div>` + all.map(id => `<div class="cell ${cls}">${emoji ? `<span class="emo" style="font-size:20px;width:auto">${D.ICONS[id].emoji}</span>` : img(id, 2)}</div>`).join('');
+    $('filters').innerHTML = fRow('Colour', '') + fRow('Greyscale', 'f-gray') + fRow('Deuteranopia', 'f-deut') + fRow('Protanopia', 'f-prot') + fRow('Tritanopia', 'f-trit') + fRow('Emoji, greyscale', 'f-gray', true);
+</script>
+</body>
+</html>
