@@ -8,7 +8,7 @@
 //   o outline, d dark, m colour, h light, w highlight, p accent (an icon's own second colour), q accent dark
 (function (root) {
     // ----- Sizes by category -----
-    const SIZES = { buff: 10, debuff: 10, ultimate: 12, note: 10, attack: 10 };
+    const SIZES = { buff: 10, debuff: 10, ultimate: 12, note: 10, attack: 10, reel: 10, emblem: 10, bonus: 10, medal: 10, ui: 10 };
 
     // ----- Glyphs -----
     const GLYPHS = {
@@ -299,18 +299,18 @@
             '..........',
             '..........',
         ],
-        // Miss: a whoosh, a swing that hits nothing
+        // Miss: an arrow flying over an empty target, a clear gap between them, motion lines behind it
         miss: [
-            '.......oww',
-            '......owww',
-            '.....owooo',
-            '.oooowo...',
-            'ommmmo....',
-            'moooomo...',
-            'mommomo...',
-            'mommomo...',
-            'moooomo...',
-            'ommmmo....',
+            'ho...owo..',
+            'oo.ooowwoo',
+            'hhowwwwwww',
+            'oo.ooowwoo',
+            'ho...owo..',
+            'o.ooooo...',
+            '.ommmmo...',
+            'omommomo..',
+            'omommomo..',
+            '.ommmmo...',
         ],
         // Unblockable: the brick wall crossed out
         unblockable: [
@@ -468,18 +468,18 @@
             '..oooooo..',
             '..........',
         ],
-        // Guardian angel: a halo over a plus
+        // Guardian angel: an angel: a halo, a head between two wings, a robe
         guardian: [
+            '.owwwwwwo.',
             '..owwwwo..',
-            '.owoooowo.',
-            'o.owwwwo.o',
-            'ho.ommo.oh',
-            'hhoommoohh',
+            'o..ovvo..o',
+            'hoovvvvooh',
+            'hhoovvoohh',
             'hhhmmmmhhh',
-            'ohhommohho',
-            '.ooommooo.',
-            '....oo....',
-            '..........',
+            'ohhmmmmhho',
+            '.ommmmmmo.',
+            '.ommmmmmo.',
+            '..oooooo..',
         ],
         // Opening buff: a sunrise
         opening: [
@@ -599,6 +599,423 @@
             '.oooooooo.',
             '..........',
         ],
+        // ----- Batch 3: reels, emblems, bonuses, medals, UI (10×10) -----
+        // Jackpot's gem reel: a cut gem
+        reelgem: [
+            '..oooooo..',
+            '.ohhhmmmo.',
+            'ohwhhmmmdo',
+            'hhhhmmmmdd',
+            'ohhmmmmddo',
+            '.ohmmmddo.',
+            '..ommddo..',
+            '...oddo...',
+            '....oo....',
+            '..........',
+        ],
+        // Jackpot's coin reel: two stacked coins (not Heads or tails' coin)
+        reelcoin: [
+            '..oooooo..',
+            '.ohhhhhho.',
+            'ohmmwmmmdo',
+            'oddddddddo',
+            '.ohhhhhho.',
+            'ohmmwmmmdo',
+            'oddddddddo',
+            '.oooooooo.',
+            '..........',
+            '..........',
+        ],
+        // Jackpot's bust reel: a red X (the skull is Poison's)
+        reelbust: [
+            '.oo....oo.',
+            'ommo..ommo',
+            'ommmoommmo',
+            '.ommmmmmo.',
+            '..ommmmo..',
+            '..ommmmo..',
+            '.ommmmmmo.',
+            'ommmoommmo',
+            'ommo..ommo',
+            '.oo....oo.',
+        ],
+        // Red Drake: fire on a rune tile
+        emRed: [
+            '.mmmmmmmm.',
+            'mddddddddm',
+            'mdddwddddm',
+            'mdddwwdddm',
+            'mddwwwwddm',
+            'mdwwwwwwdm',
+            'mdwwwwwwdm',
+            'mddwwwwddm',
+            'mddddddddm',
+            '.mmmmmmmm.',
+        ],
+        // Blue Drake: waves on a rune tile
+        emBlue: [
+            '.mmmmmmmm.',
+            'mddddddddm',
+            'mddddddddm',
+            'mdwwddwwdm',
+            'mdddwwdddm',
+            'mddddddddm',
+            'mdwwddwwdm',
+            'mdddwwdddm',
+            'mddddddddm',
+            '.mmmmmmmm.',
+        ],
+        // Black Drake: the night moon on a rune tile
+        emBlack: [
+            '.mmmmmmmm.',
+            'mddddddddm',
+            'mddwwwdddm',
+            'mdwwdddddm',
+            'mdwddddddm',
+            'mdwddddddm',
+            'mdwwdddddm',
+            'mddwwwdddm',
+            'mddddddddm',
+            '.mmmmmmmm.',
+        ],
+        // Gold Drake: a coin on a rune tile
+        emGold: [
+            '.mmmmmmmm.',
+            'mddddddddm',
+            'mddwwwwddm',
+            'mdwwwwwwdm',
+            'mdwwddwwdm',
+            'mdwwddwwdm',
+            'mdwwwwwwdm',
+            'mddwwwwddm',
+            'mddddddddm',
+            '.mmmmmmmm.',
+        ],
+        // Purple Drake: a crystal on a rune tile
+        emPurple: [
+            '.mmmmmmmm.',
+            'mddddddddm',
+            'mdddwwdddm',
+            'mddwwwwddm',
+            'mdwwwwwwdm',
+            'mdwwwwwwdm',
+            'mddwwwwddm',
+            'mdddwwdddm',
+            'mddddddddm',
+            '.mmmmmmmm.',
+        ],
+        // Green Drake: a leaf on a rune tile
+        emGreen: [
+            '.mmmmmmmm.',
+            'mddddddddm',
+            'mdddddwwdm',
+            'mdddwwwwdm',
+            'mddwwwwddm',
+            'mdwwwwdddm',
+            'mdwwdddddm',
+            'mdwddddddm',
+            'mddddddddm',
+            '.mmmmmmmm.',
+        ],
+        // The White Dragon: a wing on a rune tile
+        emDragon: [
+            '.mmmmmmmm.',
+            'mddddddddm',
+            'mdwddddddm',
+            'mdwwdddddm',
+            'mdwwwdwddm',
+            'mdwwwwwddm',
+            'mdwwwwwwdm',
+            'mdwdwdwddm',
+            'mddddddddm',
+            '.mmmmmmmm.',
+        ],
+        // HP bonus: a heart
+        hp: [
+            '..oo..oo..',
+            '.ohhoohho.',
+            'ohmwhhmmho',
+            'ohwmmmmmdo',
+            'ohmmmmmmdo',
+            '.ohmmmmdo.',
+            '..ohmmdo..',
+            '...ohdo...',
+            '....oo....',
+            '..........',
+        ],
+        // Defence bonus: a helmet
+        defence: [
+            '...oooo...',
+            '..ohhhho..',
+            '.ohhmmmmo.',
+            'ohhmmmmmdo',
+            'ohkkkkkkdo',
+            'ohmmkkmmdo',
+            'ohmmkkmmdo',
+            'ohmmmmmmdo',
+            '.oddooddo.',
+            '..oo..oo..',
+        ],
+        // Effect chance bonus: a wand with a sparkle
+        effect: [
+            '.....oyo..',
+            '....oyyyo.',
+            '....ooyo..',
+            '...oppo...',
+            '..oppo....',
+            '.oppo.....',
+            'oppo......',
+            'opo.......',
+            '.o........',
+            '..........',
+        ],
+        // Buff power bonus: a buff chip's rounded shape with an arrow up
+        buffpower: [
+            '.oooooooo.',
+            'ohhhhhhhho',
+            'hhoommoomm',
+            'hoommmmood',
+            'hommmmmmod',
+            'hooommoood',
+            'ho.ommo.od',
+            'mmoommoodd',
+            'oddddddddo',
+            '.oooooooo.',
+        ],
+        // 1st place: a gold medal on a ribbon, «1» on it
+        medalGold: [
+            'oppo..oqqo',
+            '.oppooqqo.',
+            '..opqqpo..',
+            '.ohmmmmho.',
+            '.ohmmkmdo.',
+            'ohmmkkmmho',
+            'ohmmmkmmdo',
+            '.ohmmkmdo.',
+            '.ohmkkkdo.',
+            '..ohdddo..',
+        ],
+        // 2nd place: a silver medal, «2»
+        medalSilver: [
+            'oppo..oqqo',
+            '.oppooqqo.',
+            '..opqqpo..',
+            '.ohmmmmho.',
+            '.ohmkkmdo.',
+            'ohmmmmkmho',
+            'ohmmmkmmdo',
+            '.ohmkmmdo.',
+            '.ohmkkkdo.',
+            '..ohdddo..',
+        ],
+        // 3rd place: a bronze medal, «3»
+        medalBronze: [
+            'oppo..oqqo',
+            '.oppooqqo.',
+            '..opqqpo..',
+            '.ohmmmmho.',
+            '.ohmkkmdo.',
+            'ohmmmmkmho',
+            'ohmmmkmmdo',
+            '.ohmmmkdo.',
+            '.ohmkkmdo.',
+            '..ohdddo..',
+        ],
+        // The tournament: a trophy
+        trophy: [
+            '.oooooooo.',
+            'ohhhmmmmdo',
+            'hohhmmmdod',
+            'hohhmmmdod',
+            'ohhhmmmddo',
+            '.ohhmmddo.',
+            '..oomdoo..',
+            '..oomdoo..',
+            '.ohhmmddo.',
+            '..oooooo..',
+        ],
+        // Ranked battle (counts for the Top): a podium
+        ranked: [
+            '...oooo...',
+            '..ohmmdo..',
+            '..ohwwdo..',
+            'ooohmmdooo',
+            'hhhhmmdddd',
+            'hmmhmmdmmd',
+            'hmmhmmdmmd',
+            'hmmhmmdmmd',
+            'dddddddddd',
+            'oooooooooo',
+        ],
+        // Friendly duel: a smiling face (the opposite of Rage)
+        friendly: [
+            '.ohhhhhho.',
+            'ohmmmmmmdo',
+            'hmmkmmkmmd',
+            'hmmkmmkmmd',
+            'hmmmmmmmmd',
+            'hmkmmmmkmd',
+            'hmmkkkkmmd',
+            'odmmmmmmdo',
+            '.oddddddo.',
+            '..oooooo..',
+        ],
+        // Victory: a laurel wreath tied at the bottom
+        victory: [
+            '.oho..odo.',
+            'ohho..oddo',
+            'hohhooddod',
+            'hhoo..oodd',
+            'hoho..odod',
+            'hho....odd',
+            'ohho..oddo',
+            '.ohhooddo.',
+            '..ohyydo..',
+            '...oooo...',
+        ],
+        // Draw: balance scales
+        draw: [
+            '.ooowwooo.',
+            'ommmmmmmmo',
+            'omoommoomo',
+            'mmmommommm',
+            'dddommoddd',
+            'oooommoooo',
+            '..oommoo..',
+            '.ommmmmmo.',
+            '..oooooo..',
+            '..........',
+        ],
+        // Waiting, time (betting window, up next, time-out): an hourglass
+        hourglass: [
+            'ddddddddo.',
+            'ohmmmmdo..',
+            '.ohyydo...',
+            '..oyyo....',
+            '.ohoodo...',
+            'ohoyyodo..',
+            'ohyyyydo..',
+            'ddddddddo.',
+            'oooooooo..',
+            '..........',
+        ],
+        // The turn counter: a clock dial
+        turn: [
+            '..oooooo..',
+            '.ommmmmmo.',
+            'ommwwkwmmo',
+            'omwwwkwwmo',
+            'omwwwkwwmo',
+            'omwwwkkkmo',
+            'omwwwwwwmo',
+            'ommwwwwmmo',
+            '.ommmmmmo.',
+            '..oooooo..',
+        ],
+        // Chance decides (first strike, the tournament draw, the title roulette): a die
+        die: [
+            '.oooooooo.',
+            'owwwwwwwwo',
+            'owkwwwwkwo',
+            'owwwwwwwwo',
+            'owwwkwwwwo',
+            'owwwwwwwwo',
+            'owkwwwwkwo',
+            'owwwwwwwho',
+            '.ohhhhhho.',
+            '..oooooo..',
+        ],
+        // The fight is on: a bell
+        bell: [
+            '...ommo...',
+            '..ohmmdo..',
+            '.ohmmmmdo.',
+            '.ohmmmmdo.',
+            '.ohmmmmdo.',
+            'ohmmmmmmdo',
+            'hmmmmmmmmd',
+            'dddddddddd',
+            'ooooddoooo',
+            '....oo....',
+        ],
+        // Level up: a double chevron up
+        levelup: [
+            '...ommo...',
+            '..ommmmo..',
+            '.ommoommo.',
+            'ommoooommo',
+            '.ooommooo.',
+            '..ommmmo..',
+            '.ommoommo.',
+            'ommo..ommo',
+            '.oo....oo.',
+            '..........',
+        ],
+        // Hall of Fame: a temple
+        hall: [
+            '..oohhoo..',
+            'oohhmmddoo',
+            'hhmmmmmmdd',
+            'dddddddddd',
+            'owowoowowo',
+            'owowoowowo',
+            'owowoowowo',
+            'owowoowowo',
+            'dddddddddd',
+            'oooooooooo',
+        ],
+        // A free title spin: a ticket
+        ticket: [
+            '..........',
+            'oooooooooo',
+            'hhhhhhhhhd',
+            'hommmmmmod',
+            'ommwmmmmdo',
+            'ommmmmmmdo',
+            'hommmmmmod',
+            'hddddddddd',
+            'oooooooooo',
+            '..........',
+        ],
+        // Stats (!стата): a bar chart
+        stats: [
+            '.......o..',
+            '......omo.',
+            '....o.omo.',
+            '...omoomo.',
+            '.o.omoomo.',
+            'omoomoomo.',
+            'omoomoomo.',
+            'omoomoomoo',
+            'dddddddddd',
+            'oooooooooo',
+        ],
+        // XP: a four-point sparkle
+        xp: [
+            '...omo....',
+            '...omo....',
+            'ooomwmooo.',
+            'mmmwwwmmmo',
+            'ooomwmooo.',
+            '...omo....',
+            '...omo....',
+            '....o.....',
+            '..........',
+            '..........',
+        ],
+        // Reroll (!рерол): two arrows chasing round a circle
+        reroll: [
+            '.ommmmo...',
+            'omoooomoo.',
+            'mo..ommmmo',
+            'mo...ommo.',
+            'o.....oo..',
+            '..oo.....o',
+            '.ommo...om',
+            'ommmmo..om',
+            '.oomoooomo',
+            '...ommmmo.',
+        ],
     };
 
     // ----- Element colours: one family per element -----
@@ -660,12 +1077,51 @@
         physical:    { kind: 'attack', color: '#e8e2d0', name: { uk: 'Фізична', en: 'Physical' },                emoji: '🗡️' },
         magical:     { kind: 'attack', color: '#b9a6ff', name: { uk: 'Магічна', en: 'Magical' },                 emoji: '🔮' },
         vampire:     { kind: 'attack', color: '#ff5d6c', name: { uk: 'Вампірська', en: 'Vampire' },              emoji: '🧛' },
+
+        // ----- Batch 3: Jackpot's reels -----
+        reelgem:     { kind: 'reel', color: '#7fdcff', name: { uk: 'Самоцвіт', en: 'Gem' },                      emoji: '💎' },
+        reelcoin:    { kind: 'reel', color: '#f2c14e', name: { uk: 'Монети', en: 'Coins' },                     emoji: '🪙' },
+        reelbust:    { kind: 'reel', color: '#ff4f5a', name: { uk: 'Невдача', en: 'Bust' },                     emoji: '💀' },
+        // ----- Batch 3: drake emblems (in names, the intro banner, info cards) -----
+        emRed:       { kind: 'emblem', element: 'red',    name: { uk: 'Червоний Дрейк', en: 'Red Drake' },       emoji: '🟥' },
+        emBlue:      { kind: 'emblem', element: 'blue',   name: { uk: 'Синій Дрейк', en: 'Blue Drake' },         emoji: '🟦' },
+        emBlack:     { kind: 'emblem', element: 'black',  name: { uk: 'Чорний Дрейк', en: 'Black Drake' },       emoji: '⬛' },
+        emGold:      { kind: 'emblem', element: 'gold',   name: { uk: 'Золотий Дрейк', en: 'Gold Drake' },       emoji: '🟨' },
+        emPurple:    { kind: 'emblem', element: 'purple', name: { uk: 'Фіолетовий Дрейк', en: 'Purple Drake' },  emoji: '🟪' },
+        emGreen:     { kind: 'emblem', element: 'green',  name: { uk: 'Зелений Дрейк', en: 'Green Drake' },      emoji: '🟩' },
+        emDragon:    { kind: 'emblem', color: '#bfe9ff',  name: { uk: 'Білий Дракон', en: 'White Dragon' },      emoji: '🐉' },
+        // ----- Batch 3: title bonuses (crit's is the crit note) -----
+        hp:          { kind: 'bonus', color: '#ff5d6c', name: { uk: 'HP', en: 'HP' },                            emoji: '❤️' },
+        defence:     { kind: 'bonus', color: '#c9cde6', name: { uk: 'Захист', en: 'Defence' },                   emoji: '🛡️' },
+        effect:      { kind: 'bonus', color: '#e0a8ff', name: { uk: 'Шанс ефекту', en: 'Effect chance' },        emoji: '(none)', accent: '#a0652a' },
+        buffpower:   { kind: 'bonus', color: '#6bff9a', name: { uk: 'Сила бафів', en: 'Buff power' },            emoji: '(none)' },
+        // ----- Batch 3: places and the tournament -----
+        medalGold:   { kind: 'medal', color: '#f2c14e', name: { uk: '1-ше місце', en: '1st place' },             emoji: '🏆 / 🥇', accent: '#ff4f5a' },
+        medalSilver: { kind: 'medal', color: '#c9cde6', name: { uk: '2-ге місце', en: '2nd place' },             emoji: '🥈', accent: '#4a98ff' },
+        medalBronze: { kind: 'medal', color: '#d69a5f', name: { uk: '3-тє місце', en: '3rd place' },             emoji: '🥉', accent: '#2ecc71' },
+        trophy:      { kind: 'ui', color: '#f2c14e', name: { uk: 'Турнір', en: 'Tournament' },                   emoji: '🏆' },
+        // ----- Batch 3: UI (the plate, banners, the result card, the Top, info cards) -----
+        ranked:      { kind: 'ui', color: '#f2c14e', name: { uk: 'Рейтинговий бій', en: 'Ranked battle' },       emoji: '🏆' },
+        friendly:    { kind: 'ui', color: '#ffb36b', name: { uk: 'Товариська дуель', en: 'Friendly duel' },      emoji: '🤝' },
+        victory:     { kind: 'ui', color: '#f2c14e', name: { uk: 'Перемога', en: 'Victory' },                    emoji: '🏆' },
+        draw:        { kind: 'ui', color: '#c9cde6', name: { uk: 'Нічия', en: 'Draw' },                          emoji: '🤝' },
+        hourglass:   { kind: 'ui', color: '#c9cde6', name: { uk: 'Очікування, час', en: 'Waiting, time' },       emoji: '⏳' },
+        turn:        { kind: 'ui', color: '#c9cde6', name: { uk: 'Хід', en: 'Turn' },                            emoji: '⚔️' },
+        die:         { kind: 'ui', color: '#e8e2d0', name: { uk: 'Жереб', en: 'Chance' },                        emoji: '🎲' },
+        bell:        { kind: 'ui', color: '#f2c14e', name: { uk: 'Бій почався', en: 'The fight is on' },         emoji: '🔔' },
+        levelup:     { kind: 'ui', color: '#ffd978', name: { uk: 'Новий рівень', en: 'Level up' },               emoji: '⬆️' },
+        hall:        { kind: 'ui', color: '#e8e2d0', name: { uk: 'Зала слави', en: 'Hall of Fame' },             emoji: '🏛️' },
+        ticket:      { kind: 'ui', color: '#f2c14e', name: { uk: 'Безкоштовний прокрут', en: 'Free spin' },      emoji: '🎟️' },
+        stats:       { kind: 'ui', color: '#4a98ff', name: { uk: 'Стата', en: 'Stats' },                         emoji: '📊' },
+        xp:          { kind: 'ui', color: '#ffd23f', name: { uk: 'Досвід', en: 'XP' },                           emoji: '✨' },
+        reroll:      { kind: 'ui', color: '#b47aff', name: { uk: 'Рерол', en: 'Reroll' },                        emoji: '🔥' },
     };
     Object.values(ICONS).forEach(ic => { if (ic.element) ic.color = ELEMENT_COLORS[ic.element]; });
     const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison'];
     const ULTIMATE_ICON_IDS = ['firestorm', 'mirror', 'theft', 'jackpot', 'detonation', 'bloom'];
     const NOTE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'note');
     const ATTACK_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'attack');
+    const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'emblem', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind));
 
     // ----- Palette from one colour -----
     const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
@@ -688,13 +1144,71 @@
 
     // ----- Title badges: the mechanic's (or bonus's) 10×10 glyph in a 12×12 rarity frame -----
     // The frame is 1 pixel, so the glyph inside is the very same one as the log note: badge and note are one icon. Rarity shows
-    // in the frame's pattern as well as its colour (colour-blind viewers): legendary a solid edge lit top-left with a white gem
-    // on top, mythic a two-tone striped edge with bright corners, meme a dotted edge in two colours (confetti). Common to epic
-    // follow with the bonus glyphs (batch 3). Letters: A light, B colour, C dark, E the plaque inside, W white, Y yellow.
+    // in the frame's pattern as well as its colour (colour-blind viewers), richer up the ladder: common plain with cut corners,
+    // uncommon light corner studs, rare light studs mid-side, epic notched corners lit top-left, legendary a solid edge lit
+    // top-left, mythic (the richest) a solid red edge with gold corners and a white gem on top; meme a dotted edge in pink and
+    // yellow (confetti); divine white star points at the corners. In the Top (×1, 12 px) the frame is left out: the bare glyph.
+    // Letters: A light, B colour, C dark, E the plaque inside, W white, Y gold.
     const RARITY_COLORS = { common: '#a0a0a0', uncommon: '#2ecc71', rare: '#3498db', epic: '#b36bff', legendary: '#f1c40f', mythic: '#ff4757', meme: '#ff66cc', divine: '#9fe3ff' };
     const TITLE_FRAMES = {
+        common: [
+            '.BBBBBBBBBB.',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            '.BBBBBBBBBB.',
+        ],
+        uncommon: [
+            'AABBBBBBBBAA',
+            'AEEEEEEEEEEA',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'AEEEEEEEEEEA',
+            'AABBBBBBBBAA',
+        ],
+        rare: [
+            '.BBBBAABBBB.',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'AEEEEEEEEEEA',
+            'AEEEEEEEEEEA',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            '.BBBBAABBBB.',
+        ],
+        epic: [
+            '..AAAAAAAA..',
+            '.AEEEEEEEEC.',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            '.AEEEEEEEEC.',
+            '..CCCCCCCC..',
+        ],
         legendary: [
-            '.AAAAWWAAAA.',
+            'AAAAAAAAAAAB',
             'AEEEEEEEEEEC',
             'AEEEEEEEEEEC',
             'AEEEEEEEEEEC',
@@ -705,21 +1219,21 @@
             'AEEEEEEEEEEC',
             'AEEEEEEEEEEC',
             'AEEEEEEEEEEC',
-            '.CCCCCCCCCC.',
+            'BCCCCCCCCCCC',
         ],
         mythic: [
-            'YACACACACACY',
+            'YYAAAWWAAAYY',
+            'YEEEEEEEEEEY',
             'AEEEEEEEEEEC',
-            'CEEEEEEEEEEA',
             'AEEEEEEEEEEC',
-            'CEEEEEEEEEEA',
             'AEEEEEEEEEEC',
-            'CEEEEEEEEEEA',
             'AEEEEEEEEEEC',
-            'CEEEEEEEEEEA',
             'AEEEEEEEEEEC',
-            'CEEEEEEEEEEA',
-            'YCACACACACAY',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'AEEEEEEEEEEC',
+            'YEEEEEEEEEEY',
+            'YYCCCCCCCCYY',
         ],
         meme: [
             'B.Y.B.Y.B.Y.',
@@ -734,6 +1248,20 @@
             '.EEEEEEEEEEB',
             'YEEEEEEEEEE.',
             '.Y.B.Y.B.Y.B',
+        ],
+        divine: [
+            'WBBBBBBBBBBW',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'BEEEEEEEEEEB',
+            'WBBBBBBBBBBW',
         ],
     };
     const framePalette = color => ({ A: mix(color, '#ffffff', 0.4), B: color, C: mix(color, '#000000', 0.4), E: mix(color, '#0b0c10', 0.86), W: '#ffffff', Y: '#ffd23f' });
@@ -812,5 +1340,5 @@
     // The CSS for a chip of this element and kind (the element's text colour goes with it)
     const chipStyle = (element, kind) => `border-style: solid; border-width: 1px ${CHIP.cap}px; border-image: url(${chipURL(element, kind)}) 1 ${CHIP.cap} fill / 1px ${CHIP.cap}px stretch; color: ${mix(ELEMENT_COLORS[element], '#ffffff', 0.35)};`;
 
-    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
+    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
 })(typeof window !== 'undefined' ? window : globalThis);

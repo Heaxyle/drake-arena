@@ -26,7 +26,7 @@ Press Start 2P is an 8×8 font shown at 2× (16 px). The icons use the same pixe
 |---|---|---|---|---|
 | effect (buff / debuff) | 10×10 | 20 px | 10 px | 30 px |
 | log note, attack type (bare glyph) | 10×10 | 20 px | 10 px | 30 px |
-| title (rarity frame) | 12×12: a 1-pixel frame around the note's 10×10 glyph | 24 px | 12 px | 36 px |
+| title (rarity frame) | 12×12: a 1-pixel frame around the note's 10×10 glyph | 24 px | the bare glyph, 10 px (no frame) | 36 px |
 | ultimate | 12×12 | 24 px | 12 px | 36 px |
 | medal, trophy, crown | as `SHOW_SPRITES` | | | |
 
@@ -35,7 +35,7 @@ Why these sizes, from the inventory: the rows that hold icons in the fight are 2
 showed that 6×6 glyphs read as blobs: every small icon has 10×10. A title badge is the note's glyph plus a 1-pixel frame, so the
 badge and the note are literally one drawing; the title badge on the fighter card grows from ~21 to 26 px to hold it (24 px +
 its border, in the 108 px top row). The side column's text is 12–14 px in rows of 15–18 px, so it takes ×1, like the drake
-sprites in the Top (a 12 px badge there: small, but whole pixels). The podium medals are 24 px today.
+sprites in the Top (there a title shows its bare glyph: a 12 px frame is noise). The podium medals are 24 px today.
 
 What changes in the layout when this goes in (all within the fixed heights):
 - Fighter card chips: 22 px tall instead of 21, with a 2 px gap between the rows instead of 4. The block stays 46 px.
@@ -59,10 +59,13 @@ What changes in the layout when this goes in (all within the fixed heights):
 - **Attack type: a bare glyph** leading line 1 of every log card (claws, orb, fangs), 10×10.
 - **Title: a rarity frame.** 12×12: a 1-pixel frame in the rarity's colour around a dark plaque, holding the 10×10 glyph of the
   title's mechanic (the same drawing as its log note) or main bonus (`TITLE_FRAMES`, `makeTitleCanvas`). Rarity also shows in
-  the frame's pattern, for colour-blind viewers: legendary a solid edge lit at the top left with a white gem on top, mythic a
-  two-tone striped edge with bright corners, meme a dotted edge in pink and yellow (confetti). Common to epic come with the
-  bonus glyphs (batch 3: plain, corner studs, a double edge, notched corners); divine is a frame of its own around its own icon.
-- **Drake emblems:** the element's sigil (flame, wave, moon, coin, crystal, leaf; the Dragon's crown-wing) in a 10×10 shield.
+  the frame's pattern, for colour-blind viewers, richer up the ladder: common plain with cut corners, uncommon light corner
+  studs, rare light studs mid-side, epic notched corners lit top-left, legendary a solid gold edge lit top-left, mythic (the
+  richest) a solid red edge with gold corners and a white gem on top; meme the odd one out, a dotted edge in pink and yellow
+  (confetti); divine white star points at the corners. **In the Top (×1) the frame is left out**: at 12 px its pattern is
+  noise, so the Top shows the bare 10 px glyph.
+- **Drake emblems:** the element's sigil on a 10×10 rune tile in its colour (fire, waves, the night moon, a coin, a crystal,
+  a leaf; the White Dragon's wing). The tile keeps them apart from the bare effect glyphs (Burn's flame is not Red's fire tile).
   They replace 🟥🟦⬛🟨🟪🟩🐉 in names and banners. (Later batch.)
 
 ## Colour tells the element
@@ -163,12 +166,12 @@ mechanic a note is the badge of.
 | Crit | 💥 | a bold «!» with impact ticks | crit yellow #ffd23f | |
 | Ultra-block (Black) | 🚫 | a brick wall | Black #9b9ba8 | |
 | Quantum Dodge | 🚫 (the same as ultra-block today) | three chevrons dashing right, fading behind | teal | legendary: Володар матриці, Привид лагу |
-| Miss (Jackpot) | the word | an arrow flying past an empty target | grey | |
+| Miss (Jackpot) | the word | an arrow flying over an empty target, a clear gap between them, motion lines behind | grey | |
 | Unblockable | the word | the brick wall crossed out in red | brick | |
 | Immune | 🐉 | a bubble with a glint | the Dragon's white-blue | legendary: Абсолютний Дрейк, Дзен при 1 HP |
 | Armour-piercing | ⚡ | a spear tip through a cracked armour plate | steel | legendary: Надмозок всесвіту, Той, хто прочитав патчноут |
 | Chaos | ⚡ | a lightning bolt | magenta | legendary: Творець хаосу, Феєрверк хаосу |
-| Guardian heal | 👼 | a halo over a winged plus | light gold | legendary: Ангел-охоронець стрімера, Незламний модератор |
+| Guardian heal | 👼 | an angel: a halo, a head between two wings, a robe | light gold | legendary: Ангел-охоронець стрімера, Незламний модератор |
 | Opening buff | 🌅 | a sunrise | dawn orange | mythic: Прокинувся в ударі, Перша кава дня |
 | Thorns | 🌵 | a cactus, spines out | green | mythic: Кактус з характером, Їжак-ображака |
 | Title lifesteal | 🧛 | a goblet of blood | silver, red | mythic: Енергетичний вампір, Граф Дракула чату |
@@ -193,9 +196,39 @@ mechanic a note is the badge of.
 When this is wired in: Quantum Dodge gets its own note and word («ухил» / "dodge") instead of sharing «🚫 блок» with
 ultra-block (a new `FV_TEXT` key, visual only; the fight already knows which one it was).
 
-Reserved for later batches, so these two batches avoid them: the heart (HP; Fortune's is an empty outline with a sliver), a
-plain sword (no attack uses one), the horseshoe / U shape (the White Drake's Магніт), the circular refresh arrow (!рерол). The
-skull is Poison's: KO is the tombstone, sudden death the warning sign. Crit is the «!», never a blast (Arcane Detonation's).
+## The third batch (reels, emblems, bonuses, medals, UI)
+
+| Icon | Today | Glyph | Where |
+|---|---|---|---|
+| Jackpot: gem / coins / bust | 💎 🪙 💀 | a cut gem / two stacked coins / a red X | the reels chip in the log (the skull is Poison's; the coin reel is not Heads or tails' coin) |
+| Drake emblems | 🟥 🟦 ⬛ 🟨 🟪 🟩 🐉 | rune tiles: fire, waves, the night moon, a coin, a crystal, a leaf, a wing | the intro banner, drake names in info cards |
+| Bonus: HP / crit / defence / effect chance / buff power | ❤️ 💥 🛡️ – – | a heart / the crit «!» / a helmet / a wand with a sparkle / a buff chip's rounded shape with an arrow up | common-to-epic title badges; `!стата` |
+| 1st, 2nd, 3rd place | 🏆 and 🥇, 🥈, 🥉 | a medal on a V ribbon in gold, silver, bronze, its place (1, 2, 3) on it | the Top, the fighter card's name, `!стата`, the podium (×3), the Hall of Fame |
+| The tournament | 🏆 | a trophy | the plate, the sign-up strip, tournament banners |
+| Ranked battle | 🏆 | a podium | the plate, the intro banner; matchmaking replies too (🚨 → this) |
+| Friendly duel | 🤝 | a smiling face (the opposite of Rage) | the plate, the intro banner |
+| Victory / knockout | 🏆 | a laurel wreath | the plate, the result title |
+| Draw | 🤝 | balance scales | the plate, the result title |
+| Waiting, time | ⏳ | an hourglass | the plate, «хід @x», betting, time-out |
+| Turn | ⚔️ | a clock dial | the plate «Хід 3 / 30» |
+| Chance decides | 🎲 | a die showing five | first strike, the tournament draw, the title roulette |
+| The fight is on | 🔔 | a bell | the start banner |
+| Level up | ⬆️ | a double chevron up | the result card |
+| Hall of Fame | 🏛️ | a temple | `!зала`, its title |
+| Free title spin | 🎟️ | a ticket | `!стата`, spin replies |
+| Stats | 📊 | a bar chart | the `!стата` card |
+| XP | ✨ | a four-point sparkle | the result card, Gold's bonus XP |
+| Reroll | 🔥 | two arrows chasing round a circle | `!рерол` replies |
+
+Proposed, not drawn: chat replies (⚠️ ℹ️ 🛑 ❌ ✅ 👋 ⌛ 🤡, and «🔄 Арену перезапущено») get no icon. They carry no game meaning;
+the info card's tone (ok, warning, note) already says it. Fewer icons, and none of them competes with the game's.
+
+The emblems can't use the drakes' own sprites (48×36 doesn't fit a line of text) and a drake head in each colour would differ
+by colour only, so each element has a sigil.
+
+Reserved, so the batches avoid them: a plain sword (no attack uses one), the horseshoe / U shape (the White Drake's Магніт).
+The skull is Poison's: KO is the tombstone, sudden death the warning sign, Jackpot's bust the X. Crit is the «!», never a blast
+(Arcane Detonation's). Heads or tails' coin has its star; the reel coins are a stack.
 
 ## The White Drake (after `streamer-white-drake` merges)
 
@@ -209,11 +242,10 @@ The magnet glyph is free for Магніт: title 163 becomes a crit badge.
 
 ## Still open
 
-1. Jackpot's reels (💎 🪙 💀) stay emoji; they need three reel glyphs of their own (a plain reel coin: Heads or tails' coin means
-   something else).
-2. Under deuteranopia and protanopia, Red and Gold come out as close yellows (review.html, "Without colour"). The chips and
+1. Under deuteranopia and protanopia, Red and Gold come out as close yellows (review.html, "Without colour"). The chips and
    glyphs keep every pair apart, so nothing needs a colour change for it.
-3. The weakest icons now: Miss (the arrow can look attached to the target), Dispel (an arrow with a slash, clear once you know
-   it) and the ×1 title badges in the Top (12 px: the frame pattern is hard to see).
-4. The banners, plate and UI emoji (⏳ ⚔️ 🏆 🤝 🎲 🔔 ⬆️ ⚠️ ℹ️ 🛑 …), the drake emblems, the bonus glyphs and the common-to-epic
-   frames are batch 3.
+2. The side column at ×1: in the `!стата` card a 10 px icon sits beside 13 px text. It reads, but small; ×2 there would make
+   the card's rows taller.
+3. The streamer card's 👑 «Стрімер»: the crown is the Sovereign's (the White Dragon's passive and title 999). The card could
+   show the streamer's drake emblem instead; to decide with the White Drake's batch.
+4. The White Drake's kit, after its branch merges (above).
