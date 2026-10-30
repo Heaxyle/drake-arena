@@ -9,7 +9,8 @@
 //     and further !старт are ignored for 5 s; the result tags: «Нокаут» after a KO, «Поразка» after a time-out, «Нічия»
 //   - Ranked play, through the chat simulator: the queue's longest wait fights first, against the closest level (a tie to
 //     whoever waited longer), in the order the "Далі в черзі" strip shows; an underdog's bonus XP on the result card;
-//     the Top by wins − losses (then wins, then level)
+//     the Top by wins (then fewer losses, then level); a ranked fight against the streamer's White Dragon: no win or
+//     loss for either side, +10 XP for the viewer, and its result card says so
 //   - Every turn of several real fights: one card per attack in the attacker's column, the highlight on the attacker,
 //     the damage number on the target's card, the whole turn animation finished inside the turn, nothing cut off
 //   - Every effect from the test menu's "next hit casts" picker, every ultimate from its СИЛА button, every Jackpot
@@ -1142,17 +1143,18 @@ async function popAtStep2(page, turn) {
                 const out = await page.evaluate(([w, l]) => {
                     const cells = [...document.querySelectorAll('#log-feed .log-result .lr-xp')];
                     return { xp: [getDragonStrict(w).xp, getDragonStrict(l).xp], cells: cells.map(c => c.textContent), cut: cells.filter(c => c.scrollWidth > c.clientWidth + 1).map(c => c.textContent),
-                        names: [...document.querySelectorAll('#log-feed .log-result .lr-name')].map(n => n.textContent.replace('@', '')) };
+                        names: [...document.querySelectorAll('#log-feed .log-result .lr-name')].map(n => n.textContent.replace('@', '')),
+                        note: (document.querySelector('#log-feed .log-result .lr-note') || {}).textContent || null };
                 }, [win, lose]);
                 await page.evaluate(() => { window.getMaxHP = window.__maxHP; });
                 await hold();
                 const cellOf = n => out.cells[out.names.indexOf(n)];
-                return { gained: [out.xp[0] - before[0], out.xp[1] - before[1]], win: cellOf(win), lose: cellOf(lose), cut: out.cut };
+                return { gained: [out.xp[0] - before[0], out.xp[1] - before[1]], win: cellOf(win), lose: cellOf(lose), cut: out.cut, note: out.note };
             };
             const u1 = await rigged('underdog', 'red', 6, 'favourite', 'blue', 10);
             const want1 = cmd(lang, '+60 XP (+20 за сильнішого суперника)', '+60 XP (+20 for a stronger opponent)');
-            check(u1.gained.join() === '60,10' && u1.win === want1 && u1.lose === '+10 XP' && !u1.cut.length,
-                `${tag} an L6 underdog beats L10 in a ranked fight: the result card says "${u1.win}" (the loser "${u1.lose}"), nothing cut off`, JSON.stringify(u1));
+            check(u1.gained.join() === '60,10' && u1.win === want1 && u1.lose === '+10 XP' && !u1.cut.length && u1.note === null,
+                `${tag} an L6 underdog beats L10 in a ranked fight: the result card says "${u1.win}" (the loser "${u1.lose}"), nothing cut off, no White Dragon note`, JSON.stringify(u1));
             // The longest text: a Gold underdog 10 levels down (bonus capped at +40, Gold on all 80)
             const u2 = await rigged('goldie', 'gold', 5, 'champ', 'black', 15);
             const pct = await page.evaluate(() => ELEMENT_BASE.goldXp + getTierMultiplier(5).goldXpBonus);
@@ -1163,17 +1165,39 @@ async function popAtStep2(page, turn) {
             const u3 = await rigged('champ', 'black', 15, 'goldie', 'gold', 5);
             check(u3.gained[0] === 40 && u3.win === '+40 XP', `${tag} a higher-level winner gets the usual "+40 XP", no bonus`, JSON.stringify(u3));
 
-            // The Top: wins − losses, then more wins, then the higher level
+            // The Top: more wins first, then fewer losses, then the higher level
             const top = await page.evaluate(() => {
-                const rows = { t1: [5, 1, 3], t2: [6, 2, 3], t3: [4, 0, 3], t4: [3, 0, 10], t5: [3, 0, 12], t6: [7, 6, 15] };
+                const rows = { t1: [7, 6, 15], t2: [6, 2, 3], t3: [6, 1, 3], t4: [4, 0, 3], t5: [3, 0, 10], t6: [3, 0, 12], t7: [3, 1, 20] };
                 const db = {}; const xpFor = n => { let x = 0; for (let i = 1; i < n; i++) x += getRequiredXP(i); return x; };
                 Object.entries(rows).forEach(([n, [w, l, lvl]]) => { db[n] = { name: n, color: '#8ab4f8', drakeObj: DRAKE_TYPES[0], title: TITLES_DB[0], xp: xpFor(lvl), level: lvl }; playerLeaderboardStats[n] = { wins: w, losses: l }; });
                 saveDragonDB(db);
                 renderLeaderboard();
                 return [...document.querySelectorAll('#leaderboard-list .lb-row')].map(r => `${r.querySelector('.lb-name').textContent.replace('@', '')} ${r.querySelector('.wl').textContent.replace(/\s/g, '')}`);
             });
-            check(top.join() === 't2 6–2,t1 5–1,t3 4–0,t5 3–0,t4 3–0,t6 7–6',
-                `${tag} the Top by wins − losses: ${top.join(' · ')} (+4: more wins first; 3–0: the higher level first; the W–L shown as before)`, top.join());
+            check(top.join() === 't1 7–6,t3 6–1,t2 6–2,t4 4–0,t6 3–0,t5 3–0,t7 3–1',
+                `${tag} the Top by wins: ${top.join(' · ')} (most wins first; 6 wins: fewer losses first; 3–0: the higher level first; 3–1 after both; the W–L shown as before)`, top.join());
+
+            // A ranked fight against the streamer's White Dragon: no win or loss for either side, the viewer +10 XP as usual,
+            // and the result card says so, whole
+            await page.evaluate(() => setStreamerUser('dragonkeeper'));
+            await sim('dragonkeeper', `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang].white}`);
+            await sim('brave', `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang].red}`);
+            const wd0 = await page.evaluate(() => ({ xp: getDragonStrict('brave').xp, stats: JSON.stringify(playerLeaderboardStats) }));
+            await sim('dragonkeeper', Q); await sim('brave', Q);
+            await finish();
+            await settleArena(page);
+            const wd = await page.evaluate(() => {
+                const note = document.querySelector('#log-feed .log-result .lr-note');
+                return { winner: arenaState.winner && arenaState.winner.name, ranked: arenaState.ranked, xp: getDragonStrict('brave').xp, stats: JSON.stringify(playerLeaderboardStats),
+                         note: note && note.textContent, cut: !!note && note.scrollWidth > note.clientWidth + 1,
+                         xpCells: [...document.querySelectorAll('#log-feed .log-result .lr-xp')].map(c => c.textContent) };
+            });
+            check(wd.ranked && wd.winner === 'dragonkeeper' && wd.xp - wd0.xp === 10 && wd.stats === wd0.stats && wd.xpCells.includes('+10 XP')
+                && wd.note === cmd(lang, '🐉 Бій з Білим Драконом: без перемоги й поразки в Топі', '🐉 A fight with the White Dragon: no win or loss in the Top') && !wd.cut,
+                `${tag} a ranked fight against the White Dragon: @brave +10 XP, no win or loss for either side, and the result card says "${wd.note}", not cut off`, JSON.stringify({ wd, wd0 }));
+            await page.locator('#log-feed .log-result').screenshot({ path: path.join(SHOTS, `fightview-dragon-result-${lang}.png`) });
+            await hold();
+            await page.evaluate(() => setStreamerUser(''));
             if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }

@@ -307,6 +307,7 @@
         .lr-n { font-family: var(--pixel); font-size: 14px; }
         .lr-xp { font-weight: 700; color: #b98cff; }
         .lr-name { font-weight: 700; }
+        .lr-note { text-align: center; font-size: 13px; color: var(--dim); margin-top: 8px; white-space: nowrap; overflow: hidden; }
         /* Countdown before a fight: big timer and progress bar in the log area */
         .log-countdown { position: absolute; inset: 10px 16px 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         .log-panel.counting .log-countdown { opacity: 1; }
@@ -1185,7 +1186,7 @@
                   sdBanner: '💀 РАПТОВА СМЕРТЬ з {n}-го ходу · шкода зростає щоходу', timeout: '⏳ ЧАС ВИЙШОВ · ліміт {n} ходів',
                   error: '❌ Помилка симуляції — бій перервано', vs: 'проти', fightStart: '🔔 Бій почався{bets} · 🎲 першим б’є {a}', betsClosed: ' · ставки закрито',
                   opening: '{title}: {who} починає бій з {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
-                  draw: '🤝 НІЧИЯ · {n} {turns}', dmg: 'шкода', biggest: 'найсильніший удар', crits: 'крити', xp: 'досвід', noXp: 'без досвіду', maxLvl: 'макс. рівень', underdog: '+{n} за сильнішого суперника',
+                  draw: '🤝 НІЧИЯ · {n} {turns}', dmg: 'шкода', biggest: 'найсильніший удар', crits: 'крити', xp: 'досвід', noXp: 'без досвіду', maxLvl: 'макс. рівень', noRecord: '🐉 Бій з Білим Драконом: без перемоги й поразки в Топі', underdog: '+{n} за сильнішого суперника',
                   cdLabel: 'Старт через', cdBets: 'Ставки відкрито — хто переможе?', cdStart: 'Бій починається!', cdFlip: '🎲 хто б’є першим, вирішить жереб на старті',
                   cdFirst: '🎲 першим б’є {a}', plateBets: '⏳ Ставки відкрито', plateStart: '⏳ Бій починається', levelUp: '⬆️ Новий рівень',
                   reaches: '{who} досягає {n}-го рівня', atkGain: '+{n} до атаки', tierGain: 'стихія сильнішає', meterBtn: '✦ {meter}: {side}',
@@ -1199,7 +1200,7 @@
                   sdBanner: '💀 SUDDEN DEATH from turn {n} · damage grows every turn', timeout: '⏳ TIME OUT · {n}-turn limit',
                   error: '❌ Simulation error — the fight was stopped', vs: 'vs', fightStart: '🔔 The fight is on{bets} · 🎲 {a} strikes first', betsClosed: ' · bets closed',
                   opening: '{title}: {who} starts with {fx}', knockout: '🏆 KNOCKOUT · {w} wins in {n} {turns}', timeoutWin: '⏳ TIME OUT · {w} wins on HP',
-                  draw: '🤝 DRAW · {n} {turns}', dmg: 'damage', biggest: 'biggest hit', crits: 'crits', xp: 'XP', noXp: 'no XP', maxLvl: 'max level', underdog: '+{n} for a stronger opponent',
+                  draw: '🤝 DRAW · {n} {turns}', dmg: 'damage', biggest: 'biggest hit', crits: 'crits', xp: 'XP', noXp: 'no XP', maxLvl: 'max level', noRecord: '🐉 A fight with the White Dragon: no win or loss in the Top', underdog: '+{n} for a stronger opponent',
                   cdLabel: 'Starts in', cdBets: 'Bets are open — who will win?', cdStart: 'The fight is starting!', cdFlip: '🎲 a coin flip at the start decides who strikes first',
                   cdFirst: '🎲 {a} strikes first', plateBets: '⏳ Bets open', plateStart: '⏳ Fight starting', levelUp: '⬆️ Level up',
                   reaches: '{who} reaches level {n}', atkGain: '+{n} attack', tierGain: 'element passive grows', meterBtn: '✦ {meter}: {side}',
@@ -1403,7 +1404,7 @@
             } else if (item.type === 'result') {
                 el.className = 'log-result frame-sm';
                 el.innerHTML = fvResultHtml(item.data);
-                el.querySelectorAll('.lr-title, .lr-grid > span').forEach(s => fitText(s, 10));
+                el.querySelectorAll('.lr-title, .lr-grid > span, .lr-note').forEach(s => fitText(s, 10));
             }
         }
         // A card's second line never hides anything (on stream nobody can hover or scroll). It shrinks to at most 90% of
@@ -1584,7 +1585,8 @@
             return `<div class="lr-title">${title}</div><div class="lr-grid">`
                 + `<span class="lr-a lr-name" style="color:${a.color}">@${a.name}</span><span></span><span class="lr-name" style="color:${b.color}">@${b.name}</span>`
                 + row(fvT('dmg'), st(a).dmg, st(b).dmg, 'lr-n') + row(fvT('biggest'), st(a).max, st(b).max, 'lr-n')
-                + row(fvT('crits'), st(a).crits, st(b).crits, 'lr-n') + row(fvT('xp'), xp(a), xp(b), 'lr-xp') + `</div>`;
+                + row(fvT('crits'), st(a).crits, st(b).crits, 'lr-n') + row(fvT('xp'), xp(a), xp(b), 'lr-xp') + `</div>`
+                + (d.noRecord ? `<div class="lr-note">${fvT('noRecord')}</div>` : '');   // a ranked fight against the White Dragon
         }
 
         // ----- The fight's steps -----
@@ -1675,12 +1677,14 @@
         function startFight(p1Name, p1Color, p2Name, p2Color, isRanked, opts = {}) {
             clearForcedCast();
             tourGame = opts.tour || null;
+            if (opts.tour) arenaSetMatch(null);   // a tournament game resumes from the tournament's own save
             if (!FV_LIVE || (!opts.tour && !bettingWindowOn())) return runBattle(p1Name, p1Color, p2Name, p2Color, isRanked, { tour: opts.tour });
             const bets = !opts.tour || (!!opts.bets && bettingWindowOn());
             const windowMs = bets ? BETTING_WINDOW_MS : TOURNEY_GAP_MS;
             const show = (n, c) => { const d = (opts.tour && tourneyFighter(n)) || getDragonStrict(n) || getDragon(n, c); return { ...d, color: nameColor(d.color) }; };
             const a = show(p1Name, p1Color), b = show(p2Name, p2Color);
             if (bets) playBettingOpened = playNow();
+            if (!opts.tour) arenaSetMatch({ p1: p1Name, c1: p1Color, p2: p2Name, c2: p2Color, ranked: !!isRanked, stage: 'betting' });
             fv = { on: false, p1: a, p2: b, ranked: isRanked, betting: bets, items: [], stats: {}, rec: null, hold: null, lit: null };
             fvFeedReset();
             fvHead();
@@ -1806,7 +1810,7 @@
                     fvSetCell(slot, { k: 'ko', f: loser });
                 }
             }
-            fvAddItem({ type: 'result', data: { winner: d.winner, loser, ranked: d.ranked, turns: d.turns, timeout: !!(loser && hpOf(loser) > 0), xp: d.xp, xpBonus: d.xpBonus, stats: fv.stats } });
+            fvAddItem({ type: 'result', data: { winner: d.winner, loser, ranked: d.ranked, turns: d.turns, timeout: !!(loser && hpOf(loser) > 0), xp: d.xp, xpBonus: d.xpBonus, stats: fv.stats, noRecord: !!d.noRecord } });
             // Level-ups go to the chat panel, with the game's own numbers (max HP and attack from the level)
             if (d.lvl) [d.p1, d.p2].forEach(f => {
                 const saved = getDragonStrict(f.name), before = d.lvl[f.name];
@@ -2901,7 +2905,8 @@ function drakeSpriteURL(type) {
                     return ids.get(n);
                 };
                 // New ids in the order players first appear: the log first, then the saves
-                events.forEach(e => { id(e.user); (e.players || []).forEach(p => id(p.name)); id(e.winner); (e.podium || []).forEach(id); });
+                events.forEach(e => { id(e.user); (e.players || []).forEach(p => id(p.name)); id(e.winner); (e.podium || []).forEach(id);
+                                      (e.queue || []).forEach(id); (e.duel || []).forEach(id); if (e.match) e.match.pair.forEach(id); });
                 Object.keys(drakes).sort().forEach(id);
                 Object.keys(stats).sort().forEach(id);
                 [...honours.holders, ...honours.hall.flatMap(e => e.podium), ...Object.keys(honours.medals), ...Object.keys(honours.spins)].forEach(id);
@@ -2921,7 +2926,9 @@ function drakeSpriteURL(type) {
                 failedWrites: playLogFailed, logError,
                 events: events.map(e => ({ ...e, ...(e.user !== undefined && { user: id(e.user) }), ...(e.winner !== undefined && { winner: id(e.winner) }),
                                            ...(e.players && { players: e.players.map(p => ({ ...p, name: id(p.name) })) }),
-                                           ...(e.podium && { podium: e.podium.map(id) }) })),
+                                           ...(e.podium && { podium: e.podium.map(id) }),
+                                           ...(e.queue && { queue: e.queue.map(id) }), ...(e.duel && { duel: e.duel.map(id) }),
+                                           ...(e.match && { match: { ...e.match, pair: e.match.pair.map(id) } }) })),
                 saves: {
                     streamer: STREAMER_USER ? id(STREAMER_USER) : null,
                     drakes: Object.fromEntries(Object.entries(drakes).map(([n, d]) => [id(n), { ...d, name: id(d.name || n) }])),
@@ -3490,9 +3497,11 @@ function drakeSpriteURL(type) {
                 let cColor = db[challenger] ? db[challenger].color : '#cccccc';
                 matchmakingQueue = matchmakingQueue.filter(u => u !== sender && u !== challenger);
                 updateQueueUI();
+                arenaSave();
                 // The arena is busy (a fight, or its result screen): the duel waits and starts after it
                 if (arenaBusy()) {
                     waitingDuel = { challenger, cColor, accepter: sender, aColor: senderColor };
+                    arenaSave();
                     addInfo(currentLang === 'uk'
                         ? `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> приймає виклик <b>@${challenger}</b>! Дуель почнеться після поточного бою.`
                         : `⚔️ <span style="color: ${senderColor}; font-weight: bold;">@${sender}</span> accepts <b>@${challenger}</b>'s challenge! The duel starts after the current fight.`, 'ok');
@@ -3525,6 +3534,7 @@ function drakeSpriteURL(type) {
                     return;
                 }
                 matchmakingQueue.push(sender);
+                arenaSave();
                 playLog('queue', { user: sender, joined: true, position: matchmakingQueue.length });
                 updateQueueUI();
                 let msg = currentLang === 'uk' ?
@@ -3614,6 +3624,7 @@ function drakeSpriteURL(type) {
                 if (diff < bestDiff) { bestDiff = diff; best = i; }
             });
             let p2Name = matchmakingQueue.splice(best, 1)[0];
+            arenaSave();
 
             isBattleRunning = true;
             updateQueueUI();
@@ -3652,6 +3663,7 @@ function drakeSpriteURL(type) {
             if (!resultHold) return false;
             clearTimeout(resultHold.timer);
             resultHold = null;
+            if (arenaMatch) arenaSetMatch(null);
             nextFight();
             return true;
         }
@@ -3659,10 +3671,52 @@ function drakeSpriteURL(type) {
         // (its next game; the ranked queue waits until it's over), then the ranked queue
         function nextFight() {
             if (arenaBusy()) return;
-            if (waitingDuel) { const d = waitingDuel; waitingDuel = null; startDuel(d.challenger, d.cColor, d.accepter, d.aColor); return; }
+            if (waitingDuel) { const d = waitingDuel; waitingDuel = null; arenaSave(); startDuel(d.challenger, d.cColor, d.accepter, d.aColor); return; }
             if (tourneyOn()) { tourneyNext(); return; }
             checkQueue();
             showBoardSync();   // nothing started: the sign-up board (while one is open) on the free arena
+        }
+        // The arena survives a reload (OBS restarts the browser source when its scene is hidden and shown, or on "Refresh
+        // cache"). Saved under ARENA_KEY on every change: the ranked queue in order, the waiting duel, and the ranked fight
+        // or duel on the arena with its stage ('betting', 'fight' or 'result'; tournament games resume from TOURNEY_KEY).
+        // On load (arenaResume, from initPage) a save under ARENA_RESUME_MS old brings the queue and the duel back and plays
+        // an interrupted match again from a fresh betting window (same pair, a new fight: nothing of it was counted yet); a
+        // match already on its result screen was counted and is over. An older save is dropped. No "db" or "stats" in the key
+        const ARENA_KEY = 'drake_arena_showcase_arena';
+        const ARENA_RESUME_MS = 10 * 60 * 1000;
+        let arenaMatch = null;   // { p1, c1, p2, c2, ranked, stage } while a ranked fight or a duel is on the arena
+        function arenaSave() {
+            try { localStorage.setItem(ARENA_KEY, JSON.stringify({ saved: Date.now(), queue: matchmakingQueue, duel: waitingDuel, match: arenaMatch })); } catch (e) {}
+        }
+        function arenaSetMatch(m) { arenaMatch = m; arenaSave(); }
+        function arenaResume() {
+            let s = null;
+            try { s = JSON.parse(localStorage.getItem(ARENA_KEY)); } catch (e) {}
+            const age = s && typeof s.saved === 'number' ? Date.now() - s.saved : null;
+            const fresh = age !== null && age >= 0 && age < ARENA_RESUME_MS;
+            if (s && !fresh) { try { localStorage.removeItem(ARENA_KEY); } catch (e) {} }
+            // Only players who still have a drake (a ladder wipe since the save takes the rest out)
+            const has = n => typeof n === 'string' && !!getDragonStrict(n);
+            const queue = fresh && Array.isArray(s.queue) ? s.queue.filter((n, i, q) => has(n) && q.indexOf(n) === i) : [];
+            const duel = fresh && s.duel && has(s.duel.challenger) && has(s.duel.accepter) ? s.duel : null;
+            const match = fresh && s.match && has(s.match.p1) && has(s.match.p2) && s.match.p1 !== s.match.p2 ? s.match : null;
+            const replay = match && match.stage !== 'result' ? match : null;
+            matchmakingQueue = queue;
+            waitingDuel = duel;
+            arenaMatch = null;
+            // Every page load, with what came back (restored: false for no save or one too old; ageMs: the save's age)
+            playLog('load', { saved: !!s, ageMs: age, restored: fresh, queue: [...queue], duel: duel ? [duel.challenger, duel.accepter] : null,
+                              match: match ? { pair: [match.p1, match.p2], kind: match.ranked ? 'ranked' : 'duel', stage: match.stage, replayed: !!replay } : null,
+                              tournament: tourney ? tourney.phase : null });
+            updateQueueUI();
+            if (!replay) { if (fresh) arenaSave(); return; }
+            isBattleRunning = true;
+            fightRecordReset();
+            startFight(replay.p1, replay.c1, replay.p2, replay.c2, !!replay.ranked);
+            const who = n => `<span style="color: ${nameColor((getDragonStrict(n) || {}).color || '#cccccc')}; font-weight: bold;">@${n}</span>`;
+            addInfo(currentLang === 'uk'
+                ? `🔄 Арену перезапущено: бій ${who(replay.p1)} — ${who(replay.p2)} починається знову.`
+                : `🔄 The arena restarted: ${who(replay.p1)} vs ${who(replay.p2)} starts again.`, 'warn');
         }
         // Tournament watchdog: while a tournament is on, something always follows on the arena (a game, the podium), so
         // it never sits free for long. If it has been free for TOURNEY_WATCHDOG_MS anyway, a step failed to call
@@ -4351,6 +4405,7 @@ function drakeSpriteURL(type) {
             let p1 = (opts.tour ? tourneyFighter(p1Name) : getDragonStrict(p1Name)) || getDragon(p1Name, p1Color);
             let p2 = (opts.tour ? tourneyFighter(p2Name) : getDragonStrict(p2Name)) || getDragon(p2Name, p2Color);
             playFightStart(p1.name, p2.name, isRanked, opts);
+            arenaSetMatch(opts.tour ? null : { p1: p1Name, c1: p1Color, p2: p2Name, c2: p2Color, ranked: !!isRanked, stage: 'fight' });
             // Display copies: names drawn in the log and on the cards get a readable brightness (saves are untouched)
             p1 = { ...p1, color: nameColor(p1.color) };
             p2 = { ...p2, color: nameColor(p2.color) };
@@ -4912,6 +4967,7 @@ function drakeSpriteURL(type) {
                 } catch (error) {
                     clearInterval(battleInterval);
                     isBattleRunning = false;
+                    arenaSetMatch(null);
                     fvAbort();
                     playFightEnd({ result: 'error', winner: null, turns: turn, error: String(error && error.message) }, null, { [p1.name]: p1HP, [p2.name]: p2HP });
                     let errorMsg = currentLang === 'uk' ?
@@ -5013,6 +5069,9 @@ function drakeSpriteURL(type) {
             const fightTurns = arenaState.turn || 0;
             const fvLvl = fvLevels([p1, p2]);
             const ko = !!winner && (winner === p1 ? p2HP : p1HP) <= 0;
+            // The streamer's White Dragon can't be beaten: a ranked fight against it gives no win or loss to either side
+            // (the XP is as usual), and the result card says so
+            const dragonFight = [p1, p2].some(f => f.drakeObj && f.drakeObj.type === DRAGON_TYPE);
             let fvXp = null, fvXpBonus = null;
 
             // A tournament game: the bracket takes the result (a draw is replayed); no XP, and wins, losses and the Top
@@ -5028,6 +5087,8 @@ function drakeSpriteURL(type) {
                 holdResult();
                 return;
             }
+            // On the result screen the match is over (counted below): a reload from here on doesn't play it again
+            if (arenaMatch) arenaSetMatch({ ...arenaMatch, stage: 'result' });
 
             if (!isRanked) {
                 if (!winner) {
@@ -5061,8 +5122,10 @@ function drakeSpriteURL(type) {
                     `🤝 Draw between <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> and <span style="color: ${p2.color}; font-weight: bold;">@${p2.name}</span>! (+${added1}/${added2} XP)`;
                 addLog(msg);
             } else {
-                recordStats(winner.name, true);
-                recordStats(looser.name, false);
+                if (!dragonFight) {
+                    recordStats(winner.name, true);
+                    recordStats(looser.name, false);
+                }
 
                 const levelBefore = f => calculateLevelAndProgress((getDragonStrict(f.name) || {}).xp || 0).level;
                 const bonus = underdogXp(levelBefore(winner), levelBefore(looser));
@@ -5091,7 +5154,7 @@ function drakeSpriteURL(type) {
             updateFighterCard('p2', getDragonStrict(p2.name));
             
             playFightEnd({ result: !winner ? 'draw' : ko ? 'ko' : 'timeout', winner: winner ? winner.name : null, turns: fightTurns }, playGot, { [p1.name]: p1HP, [p2.name]: p2HP });
-            fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: true, turns: fightTurns, xp: fvXp, xpBonus: fvXpBonus, lvl: fvLvl });
+            fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: true, turns: fightTurns, xp: fvXp, xpBonus: fvXpBonus, lvl: fvLvl, noRecord: dragonFight });
             setArenaState({ kind: 'result', ranked: true, winner, turns: fightTurns, ko });
             isBattleRunning = false;
             renderLeaderboard();
@@ -5120,14 +5183,14 @@ function drakeSpriteURL(type) {
                 listElement.innerHTML = `<li class="lb-empty">${translations[currentLang].no_drakes}</li>`;
                 return;
             }
-            // Wins − losses (ranked fights only); on a tie more wins first, then the higher level
+            // More wins first (ranked fights only); on equal wins fewer losses, then the higher level. The rows show wins – losses,
+            // so the order reads straight off them
             const rec = u => playerLeaderboardStats[u] || { wins: 0, losses: 0 };
             const lvlOf = u => calculateLevelAndProgress(db[u].xp || 0).level;
             allUsers.sort((a, b) => {
                 const ra = rec(a), rb = rec(b);
-                const net = ((rb.wins || 0) - (rb.losses || 0)) - ((ra.wins || 0) - (ra.losses || 0));
-                if (net) return net;
                 if ((rb.wins || 0) !== (ra.wins || 0)) return (rb.wins || 0) - (ra.wins || 0);
+                if ((ra.losses || 0) !== (rb.losses || 0)) return (ra.losses || 0) - (rb.losses || 0);
                 return lvlOf(b) - lvlOf(a);
             });
             listElement.innerHTML = allUsers.slice(0, LB_ROWS).map((user, index) => {
@@ -5719,7 +5782,9 @@ function drakeSpriteURL(type) {
             fvPopulateTestMenu();
             fitStage();
             showHallOfFame();   // the idle arena: the Hall of Fame (once there is one) instead of «Арена готова!»
+            arenaResume();      // first: a match interrupted before a tournament's first game is played before it
             tourneyResume();
+            if (!tourneyOn()) nextFight();   // a restored queue or duel with nothing on the arena carries on (a tournament: tourneyResume's job)
         }
         document.addEventListener('DOMContentLoaded', initPage);
 

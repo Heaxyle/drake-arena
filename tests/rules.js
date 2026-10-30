@@ -415,20 +415,47 @@ for (const lang of ['en', 'uk']) {
         __drain();
     }
 
-    // 17. The Top: wins − losses; a tie goes to more wins, then the higher level. The streamer and test fighters stay out
+    // 17. The Top: more wins first; on equal wins fewer losses, then the higher level. The streamer and test fighters stay out
     if (lang === 'en') {
         fresh();
-        const rows = { t1: [5, 1, 3], t2: [6, 2, 3], t3: [4, 0, 3], t4: [3, 0, 10], t5: [3, 0, 12], t6: [7, 6, 15] };   // wins, losses, level
+        const rows = { t1: [7, 6, 15], t2: [6, 2, 3], t3: [6, 1, 3], t4: [4, 0, 3], t5: [3, 0, 10], t6: [3, 0, 12], t7: [3, 1, 20] };   // wins, losses, level
         Object.entries(rows).forEach(([n, [w, l, lvl]], i) => { make(n, G.VIEWER_DRAKE_TYPES[i % 6].type, { level: lvl }); G.stats[n] = { wins: w, losses: l }; });
         const prevStreamer = G.streamer;
         G.setStreamerUser('streamchannel'); make('streamchannel', 'white', { level: 20 }); G.stats.streamchannel = { wins: 50, losses: 0 };
         make('QA-Tester-Alpha', 'red', { level: 20 }); G.stats['QA-Tester-Alpha'] = { wins: 40, losses: 0 };
         G.renderLeaderboard();
         const order = G.topRows;
-        check(order.join() === 't2,t1,t3,t5,t4,t6',
-            '17. the Top by wins − losses: @t2 6–2 and @t1 5–1 and @t3 4–0 (all +4: more wins first), @t5 3–0 L12 before @t4 3–0 L10 (same record: higher level), then @t6 7–6; no streamer, no test fighter',
+        check(order.join() === 't1,t3,t2,t4,t6,t5,t7',
+            '17. the Top by wins: @t1 7–6 first (most wins, though only +1), @t3 6–1 before @t2 6–2 (equal wins: fewer losses), @t4 4–0, @t6 3–0 L12 before @t5 3–0 L10 (same record: higher level), @t7 3–1 L20 last (fewer losses before level); no streamer, no test fighter',
             order.join());
         G.setStreamerUser(prevStreamer);
+    }
+
+    // 17b. A ranked fight against the streamer's White Dragon gives no win or loss to either side; the XP is as usual.
+    // Other ranked fights count as before
+    {
+        fresh();
+        const prevStreamer = G.streamer;
+        G.setStreamerUser('streamchannel'); make('streamchannel', 'white', { level: 10 }); make('fan', 'red', { level: 5 }); make('pal', 'blue', { level: 5 });
+        const rec = n => G.stats[n] ? `${G.stats[n].wins}-${G.stats[n].losses}` : '0-0';
+        const ranked = (win, lose, hp = [40, 0]) => {
+            const db = G.getDragonDB(), w0 = db[win].xp, l0 = db[lose].xp;
+            G.running = true;
+            G.finishBattle({ ...db[win] }, { ...db[lose] }, hp[0], hp[1], true);
+            const after = G.getDragonDB();
+            return [after[win].xp - w0, after[lose].xp - l0];
+        };
+        const lost = ranked('streamchannel', 'fan');                 // the dragon wins, as it always does
+        const lostRec = [rec('streamchannel'), rec('fan')];
+        const won = ranked('fan', 'streamchannel', [30, 20]);        // a time-out the viewer wins on HP (as if): still not counted
+        const wonRec = [rec('streamchannel'), rec('fan')];
+        const usual = ranked('pal', 'fan');                          // two viewers: counted as before
+        check(lost.join() === '40,10' && lostRec.join() === '0-0,0-0' && wonRec.join() === '0-0,0-0' && won[0] === 65 && rec('pal') === '1-0' && rec('fan') === '0-1' && usual.join() === '40,10',
+            t('17b. a ranked fight against the White Dragon: no win or loss for either side (the dragon wins: +40 / +10 XP as usual; if the viewer ever won on HP: +65 as usual, still no record); a fight between viewers counts (@pal 1–0, @fan 0–1)',
+              '17b. рейтинговий бій з Білим Драконом: без перемоги й поразки для обох (дракон перемагає: +40 / +10 XP, як завжди; якби глядач переміг за HP: +65, як завжди, і теж без запису); бій між глядачами рахується (@pal 1–0, @fan 0–1)'),
+            JSON.stringify({ lost, lostRec, won, wonRec, usual, pal: rec('pal'), fan: rec('fan') }));
+        G.setStreamerUser(prevStreamer);
+        __drain();
     }
 
     // 18. Tournaments

@@ -179,10 +179,10 @@ const MUTATIONS = [
         'Math.max(0, loserLevel - winnerLevel)', 'Math.abs(loserLevel - winnerLevel)'],
     ['Gold skips the bonus', 'Gold multiplies only the usual 40, not the bonus',
         'let winXP = addXP(winner.name, 40 + bonus);', 'let winXP = addXP(winner.name, 40) + bonus;'],
-    ['Top by wins only', 'the Top is ordered by wins, not wins − losses',
-        '                if (net) return net;\n', ''],
-    ['Top tie: level before wins', 'on equal wins − losses the higher level goes first, not more wins',
-        "if ((rb.wins || 0) !== (ra.wins || 0)) return (rb.wins || 0) - (ra.wins || 0);", ''],
+    ['Top by wins − losses', 'the Top is ordered by wins − losses again, not by wins',
+        "if ((rb.wins || 0) !== (ra.wins || 0)) return (rb.wins || 0) - (ra.wins || 0);", "const net = ((rb.wins || 0) - (rb.losses || 0)) - ((ra.wins || 0) - (ra.losses || 0)); if (net) return net;"],
+    ['Top tie: more losses first', 'on equal wins more losses go first',
+        'if ((ra.losses || 0) !== (rb.losses || 0)) return (ra.losses || 0) - (rb.losses || 0);', 'if ((ra.losses || 0) !== (rb.losses || 0)) return (rb.losses || 0) - (ra.losses || 0);'],
     // Tournaments (caught by rules.js)
     ['tournament: first to 1', 'a tournament match ends after one won game instead of two',
         'const TOURNEY_WINS = 2;', 'const TOURNEY_WINS = 1;'],
@@ -289,6 +289,13 @@ const MUTATIONS = [
         '`🌵 Шипи: -${thorn} HP нападникові! `', '`🌵 Шипи: -${thorn} HP атаку' + 'ючому! `'],
     ['tournament titles not refreshed', "a saved tournament keeps its players' titles as at sign-up, old names and all",
         'if (tourney) tourney.players.forEach(p => { const fresh = p.title && TITLES_DB.find(t => t.id === p.title.id); if (fresh) p.title = fresh; });', ''],
+    // The Top and the White Dragon (caught by rules.js)
+    ['Top tie: level before losses', 'on equal wins the higher level goes first, not fewer losses',
+        '                if ((ra.losses || 0) !== (rb.losses || 0)) return (ra.losses || 0) - (rb.losses || 0);\n', ''],
+    ['a White Dragon fight counts', 'a ranked fight against the White Dragon counts a win and a loss again',
+        'const dragonFight = [p1, p2].some(f => f.drakeObj && f.drakeObj.type === DRAGON_TYPE);', 'const dragonFight = false;'],
+    ['no ranked fight counts', 'no ranked fight counts a win or a loss, not only those against the White Dragon',
+        'const dragonFight = [p1, p2].some(f => f.drakeObj && f.drakeObj.type === DRAGON_TYPE);', 'const dragonFight = true;'],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported
