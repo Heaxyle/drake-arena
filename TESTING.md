@@ -3,7 +3,7 @@
 Drake Arena is a single HTML file with no build step, so the tests work on that file as it is. The testing has two layers:
 
 1. **Effect rules, ultimates, game rules and balance simulation** (`tests/effects.js`, `tests/ultimates.js`, `tests/rules.js`, `tests/balance.js` + `tests/sim_harness.js`) run the real game code in Node. The effect, ultimate and rules tests check the buff/debuff, meter, ultimate, chat and fight rules; the balance sim plays thousands of fights. Together they answer: *do the rules work as written, is the game fair, and does combat ever crash?*
-2. **UI smoke test, layout test, fight view test and tournament test** (`tests/ui.js`, `tests/layout.js`, `tests/fightview.js`, `tests/tournament.js`) open the page in headless Chromium, play it through fake chat and check the layout, the battle log and the turn animation. They answer: *does it work and look right on stream?* The play log test (`tests/playlog.js`) checks what the game records about play and its export.
+2. **UI smoke test, layout test, fight view test and tournament test** (`tests/ui.js`, `tests/layout.js`, `tests/fightview.js`, `tests/tournament.js`) open the page in headless Chromium, play it through fake chat and check the layout, the battle log and the turn animation. They answer: *does it work and look right on stream?* The play log test (`tests/playlog.js`) checks what the game records about play and its export; the reload test (`tests/resume.js`) that a reload loses nobody's place.
 
 Both run in CI (`.github/workflows/ci.yml`) on every pull request and on every push to `main`, so each PR update runs CI once.
 
@@ -27,7 +27,9 @@ flowchart TD
     K -->|a check failed| X
     K -->|all checks passed| PL["Layer 2: play log test<br/>npm run test:playlog"]
     PL -->|a check failed| X
-    PL -->|all checks passed| T["Layer 2: tournament test<br/>npm run test:tournament"]
+    PL -->|all checks passed| R["Layer 2: reload test<br/>npm run test:resume"]
+    R -->|a check failed| X
+    R -->|all checks passed| T["Layer 2: tournament test<br/>npm run test:tournament"]
     T -->|a check failed| X
     T -->|all checks passed| P[CI passes]
     E -.->|always| S[Upload tests/screenshots<br/>as a build artifact]
@@ -596,6 +598,21 @@ The test also had to fail on 16 broken versions of the log: a missing queue join
 
 The tournament events and the HP are also checked in Node (`tests/rules.js` section 20 sees everything the game hands to `playLog`), so the mutation check covers them: 13 more broken versions, all caught: `opened` without who, `joined` logging the bracket size, `!вийти` not logged, a `!турнір старт` close logged as `full`, no qualifier games, a cancel without its stage, a sign-up cancel with a stopped tournament's old game, the podium reversed, max HP or HP left swapped between the fighters, and no HP on a duel, a tournament game or a simulation error.
 
+## Layer 2: reload test
+
+`resume.js` reloads the page the way OBS restarts a browser source, and checks what the new page picks up from `drake_arena_showcase_arena`. Seeded fights on the paused game clock; 7 players join the ranked queue, so 2 fight and 5 wait. Before each reload the game's own saves and the play log are in the browser (`storageSettled`).
+
+| Check | What it catches |
+|---|---|
+| **In the betting window** (30 s in) and **mid-fight** (turn 3): 0.5 s after the reload the 5 are queued again in the same order, the same pair is in a fresh 2:00 betting window, the ЧАТ panel says «🔄 Арену перезапущено: бій @a — @b починається знову.», XP and records are as before; the fight then plays and counts once (one logged fight, the XP it logged is what the saves gained, one win and one loss) | A reload emptying the queue or dropping the match, a half-fought fight counted, a restart with no word on screen |
+| **On the result screen**: the fight was counted and is over: XP and records as the result left them, no restart line, and the next pair (the front of the queue and the next) comes off the queue at once, 3 left in order; two logged fights in all | A finished match played again or counted twice, the queue stuck after the reload |
+| **Betting window off, a duel waiting**: mid-fight with an accepted duel waiting and 3 queued, the fight starts again at once (no window), then the duel, then the queue | The waiting duel lost, or jumping ahead of the replayed fight |
+| **An old save**: the clock moves on 11 minutes with the page closed: the save is ignored and removed (empty queue, idle arena); 9 minutes: picked up | A stale queue coming back after a break, or a recent one dropped |
+| Every load is in the play log (`type: 'load'`) with what came back: the queue, the duel, the match with its stage and whether it was replayed, the save's age | Restarts that don't show in the data |
+| No page errors | Exceptions from the resume |
+
+`RESUME_FILE=<main's index.html> node tests/resume.js` runs it against another page: main's fails it (the queue is gone after a reload), which is the bug it covers. `RESUME_ONLY=1,3` runs only some cases.
+
 ## Layer 2: fight view test
 
 `fightview.js` checks the battle log, the turn animation, the ultimates, the countdown and the result card (`design/redesign-reference.html`), in **both languages**, with seeded fights and the paused clock. The test steps the clock to exact turn times: a turn's step 1 is the turn's tick (the attacker lights up), step 2 is 0.6 s later (the hit lands).
@@ -687,6 +704,7 @@ npm run test:ui showcase               # UI smoke test + screenshots in tests/sc
 npm run test:layout                    # 1920×1080 layout test, both languages
 npm run test:controls                 # the test menu's picker and drop-downs, the language switch during a fight
 npm run test:playlog                   # the play log: what fights, title rolls, rerolls and !черга record; the export
+npm run test:resume                    # reloads in the betting window, mid-fight and on the result screen; an old save
 npm run test:fightview                 # battle log, turns, ultimates, countdown, result, both languages (slow: plays dozens of fights)
 npm run test:tournament                # sign-up, a whole 8-player tournament, a reload mid-match, the qualifier, cancel, prizes, the show
 UI_FILE=main.html node tests/ui.js showcase   # same flow on another copy of the page: compare the fingerprint

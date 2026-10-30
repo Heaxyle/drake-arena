@@ -1,7 +1,7 @@
 // Play log test: the game records how people play (IndexedDB, silently) and exportPlayLog() hands it over as one JSON.
 //   1  A run through chat (seeded fights, the fake clock): three new drakes, a title roll for channel points, !черга
 //      (twice from one player), a ranked fight with the betting window on, a duel with it off, an element change at
-//      level 5. The log holds exactly those events, in order, and each says what the game did: both fighters' level,
+//      level 5. The log holds exactly those events, in order (after the page load's own), and each says what the game did: both fighters' level,
 //      XP, element and title before the fight; the winner, KO / time-out / draw and the turns as the arena showed them;
 //      the XP each got as the saves changed, with the underdog and Gold parts; each one's HP left and max HP at the end,
 //      as their arena card showed it; the betting window's opening and the fight's start in order. Nothing of it shows on
@@ -13,7 +13,8 @@
 //      level 20 as the cards showed it, the podium; a cancel during sign-up and one mid-game (where it stood). In the
 //      export the players are ids there too (the podium included), no name left
 //   2  The export: valid JSON with the log and the saves (drakes and stats); player names replaced by ids p001… everywhere
-//      (no name left in the text; a player only in the saves too), the same ids in a second export and after a reload;
+//      (no name left in the text; a player only in the saves too), the same ids in a second export and after a reload
+//      (which logs its page load, the arena's save restored);
 //      { names: true } keeps the names. clearPlayLog() empties the log and the ids and leaves the saves
 //   3  A failing IndexedDB (open throws; or every write throws): the fights finish exactly as without the log (same
 //      fight events), no page errors, and the export still works, reporting the failed writes
@@ -120,8 +121,10 @@ async function run() {
 
         const ev = await events(page);
         const types = ev.map(e => e.type).join(' ');
-        check(types === 'drake drake drake title queue queue queue fight fight element', `the log holds the run's events in order: ${types}`, `expected drake×3 title queue×3 fight fight element`);
-        const [d1, d2, d3, title, q1, q2, q3, f1, f2, el] = ev;
+        check(types === 'load drake drake drake title queue queue queue fight fight element', `the log holds the run's events in order: ${types}`, `expected load drake×3 title queue×3 fight fight element`);
+        const [load, d1, d2, d3, title, q1, q2, q3, f1, f2, el] = ev;
+        check(load && load.saved === false && load.restored === false && load.ageMs === null && load.queue.length === 0 && load.duel === null && load.match === null && load.tournament === null,
+            'the page load first: no arena save, nothing restored', JSON.stringify(load));
         check(d1 && d1.user === 'alice' && d1.element === 'red' && d2.user === 'bobgold' && d2.element === 'gold' && d3.element === 'green' && d1.levelLost === 0,
             'new drakes: who and which element (level lost 0)', JSON.stringify([d1, d2, d3]));
         check(title && title.user === 'alice' && title.from === titleBefore.id && title.to === titleAfter.id && title.toRarity === titleAfter.rarity && title.via === 'points',
@@ -179,10 +182,10 @@ async function run() {
         const leaked = NAMES.filter(n => text.toLowerCase().includes(n));
         const idsUsed = out ? [...new Set(text.match(/"p\d{3}"/g) || [])].sort() : [];
         check(out && out.events.length === ev.length && out.saves && Object.keys(out.saves.drakes).length === 4 && out.saves.stats && !leaked.length
-            && idsUsed.join() === '"p001","p002","p003","p004"' && out.events[0].user === 'p001' && out.saves.drakes.p001 && out.saves.drakes.p001.name === 'p001'
+            && idsUsed.join() === '"p001","p002","p003","p004"' && out.events[1].user === 'p001' && out.saves.drakes.p001 && out.saves.drakes.p001.name === 'p001'
             && out.saves.drakes.p004 && out.saves.drakes.p004.name === 'p004',
             `valid JSON (${text.length} characters): the log and the saves, players as p001–p004 (the log's in the order they first played, then the saves'), no name left`,
-            JSON.stringify({ parsed: !!out, leaked, idsUsed, first: out && out.events[0] }));
+            JSON.stringify({ parsed: !!out, leaked, idsUsed, first: out && out.events[1] }));
         const statsOk = out && Object.keys(out.saves.stats).every(k => /^p\d{3}$/.test(k)) && Object.values(out.saves.stats).reduce((s, x) => s + x.wins + x.losses, 0) === 2;
         check(statsOk, 'the stats snapshot by id (one ranked win and one loss)', JSON.stringify(out && out.saves.stats));
         const again = JSON.parse(await exportLog(page));
@@ -192,11 +195,14 @@ async function run() {
         await chat(page, 'dave', '!дрейк чорний');
         const afterReload = JSON.parse(await exportLog(page));
         const strip = o => JSON.stringify({ ...o, exported: 0, events: o.events.slice(0, ev.length) });
-        check(strip(again) === strip(out) && afterReload.events.length === ev.length + 1 && afterReload.events[ev.length].user === 'p005' && afterReload.saves.drakes.p004.name === 'p004'
+        const reloadEv = afterReload.events[ev.length];
+        check(strip(again) === strip(out) && afterReload.events.length === ev.length + 2 && afterReload.events[ev.length + 1].user === 'p005' && afterReload.saves.drakes.p004.name === 'p004'
             && strip({ ...afterReload, saves: out.saves }) === strip({ ...out, failedWrites: afterReload.failedWrites }),
-            'the same ids in a second export and after a reload: zed keeps p004, and a new player in the log gets p005', JSON.stringify({ last: afterReload.events[ev.length] }));
+            'the same ids in a second export and after a reload: zed keeps p004, and a new player in the log gets p005', JSON.stringify({ last: afterReload.events[ev.length + 1] }));
+        check(reloadEv && reloadEv.type === 'load' && reloadEv.saved && reloadEv.restored && reloadEv.ageMs >= 0 && reloadEv.queue.length === 0 && reloadEv.match === null,
+            `the reload is in the log: a load event, the arena's save (${reloadEv && reloadEv.ageMs} ms old) restored with nothing waiting`, JSON.stringify(reloadEv));
         const named = JSON.parse(await exportLog(page, { names: true }));
-        check(named.names === 'twitch' && named.events[0].user === 'alice' && named.saves.drakes.alice, '{ names: true } keeps the Twitch names', JSON.stringify(named.events[0]));
+        check(named.names === 'twitch' && named.events[1].user === 'alice' && named.saves.drakes.alice, '{ names: true } keeps the Twitch names', JSON.stringify(named.events[1]));
 
         // clearPlayLog(): the log and the ids go, the saves stay; the next player is p001 again
         const savesBefore = await saves(page);
@@ -206,7 +212,7 @@ async function run() {
         const fresh = JSON.parse(await exportLog(page));
         const savesAfter = await saves(page);
         delete savesAfter.erin;
-        check(removed === ev.length + 1 && cleared.events.length === 0 && JSON.stringify(savesAfter) === JSON.stringify(savesBefore)
+        check(removed === ev.length + 2 && cleared.events.length === 0 && JSON.stringify(savesAfter) === JSON.stringify(savesBefore)
             && fresh.events.length === 1 && fresh.events[0].user === 'p001' && fresh.saves.drakes.p001.name === 'p001' && Object.keys(fresh.saves.drakes).length === 6,
             `clearPlayLog() empties the log (${removed} events) and the ids, the saves untouched; the next new player is p001`,
             JSON.stringify({ removed, left: cleared.events.length, next: fresh.events[0], drakes: Object.keys(fresh.saves.drakes) }));
