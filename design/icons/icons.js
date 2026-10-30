@@ -8,7 +8,7 @@
 //   o outline, d dark, m colour, h light, w highlight, p accent (an icon's own second colour), q accent dark
 (function (root) {
     // ----- Sizes by category -----
-    const SIZES = { buff: 10, debuff: 10, ultimate: 12, note: 10, attack: 10, reel: 10, emblem: 10, bonus: 10, medal: 10, ui: 10 };
+    const SIZES = { buff: 10, debuff: 10, ultimate: 12, note: 10, attack: 10, reel: 10, emblem: 10, bonus: 10, medal: 12, ui: 10 };
 
     // ----- Glyphs -----
     const GLYPHS = {
@@ -782,44 +782,50 @@
             'oddddddddo',
             '.oooooooo.',
         ],
-        // 1st place: a gold medal on a ribbon, «1» on it
+        // 1st place: a gold medal, round with a rim, a bold «1»; the same red ribbon with a white stripe as 2nd and 3rd
         medalGold: [
-            'oppo..oqqo',
-            '.oppooqqo.',
-            '..opqqpo..',
-            '.ohmmmmho.',
-            '.ohmmkmdo.',
-            'ohmmkkmmho',
-            'ohmmmkmmdo',
-            '.ohmmkmdo.',
-            '.ohmkkkdo.',
-            '..ohdddo..',
+            '...opvvpo...',
+            '...opvvpo...',
+            '....oooo....',
+            '...oddddo...',
+            '..odhkkmdo..',
+            '.odhkkkmmdo.',
+            '.odhmkkmmdo.',
+            '.odmmkkmmdo.',
+            '.odmkkkkmdo.',
+            '..odmmmmdo..',
+            '...oddddo...',
+            '....oooo....',
         ],
-        // 2nd place: a silver medal, «2»
+        // 2nd place: the silver medal, «2»
         medalSilver: [
-            'oppo..oqqo',
-            '.oppooqqo.',
-            '..opqqpo..',
-            '.ohmmmmho.',
-            '.ohmkkmdo.',
-            'ohmmmmkmho',
-            'ohmmmkmmdo',
-            '.ohmkmmdo.',
-            '.ohmkkkdo.',
-            '..ohdddo..',
+            '...opvvpo...',
+            '...opvvpo...',
+            '....oooo....',
+            '...oddddo...',
+            '..odkkkmdo..',
+            '.odhhmmkmdo.',
+            '.odhmkkmmdo.',
+            '.odmkmmmmdo.',
+            '.odmkkkkmdo.',
+            '..odmmmmdo..',
+            '...oddddo...',
+            '....oooo....',
         ],
-        // 3rd place: a bronze medal, «3»
+        // 3rd place: the bronze medal, «3»
         medalBronze: [
-            'oppo..oqqo',
-            '.oppooqqo.',
-            '..opqqpo..',
-            '.ohmmmmho.',
-            '.ohmkkmdo.',
-            'ohmmmmkmho',
-            'ohmmmkmmdo',
-            '.ohmmmkdo.',
-            '.ohmkkmdo.',
-            '..ohdddo..',
+            '...opvvpo...',
+            '...opvvpo...',
+            '....oooo....',
+            '...oddddo...',
+            '..odkkkmdo..',
+            '.odhhmmkmdo.',
+            '.odhmkkmmdo.',
+            '.odmmmmkmdo.',
+            '.odmkkkmmdo.',
+            '..odmmmmdo..',
+            '...oddddo...',
+            '....oooo....',
         ],
         // The tournament: a trophy
         trophy: [
@@ -1097,8 +1103,8 @@
         buffpower:   { kind: 'bonus', color: '#6bff9a', name: { uk: 'Сила бафів', en: 'Buff power' },            emoji: '(none)' },
         // ----- Batch 3: places and the tournament -----
         medalGold:   { kind: 'medal', color: '#f2c14e', name: { uk: '1-ше місце', en: '1st place' },             emoji: '🏆 / 🥇', accent: '#ff4f5a' },
-        medalSilver: { kind: 'medal', color: '#c9cde6', name: { uk: '2-ге місце', en: '2nd place' },             emoji: '🥈', accent: '#4a98ff' },
-        medalBronze: { kind: 'medal', color: '#d69a5f', name: { uk: '3-тє місце', en: '3rd place' },             emoji: '🥉', accent: '#2ecc71' },
+        medalSilver: { kind: 'medal', color: '#c9cde6', name: { uk: '2-ге місце', en: '2nd place' },             emoji: '🥈', accent: '#ff4f5a' },
+        medalBronze: { kind: 'medal', color: '#d69a5f', name: { uk: '3-тє місце', en: '3rd place' },             emoji: '🥉', accent: '#ff4f5a' },
         trophy:      { kind: 'ui', color: '#f2c14e', name: { uk: 'Турнір', en: 'Tournament' },                   emoji: '🏆' },
         // ----- Batch 3: UI (the plate, banners, the result card, the Top, info cards) -----
         ranked:      { kind: 'ui', color: '#f2c14e', name: { uk: 'Рейтинговий бій', en: 'Ranked battle' },       emoji: '🏆' },

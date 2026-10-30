@@ -28,7 +28,8 @@ Press Start 2P is an 8×8 font shown at 2× (16 px). The icons use the same pixe
 | log note, attack type (bare glyph) | 10×10 | 20 px | 10 px | 30 px |
 | title (rarity frame) | 12×12: a 1-pixel frame around the note's 10×10 glyph | 24 px | the bare glyph, 10 px (no frame) | 36 px |
 | ultimate | 12×12 | 24 px | 12 px | 36 px |
-| medal, trophy, crown | as `SHOW_SPRITES` | | | |
+| medal (1st, 2nd, 3rd) | 12×12: a round 10 px disc under a ribbon | 24 px | 12 px | 36 px (the podium) |
+| trophy, crown, laurel (the show) | as `SHOW_SPRITES` | | | |
 
 Why these sizes, from the inventory: the rows that hold icons in the fight are 20–22 px (log lines 20 px, chips 21 px), so a
 10-pixel glyph at 2× fills a chip. Notes were planned at 8×8, but an 8×8 glyph with its outline leaves 6×6 inside, and pass 2
@@ -203,7 +204,7 @@ ultra-block (a new `FV_TEXT` key, visual only; the fight already knows which one
 | Jackpot: gem / coins / bust | 💎 🪙 💀 | a cut gem / two stacked coins / a red X | the reels chip in the log (the skull is Poison's; the coin reel is not Heads or tails' coin) |
 | Drake emblems | 🟥 🟦 ⬛ 🟨 🟪 🟩 🐉 | rune tiles: fire, waves, the night moon, a coin, a crystal, a leaf, a wing | the intro banner, drake names in info cards |
 | Bonus: HP / crit / defence / effect chance / buff power | ❤️ 💥 🛡️ – – | a heart / the crit «!» / a helmet / a wand with a sparkle / a buff chip's rounded shape with an arrow up | common-to-epic title badges; `!стата` |
-| 1st, 2nd, 3rd place | 🏆 and 🥇, 🥈, 🥉 | a medal on a V ribbon in gold, silver, bronze, its place (1, 2, 3) on it | the Top, the fighter card's name, `!стата`, the podium (×3), the Hall of Fame |
+| 1st, 2nd, 3rd place | 🏆 and 🥇, 🥈, 🥉 | a medal: the same red ribbon with a white stripe on all three, a round disc with a rim in gold, silver or bronze, its place (1, 2, 3) bold in the middle; only the metal and the number change, and the ribbon keeps it from reading as Gold's coin. 12×12: at 10×10 the disc came out oval | the Top, the fighter card's name, `!стата`, the podium (×3), the Hall of Fame |
 | The tournament | 🏆 | a trophy | the plate, the sign-up strip, tournament banners |
 | Ranked battle | 🏆 | a podium | the plate, the intro banner; matchmaking replies too (🚨 → this) |
 | Friendly duel | 🤝 | a smiling face (the opposite of Rage) | the plate, the intro banner |
@@ -220,8 +221,9 @@ ultra-block (a new `FV_TEXT` key, visual only; the fight already knows which one
 | XP | ✨ | a four-point sparkle | the result card, Gold's bonus XP |
 | Reroll | 🔥 | two arrows chasing round a circle | `!рерол` replies |
 
-Proposed, not drawn: chat replies (⚠️ ℹ️ 🛑 ❌ ✅ 👋 ⌛ 🤡, and «🔄 Арену перезапущено») get no icon. They carry no game meaning;
-the info card's tone (ok, warning, note) already says it. Fewer icons, and none of them competes with the game's.
+Decided: chat replies (⚠️ ℹ️ 🛑 ❌ ✅ 👋 ⌛ 🤡, and «🔄 Арену перезапущено») get no prefix icon. They carry no game meaning; the
+info card's tone (ok, warning, note) already says it. Where a reply names a game thing (a drake, a title, a medal, an effect),
+it shows that thing's icon next to its name, as the reroll line does (the reroll icon and the new drake's emblem).
 
 The emblems can't use the drakes' own sprites (48×36 doesn't fit a line of text) and a drake head in each colour would differ
 by colour only, so each element has a sigil.
@@ -244,8 +246,7 @@ The magnet glyph is free for Магніт: title 163 becomes a crit badge.
 
 1. Under deuteranopia and protanopia, Red and Gold come out as close yellows (review.html, "Without colour"). The chips and
    glyphs keep every pair apart, so nothing needs a colour change for it.
-2. The side column at ×1: in the `!стата` card a 10 px icon sits beside 13 px text. It reads, but small; ×2 there would make
-   the card's rows taller.
-3. The streamer card's 👑 «Стрімер»: the crown is the Sovereign's (the White Dragon's passive and title 999). The card could
-   show the streamer's drake emblem instead; to decide with the White Drake's batch.
-4. The White Drake's kit, after its branch merges (above).
+2. The White Drake's kit, after its branch merges (above), and with it the streamer card: it shows the emblem of the form
+   the streamer is in (the White Drake's 🤍 or the White Dragon's wing), not 👑, which belongs to the Sovereign.
+
+Decided: the side column stays at ×1, `!стата` included (a 10 px icon beside 13 px text).
