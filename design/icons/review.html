@@ -2,7 +2,7 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<title>Drake Arena icons · batch 1</title>
+<title>Drake Arena icons · batches 1–4</title>
 <!-- Design review only: not part of the game. The screenshot script (shoot.js) swaps this link for the game's embedded fonts
      and blocks the network, so the screenshots match the stream. -->
 <link id="web-fonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rubik:wght@400;600;700;800&display=swap">
@@ -157,6 +157,43 @@
     .mhall { display: flex; align-items: center; gap: 18px; background: rgba(255, 255, 255, 0.04); padding: 6px 14px; font-weight: 700; font-size: 15px; }
     .mhall span { display: inline-flex; align-items: center; gap: 6px; }
     .mh-t { color: var(--gold); font-size: 13px; letter-spacing: 2px; }
+    .mtab { display: inline-flex; align-items: center; gap: 6px; height: 18px; box-sizing: border-box; font-size: 12px; font-weight: 800; letter-spacing: 1.5px; padding: 3px 10px; background: #0f0d10; color: var(--hi); text-transform: uppercase; white-space: nowrap; }
+    .mtab.px { height: 22px; padding: 1px 10px 1px 6px; }
+    .mmeter { display: flex; align-items: center; gap: 9px; height: 14px; white-space: nowrap; padding: 6px 10px; background: var(--card); }
+    .pm-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--dim); }
+    .pm-pips { display: flex; gap: 6px; padding: 0 2px; }
+    .pm-pip { width: 24px; height: 8px; background: var(--meter); box-shadow: 0 0 0 2px var(--edge), 0 0 10px 2px color-mix(in srgb, var(--meter) 42%, transparent); }
+    .pm-ready { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; letter-spacing: 1px; color: var(--meter); }
+    .icard { background: rgba(30, 31, 46, 0.9); border: 1px solid rgba(255, 255, 255, 0.09); padding: 10px 14px; font-size: 14px; line-height: 1.35; color: var(--text2); width: 400px; box-sizing: border-box; }
+    .icard.ok { background: rgba(18, 44, 42, 0.75); border-color: rgba(0, 255, 204, 0.35); }
+    .icard.glow-legendary { border-color: #f1c40f; box-shadow: inset 0 0 12px rgba(241, 196, 15, 0.4); }
+    .icard.glow-mythic { border-color: #ff4757; box-shadow: inset 0 0 14px rgba(255, 71, 87, 0.45); }
+    .icard.glow-meme { border-color: #ff66cc; box-shadow: inset 0 0 14px rgba(255, 102, 204, 0.5); }
+    .icard .ic-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+    .icard .ic-head > span { display: inline-flex; align-items: center; gap: 5px; }
+    .icard .ic-title { margin-top: 4px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+    .icard .ic-desc { color: var(--muted); font-size: 12px; }
+    .icard .ic-shout { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+    .icard .ic-shout b { font-family: var(--pixel); font-size: 11px; line-height: 1.5; }
+    .icard .ic-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; color: var(--muted); font-size: 13px; }
+    .rarity-tag { font-size: 10px; padding: 1px 4px; border-radius: 2px; border: 1px solid currentColor; margin-left: 4px; font-weight: 700; text-transform: uppercase; }
+    .icards { display: flex; flex-direction: column; gap: 8px; }
+    .mplaque { display: inline-flex; align-items: center; gap: 14px; padding: 10px 20px; background: var(--plate); white-space: nowrap; }
+    .mplaque .plaque-text { font-family: var(--pixel); font-size: 16px; color: var(--gold); text-shadow: 0 2px 0 #5a3e0c; }
+    .plaque-dots { display: flex; gap: 8px; align-items: center; }
+    .plaque-dots span { display: block; width: 8px; height: 8px; box-shadow: inset 2px 2px 0 0 rgba(255, 255, 255, 0.45), 0 0 0 2px #0b0906; }
+    .plaque-dots.px { gap: 6px; }
+    .tw { display: flex; gap: 20px; flex-wrap: wrap; align-items: start; }
+    .tw-menu { width: 420px; padding: 14px; font: 600 13px/1.3 var(--ui); }
+    .tw-menu.dark { background: #18181b; color: #efeff1; } .tw-menu.light { background: #f7f7f8; color: #0e0e10; }
+    .tw-h { font-weight: 700; margin-bottom: 10px; }
+    .tw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .tw-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 12px; }
+    .tw-box { width: 100%; height: 74px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+    .tw-cost { font-size: 11px; opacity: 0.75; }
+    .tw-sizes { display: flex; align-items: end; gap: 18px; background: repeating-conic-gradient(#2a2c38 0 25%, #1f212b 0 50%) 0 0 / 16px 16px; padding: 14px 18px; }
+    .tw-sizes figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+    .tw-sizes img { outline: 1px dashed rgba(255, 255, 255, 0.25); }
     .filters .f-h { font-size: 13px; color: var(--muted); }
     .filters .cell { display: flex; justify-content: center; }
     .f-gray img, .f-gray .emo { filter: grayscale(1); }
@@ -172,9 +209,9 @@
 </svg>
 <div class="page" id="page">
     <div>
-        <h1>ICONS · BATCHES 1–3</h1>
+        <h1>ICONS · BATCHES 1–4</h1>
         <div class="sub">Batch 1 (sections 1–5): the 12 effects and the 6 class ultimates. Batch 2 (sections 6–8): the log notes, the title mechanics and the
-            attack types. Batch 3 (sections 9–10): Jackpot's reels, the drake emblems, the title bonuses and frames, the medals and the UI. Pixel art like the drakes: one palette and pixel map per icon, drawn once, shown only at whole-number scales. No frames: an effect's or a
+            attack types. Batch 3 (sections 9–10): Jackpot's reels, the drake emblems, the title bonuses and frames, the medals and the UI. Batch 4 (sections 11–13): attacking, the title roulette, the meter's «ready», the title-roll card, the arena plate and the Twitch reward icons. Pixel art like the drakes: one palette and pixel map per icon, drawn once, shown only at whole-number scales. No frames: an effect's or a
             note's glyph has the whole 10×10, an ultimate its own 12×12 silhouette. Buff or debuff is the chip's shape (rounded or angled ends), colour is the
             element. A title badge is its mechanic's note glyph in a 12×12 rarity frame. Each icon is shown next to the emoji it replaces, at the size it has in the game.</div>
     </div>
@@ -260,6 +297,37 @@
         <div class="note">The arena plate (15 px), the log banners, Jackpot's reels, the result card, the Top (medals ×2 next to the name, the title's bare glyph ×1), the
             podium (medals ×3), the !стата card (×1) and the Hall of Fame (×2). 1st place is one icon everywhere: the gold medal. Chat replies (⚠️ ℹ️ 🛑 ❌ ✅ 👋 ⌛ 🤡 …)
             are left without an icon: the card's tone says ok, warning or note.</div>
+    </section>
+
+    <section>
+        <h2>11 · BATCH 4 AT A GLANCE</h2>
+        <div class="glance" id="glance4" style="grid-template-columns: 150px repeat(2, 40px)"></div>
+        <div class="note">The two new glyphs at ×2 with no names, the emoji they replace, both in greyscale: attacking (two crossed swords) and the title roulette (a prize
+            wheel in the rarities' colours on a gold rim, the pointer on top). Everything else in this batch reuses an icon that already has that meaning (section 12).</div>
+    </section>
+
+    <section>
+        <h2>12 · BATCH 4 IN PLACE</h2>
+        <div class="pair">
+            <div><div class="col-h">NOW · EMOJI</div><div class="inplace" id="b4-old"></div></div>
+            <div><div class="col-h">NEW · PIXEL ICONS</div><div class="inplace" id="b4-new"></div></div>
+        </div>
+        <div class="note">The attack tab and the log cell take the crossed swords at ×2 (the tab grows from 18 to 22 px, upward over the card's frame). «✦ ГОТОВО» shows
+            the drake's own ultimate at ×1 (12 px in the 14 px row): it says which ultimate is ready, and the four-point sparkle stays XP's alone. The roulette's
+            cards take the wheel (×1); the die keeps first strike and the tournament draw. A legendary, mythic or meme roll shows the title's badge at ×3 in its
+            frame, with the shout. The fight-start, matchmaking and winner lines (⚔️ 🚨 🎉) and the roll shouts are written to the hidden text record
+            (#battle-log is hidden): viewers never see them and the tests read them, so they keep their emoji. What viewers see at those moments already has its
+            icon: the log's «Бій почався» banner (the bell), the intro banner (ranked or friendly), the result card (the laurel). A challenge or an accepted duel
+            (⚔️ in the info card) is a friendly duel: the smile.</div>
+    </section>
+
+    <section>
+        <h2>13 · TWITCH CHANNEL-POINT REWARDS</h2>
+        <div class="tw" id="tw"></div>
+        <div class="note">design/icons/twitch-rewards/: the game's two rewards (the title roulette and the reroll: REWARD_ID_TITLE and REWARD_ID_REROLL are the only
+            ones) as 28, 56 and 112 px PNGs, transparent, the same 10×10 icon at ×2, ×5 and ×11, centred (4, 3 and 1 px either side). Above: the files themselves on a
+            checkerboard, and in a mock rewards menu on Twitch's dark and light themes, each on a reward colour. The reroll's purple needs a reward colour that isn't
+            purple (gold, dark, or the default); the wheel reads on any. Made by <b>node design/icons/export-twitch.js</b>.</div>
     </section>
 </div>
 
@@ -521,6 +589,56 @@
     }
     $('b3-old').innerHTML = inPlace(false);
     $('b3-new').innerHTML = inPlace(true);
+
+    // 11 · Batch 4 at a glance
+    {
+        const ids = D.BATCH4_ICON_IDS;
+        const row = (label, cls, emoji) => `<div class="f-h">${label}</div>` + ids.map(id => `<div class="cell ${cls}">${emoji ? `<span class="emo" style="font-size:15px;width:auto">${D.ICONS[id].emoji}</span>` : img(id, 2)}</div>`).join('');
+        $('glance4').innerHTML = row('Icons ×2', '') + row('Emoji', '', true) + '<div class="gap"></div>' + row('Icons, greyscale', 'f-gray') + row('Emoji, greyscale', 'f-gray', true);
+    }
+
+    // 12 · Batch 4 in place
+    function inPlace4(px) {
+        const I = (id, s = 2, emoji) => px ? img(id, s) : (emoji || D.ICONS[id].emoji.split(' / ')[0]);
+        const parts = [];
+        const tab = el => `<span class="el-${el}" style="display:contents"><span class="mtab${px ? ' px' : ''}">${I('attacking')} Атакує</span></span>`;
+        parts.push(`<div class="ip-h">FIGHTER CARD: THE ATTACK TAB, THE METER</div><div class="ip-row">${tab('red')}${tab('blue')}${tab('gold')}</div>`);
+        const meter = (el, ult) => `<div class="mmeter el-${el}"><span class="pm-label">СИЛА</span><span class="pm-pips">${'<span class="pm-pip"></span>'.repeat(5)}</span><span class="pm-ready">${px ? img(ult, 1) : '✦'} ГОТОВО</span></div>`;
+        parts.push(`<div class="ip-row">${meter('red', 'firestorm')}${meter('blue', 'mirror')}${meter('gold', 'jackpot')}</div>`);
+        parts.push(`<div class="ip-h">BATTLE LOG: WHO ATTACKS</div><div class="el-red" style="width:430px"><div class="lc-cell pending">${I('attacking')} @ПолумʼянийЛіс атакує…</div></div>`);
+        parts.push(`<div class="ip-h">INFO CARDS (×1)</div><div class="icards">
+            <div class="icard"><div class="ic-head"><span>${I('roulette', 1)} Шанси рулетки титулів</span></div><div class="ic-row"><span style="color:#a0a0a0">Звичайний 45%</span> · <span style="color:#2ecc71">Незвичайний 25%</span> · <span style="color:#3498db">Рідкісний 15%</span> · <span style="color:#b36bff">Епічний 9%</span> · <span style="color:#f1c40f">Легендарний 4.5%</span> · <span style="color:#ff4757">Міфічний 1.3%</span> · <span style="color:#ff66cc">Мемний 0.2%</span></div></div>
+            <div class="icard"><div class="ic-head"><span style="color:#b197fc">${I('friendly', 1, '⚔️')} @arcane_kit викликає @nightowl_ua на дуель!</span></div></div>
+            <div class="icard ok"><div class="ic-head"><span style="color:#ffd43b">${I('roulette', 1, '🎲')} @goldfinch</span><span style="font-size:10px;color:#aaa">рулетка титулів</span></div>
+                <div class="ic-title" style="color:#3498db">${px ? img('effect', 1) : '🎰'} Щасливчик рулетки<span class="rarity-tag">Рідкісний</span></div><div class="ic-desc">Шанс ефекту +15%, крит +8%</div></div>
+        </div>`);
+        const roll = (r, c, id, emoji, name, desc, rname, shout) => `<div class="icard ok glow-${r}"><div class="ic-head"><span style="color:#b197fc">${I('roulette', 1, '🎲')} @arcane_kit</span><span style="font-size:10px;color:#aaa">рулетка титулів</span></div>
+            ${px ? `<div class="ic-shout">${D.titleImg(id, r, 3)}<div><b style="color:${c}">${shout}</b><div class="ic-title" style="color:${c};margin-top:2px">${name}<span class="rarity-tag">${rname}</span></div></div></div>`
+                 : `<div class="ic-title" style="color:${c}">${emoji} ${name}<span class="rarity-tag">${rname}</span></div>`}<div class="ic-desc">${desc}</div></div>`;
+        parts.push(`<div class="ip-h">TITLE ROLL: LEGENDARY, MYTHIC, MEME (THE BADGE ×3)</div><div class="icards">
+            ${roll('legendary', '#f1c40f', 'guardian', '👼', 'Ангел-охоронець стрімера', 'Раз за бій рятує від смертельного удару · HP +12', 'Легендарний', 'ЛЕГЕНДАРНИЙ ТИТУЛ!')}
+            ${roll('mythic', '#ff4757', 'thorns', '🌵', 'Кактус з характером', 'Шипи: частина удару повертається нападнику · HP +15', 'Міфічний', 'МІФІЧНИЙ ТИТУЛ!!')}
+            ${roll('meme', '#ff66cc', 'sleep', '😴', 'Заснув на стрімі', 'Іноді засинає на хід · HP +5', 'Мемний', 'МЕМНИЙ ТИТУЛ?!')}
+        </div>`);
+        const dots = ['#e0452f', '#3b8fe8', '#4a4a60', '#f2c14e', '#9b59d0', '#3ec46d'];
+        const side = list => px ? `<span class="plaque-dots px">${list.map(id => img(id, 2)).join('')}</span>` : `<span class="plaque-dots">${list.map(c => `<span style="background:${c}"></span>`).join('')}</span>`;
+        parts.push(`<div class="ip-h">THE ARENA'S TITLE PLATE</div><div class="ip-row"><div class="mplaque frame-sm">${side(px ? ['emRed', 'emBlue', 'emBlack'] : dots.slice(0, 3))}<span class="plaque-text">ДРЕЙК-АРЕНА</span>${side(px ? ['emGold', 'emPurple', 'emGreen'] : dots.slice(3))}</div></div>`);
+        return parts.join('');
+    }
+    $('b4-old').innerHTML = inPlace4(false);
+    $('b4-new').innerHTML = inPlace4(true);
+
+    // 13 · Twitch rewards: the exported files themselves
+    {
+        const f = (name, size) => `<img src="twitch-rewards/${name}-${size}.png" width="${size}" height="${size}" style="image-rendering: pixelated">`;
+        const sizes = `<div class="tw-sizes">${['title-roulette', 'reroll'].map(n => [28, 56, 112].map(s => `<figure>${f(n, s)}<figcaption>${n}-${s}.png</figcaption></figure>`).join('')).join('')}</div>`;
+        const tiles = [['title-roulette', '#f2c14e', 'Рулетка титулів', '1 000'], ['title-roulette', '#9147ff', 'Рулетка титулів', '1 000'], ['title-roulette', '#1f1f23', 'Рулетка титулів', '1 000'],
+                       ['reroll', '#f2c14e', 'Рерол дрейка', '5 000'], ['reroll', '#1f1f23', 'Рерол дрейка', '5 000'], ['reroll', '#9147ff', 'Рерол дрейка (фіолетовий фон)', '5 000']];
+        const menu = theme => `<div class="tw-menu ${theme}"><div class="tw-h">Нагороди каналу</div><div class="tw-grid">
+            ${tiles.map(([n, bg, t, cost]) => `<div class="tw-tile"><div class="tw-box" style="background:${bg}">${f(n, 56)}</div>${t}<span class="tw-cost">${cost}</span></div>`).join('')}
+        </div><div class="tw-h" style="margin:12px 0 6px">Чат (28 px)</div><div style="display:flex;align-items:center;gap:6px">${f('title-roulette', 28)} goldfinch викупив «Рулетка титулів» ${f('reroll', 28)}</div></div>`;
+        $('tw').innerHTML = sizes + menu('dark') + menu('light');
+    }
 
     $('filters').innerHTML = fRow('Colour', '') + fRow('Greyscale', 'f-gray') + fRow('Deuteranopia', 'f-deut') + fRow('Protanopia', 'f-prot') + fRow('Tritanopia', 'f-trit') + fRow('Emoji, greyscale', 'f-gray', true);
 </script>

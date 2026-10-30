@@ -2,7 +2,7 @@
 
 Icons made for Drake Arena's mechanics and its UI, replacing the emoji (see inventory.md). They are pixel art like the drakes
 and Press Start 2P, and each one means one thing everywhere. First batch: the 12 effects and the 6 ultimates (`icons.js`,
-reviewed in `review.html`).
+reviewed in `review.html`); batches 2–4 follow below.
 
 ## Format
 
@@ -212,7 +212,7 @@ ultra-block (a new `FV_TEXT` key, visual only; the fight already knows which one
 | Draw | 🤝 | balance scales | the plate, the result title |
 | Waiting, time | ⏳ | an hourglass | the plate, «хід @x», betting, time-out |
 | Turn | ⚔️ | a clock dial | the plate «Хід 3 / 30» |
-| Chance decides | 🎲 | a die showing five | first strike, the tournament draw, the title roulette |
+| Chance decides | 🎲 | a die showing five | first strike, the tournament draw (the title roulette has its own wheel: batch 4) |
 | The fight is on | 🔔 | a bell | the start banner |
 | Level up | ⬆️ | a double chevron up | the result card |
 | Hall of Fame | 🏛️ | a temple | `!зала`, its title |
@@ -231,6 +231,39 @@ by colour only, so each element has a sigil.
 Reserved, so the batches avoid them: a plain sword (no attack uses one), the horseshoe / U shape (the White Drake's Магніт).
 The skull is Poison's: KO is the tombstone, sudden death the warning sign, Jackpot's bust the X. Crit is the «!», never a blast
 (Arcane Detonation's). Heads or tails' coin has its star; the reel coins are a stack.
+
+## The fourth batch (attacking, the roulette, the meter, the roll card, the plate, Twitch rewards)
+
+| Icon | Today | Glyph | Where |
+|---|---|---|---|
+| Attacking | ⚔ | two crossed swords, steel blades, gold guards (×2) | the card's «АТАКУЄ» tab (it grows from 18 to 22 px, upward over the card's frame), the log's «⚔ @x атакує…» cell |
+| The title roulette | 🎰 (odds), 🎲 (the roll card) | a prize wheel: six sectors in the rarities' colours on a gold rim, a white hub, the pointer on top | the odds card (`!шанси`), the roll card's head, the Twitch reward |
+| The meter full | ✦ | the drake's own ultimate icon (×1, 12 px in the 14 px row) | «ГОТОВО» on the Element Power meter |
+| A top-rarity roll | 🌟 / 🔥 / 🤪 | the rolled title's own badge at ×3 in its rarity frame, beside the shout | the roll's info card (legendary, mythic, meme; the card keeps its glow) |
+| The arena's title plate | six coloured squares | the six drake emblems at ×2, three either side of «ДРЕЙК-АРЕНА» | `.plaque` (the plate gets about 70 px wider; it stays centred) |
+| Duel challenged, accepted | ⚔️ | the friendly duel's smile | info cards |
+
+- **Attacking is crossed swords.** A single plain sword stays reserved (no attack type uses one); the pair means only "this one
+  attacks now". The turn counter keeps its clock dial.
+- **The roulette gets its own wheel**, so it shares nothing with Jackpot's slot (🎰) or the die. Jackpot's emoji goes away with
+  its ultimate icon; title 153 «Щасливчик рулетки» shows its bonus glyph like every rare title.
+- **«ГОТОВО» shows the ultimate, not a new glyph.** A full-gauge drawing read as a cake at ×2; the ultimate's own icon says
+  which ultimate is ready, and the four-point sparkle stays XP's alone. The test panel's «✦ Сила стихії» button is not on
+  stream and can keep its ✦.
+- **Hidden record, no icons.** The fight-start line «⚔️ … розпочався», «🚨 Рейтинговий матчмейкінг!», «🏆 Переможець … 🎉» and
+  the roll shouts «🌟 ЛЕГЕНДАРНИЙ ТИТУЛ!» … are `addLog` lines, the hidden text record (`#battle-log` is `hidden`): no viewer
+  sees them, and the tests read them, so they keep their text as it is. What viewers see at those moments already has its
+  icon: the log's «Бій почався» banner (the bell), the intro banner (ranked or friendly), the result card (the laurel). So
+  🎉 gets no icon, and the roll's shout moves into the visible roll card with the ×3 badge. Wins in `!стата` (⚔️) take the
+  laurel.
+- **There is no «⚔ Атаки» log tab** in the game (main or `streamer-white-drake`); the visible ⚔ are the attack tab and the
+  log cell above.
+
+**Twitch channel-point rewards.** `design/icons/twitch-rewards/`: the game's two rewards (`REWARD_ID_TITLE` the title
+roulette, `REWARD_ID_REROLL` the reroll; there are no others) as `title-roulette-28/56/112.png` and `reroll-28/56/112.png`,
+transparent, the same 10×10 icon at ×2, ×5 and ×11, centred (4, 3 and 1 px either side), made by
+`node design/icons/export-twitch.js` (re-run it after a glyph changes). Set the reroll's reward colour to anything but purple
+(gold, dark or Twitch's default); the wheel reads on any colour.
 
 ## The White Drake (after `streamer-white-drake` merges)
 

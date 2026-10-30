@@ -1022,6 +1022,33 @@
             '.oomoooomo',
             '...ommmmo.',
         ],
+        // ----- Batch 4: attacking, the title roulette (10×10) -----
+        // Attacking (the card's «АТАКУЄ» tab, the log's «@x атакує…»): two crossed swords
+        attacking: [
+            '.o......o.',
+            'owo....owo',
+            '.owo..owo.',
+            '..owoowo..',
+            '..oohwoo..',
+            '.opowhopo.',
+            '..opoopo..',
+            '.oqoppoqo.',
+            'opo.oo.opo',
+            '.o......o.',
+        ],
+        // The title roulette (!титул, !шанси, the reward): a prize wheel in the rarities’ colours, the pointer on top
+        roulette: [
+            '...ovvo...',
+            '.oohvvmoo.',
+            '.ohffggdo.',
+            'ohfffgggdo',
+            'oheewwaado',
+            'oheewwaado',
+            'omcccbbbdo',
+            '.omccbbdo.',
+            '.oommddoo.',
+            '...oooo...',
+        ],
     };
 
     // ----- Element colours: one family per element -----
@@ -1121,13 +1148,18 @@
         stats:       { kind: 'ui', color: '#4a98ff', name: { uk: 'Стата', en: 'Stats' },                         emoji: '📊' },
         xp:          { kind: 'ui', color: '#ffd23f', name: { uk: 'Досвід', en: 'XP' },                           emoji: '✨' },
         reroll:      { kind: 'ui', color: '#b47aff', name: { uk: 'Рерол', en: 'Reroll' },                        emoji: '🔥' },
+        // ----- Batch 4 -----
+        attacking:   { kind: 'ui', color: '#c9cde6', name: { uk: 'Атакує', en: 'Attacking' },                    emoji: '⚔', accent: '#f2c14e' },
+        roulette:    { kind: 'ui', color: '#f2c14e', name: { uk: 'Рулетка титулів', en: 'Title roulette' },     emoji: '🎰',
+                       pal: { a: '#a0a0a0', b: '#2ecc71', c: '#3498db', e: '#b36bff', f: '#f1c40f', g: '#ff4757' } },   // the rarities' colours
     };
     Object.values(ICONS).forEach(ic => { if (ic.element) ic.color = ELEMENT_COLORS[ic.element]; });
     const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison'];
     const ULTIMATE_ICON_IDS = ['firestorm', 'mirror', 'theft', 'jackpot', 'detonation', 'bloom'];
     const NOTE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'note');
     const ATTACK_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'attack');
-    const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'emblem', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind));
+    const BATCH4_ICON_IDS = ['attacking', 'roulette'];
+    const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'emblem', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind) && !BATCH4_ICON_IDS.includes(id));
 
     // ----- Palette from one colour -----
     const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
@@ -1295,11 +1327,12 @@
         return rows;
     }
 
-    // Drawn once per icon at 1×; larger sizes are the same canvas drawn with image smoothing off, or CSS pixelated
+    // Drawn once per icon at 1×; larger sizes are the same canvas drawn with image smoothing off, or CSS pixelated.
+    // `pal` adds an icon's own letters (the roulette's rarity colours).
     const cache = {};
     function makeIconCanvas(id, doc = root.document) {
         if (cache[id]) return cache[id];
-        const rows = iconRows(id), pal = paletteOf(ICONS[id].color, ICONS[id].accent);
+        const rows = iconRows(id), pal = Object.assign(paletteOf(ICONS[id].color, ICONS[id].accent), ICONS[id].pal);
         const c = doc.createElement('canvas');
         c.width = rows[0].length; c.height = rows.length;
         const g = c.getContext('2d');
@@ -1346,5 +1379,5 @@
     // The CSS for a chip of this element and kind (the element's text colour goes with it)
     const chipStyle = (element, kind) => `border-style: solid; border-width: 1px ${CHIP.cap}px; border-image: url(${chipURL(element, kind)}) 1 ${CHIP.cap} fill / 1px ${CHIP.cap}px stretch; color: ${mix(ELEMENT_COLORS[element], '#ffffff', 0.35)};`;
 
-    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
+    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
 })(typeof window !== 'undefined' ? window : globalThis);

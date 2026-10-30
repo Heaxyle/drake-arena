@@ -81,6 +81,7 @@ attack), the pending cell (14 px), the attack tab (12 px), the mirror counter in
 
 Jackpot's reels: 💎 (gem, ×1 each), 🪙 (nothing), 💀 (two or more = a miss), in a `.lk.reels` chip, 12 px.
 Meter: «✦ ГОТОВО» / «✦ READY» (`.pm-ready`, 12 px), the test panel's «✦ Сила стихії» button. The pips are already CSS pixels.
+Batch 4: «ГОТОВО» shows the drake's own ultimate icon (style.md).
 
 ## 3. Log notes (fight view, `FV_TEXT` and `fvCardHtml`)
 
@@ -140,7 +141,7 @@ The weights (light, heavy, sneaky) have no emoji today. Sneaky shows as the pier
 
 The title icon shows in the fighter card's badge (13 px), the Top's sub-line (12 px), the streamer card (12 px), `!стата` and
 roulette info cards (13–14 px), the opening-buff banner (13 px). Roulette results add a line by rarity: 🌟 legendary,
-🔥 mythic, 🤪 meme. The rarity is shown by colour today (`RARITIES[r].color`, the `.rarity-tag`).
+🔥 mythic, 🤪 meme, in the hidden text record only (`addLog`); on screen the roll card glows instead. The rarity is shown by colour today (`RARITIES[r].color`, the `.rarity-tag`).
 
 195 titles: 80 common, 30 uncommon, 40 rare, 20 epic, 10 legendary, 8 mythic, 6 meme, 1 divine (999, the White Dragon's).
 Common to epic are stat titles, legendary to divine have a mechanic (`MECH`).
@@ -383,18 +384,23 @@ fortune notes, and 🟥 / ⬛ start the hidden crit and ultra-block log lines.
 | ⏳ | waiting / betting / up next / time-out / queue | plate, countdown, log, replies |
 | ⚔️ | the turn counter, duel accepted, wins | plate «⚔️ Хід 3 / 30», info cards, `!стата` |
 | 🤝 | friendly duel / draw | plate, banner, result |
-| 🎲 | first strike, the tournament draw, roulette | countdown, `SHOW_TEXT.drawPlate`, roulette card |
+| 🎲 | first strike, the tournament draw, roulette | countdown, `SHOW_TEXT.drawPlate`, roulette card (batch 4: the roulette gets its wheel) |
 | 💀 | losses | `!стата` |
 | ❤️ 💥 🛡️ | HP, crit, defence | `!стата` row (13 px) |
 | 📊 | stats card | `!стата` head |
 | ✅ 👋 | joined / left the tournament | info cards |
 | ⚠️ ℹ️ 🛑 ❌ ⌛ 🤡 | warning, hint, refused, declined, timed out, "can't fight yourself" | info cards (14 px) |
 | 🔄 | the arena restarted after a reload | info card |
-| 🚨 | ranked matchmaking picked a pair | info card |
+| 🚨 | ranked matchmaking picked a pair | the hidden text record only (`addLog`; `#battle-log` is hidden) |
 | 🔥 | reroll («ПЕРЕРОДИВСЯ»), mythic title roll | info cards |
 | ✨ | Gold's bonus XP | info card |
 | 🐉 | a drake was created | info card |
-| ✦ | Element Power ready | meter row (12 px) |
+| ✦ | Element Power ready | meter row (12 px) (batch 4: the drake's ultimate icon) |
+| ⚔ | attacking | the card's «АТАКУЄ» tab (12 px, ~18 px tab), the log's «⚔ @x атакує…» cell (14 px) (batch 4: crossed swords) |
+| ⚔️ | a fight started | the hidden text record only («⚔️ … розпочався») |
+| 🎉 | the winner | the hidden text record only («🏆 Переможець … 🎉») |
+| 🎰 | the title roulette's odds | `!шанси` card head (14 px) (batch 4: the wheel) |
+| (squares) | the six elements | the arena's title plate, 8 px CSS squares around «ДРЕЙК-АРЕНА» (batch 4: the six emblems) |
 | (pixel) | crown, trophy, laurel, headCrown, confetti | tournament show: already `SHOW_SPRITES` |
 
 ## Emoji with more than one meaning
