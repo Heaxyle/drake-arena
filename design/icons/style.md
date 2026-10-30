@@ -83,6 +83,7 @@ What changes in the layout when this goes in (all within the fixed heights):
   | gold | #f2c14e | `ELEMENT_COLORS.gold` (the gold frame's #ae8513 is too dark) |
   | purple | #b47aff | the purple card frame |
   | green | #6fe896 | the green card frame |
+  | steel (the White Drake) | #cdd6e4 | its scale bar's white steel, with the sprite's navy outline (#151b30) and slate shade (#6a78a2) and its mane's green (#58e888) as the accent; lighter and bluer than Black's neutral grey |
 
   When the icons go in, these become every `color` in `EFFECTS` and `CLASS_ULTIMATES` (visual only). That moves Black's
   Shadow and Weakness off purple, Purple's Dispel off Black-like grey (#d0d0e0), Green's Bloom off pink (#ff9ad5; a pink accent
@@ -267,21 +268,37 @@ transparent, at whole-number scales and centred exactly (the largest scale that 
 `node design/icons/export-twitch.js` (re-run it after a glyph changes). Set the reroll's reward colour to anything but purple
 (gold, dark or Twitch's default); the wheel reads on any colour.
 
-## The White Drake (after `streamer-white-drake` merges)
+## The White Drake (its kit, its emblem, the streamer card)
 
-Waits for that branch: then `icon-set` is rebased on main and these are added, in white steel (#e8ecf2 to #8a93a3) with a green
-accent (the `.el-steel` frame's green shimmer), so they never read as Black's grey:
-- the bar «Луска Дракона» (a scale), and its bounce and break notes (bare glyphs: a debuff glancing off, a cracked scale);
-- Перекування (an effect: its glyph in its kind's chip) and Магніт (the same), Удар ковадла (ultimate: an anvil, its own
-  silhouette);
-- «Біла сталь» (title 998: its own icon in the divine-style frame) and the 🤍 emblem.
-The magnet glyph is free for Магніт: title 163 becomes a crit badge.
+Drawn after `streamer-white-drake` merged (c4b5e16), in white steel with the green of its mane (`STEEL` in icons.js: the
+sprite's navy outline and slate shade, never Black's neutral grey). Review: review.html sections 14–15.
+
+| Icon | Today | Glyph | Where |
+|---|---|---|---|
+| Луска Дракона | the bare number; 🤍 in the log | a white scale layered over a darker one (bare, 10×10) | ×1 before the scale bar's number on the card (10 px in its 12 px row), ×2 in the log («луска -14», the anvil's «+38») |
+| Bounced off the scales | 🤍 | an arrow glancing off a steel plate, a green spark where it hits | the log, after the debuff's own chip: «відскочило від луски» |
+| The scales cracked | 💔 | the scale split down a red crack (#ff8a8a, the bar's own crack colour) | the log's «Луска розкололася!»; the card's number while the bar is broken |
+| Перекування | ⚒️ | a smith's hammer, green sparks off the blow | its buff chip (the card, the log, «+9») |
+| Магніт | 🔗 | a horseshoe magnet with green poles | its debuff chip; it lasts the target's next attack («ще 1 атака») |
+| Удар ковадла | 🔨 | an anvil, sparks flying off its face (12×12) | line 1 of its log card, the pending cell |
+| «Біла сталь» (title 998) | 👑 | an upright sword in white steel, a green gem in the guard | its badge in the divine frame; the `steel` banner, «Сталь не гнеться» |
+| The White Drake | 🤍 | its head on a white-steel tile, open-jawed, the Dragon's green mane down its neck | in names, the intro banner, replies that name it, the streamer card |
+
+- **The scale is the bar's icon, not the emblem.** A single scale read as Jackpot's gem, the Shield or a drop at 10 px; the
+  layered pair doesn't. The emblem shows the drake itself, with the mane its sprite took from the Dragon.
+- **No crown on the White Drake.** 👑 stays the Sovereign's (title 999, the Sovereign's note). «Біла сталь» takes the single
+  sword, kept free for it in batch 4 (attacking is the crossed pair). «Дракон це запамʼятав…» takes the White Dragon's wing.
+- **Магніт is free:** title 163 «Магніт для критів» is a crit title, its badge the crit glyph in a rare frame.
+- **The streamer card** (settled): the title line carries the form's title badge at ×1 (Біла сталь or Владика Етеру), the
+  line under the name the emblem of the form the streamer is in, by its name (×1), so the card changes with `!дракон`. With
+  no drake yet or no streamer set, the title line shows the White Dragon's emblem greyed, like the sprite beside it. 👑
+  leaves the card.
+- Replies that name a form show its emblem by the name; their own leading 🤍 or 🛑 goes, as decided for chat replies.
+- The review's streamer card uses the game's two sprites, copied by `node design/icons/ref-sprites.js` into `ref/`.
 
 ## Still open
 
 1. Under deuteranopia and protanopia, Red and Gold come out as close yellows (review.html, "Without colour"). The chips and
    glyphs keep every pair apart, so nothing needs a colour change for it.
-2. The White Drake's kit, after its branch merges (above), and with it the streamer card: it shows the emblem of the form
-   the streamer is in (the White Drake's 🤍 or the White Dragon's wing), not 👑, which belongs to the Sovereign.
 
 Decided: the side column stays at ×1, `!стата` included (a 10 px icon beside 13 px text).

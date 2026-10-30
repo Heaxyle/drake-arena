@@ -7,11 +7,9 @@ emoji glyph is about that size, a little taller); "fit" means `fitText` / `fvFit
 Not counted as "shown": `addLog` lines (the hidden text record the tests read; they keep their emoji), the demo controls and the
 test panel (`#cam-col`, hidden with `?obs`), tooltips (`title=` attributes: nobody can hover on stream).
 
-The White Drake's kit (Перекування, Магніт, Удар ковадла, «Луска Дракона», the `steel` banner) lives on the
-`streamer-white-drake` branch, not on `main`; it gets added here when that branch merges and `icon-set` is rebased on main
-(style.md, "The White Drake"). The 🧲 clash goes away then: title 163 «Магніт для критів» is a plain crit title, so its
-badge is the crit glyph in a rare frame, not a magnet. The anvil against the 🛠️ / ⚙️ titles goes the same way (those are
-stat titles too).
+The White Drake's kit (merged in c4b5e16) has its own section at the end. The 🧲 clash is gone: title 163 «Магніт для
+критів» is a plain crit title, so its badge is the crit glyph in a rare frame, not a magnet. The anvil against the 🛠️ / ⚙️
+titles goes the same way (those are stat titles too).
 
 ## Where things show, and how big
 
@@ -437,3 +435,25 @@ fortune notes, and 🟥 / ⬛ start the hidden crit and ultra-block log lines.
 | reflect | 🟦 in the fight view, 🔵 in the hidden log: two icons for one meaning |
 | ✦ | the meter being ready; the test panel's meter button |
 | #9fe3ff | (a colour) Frost and the divine rarity |
+
+## The White Drake (main, c4b5e16)
+
+Shown only in the streamer's fights and replies (the White Drake is `STREAMER_USER`'s alone). The new icons: style.md, "The
+White Drake".
+
+| Emoji | Meaning | Where (size) |
+|---|---|---|
+| (none) | the scale bar's number | `.scale-num` on the card (12 px pixel font): the bare number, red when broken |
+| 🤍 | the scales took the hit | the log card's «🤍 луска -14» (12 px, compacts to icon and number) |
+| 🤍 | a debuff bounced off the scales | the log card's «🤍 відскочило від луски», after the debuff's chip (12 px) |
+| 🤍 | the anvil re-forged the scales | the anvil's log card, «🤍 +38» (12 px) |
+| 💔 | the scales cracked | the log card's «💔 Луска розкололася!» (12 px) |
+| ⚒️ | Перекування | its chip on the card (13 px) and in the log; its «⚒️ +9» |
+| 🔗 | Магніт | its chip on the card and in the log; a pulled buff: «притягується до Білого Дрейка» |
+| 🔨 | Удар ковадла | its log card (the ultimate header and line 1), the pending cell |
+| 👑 | «Біла сталь» (title 998) | its title badge; the `steel` banner «👑 Біла сталь виходить на бій!»; the result line «👑 Сталь не гнеться»; the title refusal |
+| 🐉 | the White Dragon remembers | the result line «🐉 Дракон це запамʼятав…» |
+| 🤍 | the White Drake | its name «Білий Дрейк 🤍» (the drake list, the intro banner), the form replies (`streamerForms`, «знову Білий Дрейк») |
+| 🛑 | a refusal | «у Білого Дрейка власний титул» (info card) |
+
+Hidden record only (`addLog`): «🤍 Луска: -N», «🤍 Луска знову ціла: +N», «Перекування: +N луски», the cracked and bounced lines.

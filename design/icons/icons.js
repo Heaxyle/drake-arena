@@ -1052,6 +1052,113 @@
             '..ommoddo..',
             '...ooooo...',
         ],
+        // ----- The White Drake: white steel, the green accent (notes and the badge 10×10, the anvil 12×12) -----
+        // The White Drake's scales («Луска Дракона», the bar's number on its card): a white-steel scale over a darker one, layered
+        scales: [
+            'oooooooooo',
+            'odohwmmodo',
+            'odohhmdodo',
+            'odohhmdodo',
+            'oddohdoddo',
+            'odddooddso',
+            '.odddddso.',
+            '..oddsso..',
+            '...oooo...',
+            '..........',
+        ],
+        // A debuff bounced off the scales: an arrow glancing off a steel plate, a green spark where it hits
+        bounce: [
+            'vvv...oooo',
+            'vv....ohdo',
+            'v.v...ohdo',
+            '...v..ohdo',
+            '....vpohdo',
+            '...d..ohdo',
+            '..d....oo.',
+            '.d........',
+            'd.........',
+            '..........',
+        ],
+        // The scales cracked: the scale split down a red crack, the right half dropped a pixel
+        cracked: [
+            'ooooor....',
+            'odohwroooo',
+            'odohrmmodo',
+            'odohhrdodo',
+            'oddormdodo',
+            'odddoroddo',
+            '.oddroddso',
+            '..oddrdso.',
+            '...orsso..',
+            '....roo...',
+        ],
+        // Перекування (Reforging): a smith’s hammer, green sparks off the blow
+        reforge: [
+            '.oooooooo.',
+            'ohwhhmmmdo',
+            'ohhmmmmddo',
+            '.oooooooo.',
+            'p..osso..p',
+            '.p.osso.p.',
+            '...osso...',
+            '...osso...',
+            '...osso...',
+            '....oo....',
+        ],
+        // Магніт (Magnet): a horseshoe magnet, its poles green
+        magnet: [
+            'pppp..pppp',
+            'pqqp..pqqp',
+            'oooo..oooo',
+            'ohmo..omdo',
+            'ohmo..omdo',
+            'ohmmoomddo',
+            'ohwmmmmddo',
+            '.ohmmmmdo.',
+            '..oooooo..',
+            '..........',
+        ],
+        // Удар ковадла (Anvil Strike): an anvil, sparks flying off its face
+        anvil: [
+            '....v.p.v...',
+            '.....pvp....',
+            '..p...p...p.',
+            '..oooooooooo',
+            'oohwwwwwhhmo',
+            '.oohhmmmmmdo',
+            '...ooohmmddo',
+            '....ohhmdo..',
+            '....ohmmdo..',
+            '...ohhmmmdo.',
+            '..ohhmmmmddo',
+            '..oooooooooo',
+        ],
+        // «Біла сталь» (title 998): an upright sword in white steel, a green gem in the guard
+        whiteSteel: [
+            '....oo....',
+            '...ohwo...',
+            '...ohmo...',
+            '...ohmo...',
+            '...ohmo...',
+            '...ohdo...',
+            '.oooooooo.',
+            '.ohhppmdo.',
+            '.ooossooo.',
+            '....pp....',
+        ],
+        // The White Drake: its head on a rune tile, open-jawed, the green mane down its neck
+        emSteel: [
+            '.mmmmmmmm.',
+            'mssssspssm',
+            'msssswwppm',
+            'mswwwkwwsm',
+            'mwwwwwwppm',
+            'mwwssswwsm',
+            'mssssswppm',
+            'msssswwwsm',
+            'mssswwwppm',
+            '.mmmmmmmm.',
+        ],
     };
 
     // ----- Element colours: one family per element -----
@@ -1060,7 +1167,10 @@
     // doesn't read on the dark UI; this stays a neutral grey, never a purple)
     const ELEMENT_COLORS = {
         red: '#ff4f5a', blue: '#4a98ff', black: '#9b9ba8', gold: '#f2c14e', purple: '#b47aff', green: '#6fe896',
+        steel: '#cdd6e4',   // the White Drake: its scale bar's white steel; never Black's grey (bluer, much lighter, green accents)
     };
+    // The White Drake's own letters: the sprite's navy outline and slate shade (not a neutral grey), pure white, the crack's red
+    const STEEL = { accent: '#58e888', pal: { o: '#151b30', d: '#6a78a2', s: '#3a466e', h: '#e8eef6', w: '#ffffff', r: '#ff8a8a' } };
 
     // ----- The icons: kind + glyph + element (accent: an icon's own second colour, kept small) -----
     // was: the effect's own colour in EFFECTS / CLASS_ULTIMATES today
@@ -1155,14 +1265,24 @@
         attacking:   { kind: 'ui', color: '#c9cde6', name: { uk: 'Атакує', en: 'Attacking' },                    emoji: '⚔', accent: '#f2c14e' },
         roulette:    { kind: 'ui', size: 11, color: '#f2c14e', name: { uk: 'Рулетка титулів', en: 'Title roulette' }, emoji: '🎰',
                        pal: { a: '#a0a0a0', b: '#2ecc71', c: '#3498db', e: '#b36bff', f: '#f1c40f', g: '#ff4757', n: '#ff66cc', r: '#9fe3ff' } },   // the rarities' colours
+        // ----- The White Drake (white steel, the green accent) -----
+        scales:      { kind: 'note',     element: 'steel', name: { uk: 'Луска Дракона', en: 'Dragon Scales' },      emoji: '🤍', ...STEEL },
+        bounce:      { kind: 'note',     element: 'steel', name: { uk: 'Відскочило від луски', en: 'Bounced off the scales' }, emoji: '🤍', ...STEEL },
+        cracked:     { kind: 'note',     element: 'steel', name: { uk: 'Луска розкололася', en: 'The scales cracked' }, emoji: '💔', ...STEEL },
+        reforge:     { kind: 'buff',     element: 'steel', name: { uk: 'Перекування', en: 'Reforging' },            emoji: '⚒️', was: '#dfeaf0', ...STEEL },
+        magnet:      { kind: 'debuff',   element: 'steel', name: { uk: 'Магніт', en: 'Magnet' },                    emoji: '🔗', was: '#9fe0c4', ...STEEL },
+        anvil:       { kind: 'ultimate', element: 'steel', name: { uk: 'Удар ковадла', en: 'Anvil Strike' },         emoji: '🔨', was: '#e4eef2', ...STEEL },
+        whiteSteel:  { kind: 'note',     element: 'steel', name: { uk: 'Біла сталь', en: 'White Steel' },           emoji: '👑', ...STEEL },
+        emSteel:     { kind: 'emblem',   element: 'steel', name: { uk: 'Білий Дрейк', en: 'White Drake' },          emoji: '🤍', ...STEEL },
     };
     Object.values(ICONS).forEach(ic => { if (ic.element) ic.color = ELEMENT_COLORS[ic.element]; });
     const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison'];
     const ULTIMATE_ICON_IDS = ['firestorm', 'mirror', 'theft', 'jackpot', 'detonation', 'bloom'];
-    const NOTE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'note');
+    const NOTE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'note' && ICONS[id].element !== 'steel');
     const ATTACK_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'attack');
     const BATCH4_ICON_IDS = ['attacking', 'roulette'];
-    const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'emblem', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind) && !BATCH4_ICON_IDS.includes(id));
+    const STEEL_ICON_IDS = ['scales', 'bounce', 'cracked', 'reforge', 'magnet', 'anvil', 'whiteSteel', 'emSteel'];
+    const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'emblem', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind) && !BATCH4_ICON_IDS.includes(id) && ICONS[id].element !== 'steel');
 
     // ----- Palette from one colour -----
     const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
@@ -1331,7 +1451,7 @@
     }
 
     // Drawn once per icon at 1×; larger sizes are the same canvas drawn with image smoothing off, or CSS pixelated.
-    // `pal` adds an icon's own letters (the roulette's rarity colours).
+    // `pal` adds an icon's own letters (the roulette's rarity colours, the White Drake's steel).
     const cache = {};
     function makeIconCanvas(id, doc = root.document) {
         if (cache[id]) return cache[id];
@@ -1382,5 +1502,5 @@
     // The CSS for a chip of this element and kind (the element's text colour goes with it)
     const chipStyle = (element, kind) => `border-style: solid; border-width: 1px ${CHIP.cap}px; border-image: url(${chipURL(element, kind)}) 1 ${CHIP.cap} fill / 1px ${CHIP.cap}px stretch; color: ${mix(ELEMENT_COLORS[element], '#ffffff', 0.35)};`;
 
-    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
+    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
 })(typeof window !== 'undefined' ? window : globalThis);
