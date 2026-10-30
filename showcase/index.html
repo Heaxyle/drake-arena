@@ -1205,7 +1205,7 @@
                   pulled: 'притягується до Білого Дрейка', steelIn: '👑 Біла сталь виходить на бій!', steelWin: '👑 Сталь не гнеться', steelLoss: '🐉 Дракон це запам\'ятав…', forced: 'гарантований крит', noBuffs: 'бафів немає',
                   sdBanner: '💀 РАПТОВА СМЕРТЬ з {n}-го ходу · шкода зростає щоходу', timeout: '⏳ ЧАС ВИЙШОВ · ліміт {n} ходів',
                   error: '❌ Помилка симуляції — бій перервано', vs: 'проти', fightStart: '🔔 Бій почався{bets} · 🎲 першим б’є {a}', betsClosed: ' · ставки закрито',
-                  opening: '{title}: {who} починає бій з {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
+                  opening: '{title}: {who} починає бій з бафом {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
                   draw: '🤝 НІЧИЯ · {n} {turns}', dmg: 'шкода', biggest: 'найсильніший удар', crits: 'крити', xp: 'досвід', noXp: 'без досвіду', maxLvl: 'макс. рівень', noRecord: '🐉 Бій з Білим Драконом: без перемоги й поразки в Топі', underdog: '+{n} за сильнішого суперника',
                   cdLabel: 'Старт через', cdBets: 'Ставки відкрито — хто переможе?', cdStart: 'Бій починається!', cdFlip: '🎲 хто б’є першим, вирішить жереб на старті',
                   cdFirst: '🎲 першим б’є {a}', plateBets: '⏳ Ставки відкрито', plateStart: '⏳ Бій починається', levelUp: '⬆️ Новий рівень',
@@ -4762,7 +4762,7 @@ function drakeSpriteURL(type) {
                             tallyEffect(inst.id, 'dmg', amount);
                             fvTick(inst.id, -amount);
                             addLog(currentLang === 'uk'
-                                ? `${tag(attacker)} втрачає HP через ${fxName(inst.id)} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${amount} HP</span>) · ${leftAfter}`
+                                ? `${tag(attacker)} втрачає HP через дебаф ${fxName(inst.id)} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${amount} HP</span>) · ${leftAfter}`
                                 : `${tag(attacker)} loses HP from ${fxName(inst.id)} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${amount} HP</span>) · ${leftAfter}`);
                         } else {
                             const hpBefore = hpOf(attacker);
@@ -4772,7 +4772,7 @@ function drakeSpriteURL(type) {
                             tallyEffect(inst.id, 'healed', healed);
                             if (healed > 0) fvTick(inst.id, healed);
                             if (healed > 0) addLog(currentLang === 'uk'
-                                ? `${tag(attacker)} відновлює HP завдяки ${fxName(inst.id)} (<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>) · ${leftAfter}`
+                                ? `${tag(attacker)} відновлює HP завдяки бафу ${fxName(inst.id)} (<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>) · ${leftAfter}`
                                 : `${tag(attacker)} heals HP from ${fxName(inst.id)} (<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>) · ${leftAfter}`);
                         }
                     });

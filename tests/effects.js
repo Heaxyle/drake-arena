@@ -39,7 +39,7 @@ eval(gameScript(FILE) + `
     EFFECTS, EFFECT_IDS, BUFF_IDS, DEBUFF_IDS, EFFECT_CAST, CLASS_ULTIMATES, ULTIMATE_IDS, ultLabel, TITLES_DB, DRAKE_TYPES, VIEWER_DRAKE_TYPES, DRAGON_TYPE, DRAGON_TITLE_ID,
     POOL_IDS, STREAMER_TYPES, WHITE_DRAKE_TYPE, WHITE_DRAKE_TITLE_ID,
     applyEffect: (...a) => applyEffect(...a), pickEffect, countDownEffects, newFxState, describeEffect, effectLeftText, effectChipText,
-    fxName, fxAcc, fvCardHtml, fvT,
+    fxName, fxAcc, fvCardHtml, fvBannerHtml, fvT,
     fxNum, getEffectMult, ELEMENT_BASE, getTierMultiplier, getRequiredXP, getDragonDB, saveDragonDB,
     runBattle: (...a) => runBattle(...a),
     get battleFx() { return battleFx; },
@@ -249,6 +249,16 @@ console.log('\nEffect names on the log cards: the accusative straight after a ve
         else if (l === 'uk') shown.push(`«${got}»`);
     }
     check(!bad.length, `${cases.length} cards, both languages: ${shown.join(', ')}`, bad.slice(0, 4).join(' | '));
+    // The opening buff's banner: after «з» the name would need another case, so «бафом» goes first and the name stays
+    // in the nominative, as in the text log
+    const f = fighter('A', 'red', titleWith('opening_buff')), badB = [], shownB = [];
+    for (const id of G.POOL_IDS.filter(id => EFFECTS[id].kind === 'buff')) for (const l of ['uk', 'en']) {
+        G.setLang(l);
+        const t = strip(G.fvBannerHtml({ kind: 'opening', data: { f, id } }));
+        if (!t.endsWith(l === 'uk' ? `починає бій з бафом ${nom(id, l)}` : `starts with ${nom(id, l)}`)) badB.push(`${id} (${l}): «${t}»`);
+        else if (l === 'uk') shownB.push(nom(id, l));
+    }
+    check(!badB.length, `the opening buff's banner, for each buff it can be: «… починає бій з бафом ${shownB.join('» / «')}»`, badB.slice(0, 3).join(' | '));
 }
 const plural = [[5, 'ще 5 атак'], [11, 'ще 11 атак'], [21, 'ще 21 атака'], [22, 'ще 22 атаки'], [12, 'ще 12 атак']];
 const badPlural = plural.filter(([n, w]) => G.effectLeftText('rage', n, 'uk') !== w);
@@ -600,7 +610,13 @@ G.wrapApplyEffect((r, a, targetBuffs) => {
 });
 
 const stats = { turns: 0, checked: 0, frozen: 0, wrong: [], idLeaks: [], seen: new Set(), ultimates: new Set(), immuneHad: [], unitsSeen: { attacks: 0, hits: 0, turns: 0 },
-                afterVerb: 0, notAcc: [], damageLines: 0, damageTwice: [] };
+                afterVerb: 0, notAcc: [], damageLines: 0, damageTwice: [], labelAfterPrep: 0, bareAfterPrep: [] };
+// After a preposition a name would need another case, so «баф» / «дебаф» goes first and the name stays in the nominative
+// («з бафом 💚 Регенерація», «завдяки бафу …», «через дебаф ☠️ Отруєння»): never an effect straight after a preposition
+const PREPS = 'з|із|зі|через|завдяки|до|від|для|без|під|над|на|у|в|по|при|після|перед|про|за|проти|крізь|біля|серед|між';
+const FX_ICON = `(?:${EFFECT_IDS.map(id => EFFECTS[id].icon.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}) `;
+const PREP_BARE = new RegExp(`(?<!\\p{L})(?:${PREPS}) ${FX_ICON}`, 'u');
+const PREP_LABEL = new RegExp(`(?<!\\p{L})(?:${PREPS}) (?:баф|дебаф)(?:ом|у)? ${FX_ICON}`, 'gu');
 let current = null;      // { A, B, immune: Set(names) }
 let lastAttacker = null; // who made the previous line's attack (null after a turn without one): its Магніт ran down since
 G.wrapAddLog(raw => {
@@ -616,6 +632,8 @@ G.wrapAddLog(raw => {
         stats.afterVerb++;
         if (!item.startsWith(`${EFFECTS[id].icon} ${ACC_UK[id] || EFFECTS[id].name.uk}`)) stats.notAcc.push(line.slice(0, 140));
     }
+    if (PREP_BARE.test(line)) stats.bareAfterPrep.push(line.slice(0, 140));
+    stats.labelAfterPrep += (line.match(PREP_LABEL) || []).length;
     // The attack line says the word once: «Шкода: 17.» / "Damage: 17."
     if (/Шкода:|Damage:/.test(line)) {
         stats.damageLines++;
@@ -685,6 +703,8 @@ check(stats.unitsSeen.attacks > 0 && stats.unitsSeen.hits > 0 && stats.unitsSeen
 check(stats.idLeaks.length === 0, 'no internal effect id appears in the battle log (uk and en)', `effect ids in the log: ${stats.idLeaks.join(' | ')}`);
 check(stats.afterVerb > 0 && !stats.notAcc.length, `${stats.afterVerb} effect names straight after a verb in the Ukrainian log («забирає 💚 Регенерацію», «знімає 🎯 Мітку»): all in the accusative`,
     `a name after a verb that isn't in the accusative (or none seen: ${stats.afterVerb}): ${stats.notAcc.slice(0, 3).join(' | ')}`);
+check(stats.labelAfterPrep > 0 && !stats.bareAfterPrep.length, `${stats.labelAfterPrep} effect names after a preposition in the Ukrainian log, each with «баф» / «дебаф» first («з бафом …», «завдяки бафу …», «через дебаф …»)`,
+    `an effect name straight after a preposition (or none seen: ${stats.labelAfterPrep}): ${stats.bareAfterPrep.slice(0, 3).join(' | ')}`);
 check(stats.damageLines > 0 && !stats.damageTwice.length, `${stats.damageLines} attack lines name the damage once («Шкода: 17.» / "Damage: 17.")`,
     `an attack line with the damage word twice (or none seen: ${stats.damageLines}): ${stats.damageTwice.slice(0, 3).join(' | ')}`);
 const unseen = EFFECT_IDS.filter(id => !stats.seen.has(id));

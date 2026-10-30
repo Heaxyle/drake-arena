@@ -380,6 +380,12 @@ const MUTATIONS = [
         'накладає {acc:burn}', 'накладає {fx:burn}'],
     ['«Шкода: 17 шкоди» again', 'the attack line names the damage twice again («Шкода: 17 шкоди.» / "Damage: 17 damage.")',
         '${finalDmg}</span>`;', "${finalDmg} ${currentLang === 'uk' ? 'шкоди' : 'damage'}</span>`;"],
+    ['the opening banner: «з» + a bare name', "the opening buff's banner names the buff straight after «з» again («починає бій з 💚 Регенерація»)",
+        "починає бій з бафом {fx}'", "починає бій з {fx}'"],
+    ['«завдяки» + a bare name', 'the healing tick names its buff straight after «завдяки» again («завдяки 💚 Регенерація»)',
+        'відновлює HP завдяки бафу ${fxName(inst.id)}', 'відновлює HP завдяки ${fxName(inst.id)}'],
+    ['«через» + a bare name', 'the damage tick names its debuff straight after «через» again («через ☠️ Отруєння»)',
+        'втрачає HP через дебаф ${fxName(inst.id)}', 'втрачає HP через ${fxName(inst.id)}'],
 ];
 
 // Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported
