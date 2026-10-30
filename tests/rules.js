@@ -79,6 +79,12 @@ eval(gameScript(FILE) + `
     wrapPlayLog: f => { if (typeof playLog !== 'function') return false; const orig = playLog; playLog = (type, data) => { f(type, data); return orig(type, data); }; return true; },
     // The next fight turn throws (inside the fight loop's try), as a simulation error would
     failNextTurn: () => { const orig = fvTurnEnd; fvTurnEnd = function () { fvTurnEnd = orig; throw new Error('forced by a test'); }; },
+    // The White Drake (section 23)
+    WHITE_DRAKE, WHITE_DRAKE_TYPE, WHITE_DRAKE_TITLE_ID, DRAGON_TITLE_ID, POOL_IDS, scalesOf, newFxState, HONOURS_KEY,
+    applyEffect: (...a) => applyEffect(...a), addXP: (...a) => addXP(...a),
+    get battleFx() { return battleFx; },
+    wrapUIHP: f => { const orig = updateUIHP; updateUIHP = (...a) => { f(...a); return orig(...a); }; },
+    wrapFighterCard: f => { const orig = updateFighterCard; updateFighterCard = (side, d, fx) => { f(side, d); return orig(side, d, fx); }; },
 };`);
 console.warn = _warn;
 const G = globalThis.__game;
@@ -171,15 +177,21 @@ for (const lang of ['en', 'uk']) {
     check(atStart === null && atEnd === null, '4. a pick made before a fight is cleared when the fight starts, and one still armed when it ends is cleared then',
         `at the start: ${atStart}, at the end: ${atEnd}`);
 
-    // 7. Rerolling into the White Dragon
+    // 7. «білий» in a reroll is the streamer's White Drake (a reroll: level 1); the White Dragon comes only through !дракон,
+    // at level 20
     fresh();
     G.setStreamerUser('boss');
-    G.say('boss', t('!drake red', '!дрейк червоний'), 'boss');
+    G.say('boss', t('!drake white', '!дрейк білий'), 'boss');
     G.say('boss', t('!reroll white', '!рерол білий'), 'boss');
     const reroll = lastInfo();
-    check(reroll.endsWith(t('Level 20!', 'Рівень 20!')) && !/1!$/.test(reroll), `7. the streamer's "${t('!reroll white', '!рерол білий')}" ends with "${t('Level 20!', 'Рівень 20!')}"`, reroll);
-    G.say('boss', t('!reroll red', '!рерол червоний'), 'boss');
-    check(lastInfo().endsWith(t('Level reset to 1!', 'Рівень скинуто до 1!')), `7. any other reroll still ends with "${t('Level reset to 1!', 'Рівень скинуто до 1!')}"`, lastInfo());
+    G.say('boss', t('!dragon', '!дракон'), 'boss');
+    const toDragon = lastInfo(), boss = G.getDragonDB().boss;
+    check(reroll.endsWith(t('Level reset to 1!', 'Рівень скинуто до 1!')) && boss.drakeObj.type === G.DRAGON_TYPE && G.calculateLevelAndProgress(boss.xp).level === 20 && toDragon.includes(t('becomes the White Dragon', 'стає Білим Драконом')),
+        `7. the streamer's "${t('!reroll white', '!рерол білий')}" gives the White Drake ("${t('Level reset to 1!', 'Рівень скинуто до 1!')}"); "${t('!dragon', '!дракон')}" gives the White Dragon at level 20`,
+        JSON.stringify({ reroll, toDragon }));
+    make('rerolly', 'red', { level: 4 });
+    G.sayAs('rerolly', t('!reroll blue', '!рерол синій'), { 'custom-reward-id': 'reward-1' });
+    check(lastInfo().endsWith(t('Level reset to 1!', 'Рівень скинуто до 1!')), `7. any viewer's reroll still ends with "${t('Level reset to 1!', 'Рівень скинуто до 1!')}"`, lastInfo());
     G.setStreamerUser('');
 
     // 8. Turn 30 is played (fighters too tough to finish each other)
@@ -918,6 +930,262 @@ for (const lang of ['en', 'uk']) {
         const t = G.tourney && G.tourney.players[0].title.name;
         check(t && t.uk === 'Володар шкарпеток' && t.en === 'Sock Lord', '22. a saved tournament whose player has title 50 under its old name «Володар носків» shows «Володар шкарпеток» once loaded', JSON.stringify(t));
     }
+    fresh();
+}
+
+// 23. The streamer's White Drake: its scales (tiers; hits take them first, armour-piercing too; debuffs bounce while they
+// hold; the break; Перекування rebuilding them, a broken bar too, Poison not cutting that; Удар ковадла re-forging them),
+// Магніт, Shadow Theft taking Перекування; the two forms (!дракон both ways keeping level, XP and title; the Dragon at
+// level 20 gaining nothing; between fights only; the queue place; the refusals; the play-log event), records, the Top,
+// tournaments, and the migration of old saves
+{
+    console.log('\n[23. the White Drake]');
+    G.setLang('uk');
+    fresh();
+    const WD = G.WHITE_DRAKE_TYPE, steelTitle = G.TITLES_DB.find(x => x.id === G.WHITE_DRAKE_TITLE_ID), common = G.TITLES_DB.find(x => x.rarity === 'common');
+    const tiers = [1, 5, 10, 15, 20].map(l => { const max = G.getMaxHP(l, WD, steelTitle); return Math.round(100 * G.scalesOf(l, max) / max); });
+    check(tiers.join() === G.WHITE_DRAKE.scales.join() && tiers.every((x, i) => !i || x >= tiers[i - 1]), `23. the scales («Луска Дракона»): ${tiers.join(' / ')}% of max HP over the five level tiers, as WHITE_DRAKE.scales says`, tiers.join());
+    make('wdfighter', WD, { level: 10, title: steelTitle }); make('foe', 'red', { level: 10 });
+    G.runBattle('wdfighter', '#fff', 'foe', '#fff', false);
+    const st0 = G.battleFx.wdfighter.scales, max10 = G.getMaxHP(10, WD, steelTitle);
+    check(st0 && st0.now === G.scalesOf(10, max10) && st0.max === st0.now && !G.battleFx.foe.scales,
+        `23. a fight starts with the bar full on top of HP (level 10: ${st0 && st0.now} on ${max10} HP); the viewer has none`, JSON.stringify(st0));
+    __drain();
+
+    // Bouncing, straight through applyEffect: every debuff of the shared pool while the bar holds, then none once broken
+    const wdF = { name: 'wd', color: '#fff', drakeObj: DRAKE[WD], title: steelTitle, xp: 0 }, vF = { name: 'v', color: '#fff', drakeObj: DRAKE.purple, title: common, xp: 0 };
+    const fxB = { wd: { ...G.newFxState(), scales: { now: 10, max: 40 } }, v: G.newFxState() };
+    logs = [];
+    const debuffs = G.POOL_IDS.filter(id => G.EFFECTS[id].kind === 'debuff');
+    const results = debuffs.map(id => G.applyEffect(vF, wdF, id, 10, fxB));
+    check(results.every(r => r === 'bounced') && !fxB.wd.debuff.length && logs.filter(l => l.includes('🤍 відскочило від луски')).length === debuffs.length,
+        `23. while the bar holds every viewer debuff bounces (${debuffs.map(id => G.EFFECTS[id].name.uk).join(', ')}): «${(logs[0] || '').slice(0, 60)}»`, JSON.stringify({ results, logs }));
+    fxB.wd.scales.now = 0;
+    const landed = G.applyEffect(vF, wdF, 'burn', 10, fxB);
+    check(landed === 'applied' && fxB.wd.debuff.some(x => x.id === 'burn'), '23. once the bar is broken, a debuff lands (Підпал)', JSON.stringify({ landed, debuff: fxB.wd.debuff }));
+
+    // Магніт: the target's new buffs go to the White Drake, under the 2-buff limit; buffs it already has stay put
+    const fxM = { wd: { ...G.newFxState(), scales: { now: 30, max: 30 } }, v: G.newFxState() };
+    fxM.v.buff.push({ id: 'shield', left: 2, power: 1 });
+    fxM.v.debuff.push({ id: 'magnet', left: 3, power: 1 });
+    logs = [];
+    const r1 = G.applyEffect(vF, wdF, 'rage', 10, fxM);
+    const pulledOk = r1 === 'pulled' && fxM.wd.buff.map(x => x.id).join() === 'rage' && fxM.v.buff.map(x => x.id).join() === 'shield' && logs.some(l => l.includes('Лють притягується до Білого Дрейка'));
+    fxM.wd.buff = [{ id: 'reforge', left: 1, power: 1 }, { id: 'regen', left: 3, power: 1 }];
+    const r2 = G.applyEffect(vF, wdF, 'blessing', 10, fxM);
+    check(pulledOk && r2 === 'pulled' && fxM.wd.buff.map(x => x.id).sort().join() === 'blessing,regen' && fxM.v.buff.map(x => x.id).join() === 'shield',
+        "23. Магніт: the target's new buff lands on the White Drake («Лють притягується до Білого Дрейка»), its own Щит stays; with 2 buffs already the pulled one replaces the one closest to ending",
+        JSON.stringify({ r1, r2, wd: fxM.wd.buff, v: fxM.v.buff, logs }));
+
+    // Real fights, the White Drake against every element at every level tier: what the game logs, checked against its state
+    const KEEP = Math.random;
+    Math.random = mulberry32(2323);
+    const obs = { hits: 0, pierced: 0, fortune: 0, wrongHit: [], cracks: 0, wrongCrack: [], rebuilds: 0, poisoned: 0, fromZero: 0, bounceAfterZero: 0, wrongRebuild: [],
+                  anvils: 0, wrongAnvil: [], theft: 0, blackRebuilt: 0, pulled: 0, wdKo: 0 };
+    let snap = null, ctx = null;
+    // Each fighter's HP as the cards show it (which side each one is on, then the HP of both sides)
+    const sideOf = {}, hpNow = {};
+    G.wrapFighterCard((side, d) => { if (d) sideOf[d.name] = side; });
+    G.wrapUIHP((h1, m1, h2, m2) => { hpNow.p1 = Math.round(Math.max(0, h1)); hpNow.p2 = Math.round(Math.max(0, h2)); });
+    const hpOf = n => hpNow[sideOf[n]];
+    const state = () => { const fx = G.battleFx, d = ctx && fx[ctx.wd]; return d ? { hp: hpOf(ctx.wd), sc: d.scales.now, max: d.scales.max, poisoned: d.debuff.some(x => x.id === 'poison'), blackReforge: fx[ctx.v] && fx[ctx.v].buff.some(x => x.id === 'reforge') } : null; };
+    G.wrapAddLog(raw => {
+        if (!ctx) return;
+        const line = strip(raw), now = state();
+        if (!now) return;
+        if (line.includes('💔 Луска розкололася!')) { obs.cracks++; if (now.sc !== 0) obs.wrongCrack.push(line.slice(0, 80)); }
+        if (line.includes('притягується до Білого Дрейка')) obs.pulled++;
+        if (line.includes('🤍 відскочило від луски') && ctx.zero && now.sc > 0) obs.bounceAfterZero++;
+        const m = line.match(/^\[Хід \d+\] @(\S+) ➜ @(\S+) /);
+        // Turn lines without an attack (frozen) and the start-of-turn ticks move the snapshot on too
+        if (!m) { if (/^\[Хід \d+\]/.test(line) || /втрачає HP через|відновлює HP завдяки/.test(line)) snap = now; return; }
+        const before = snap || now;
+        if (m[2] === ctx.wd) {
+            const dmg = +(line.match(/(\d+) шкоди/) || [0, 0])[1];
+            const fortune = line.includes('Фортуна (1 HP)');
+            const toScales = fortune ? 0 : Math.min(before.sc, dmg);
+            const hpLost = Math.min(before.hp, dmg - toScales);
+            obs.hits++; if (line.includes('⚡ Пробиття броні') && before.sc > 0) obs.pierced++; if (fortune) obs.fortune++;
+            if (now.sc !== before.sc - toScales || before.hp - now.hp !== hpLost) obs.wrongHit.push(`${line.slice(0, 90)} | scales ${before.sc}→${now.sc}, HP ${before.hp}→${now.hp}`);
+            if (now.hp <= 0) obs.wdKo++;
+            if (line.includes('забирає') && line.includes('Перекування')) obs.theft++;
+            if (line.includes('Перекування: +')) obs.blackRebuilt++;
+        } else if (m[1] === ctx.wd) {
+            const rb = line.match(/⚒️ Перекування: \+(\d+) луски/);
+            if (rb) {
+                obs.rebuilds++;
+                const want = Math.min(before.max - before.sc, Math.round(ctx.maxHP * G.EFFECTS.reforge.nums[ctx.level >= 20 ? 'barTop' : 'bar'] / 100));
+                if (+rb[1] !== want || (now.sc !== before.sc + want && !line.includes('Удар ковадла'))) obs.wrongRebuild.push(`+${rb[1]} (want ${want}), scales ${before.sc}→${now.sc}`);
+                if (before.poisoned) obs.poisoned++;
+                if (before.sc === 0) { obs.fromZero++; ctx.zero = true; }
+            }
+            if (line.includes('Удар ковадла')) {
+                obs.anvils++;
+                const mult = '×' + G.CLASS_ULTIMATES.anvil.nums[ctx.level >= 20 ? 'topMult' : 'dmgMult'];
+                if (now.sc !== now.max || !line.includes(mult)) obs.wrongAnvil.push(`${line.slice(0, 100)} | scales ${now.sc}/${now.max}`);
+            }
+        }
+        snap = now;
+    });
+    for (let i = 0; i < 480; i++) {
+        fresh();
+        const level = [1, 5, 10, 20][i % 4], vt = G.VIEWER_DRAKE_TYPES[Math.floor(i / 4) % 6].type;
+        make('wdx', WD, { level, title: steelTitle }); make('vx', vt, { level, title: G.TITLES_DB[(i * 37) % 150] });
+        ctx = { wd: 'wdx', v: 'vx', level, maxHP: G.getMaxHP(level, WD, steelTitle), zero: false };
+        snap = null;
+        G.runBattle('wdx', '#fff', 'vx', '#fff', false);
+        snap = state();
+        __drain();
+        ctx = null;
+    }
+    Math.random = KEEP;
+    check(!obs.wrongHit.length && obs.hits > 1000 && obs.pierced > 50,
+        `23. every hit on the White Drake (${obs.hits}) takes the bar first, only the rest comes off HP; armour-piercing too (${obs.pierced}: through the defence, not the bar); Gold's Fortune slips past it (${obs.fortune})`,
+        obs.wrongHit.slice(0, 3).join(' || '));
+    check(!obs.wrongCrack.length && obs.cracks > 50, `23. «💔 Луска розкололася!» exactly when the bar breaks (${obs.cracks} times)`, obs.wrongCrack.slice(0, 3).join(' | '));
+    check(!obs.wrongRebuild.length && obs.rebuilds > 100 && obs.fromZero > 5 && obs.bounceAfterZero > 0 && obs.poisoned > 0,
+        `23. Перекування: each damaging own attack rebuilds ${G.EFFECTS.reforge.nums.bar}% of max HP (${G.EFFECTS.reforge.nums.barTop}% at level 20) up to the starting size (${obs.rebuilds} rebuilds), a broken bar too (${obs.fromZero}), after which debuffs bounce again (${obs.bounceAfterZero}); Отруєння doesn't cut it (${obs.poisoned} while poisoned)`,
+        JSON.stringify({ wrong: obs.wrongRebuild.slice(0, 3), rebuilds: obs.rebuilds, fromZero: obs.fromZero, bounceAfterZero: obs.bounceAfterZero, poisoned: obs.poisoned }));
+    check(!obs.wrongAnvil.length && obs.anvils > 50, `23. Удар ковадла: ×${G.CLASS_ULTIMATES.anvil.nums.dmgMult} (×${G.CLASS_ULTIMATES.anvil.nums.topMult} at level 20), and the bar is whole again after it (${obs.anvils} strikes)`, obs.wrongAnvil.slice(0, 3).join(' | '));
+    check(obs.theft > 0 && obs.blackRebuilt === 0, `23. Чорний's Крадіжка тіні can take Перекування (${obs.theft} times), and in its hands it rebuilds nothing`, JSON.stringify({ theft: obs.theft, blackRebuilt: obs.blackRebuilt }));
+    check(obs.pulled > 20, `23. Магніт pulls buffs in real fights (${obs.pulled})`, String(obs.pulled));
+
+    // The two forms, through chat
+    fresh();
+    const prevStreamer = G.streamer;
+    G.setStreamerUser('streamchannel');
+    const me = () => G.getDragonDB().streamchannel;
+    G.say('streamchannel', '!дрейк білий');
+    const born = me();
+    check(born && born.drakeObj.type === WD && born.title.id === G.WHITE_DRAKE_TITLE_ID && G.calculateLevelAndProgress(born.xp).level === 1,
+        '23. «!дрейк білий» gives the streamer the White Drake (level 1, title «Біла сталь»)', JSON.stringify(born));
+    { const db = G.getDragonDB(); db.streamchannel.xp = xpFor(7) + 13; G.saveDragonDB(db); }
+    G.queue = ['q1', 'streamchannel', 'q2'];
+    G.say('streamchannel', '!дракон');
+    const asDragon = me(), toMsg = lastInfo();
+    const dragonGain = G.addXP('streamchannel', 40);
+    G.say('streamchannel', '!дракон');
+    const back = me(), backMsg = lastInfo();
+    check(/Білий Дрейк чекає на рівні 7\.$/.test(toMsg) && /знову Білий Дрейк: рівень 7, нічого не втрачено\.$/.test(backMsg),
+        `23. both switches name the White Drake's level: «${toMsg.slice(toMsg.indexOf('стає'))}», «${backMsg.slice(backMsg.indexOf('знову'))}»`, JSON.stringify({ toMsg, backMsg }));
+    check(asDragon.drakeObj.type === G.DRAGON_TYPE && asDragon.title.id === G.DRAGON_TITLE_ID && G.calculateLevelAndProgress(asDragon.xp).level === 20 && dragonGain === 0
+        && back.drakeObj.type === WD && back.xp === xpFor(7) + 13 && back.title.id === G.WHITE_DRAKE_TITLE_ID && G.queue.join() === 'q1,streamchannel,q2',
+        "23. !дракон and back: the Dragon at level 20 gains nothing (+0 XP for a win's 40), the White Drake returns with its exact XP (level 7) and title; the queue place stays (#2)",
+        JSON.stringify({ asDragon: [asDragon.drakeObj.type, asDragon.xp], dragonGain, back: [back.drakeObj.type, back.xp, back.title.id], queue: G.queue }));
+    const forms = plays.filter(p => p.type === 'form');
+    check(hasPlayLog && forms.length === 2 && forms[0].from === WD && forms[0].to === G.DRAGON_TYPE && forms[0].level === 7 && forms[1].from === G.DRAGON_TYPE && forms[1].to === WD && forms[1].level === 7,
+        "23. the play log: one 'form' event per switch, with the form before and after and the level kept (7)", JSON.stringify(forms));
+    // Refusals: viewers can't take either form; the streamer can't take a viewer's colour
+    G.queue = [];
+    make('fanx', 'red', { level: 3 });
+    infos = [];
+    G.say('fanx', '!дракон'); G.say('newbie', '!дрейк білий'); G.sayAs('fanx', '!рерол білий', { 'custom-reward-id': 'reward-1' });
+    const refusals = infos.filter(l => l.includes('секретна зброя стрімера')).length;
+    G.say('streamchannel', '!рерол червоний');
+    check(refusals === 3 && !G.getDragonDB().newbie && G.getDragonDB().fanx.drakeObj.type === 'red' && me().drakeObj.type === WD && /Білим Дрейком.*Білим Драконом/.test(lastInfo()),
+        "23. a viewer's !дракон, «!дрейк білий» and «!рерол білий» get the White Dragon's refusal; the streamer's «!рерол червоний» says their forms are the White Drake and the Dragon",
+        JSON.stringify({ refusals, infos: infos.slice(-4) }));
+    // Between fights only: on the arena (the betting window or the fight) !дракон says so; on the result screen it works
+    make('rival', 'blue', { level: 7 });
+    G.runBattle('streamchannel', '#fff', 'rival', '#fff', true);
+    G.say('streamchannel', '!дракон');
+    const midFight = me().drakeObj.type, midReply = lastInfo();
+    __drain();
+    check(midFight === WD && /на арені/.test(midReply), '23. mid-fight !дракон is refused («…ви зараз на арені: форму можна змінити між боями»)', JSON.stringify({ midFight, midReply }));
+
+    // Records: a ranked fight against the White Drake counts like any fair fight; the streamer stays off the Top in both forms
+    fresh();
+    G.setStreamerUser('streamchannel');
+    G.say('streamchannel', '!дрейк білий');
+    make('pal', 'green', { level: 1 });
+    { const db = G.getDragonDB(); G.running = true; G.finishBattle({ ...db.pal }, { ...db.streamchannel }, 30, 0, true); }
+    const rec = n => G.stats[n] ? `${G.stats[n].wins}-${G.stats[n].losses}` : '0-0';
+    const counted = [rec('pal'), rec('streamchannel')];
+    G.stats.streamchannel = { wins: 50, losses: 0 };
+    G.renderLeaderboard(); const topAsDrake = G.topRows;
+    G.say('streamchannel', '!дракон'); G.renderLeaderboard(); const topAsDragon = G.topRows;
+    check(counted.join() === '1-0,0-1' && !topAsDrake.includes('streamchannel') && !topAsDragon.includes('streamchannel') && topAsDrake.includes('pal'),
+        '23. a ranked fight against the White Drake counts (@pal 1–0, the streamer 0–1); the streamer stays off the Top as the White Drake and as the Dragon',
+        JSON.stringify({ counted, topAsDrake, topAsDragon }));
+    __drain();
+
+    // Tournaments: the White Drake can sign up, the Dragon can't; !дракон waits while the streamer is signed up or playing
+    fresh();
+    G.setStreamerUser('streamchannel');
+    G.say('streamchannel', '!дрейк білий');
+    G.sayAs('streamchannel', '!турнір 4', { badges: { broadcaster: '1' } });
+    G.say('streamchannel', '!учасник');
+    const joinedAsDrake = !!(G.tourney && G.tourney.players.some(p => p.name === 'streamchannel'));
+    G.say('streamchannel', '!дракон');
+    const duringSignup = me().drakeObj.type, signupReply = lastInfo();
+    G.say('streamchannel', '!вийти');
+    G.say('streamchannel', '!дракон');
+    const afterLeaving = me().drakeObj.type;
+    G.say('streamchannel', '!учасник');
+    const dragonJoined = G.tourney.players.some(p => p.name === 'streamchannel');
+    check(joinedAsDrake && duringSignup === WD && /в турнірі/.test(signupReply) && afterLeaving === G.DRAGON_TYPE && !dragonJoined,
+        '23. the White Drake signs up for a tournament; !дракон is refused while signed up («…ви в турнірі…»), works after !вийти; the Dragon can\'t sign up',
+        JSON.stringify({ joinedAsDrake, duringSignup, signupReply, afterLeaving, dragonJoined }));
+    G.say('streamchannel', '!дракон');   // back to the White Drake
+    G.tourneyReset();
+    const match = (a, b, winner = null) => ({ a, b, w: [0, 0], winner });
+    const bracket = (phase, rounds, third) => ({ phase, size: 4, bracket: 4, qual: [], rounds, third: third || match(null, null),
+        players: ['streamchannel', 'ta', 'tb', 'tc'].map(n => ({ name: n, color: '#fff', drakeObj: n === 'streamchannel' ? DRAKE[WD] : DRAKE.red, title: n === 'streamchannel' ? steelTitle : common })) });
+    const moment = t => { localStorage.setItem(G.TOURNEY_KEY, JSON.stringify(t)); G.tourneyLoad(); G.say('streamchannel', '!дракон'); return me().drakeObj.type; };
+    const during = {
+        ready: moment(bracket('ready', [[match('streamchannel', 'ta'), match('tb', 'tc')], [match(null, null)]])),
+        playing: moment(bracket('running', [[match('streamchannel', 'ta'), match('tb', 'tc')], [match(null, null)]])),
+        // knocked out in the semifinal and beaten in the 3rd-place game, the final still to come
+        out: moment(bracket('running', [[match('streamchannel', 'ta', 'ta'), match('tb', 'tc', 'tb')], [match('ta', 'tb')]], match('streamchannel', 'tc', 'tc'))),
+        podium: moment(bracket('podium', [[match('streamchannel', 'ta', 'ta'), match('tb', 'tc', 'tb')], [match('ta', 'tb', 'ta')]], match('streamchannel', 'tc', 'streamchannel'))),
+    };
+    G.tourneyReset();
+    G.say('streamchannel', '!дракон');
+    const afterEnd = me().drakeObj.type;
+    check(Object.values(during).every(t => t === WD) && afterEnd === G.DRAGON_TYPE,
+        "23. !дракон is refused until the tournament ends: sign-up closed, being played, knocked out with the final still to come, on the podium; once it's over it works",
+        JSON.stringify({ during, afterEnd }));
+    G.say('streamchannel', '!дракон');   // back to the White Drake
+    G.tourneyReset();
+
+    // Migration of old saves (idempotent)
+    fresh();
+    G.setStreamerUser('streamchannel');
+    const oldDragonName = { uk: 'Білий Дракон 🐉', en: 'White Dragon 🐉' };
+    const save = (name, type, xp, titleId, extra = {}) => ({ name, color: '#fff', drakeObj: { name: DRAKE[type] ? DRAKE[type].name : oldDragonName, type }, title: G.TITLES_DB.find(x => x.id === titleId), xp, level: 1, ...extra });
+    const run = db => { G.saveDragonDB(db); G.migrateOldSaves(); const a = JSON.stringify(G.getDragonDB()); G.migrateOldSaves(); return { db: G.getDragonDB(), twice: a === JSON.stringify(G.getDragonDB()) }; };
+    let m = run({ streamchannel: save('streamchannel', G.DRAGON_TYPE, 1000000, 999) });
+    const d1 = m.db.streamchannel;
+    G.say('streamchannel', '!дракон');
+    const d1back = me();
+    check(m.twice && d1.drakeObj.type === G.DRAGON_TYPE && G.calculateLevelAndProgress(d1.xp).level === 20 && d1.regular && d1.regular.drakeObj.type === WD && d1.regular.xp === 0
+        && d1back.drakeObj.type === WD && G.calculateLevelAndProgress(d1back.xp).level === 1 && d1back.title.id === G.WHITE_DRAKE_TITLE_ID,
+        "23. migration: the streamer's old Dragon save (1,000,000 XP) stays the Dragon at level 20; its White Drake starts at level 1, never 20",
+        JSON.stringify({ d1, d1back }));
+    m = run({ streamchannel: save('streamchannel', 'red', xpFor(9) + 5, 61) });
+    const d2 = m.db.streamchannel;
+    check(m.twice && d2.drakeObj.type === WD && d2.xp === xpFor(9) + 5 && d2.title.id === G.WHITE_DRAKE_TITLE_ID,
+        "23. migration: the streamer's regular drake (a Red Drake, level 9) becomes the White Drake with the same XP and its title", JSON.stringify(d2));
+    m = run({ oldviewer: save('oldviewer', 'white', xpFor(6), 61), formerstreamer: save('formerstreamer', WD, xpFor(4), G.WHITE_DRAKE_TITLE_ID),
+              exdragon: save('exdragon', G.DRAGON_TYPE, 1000000, 999, { regular: { drakeObj: DRAKE[WD], title: steelTitle, xp: xpFor(3) } }) });
+    const v = m.db;
+    check(m.twice && v.oldviewer.drakeObj.type === 'green' && v.oldviewer.xp === xpFor(6) && v.oldviewer.title.id === 61
+        && G.VIEWER_DRAKE_TYPES.some(d => d.type === v.formerstreamer.drakeObj.type) && v.formerstreamer.xp === xpFor(4) && ![998, 999].includes(v.formerstreamer.title.id)
+        && G.VIEWER_DRAKE_TYPES.some(d => d.type === v.exdragon.drakeObj.type) && v.exdragon.xp === xpFor(3) && !v.exdragon.regular,
+        "23. migration: an old viewer save from when the Green Drake was the White Drake loads as Green (same XP, same title); someone no longer the streamer gets a viewer element with the same XP (their White Drake, or the regular drake behind their Dragon) and never the streamer's titles; every step idempotent",
+        JSON.stringify({ oldviewer: [v.oldviewer.drakeObj.type, v.oldviewer.xp], formerstreamer: [v.formerstreamer.drakeObj.type, v.formerstreamer.title.id], exdragon: [v.exdragon.drakeObj.type, v.exdragon.xp] }));
+
+    // !титул: the White Drake's title is fixed (a free spin isn't spent on it)
+    fresh();
+    G.setStreamerUser('streamchannel');
+    G.say('streamchannel', '!дрейк білий');
+    G.honoursReset();
+    { const h = G.honours; h.spins.streamchannel = 1; localStorage.setItem(G.HONOURS_KEY, JSON.stringify(h)); }
+    G.say('streamchannel', '!титул');
+    check(me().title.id === G.WHITE_DRAKE_TITLE_ID && G.honours.spins.streamchannel === 1 && /власний титул/.test(lastInfo()),
+        "23. !титул doesn't change the White Drake's «Біла сталь» (and a free spin stays unspent)", JSON.stringify({ title: me().title.id, spins: G.honours.spins, reply: lastInfo() }));
+    G.honoursReset();
+    G.setStreamerUser(prevStreamer);
     fresh();
 }
 

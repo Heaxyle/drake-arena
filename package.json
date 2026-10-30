@@ -20,6 +20,7 @@
     "test:resume": "node tests/resume.js",
     "test:tournament": "node tests/tournament.js",
     "test:balance-gate": "node tests/balance.js matrix 1500 20 --seed 12345 --bounds 40,60",
+    "test:white-drake-gate": "node tests/balance.js whitedrake 1500 --seed 12345",
     "balance:check": "node tests/balance_check.js"
   },
   "devDependencies": {

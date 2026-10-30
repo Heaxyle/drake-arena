@@ -676,7 +676,7 @@ async function startupNetwork(browser) {
             const frames = await page.evaluate(() => {
                 const card = document.getElementById('card-p1'), out = {};
                 const read = cls => { card.className = 'fighter-card ' + cls; const s = getComputedStyle(card); return { hi: s.getPropertyValue('--hi').trim(), lo: s.getPropertyValue('--lo').trim() }; };
-                for (const t of ['red', 'green', 'blue', 'black', 'gold', 'purple', 'white']) out[t] = read('el-' + t);
+                for (const t of ['red', 'green', 'blue', 'black', 'gold', 'purple', 'steel', 'white']) out[t] = read('el-' + t);
                 out.winner = read('el-gold is-winner');
                 out.loser = read('el-red is-loser');
                 const a = getComputedStyle(document.getElementById('arena'));
@@ -685,22 +685,23 @@ async function startupNetwork(browser) {
                 return out;
             });
             const PANEL = '#0d0e15';
-            // Every pair of light edges (six elements, the White Dragon, the winner — the same gold as the arena frame — and the loser)
-            const names = ['red', 'green', 'blue', 'black', 'gold', 'purple', 'white', 'winner', 'loser'];
+            // Every pair of light edges (six elements, the White Drake, the White Dragon, the winner — the same gold as the arena frame — and the loser)
+            const names = ['red', 'green', 'blue', 'black', 'gold', 'purple', 'steel', 'white', 'winner', 'loser'];
             const pairs = [];
             for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) pairs.push([names[i], names[j], de2000(frames[names[i]].hi, frames[names[j]].hi)]);
             pairs.sort((a, b) => a[2] - b[2]);
             const close = pairs.filter(p => p[2] < 20);
             check(!close.length && frames.winner.hi === frames.arena.hi, `every pair of frame light edges is ≥ 20 apart (CIEDE2000), ${pairs.length} pairs; closest: ${pairs.slice(0, 3).map(([a, b, d]) => `${a}/${b} ${d.toFixed(1)}`).join(', ')}`,
                 close.map(([a, b, d]) => `${a} ${frames[a].hi} / ${b} ${frames[b].hi}: ${d.toFixed(1)}`).join(' | ') || 'the winner frame is not the arena gold');
-            // Each frame still reads as its element: hue family for the colours, near-neutral for black and the loser, near-white for the White Dragon
+            // Each frame still reads as its element: hue family for the colours, near-neutral for black and the loser, a light
+            // cool steel for the White Drake, near-white for the White Dragon
             const FAMILY = {
                 red: c => (c.h >= 345 || c.h <= 15) && c.s >= 0.5, gold: c => c.h >= 38 && c.h <= 55 && c.s >= 0.5, green: c => c.h >= 100 && c.h <= 160 && c.s >= 0.5,
                 blue: c => c.h >= 200 && c.h <= 230 && c.s >= 0.5, purple: c => c.h >= 255 && c.h <= 290 && c.s >= 0.5, black: c => c.s <= 0.15 && c.l >= 0.45 && c.l <= 0.75,
-                white: c => c.l >= 0.9, winner: c => c.h >= 38 && c.h <= 55 && c.s >= 0.5, loser: c => c.s <= 0.15 && c.l <= 0.5,
+                steel: c => c.h >= 170 && c.h <= 195 && c.s >= 0.3 && c.s <= 0.6, white: c => c.l >= 0.9, winner: c => c.h >= 38 && c.h <= 55 && c.s >= 0.5, loser: c => c.s <= 0.15 && c.l <= 0.5,
             };
             const off = names.filter(n => !FAMILY[n](hslOf(frames[n].hi)) || (n !== 'white' && n !== 'black' && n !== 'loser' && !FAMILY[n](hslOf(frames[n].lo))));
-            check(!off.length, 'each frame reads as its element (red, gold, green, blue and purple hues on both edges; neutral steel for Black; near-white for the White Dragon; grey for the loser)',
+            check(!off.length, 'each frame reads as its element (red, gold, green, blue and purple hues on both edges; neutral steel for Black; a cool white steel for the White Drake; near-white for the White Dragon; grey for the loser)',
                 off.map(n => `${n} ${frames[n].hi} / ${frames[n].lo}: ${JSON.stringify(hslOf(frames[n].hi))}`).join(' | '));
             const weak = names.filter(n => n !== 'loser' && contrast(frames[n].hi, PANEL) < 3);
             const blackLo = contrast(frames.black.lo, PANEL);
@@ -790,14 +791,18 @@ async function startupNetwork(browser) {
                     panel.style.cssText = 'position:relative;background:var(--panel);padding:30px;margin:0 8px 60px;width:max-content;display:grid;grid-template-columns:repeat(5,404px);gap:34px 24px;';
                     sheet.append(head, panel);
                     const types = [...DRAKE_TYPES.filter(d => d.type !== DRAGON_TYPE), DRAKE_TYPES.find(d => d.type === DRAGON_TYPE)];
-                    const hpPct = [1, 0.62, 0.4, 0.2, 0.75, 0.5, 0.9];
+                    const hpPct = [1, 0.62, 0.4, 0.2, 0.75, 0.5, 0.55, 0.9];
                     types.forEach((d, i) => {
-                        const name = d.type === DRAGON_TYPE ? 'streamer' : 'viewer_' + d.type;
-                        const title = d.type === DRAGON_TYPE ? TITLES_DB.find(t => t.id === DRAGON_TITLE_ID) : TITLES_DB[(i * 29) % TITLES_DB.length];
-                        const dr = { name, color: ['#ff7f50', '#5fd4ff', '#c792ea', '#000000', '#ffd166', '#7cfc00', '#ffffff'][i], drakeObj: d, title, xp };
+                        // The streamer's two forms: the White Drake (its title, its scales part-gone) and the White Dragon
+                        const streamer = d.type === DRAGON_TYPE || d.type === WHITE_DRAKE_TYPE;
+                        const name = streamer ? 'streamer' : 'viewer_' + d.type;
+                        const title = d.type === DRAGON_TYPE ? TITLES_DB.find(t => t.id === DRAGON_TITLE_ID) : d.type === WHITE_DRAKE_TYPE ? TITLES_DB.find(t => t.id === WHITE_DRAKE_TITLE_ID) : TITLES_DB[(i * 29) % TITLES_DB.length];
+                        const dr = { name, color: ['#ff7f50', '#5fd4ff', '#c792ea', '#000000', '#ffd166', '#7cfc00', '#e8f6ff', '#ffffff'][i], drakeObj: d, title, xp };
+                        const max = d.type === WHITE_DRAKE_TYPE ? scalesOf(12, getMaxHP(12, d.type, title)) : 0;
+                        const st = d.type === DRAGON_TYPE ? null : d.type === WHITE_DRAKE_TYPE ? { ...fx(i % 6), scales: { now: Math.round(max * 0.6), max } } : fx(i % 6);
                         setArenaState({ kind: 'fight', ranked: true, turn: 7 });
-                        updateFighterCard('p1', dr, d.type === DRAGON_TYPE ? null : fx(i % 6));
-                        updateStatusUI(name, 12, d.type, title, d.type === DRAGON_TYPE ? { buff: [], debuff: [] } : fx(i % 6));
+                        updateFighterCard('p1', dr, st);
+                        updateStatusUI(name, 12, d.type, title, st || { buff: [], debuff: [] });
                         updateUIHP(Math.round(200 * hpPct[i]), 200, 1, 200);
                         panel.appendChild(snap(drakeLabel(d)));
                     });
@@ -819,7 +824,7 @@ async function startupNetwork(browser) {
             await page.locator('#review-sheet').screenshot({ path: path.join(SHOTS, 'layout-review-cards.png') });
             const n = await page.evaluate(() => document.querySelectorAll('#review-sheet .fighter-card').length);
             const tags = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .result-tag')].filter(t => getComputedStyle(t).display !== 'none').map(t => t.innerText));
-            check(n === 18 && tags.join() === 'ПЕРЕМОЖЕЦЬ,НОКАУТ,WINNER,KNOCKED OUT', `review sheet: ${n} cards (7 types + winner + loser, both languages) in tests/screenshots/layout-review-cards.png`, `${n} cards, tags ${tags.join()}`);
+            check(n === 20 && tags.join() === 'ПЕРЕМОЖЕЦЬ,НОКАУТ,WINNER,KNOCKED OUT', `review sheet: ${n} cards (8 types + winner + loser, both languages) in tests/screenshots/layout-review-cards.png`, `${n} cards, tags ${tags.join()}`);
             await context.close();
         }
 

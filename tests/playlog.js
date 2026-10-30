@@ -12,6 +12,8 @@
 //      closed (it filled up; and by !турнір старт, with a qualifier), each game with both players' HP left and max HP at
 //      level 20 as the cards showed it, the podium; a cancel during sign-up and one mid-game (where it stood). In the
 //      export the players are ids there too (the podium included), no name left
+//  1d  The streamer's forms: !дракон and back logs one 'form' event each (the form before and after, the level kept);
+//      refused ones (a viewer's, the streamer's on the arena) log nothing; in the export the streamer is an id
 //   2  The export: valid JSON with the log and the saves (drakes and stats); player names replaced by ids p001… everywhere
 //      (no name left in the text; a player only in the saves too), the same ids in a second export and after a reload
 //      (which logs its page load, the arena's save restored);
@@ -244,6 +246,7 @@ async function run() {
         await e.context.close();
 
         await tournamentRun(browser);
+        await formRun(browser);
 
         // 3. A failing IndexedDB
         const plain = await fightEvents(browser, null);
@@ -347,6 +350,33 @@ async function tournamentRun(browser) {
     const leaked = [...all, 'mod_a', 'mod_b', 'mod_c'].filter(n => byId.includes(`"${n}"`));
     check(ids.length && ids.every(x => /^p\d{3}$/.test(x)) && !leaked.length && exTour.find(e => e.event === 'podium').podium.length === 3,
         'in the export the tournament events name everyone by id too (the moderators, the players, the podium); no name left', JSON.stringify({ ids, leaked }));
+    check(!r.errors.length && !r.requests.length, 'no page errors, no network request', JSON.stringify({ errors: r.errors, requests: r.requests }));
+    await r.context.close();
+}
+
+// 1d. The streamer's forms: one 'form' event per switch, nothing for a refused !дракон
+async function formRun(browser) {
+    console.log('\n[1d. the streamer\'s forms: !дракон both ways]');
+    const r = await open(browser);
+    const { page } = r;
+    await page.evaluate(() => setStreamerUser('streamy'));
+    await chat(page, 'streamy', '!дрейк білий');
+    await chat(page, 'alice', '!дрейк червоний');
+    await page.evaluate(() => { const db = getDragonDB(); db.streamy.xp = 1000; saveDragonDB(db); });   // level 4 (100+263+466 before it)
+    await chat(page, 'alice', '!дракон');                           // a viewer: refused
+    await chat(page, 'streamy', '!дракон');                         // the White Drake → the White Dragon
+    await chat(page, 'streamy', '!бій @alice'); await chat(page, 'alice', '!прийняти');
+    await page.clock.runFor(2000);
+    await chat(page, 'streamy', '!дракон');                         // on the arena: refused
+    await playOut(page);
+    await endHold(page);
+    await chat(page, 'streamy', '!дракон');                         // back to the White Drake
+    const forms = (await events(page)).filter(e => e.type === 'form').map(({ t, type, ...e }) => e);
+    const want = [{ user: 'streamy', from: 'steel', to: 'white', level: 4 }, { user: 'streamy', from: 'white', to: 'steel', level: 4 }];
+    check(JSON.stringify(forms) === JSON.stringify(want), "one 'form' event per switch: the White Drake → the White Dragon → back, the level kept (4); a viewer's !дракон and one on the arena log nothing",
+        JSON.stringify({ got: forms, want }));
+    const byId = await exportLog(page), ex = JSON.parse(byId).events.filter(e => e.type === 'form');
+    check(ex.length === 2 && ex.every(e => /^p\d{3}$/.test(e.user)) && !byId.includes('"streamy"'), 'in the export the streamer is an id, no name left', JSON.stringify(ex));
     check(!r.errors.length && !r.requests.length, 'no page errors, no network request', JSON.stringify({ errors: r.errors, requests: r.requests }));
     await r.context.close();
 }

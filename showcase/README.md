@@ -9,13 +9,14 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 ## Features
 
 - **6 elements**, each with its own passive, scaling at levels 5 / 10 / 15 / 20
-- **White Dragon:** a bigger, unbeatable dragon that only the streamer can pick (see [below](#white-dragon-streamer-only))
+- **White Drake 🤍:** the streamer's own drake, made of white metal: its scales take hits before its HP and make debuffs bounce off, with two effects and an ultimate of its own (see [below](#white-drake-streamer-only))
+- **White Dragon:** a bigger, unbeatable dragon, the streamer's other form: `!dragon` / `!дракон` switches between the two (see [below](#white-dragon-streamer-only))
 - **194 titles** in seven rarities, from Common stat boosts to Legendary, Mythic and Meme titles with unique abilities
 - **Chat-request window:** replies to viewers (`!stats` cards, title rolls, warnings) appear in their own panel, separate from the battle log
-- **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 12 buffs/debuffs (one of each per element), class ultimates on an Element Power meter, and a sudden-death phase
+- **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 12 buffs/debuffs (one of each per viewer element; the White Drake has a pair of its own), class ultimates on an Element Power meter, and a sudden-death phase
 - **Ranked queue** with level-based matchmaking, plus friendly duels that give no XP
 - **Tournaments:** single elimination with a main bracket of 4, 8 or 16 drakes (level decides who goes straight in and keeps the two highest apart until the final or the 3rd-place match; the rest play a qualifier), best of 3, everyone at level 20; a bracket during the betting window, the score on the arena plate, a podium at the end, and prizes: badges, free title spins, medals and a Hall of Fame (see [below](#tournaments))
-- **Progression:** XP, levels 1–20 and a win/loss leaderboard (the Top drakes, ordered by wins, then fewer losses, then level; ranked fights only, and a fight against the streamer's White Dragon counts for neither side), saved in `localStorage`
+- **Progression:** XP, levels 1–20 and a win/loss leaderboard (the Top drakes, ordered by wins, then fewer losses, then level; ranked fights only; a fight against the streamer's White Dragon counts for neither side, and the streamer isn't listed), saved in `localStorage`
 - **Channel-point rewards** for title rolls and element rerolls
 - **1920×1080 overlay** with pixel-art gold frames: the arena and a side column (streamer card, top drakes, chat replies) on the right, the camera column and the strip above the arena left free. Outside OBS the demo controls sit in the camera column and the whole stage scales down to fit the window
 - **Battle log as attack cards:** one row per round, the left fighter's attack on the left and the right fighter's on the right. Each card names the move (from the drake's element, the attack type and its strength), the damage with an arrow toward the target, and what happened in words: blocks, crits (gold cards), armour-piercing, vampire heals, start-of-turn ticks, effects cast, refreshed or replaced. Ultimates get a header strip; sudden death gets a banner and the damage multiplier on each card. A card never hides anything, since nobody can hover or scroll on stream: when its second line is full it first shrinks a little, then shows the less important notes (effects only counted down, start-of-turn ticks, the sudden-death multiplier, the other hit notes) after what the attack did, as just their icon and number (Chaotic charge keeps its word, since a bare ⚡ is armour-piercing, and so does Firestorm's "unblockable", which has no icon), and if that still doesn't fit the card grows a line. The log starts empty for every fight
@@ -50,7 +51,7 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js) 1.8.5
 
 | English | Українська | What it does |
 |---|---|---|
-| `!drake <color>` | `!дрейк <колір>` | Create your drake: red, blue, black, gold, purple, green (`white` is the streamer's White Dragon) |
+| `!drake <color>` | `!дрейк <колір>` | Create your drake: red, blue, black, gold, purple, green (`white` is the streamer's White Drake) |
 | `!queue` | `!черга` | Join the ranked queue. Whoever has waited longest fights next (#1 on the "Далі в черзі" / "Next in queue" strip), against the closest level among the rest; on a level tie, whoever has waited longer. Joining again puts you at the back |
 | `!battle @name` | `!бій @нік` | Challenge someone to a friendly duel (30 s to answer). One open challenge at a time; `!battle` with no name says how to use it |
 | `!accept` / `!decline` | `!прийняти` / `!відхилити` | Answer a challenge. Accepted during a fight, the duel waits and starts after it |
@@ -58,6 +59,7 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js) 1.8.5
 | `!title` | `!титул` | Roll a random title *(channel points, or a free spin from a tournament)* |
 | `!odds` / `!chances` | `!шанси` | Show the title roulette drop chances |
 | `!reroll <color>` | `!рерол <колір>` | Change element and reset to level 1 *(channel points)* |
+| `!dragon` | `!дракон` | *The streamer only:* switch between the White Drake and the White Dragon, between fights. The White Drake's level, XP and title wait unchanged; the place in the queue stays. Refused on the arena and from tournament sign-up until the tournament ends; anyone else gets a refusal |
 | `!start` | `!старт` | End the betting window early, or the result screen *(channel owner and moderators only)* |
 | `!tournament [4\|8\|16]` | `!турнір [4\|8\|16]` | Open tournament sign-up for up to 4, 8 or 16 players (8 if no number). `!tournament start` / `!турнір старт` closes it early (4 players or more), `!tournament stop` / `!турнір стоп` cancels the tournament at any point *(channel owner and moderators only)* |
 | `!join` / `!leave` | `!учасник` / `!вийти` | Join the open tournament sign-up, or leave it while it's still open |
@@ -123,21 +125,38 @@ Every animation lasts 3 s or less (except the draw and the champion screen) and 
 | 🟨 Gold | +50–90% XP; 7–9% chance for a hit to leave the enemy at exactly 1 HP |
 | 🟪 Purple | Buffs and debuffs 25–40% stronger; +20–35% effect chance |
 | 🟩 Green | +22–34% max HP |
+| 🤍 White Drake (the streamer's) | «Луска Дракона» / "Dragon Scale": a bar of 20–24% of max HP on top of HP (see [below](#white-drake-streamer-only)) |
 
 All element numbers live in `ELEMENT_BASE` (the level-1 value) and `ELEMENT_TIERS` (the bonus at levels 5 / 10 / 15 / 20). They were tuned with a balance simulator (with the class ultimates in play) so every element matchup at levels 1, 10 and 20 stays within 45–57%, apart from a few known counters that sit within 2 points of that range (see [TESTING.md](../TESTING.md#known-counters)).
 
+### White Drake (streamer only)
+
+The streamer's regular drake: «Білий Дрейк 🤍» / "White Drake 🤍", type `'steel'` (`WHITE_DRAKE_TYPE`). `!drake white` / `!дрейк білий` (and `!reroll white`) give it to the user in `STREAMER_USER`; anyone else gets a refusal in the chat-request window, and the streamer asking for a viewer colour is told their two forms. It is never a random pick and isn't in the viewer balance sims. It has its own 48×36 sprite (white-steel plates with rivets, steel wing ribs, faint green seams, crown-tipped horns and a small white-steel crown with a green gem), a white-steel card frame with a soft green shimmer, and in its fights a faint White Dragon silhouette behind the log.
+
+- **Title:** 👑 **White Steel** / **Біла сталь**, fixed (+12% defense, +10 HP; Divine rarity, never rolled). `!title` leaves it as it is and keeps a free spin unspent
+- **Base numbers:** a viewer drake's, with 5% less max HP (`WHITE_DRAKE`)
+- **«Луска Дракона» / "Dragon Scale":** a bar on top of HP of 20 / 21 / 22 / 23 / 24% of max HP at levels 1–4 / 5–9 / 10–14 / 15–19 / 20, full at the start of every fight; its card shows it (the number, and a strip over the HP bar). Every hit takes the bar first; only what gets through comes off HP. Armour-piercing (⚡) goes through defense, not the bar. While the bar holds, every debuff bounces off («🤍 відскочило від луски» / "🤍 bounced off the scales"; Dispel too, counted as cast). When it breaks: «💔 Луска розкололася!» / "💔 The scales cracked!". Gold's 1-HP hit slips past it: HP drops to 1 and the bar stays as it is
+- **Its effects,** ⚒️ Перекування and 🔗 Магніт (in the [table below](#buffs-and-debuffs)), are cast like any drake's: its own pair, or one of the shared 12. No other drake casts them. Перекування can bring back a broken bar, and then debuffs bounce again; it isn't healing, so ☠️ Poison doesn't cut it. Black's 🦇 Shadow Theft can take it, and then it does nothing (the thief has no scales). Under Магніт, a buff the target casts goes to the White Drake instead («💢 Лють притягується до Білого Дрейка» / "💢 Rage is pulled to the White Drake"), within its 2-buff limit; buffs the target already has stay where they are
+- **Its ultimate,** 🔨 Удар ковадла (in the [table below](#class-ultimates)), fills on the Element Power meter like everyone's
+- **The fight:** it opens with «👑 Біла сталь виходить на бій!» / "👑 White Steel enters the fight!"; the result card says «👑 Сталь не гнеться» / "👑 Steel doesn't bend" when it wins and «🐉 Дракон це запам'ятав…» / "🐉 The Dragon won't forget this…" when it loses. Beating it brings no trophy and no title
+- **Records and tournaments:** a ranked fight against it counts like any other, a win or a loss for both; the streamer isn't listed in the Top. It signs up for tournaments like any drake
+
+Its numbers are in `WHITE_DRAKE` (the base numbers and the bar), `EFFECTS` and `CLASS_ULTIMATES`. `npm run test:white-drake-gate` plays it against each viewer element at levels 1, 5, 10 and 20, with titles (its own against the roulette's odds) and without, and fails when a matchup leaves the band set in `tests/sim_harness.js`.
+
 ### White Dragon (streamer only)
 
-`!drake white` / `!дрейк білий` works only for the user in `STREAMER_USER`; anyone else gets a refusal in the chat-request window, and `!reroll white` is refused the same way. The White Dragon uses a bigger 60×42 wyvern sprite (drakes are 48×36; all sprites face left and are shown at 3× on the fighter cards) and is deliberately a one-sided spectacle, not a balanced element:
+The streamer's other form: `!dragon` / `!дракон` turns the White Drake into the White Dragon, and back. Nobody else can have it: anyone else's `!дракон` gets a refusal in the chat-request window. The White Dragon uses a bigger 60×42 wyvern sprite (drakes are 48×36; all sprites face left and are shown at 3× on the fighter cards) and is deliberately a one-sided spectacle, not a balanced element:
 
-- Starts at level 20 with the special title 👑 **Sovereign of the Aether** / **Владика Етеру** (Divine rarity, never rolled by `!title`, and `!title` is refused for the dragon)
+- Always level 20, gaining no XP, with the special title 👑 **Sovereign of the Aether** / **Владика Етеру** (Divine rarity, never rolled by `!title`, and `!title` is refused for the dragon)
 - 99,999 HP, 100% defense, 100% crit at ×100, 100% effect chance
 - Every hit it deals ignores ultra-blocks and armor; every hit it takes is dissolved to 0
 - Ignores Blue reflect, Gold's 1-HP hit and Thorns, and is immune to debuffs
 
 It can't be beaten, so a ranked fight against it doesn't count against the viewer: no win or loss for either side in the Top. The XP is as usual (+10 for the viewer), and the fight's result card says «🐉 Бій з Білим Драконом: без перемоги й поразки в Топі» / "🐉 A fight with the White Dragon: no win or loss in the Top".
 
-When the streamer setting changes, the White Dragon stays with the streamer only (see saves below). The Test Panel can also put the White Dragon on a test fighter.
+**Switching** happens between fights only. While the streamer is the Dragon, the White Drake's level, XP and title are kept as they were (`regular` in the save) and come back exactly with the next `!дракон`; the place in the queue stays. `!дракон` is refused while the streamer is on the arena, in the betting window or the fight («⚔️ …ви зараз на арені: форму можна змінити між боями»), and from signing up for a tournament until it ends, podium included («🏆 …ви в турнірі: змінити форму можна, коли він закінчиться»). The Dragon can't sign up for tournaments. Each switch is one event in the [play log](#play-log).
+
+When the streamer setting changes, both forms stay with the streamer only (see saves below). The Test Panel can also put either form on a test fighter.
 
 **Each turn** (every 4.5 s, attackers alternate after a coin flip for who goes first):
 
@@ -164,13 +183,15 @@ Each element has one buff (cast on itself) and one debuff (cast on the opponent)
 | 🟨 Gold | 🍀 **Blessing** (Благословіння): Next 2 own attacks get +60% crit chance | 🎯 **Mark** (Мітка): The next hit on the target is a guaranteed crit |
 | 🟪 Purple | 🌟 **Divine Might** (Божественна міць): Next own attack deals ×1.55 damage and can't be blocked | 💨 **Dispel** (Розвіювання): Removes all of the target's buffs at once |
 | 🟩 Green | 💚 **Regeneration** (Регенерація): Heals 6.5% max HP at the start of each of the owner's next 3 turns | ☠️ **Poison** (Отруєння): 3% max HP damage at the start of each of the target's 3 turns, and its healing is −50% |
+| 🤍 White Drake (the streamer's) | ⚒️ **Reforging** (Перекування): Each of the next 2 own attacks that deals damage rebuilds the scales by 6% of max HP (8% at the top level), up to their starting size; it isn't healing | 🔗 **Magnet** (Магніт): For the target's next 3 attacks, every buff it casts goes to the White Drake instead (within the usual buff limit); buffs it already has stay put |
 
 - **Durations** count what each effect names: the owner's own attacks, the hits it takes (a blocked hit still counts), or the start of its turns. The rules are the same for both fighters. Fighter cards show what's left in words, e.g. "💢 Лють · ще 2 атаки" / "💢 Rage · 2 attacks left".
 - **Limits:** at most 2 buffs and 2 debuffs per drake. Casting an active effect again refreshes it. With 2 already, a new one replaces the one closest to ending (the older one on a tie). Both are logged.
 - **Effect power** (Purple, "effect strength" titles) scales the percentages, never the counts. Shield and Weakness are capped at −90%, Poison's healing cut at 100%.
 - **Dispel never goes to waste:** if the target has no buffs to remove, a different effect is cast instead (picked the usual way; Chaotic charge picks another debuff). On an immune target it still counts as cast and the log shows it was ignored.
 - **Debuff immunity** (the Legendary ability, and the White Dragon) blocks every debuff, Dispel included.
-- Title abilities draw from the same list: Opening buff picks one of the 6 buffs, Chaotic charge one of the 6 debuffs, Cat on the keyboard any of the 12.
+- **The White Drake's scales:** while they hold, every debuff bounces off it, Dispel included (counted as cast, like immunity). **Magnet** sends a buff the target casts to the White Drake, under the same 2-buff limit.
+- Title abilities draw from the same list: Opening buff picks one of the 6 buffs, Chaotic charge one of the 6 debuffs, Cat on the keyboard any of the 12 (never the White Drake's pair).
 
 All of this lives in one table, `EFFECTS` (with `EFFECT_CAST` for the cast split and slot limit); the fight code, fighter cards, battle log and balance sim all read from it. The numbers were tuned with the seeded balance matrix (see [TESTING.md](../TESTING.md)).
 
@@ -188,6 +209,7 @@ The fighter card shows the meter as 5 pips labelled "СИЛА" / "POWER", with "
 | 🟨 Gold | 🎰 **Jackpot** (Джекпот) | Three reels (💎 50%, 🪙 35%, 💀 15%): damage ×(1 + 1 per 💎); 2 or more 💀 is a miss |
 | 🟪 Purple | ✴️ **Arcane Detonation** (Арканна детонація) | An attack for ×2.2 damage plus 50% per debuff on the opponent, then those debuffs are removed |
 | 🟩 Green | 🌸 **Bloom** (Цвітіння) | Removes its own debuffs and instantly heals 25% max HP |
+| 🤍 White Drake (the streamer's) | 🔨 **Anvil Strike** (Удар ковадла) | A heavy blow for ×1.5 damage (×1.7 at the top level) that also re-forges the scales to their full starting size |
 
 The descriptions are the ones the game shows (the meter's tooltip), filled in from the `CLASS_ULTIMATES` numbers; `npm test` fails if this table falls out of step with them. The White Dragon has no meter and no ultimate.
 
@@ -196,13 +218,13 @@ How ultimates fit with the rest:
 - **Effect power** (Purple, effect-strength titles) never scales an ultimate's own numbers. The effect an ultimate applies (Firestorm's 🔥 Burn) follows the usual effect rules: the caster's effect power, the 2-per-kind limit, refresh and replacement.
 - **Debuff immunity** blocks the debuff parts of an ultimate (Firestorm's Burn, Shadow Theft's theft) but never its damage.
 - **No effect cuts damage or healing by more than 90%**, whatever its power.
-- **Ultimates that attack** (Firestorm, Shadow Theft, Jackpot, Arcane Detonation) are rolled and resolved like any attack, with their extras on top: the attacker's and defender's effects, crits, armor, title abilities, sudden death, element procs and the usual cast roll all apply, and they count down "own attacks" and "hits taken" effects. **Ice Mirror and Bloom replace the attack**: no attack is made that turn, so (as on a frozen turn) only "turns" effects count down.
+- **Ultimates that attack** (Firestorm, Shadow Theft, Jackpot, Arcane Detonation, Anvil Strike) are rolled and resolved like any attack, with their extras on top: the attacker's and defender's effects, crits, armor, title abilities, sudden death, element procs and the usual cast roll all apply, and they count down "own attacks" and "hits taken" effects. **Ice Mirror and Bloom replace the attack**: no attack is made that turn, so (as on a frozen turn) only "turns" effects count down.
 - **Ice Mirror** absorbs each hit only up to a share of the Blue drake's max HP; the rest goes through, and what goes back to the attacker is a share of what was absorbed. It blunts a burst rather than swallowing it. It is not a buff: Dispel and Shadow Theft can't take it. Every attack the Blue drake takes uses one of its hits, blocked or not, like any "hits taken" count. The White Dragon's hits go straight through it.
 - **Shadow Theft** moves buffs before its attack, so a stolen buff (e.g. 💢 Rage) already counts for that attack. A stolen buff the thief already has merges with it (the one with more left stays). Stolen buffs fill free slots in order; any that don't fit are removed. The guaranteed crit depends on whether the target had buffs, even when immunity stops the theft.
 - **Jackpot**'s miss is an attack that deals 0 (it still counts down attack and hit effects, and never casts).
 - **Arcane Detonation** removes the debuffs it counted whether or not its hit lands.
 - **Bloom** removes its own debuffs first, then heals instantly, so ☠️ Poison never cuts Bloom's heal. It gives no 💚 Regeneration.
-- **Shadow Theft and Firestorm** each have a damage multiplier in `CLASS_ULTIMATES` (`dmgMult`).
+- **Shadow Theft and Firestorm** each have a damage multiplier in `CLASS_ULTIMATES` (`dmgMult`); **Anvil Strike** has one (`dmgMult`) and another for level 20 (`topMult`), and is always a heavy blow.
 
 **XP:** win +40, loss +10, draw +10 each (Gold gets its XP bonus on top). **Underdog bonus:** a ranked winner below the loser's level gets +5 XP per level of difference, at most +40, on top of the 40 (levels from before the fight; Gold's bonus applies to the whole amount). The result card shows it, e.g. "+60 XP (+20 за сильнішого суперника)" / "+60 XP (+20 for a stronger opponent)". A draw is neither a win nor a loss: both records stay as they were. XP only counts in ranked fights. Reaching the next level takes `100 × level^1.4` XP, up to level 20.
 
@@ -244,6 +266,7 @@ The overlay keeps a record of how people play, so play can be studied (before a 
 - **Every fight:** the date and time; ranked or duel; both players with their level, XP, element and title before it; the winner; KO, time-out or draw (or a simulation error); the turns; the XP each got, with the underdog and Gold parts; each player's HP left and max HP at the end (as the arena card shows them); when its betting window opened (if it had one) and when the fight started.
 - **Every title roll:** who, the old and the new title, and how: channel points, a free spin from a tournament, or typed by the streamer.
 - **Every new drake (`!дрейк`) and element change (`!рерол`):** who, which element (and the old one), and the levels lost.
+- **Every switch between the streamer's forms** (`!дракон`, `type: 'form'`): who, the form before and after (`from`, `to`: `'steel'` or `'white'`) and the White Drake's level, kept (`level`).
 - **Every `!черга`:** who and when, and their place in the queue, so queue waits can be worked out from the fights that follow.
 - **Every page load** (`type: 'load'`), so restarts show up: whether there was an arena save (`saved`), how old it was (`ageMs`), whether it was picked up (`restored`: under 10 minutes old), the queue and the waiting duel it brought back, the match it found (`pair`, `kind` ranked or duel, `stage` `betting` / `fight` / `result`, `replayed`), and the tournament's phase if one was saved.
 - **Every tournament game,** like a fight (`kind: 'tournament'`), plus its stage (`qual`, `r16`, `qf`, `sf`, `third`, `final`), game number and whether it was a replayed draw. The players' level and XP are their saved ones (they fought at level 20, `fightLevel: 20`); no XP. A game fought after `!турнір стоп` is marked `counted: false`.
@@ -292,18 +315,20 @@ This project went through a QA pass. Each fix was verified by simulating all 36 
 | 16 | Rerolling into the White Dragon said "Level reset to 1!" | Wrong level in the message | It says "Level 20!" |
 | 17 | The opening-buff banner added its own 🌅 before the title's icon | "🌅 🌅 Woke Up Swinging: …" | One icon: the title's |
 | 18 | The page loaded tmi.js from `unpkg.com/tmi.js@latest/dist/tmi.min.js`, a file the latest version (1.8.5, since 2021) doesn't ship: unpkg answered 404 | **Twitch chat never connected** | tmi.js 1.8.5's official browser build is embedded in the page |
+| 19 | `node tests/balance.js vsplain` stopped at its first fight | The element-vs-plain check couldn't run | The plain drake has a name in both languages, like every drake |
 
 ## Project structure
 
 Everything is in `index.html`:
 
-- `TITLES_DB`, `DRAKE_TYPES`: game data. `DRAGON_TYPE` (`'white'`) is the streamer-only dragon; `VIEWER_DRAKE_TYPES` is everything else, used for random picks
-- `STREAMER_USER`, `isStreamer`, `setStreamerUser`: who owns the White Dragon
+- `TITLES_DB`, `DRAKE_TYPES`: game data. `DRAGON_TYPE` (`'white'`) is the streamer-only dragon and `WHITE_DRAKE_TYPE` (`'steel'`) the streamer's White Drake (both in `STREAMER_TYPES`); `VIEWER_DRAKE_TYPES` is everything else, used for random picks
+- `WHITE_DRAKE`, `scalesOf`: the White Drake's numbers and its bar; `toDragon`, `fromDragon`: the switch between the streamer's forms (`!дракон`)
+- `STREAMER_USER`, `isStreamer`, `setStreamerUser`: who owns the White Drake and the White Dragon
 - `RARITIES` (drop chances), `ELEMENT_BASE` / `ELEMENT_TIERS` (element passives), `MECH` (title abilities): balance numbers — tune these, not the fight code
 - `titleStats`, `getMaxHP`, `getModifiedDefenses`, `getCritStats`, `getEffectMult`, `getTierMultiplier`: stat calculations
 - `handleChatMessage`: command parsing, shared by Twitch and the simulator
-- `EFFECTS`, `EFFECT_CAST`: the 12 buffs/debuffs (icon, names, description, what counts them down, numbers) and the cast rules; `getCastChance` is the cast chance
-- `CLASS_ULTIMATES`, `METER`: the six class ultimates (icon, names, numbers, description) and the Element Power meter; `ultimateFor`, `describeUltimate`, `renderPowerMeter` (the meter row on the fighter cards)
+- `EFFECTS`, `EFFECT_CAST`: the 14 buffs/debuffs (`POOL_IDS`: the 12 every drake casts; the White Drake's pair) (icon, names, description, what counts them down, numbers) and the cast rules; `getCastChance` is the cast chance
+- `CLASS_ULTIMATES`, `METER`: the seven class ultimates (six viewer elements and the White Drake) (icon, names, numbers, description) and the Element Power meter; `ultimateFor`, `describeUltimate`, `renderPowerMeter` (the meter row on the fighter cards)
 - `getHonours`, `tourneyAward`, `medalOf`, `showHallOfFame`, `showHallCard`: tournament prizes (badges, spins, medals, the Hall of Fame)
 - `show*` (`showSync`, `showDraw`, `showIntro`, `showBracket`, `showChampion`, `showBoardSync`, `showSound`) and `SHOW_SPRITES`: the tournament show (looks and sounds only)
 - `tourney*` (`tourneyCommand`, `tourneyClose`, `tourneyNext`, `tourneyResult`, `tourneyPodium`, `tourneyFighter`, `tourneyBracketHtml`): tournaments; `TOURNEY_TEXT` holds their words in both languages
@@ -315,7 +340,7 @@ Everything is in `index.html`:
 - `arenaSave`, `arenaSetMatch`, `arenaResume`: the queue, the waiting duel and the match on the arena across a reload
 - `migrateOldSaves`, the chat simulator and page init are at the end of the script
 
-Save data lives in the browser's `localStorage` under the keys `drake_arena_showcase_db` and `drake_arena_showcase_stats` (plus `drake_arena_showcase_streamer` for the Test Settings streamer, `drake_arena_showcase_tournament` while a tournament is on, `drake_arena_showcase_arena` for the queue and the match on the arena across a reload, and `drake_arena_showcase_honours` for tournament prizes). To reset, clear site data (which deletes the [play log](#play-log) too). Saves from older versions are upgraded automatically on load: titles keep their ID and pick up the new names and bonuses. `'white'` used to be the viewers' White Drake, so any White Drake that doesn't belong to the streamer becomes a Green Drake with the same stats and XP, and title 999 is re-rolled on anything that isn't the dragon. The upgrade is idempotent: running it again changes nothing.
+Save data lives in the browser's `localStorage` under the keys `drake_arena_showcase_db` and `drake_arena_showcase_stats` (plus `drake_arena_showcase_streamer` for the Test Settings streamer, `drake_arena_showcase_tournament` while a tournament is on, `drake_arena_showcase_arena` for the queue and the match on the arena across a reload, and `drake_arena_showcase_honours` for tournament prizes). To reset, clear site data (which deletes the [play log](#play-log) too). Saves from older versions are upgraded automatically on load: titles keep their ID and pick up the new names and bonuses. `'white'` used to be the viewers' White Drake, so any White Drake that doesn't belong to the streamer becomes a Green Drake with the same stats and XP, and title 999 is re-rolled on anything that isn't the dragon. The streamer's regular drake becomes the White Drake with the same XP and the title White Steel; a streamer's Dragon save stays the Dragon and gets a White Drake at level 1 behind it (never level 20). Someone who's no longer the streamer gets a viewer element with the same XP (their White Drake, or the drake behind their Dragon), and titles 998 and 999 are re-rolled on anything that isn't that form. The upgrade is idempotent: running it again changes nothing.
 
 ## Credits
 
