@@ -1151,18 +1151,19 @@ const key = (a, b) => [a, b].sort().join('-');
             JSON.stringify({ sPod, podScreen, podChat, sHall, hallChat, letters }));
         await until(page, () => !tourney, null, { step: 1000 });
 
-        // 11. The crown on every drake: the six on podium steps as drawn (3×, as the champion stands), and mirrored (2×).
+        // 11. The crown on every drake: the six and the streamer's White Drake on podium steps as drawn (3×, as the champion
+        // stands), and mirrored (2×).
         // For each, the anchor is at the top of the head (the crown's bottom row covers the head's first or second row in that
         // column, and the head goes on below it), the crown's bottom edge sits on the anchor and its middle on the anchor's
         // column (within 2 px), on the sprite's pixel grid
         const crowns = await page.evaluate(() => {
             const st = document.createElement('div');
             st.id = 'crown-review';   // no .ts-champ here: the crowns are shown as they are once landed, without the drop
-            st.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:600px;z-index:99;background:#0b0c11;display:grid;grid-template-columns:repeat(6, 1fr);grid-template-rows:56px 330px 214px;align-items:end;justify-items:center';
+            st.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:600px;z-index:99;background:#0b0c11;display:grid;grid-template-columns:repeat(7, 1fr);grid-template-rows:56px 330px 214px;align-items:end;justify-items:center';
             st.innerHTML = `<div style="grid-column:1 / -1;align-self:center;font:800 20px var(--pixel), sans-serif;color:var(--gold);letter-spacing:2px;text-transform:uppercase">${sT('champion')}</div>`;
             document.body.appendChild(st);
             const out = [];
-            [false, true].forEach(flip => VIEWER_DRAKE_TYPES.forEach(d => {
+            [false, true].forEach(flip => [...VIEWER_DRAKE_TYPES, DRAKE_TYPES.find(t => t.type === WHITE_DRAKE_TYPE)].forEach(d => {
                 const col = document.createElement('div');
                 col.className = `pd-col ${flip ? 'pd-2' : 'pd-1'}`;
                 col.innerHTML = `<img class="pd-sprite" src="${drakeSpriteURL(d.type)}" alt=""${flip ? ' style="transform:scaleX(-1)"' : ''}>`
@@ -1181,8 +1182,8 @@ const key = (a, b) => [a, b].sort().join('-');
         await page.screenshot({ path: path.join(SHOTS, 'show-crowns.png'), clip: { x: 0, y: 0, width: 1920, height: 600 } });
         await page.evaluate(() => document.getElementById('crown-review').remove());
         const offHead = crowns.filter(c => !(Math.abs(c.dy) <= 2 && Math.abs(c.dx) <= 2 && c.grid && c.onHead));
-        check(crowns.length === 12 && !offHead.length,
-            `the crown sits on the head anchor of all six drakes, as drawn (3×) and mirrored (2×): ${crowns.map(c => `${c.type}${c.flip ? '⇆' : ''} ${c.dx},${c.dy}`).join(' · ')} px; on the sprite's pixel grid`,
+        check(crowns.length === 14 && !offHead.length,
+            `the crown sits on the head anchor of all six drakes and the White Drake, as drawn (3×) and mirrored (2×): ${crowns.map(c => `${c.type}${c.flip ? '⇆' : ''} ${c.dx},${c.dy}`).join(' · ')} px; on the sprite's pixel grid`,
             JSON.stringify(offHead.length ? offHead : crowns));
         check(!errors.length, 'no page errors', errors.join(' | '));
         await context.close();
