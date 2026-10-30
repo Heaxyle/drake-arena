@@ -37,10 +37,11 @@
     .status-item { font-size: 13px; font-weight: 600; padding: 1px 8px; border-radius: 2px; white-space: nowrap; overflow: hidden; min-width: 0; max-width: calc(50% - 4px); box-sizing: border-box; line-height: 17px; height: 21px; }
     .status-item.buff { color: #6bff9a; background: rgba(60, 255, 120, 0.08); border: 1px solid rgba(107, 255, 154, 0.45); }
     .status-item.debuff { color: #ff9a6b; background: rgba(255, 120, 60, 0.10); border: 1px solid rgba(255, 154, 107, 0.5); }
-    /* Proposal: a chip with a 20 px icon is 22 px tall (two rows of 22 + a 2 px gap = the same 46 px block) */
+    /* Proposal: a chip with a 20 px icon is 22 px tall (two rows of 22 + a 2 px gap = the same 46 px block). Its shape is the
+       kind (rounded buff, angled debuff), its colour the element: both from DrakeIcons.chipStyle (a pixel border-image) */
     .fc-chips.px { gap: 2px 8px; }
-    .status-item.px { display: flex; align-items: center; gap: 5px; height: 22px; line-height: 20px; padding: 0 8px 0 0; }
-    .status-item.px img { flex-shrink: 0; }
+    .status-item.px { display: flex; align-items: center; gap: 4px; height: 22px; line-height: 20px; padding: 0; border-radius: 0; background: none; }
+    .status-item.px img { flex-shrink: 0; margin-left: -3px; }
     .hp-row { display: flex; align-items: center; gap: 10px; }
     .hp-bar { flex: 1; height: 18px; background: var(--track); box-shadow: 0 0 0 2px var(--edge); }
     .hp-bar i { display: block; height: 100%; width: 64%; background: #4dff7a; }
@@ -67,10 +68,12 @@
     .lk.debuff { font-weight: 600; color: #ff9a6b; background: rgba(255, 120, 60, 0.10); border: 1px solid rgba(255, 154, 107, 0.5); }
     .lk.heal { color: #4dff7a; background: rgba(77, 255, 122, 0.12); }
     .lk.hurt { color: #ff9a8a; background: rgba(255, 93, 82, 0.14); }
-    /* Proposal: a log chip with a 20 px icon has no top/bottom padding and fills the 20 px line */
-    .lk.px { display: inline-flex; align-items: center; gap: 4px; height: 20px; box-sizing: border-box; padding: 0 0.67em 0 0; line-height: 18px; }
-    .lk.px.compact { padding: 0; background: none; border: 0; }
-    .lk.px.compact.num { padding-right: 0.5em; }
+    /* Proposal: an effect chip in the log is the same kind-shaped chip, 22 px in the 20 px line (1 px into the gaps above and
+       below, as the line clips with overflow-clip-margin); compact = the icon alone in its chip */
+    .lk.px { display: inline-flex; align-items: center; gap: 4px; height: 22px; margin: -1px 0; box-sizing: border-box; padding: 0; line-height: 20px; border-radius: 0; background: none; font-weight: 600; }
+    .lk.px img { margin-left: -3px; }
+    .lk.px.compact img { margin: 0 -3px; }
+    .lc-l2:has(.lk.px) { overflow: clip; overflow-clip-margin: 2px; }
     .lc-cell { display: flex; align-items: center; justify-content: center; gap: 8px; height: 58px; box-sizing: border-box; padding: 7px 12px; border-radius: 2px; font-size: 14px; font-weight: 600; white-space: nowrap; }
     .lc-cell.pending { border: 1px solid var(--hi); background: color-mix(in srgb, var(--lo) 18%, transparent); color: var(--hi); }
     /* Proposal: an ultimate's 24 px burst stands in line 1 next to the move (2 px over the 20 px line, into the 4 px gaps) */
@@ -101,6 +104,12 @@
     .cards { display: flex; gap: 26px; flex-wrap: wrap; max-width: 880px; padding: 4px; }
     .logs { display: flex; flex-direction: column; gap: 8px; }
     .filters { display: grid; grid-template-columns: 170px repeat(18, 46px); align-items: center; gap: 10px 8px; background: #1a1c28; padding: 16px; width: max-content; }
+    .glance { display: grid; grid-template-columns: 150px repeat(18, 40px); align-items: center; gap: 12px 10px; background: rgba(6, 7, 11, 0.96); padding: 16px 20px; width: max-content; }
+    .glance .f-h { font-size: 13px; color: var(--muted); }
+    .glance .cell { display: flex; justify-content: center; }
+    .glance .gap { grid-column: 1 / -1; height: 2px; }
+    .chips-strip { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; background: rgba(6, 7, 11, 0.96); padding: 14px 16px; width: 1460px; font-size: 12px; }
+    .chips-strip.f-gray { filter: grayscale(1); }
     .filters .f-h { font-size: 13px; color: var(--muted); }
     .filters .cell { display: flex; justify-content: center; }
     .f-gray img, .f-gray .emo { filter: grayscale(1); }
@@ -117,28 +126,34 @@
 <div class="page" id="page">
     <div>
         <h1>ICONS · BATCH 1</h1>
-        <div class="sub">The 12 effects and the 6 class ultimates. Pixel art like the drakes: one palette and pixel map per icon, drawn once, shown only at
-            whole-number scales. Shape tells the category (buff: round badge, debuff: spiky badge, ultimate: a larger burst), colour tells the element.
-            Each icon is shown next to the emoji it replaces, at the size it has in the game.</div>
+        <div class="sub">The 12 effects and the 6 class ultimates, pass 3. Pixel art like the drakes: one palette and pixel map per icon, drawn once, shown only
+            at whole-number scales. No frames: an effect's glyph has the whole 10×10, an ultimate its own 12×12 silhouette. Buff or debuff is the chip's shape
+            (rounded or angled ends), colour is the element. Each icon is shown next to the emoji it replaces, at the size it has in the game.</div>
     </div>
 
     <section>
-        <h2>1 · THE SET</h2>
-        <div class="grid" id="set"></div>
-        <div class="note">Zoom ×6 for review only; the game shows ×2 (20 px badges, 24 px ultimates), ×1 in the side column, ×3 for big moments.</div>
+        <h2>1 · AT A GLANCE</h2>
+        <div class="glance" id="glance"></div>
+        <div class="note">The icons at ×2 with no names, the emoji they replace, and both in greyscale, on the log's background.</div>
     </section>
 
     <section>
-        <h2>2 · ON THE FIGHTER CARD</h2>
+        <h2>2 · THE SET</h2>
+        <div class="grid" id="set"></div>
+        <div class="note">Zoom ×6 for review only; the game shows ×2 (20 px effects, 24 px ultimates), ×1 in the side column, ×3 for big moments.</div>
+    </section>
+
+    <section>
+        <h2>3 · ON THE FIGHTER CARD</h2>
         <div class="pair">
             <div><div class="col-h">NOW · EMOJI</div><div class="cards" id="cards-old"></div></div>
             <div><div class="col-h">NEW · PIXEL ICONS</div><div class="cards" id="cards-new"></div></div>
         </div>
-        <div class="note">The chip block stays 46 px tall: two rows of 22 px chips with a 2 px gap (now 21 + 4 + 21).</div>
+        <div class="note">The chip block stays 46 px tall: two rows of 22 px chips with a 2 px gap (now 21 + 4 + 21). Rounded chip = buff, angled chip = debuff; the chip's colour is the effect's element (today it is green for buffs, orange for debuffs).</div>
     </section>
 
     <section>
-        <h2>3 · IN THE BATTLE LOG</h2>
+        <h2>4 · IN THE BATTLE LOG</h2>
         <div class="pair">
             <div><div class="col-h">NOW · EMOJI</div><div class="log-panel frame-sm logs" id="log-old"></div></div>
             <div><div class="col-h">NEW · PIXEL ICONS</div><div class="log-panel frame-sm logs" id="log-new"></div></div>
@@ -147,9 +162,13 @@
     </section>
 
     <section>
-        <h2>4 · WITHOUT COLOUR</h2>
+        <h2>5 · WITHOUT COLOUR</h2>
         <div class="filters" id="filters"></div>
-        <div class="note">Greyscale, and simulated deuteranopia, protanopia and tritanopia. Without colour the frame still gives the category and the glyph gives the effect.</div>
+        <div class="note">Greyscale, and simulated deuteranopia, protanopia and tritanopia: the glyph gives the effect without its colour.</div>
+        <div style="height: 14px"></div>
+        <div class="chips-strip" id="chips-col"></div>
+        <div class="chips-strip f-gray" id="chips-gray" style="margin-top: 6px"></div>
+        <div class="note">The 12 effect chips (and the tick chips) in colour and in greyscale: rounded ends = buff, angled ends = debuff, with no colour at all.</div>
     </section>
 </div>
 
@@ -161,25 +180,34 @@
         rage:     { kind: 'buff',   left: 'ще 2 атаки', glyph: 'angry face' },
         burn:     { kind: 'debuff', left: 'ще 3 ходи',  glyph: 'flame', tick: -9 },
         shield:   { kind: 'buff',   left: 'ще 2 удари', glyph: 'shield' },
-        frost:    { kind: 'debuff', left: 'ще 1 атака', glyph: 'icicles' },
-        shadow:   { kind: 'buff',   left: 'ще 2 удари', glyph: 'crescent' },
+        frost:    { kind: 'debuff', left: 'ще 1 атака', glyph: 'snowflake' },
+        shadow:   { kind: 'buff',   left: 'ще 2 удари', glyph: 'hooded shade' },
         weakness: { kind: 'debuff', left: 'ще 2 атаки', glyph: 'arrow down' },
-        blessing: { kind: 'buff',   left: 'ще 2 атаки', glyph: 'lucky star' },
-        mark:     { kind: 'debuff', left: 'ще 1 удар',  glyph: 'target' },
+        blessing: { kind: 'buff',   left: 'ще 2 атаки', glyph: 'four-leaf clover' },
+        mark:     { kind: 'debuff', left: 'ще 1 удар',  glyph: 'crosshair' },
         divine:   { kind: 'buff',   left: 'ще 1 атака', glyph: 'arrow up' },
-        dispel:   { kind: 'debuff', left: null,         glyph: 'cracked ring' },
+        dispel:   { kind: 'debuff', left: null,         glyph: 'broken ring' },
         regen:    { kind: 'buff',   left: 'ще 3 ходи',  glyph: 'plus', tick: 12 },
-        poison:   { kind: 'debuff', left: 'ще 3 ходи',  glyph: 'drop', tick: -5 },
+        poison:   { kind: 'debuff', left: 'ще 3 ходи',  glyph: 'skull', tick: -5 },
     };
-    const ULT_GLYPH = { firestorm: 'meteor', mirror: 'diamond mirror', theft: 'bat', jackpot: 'seven', detonation: 'X blast', bloom: 'flower' };
+    const ULT_GLYPH = { firestorm: 'meteor', mirror: 'mirror shard', theft: 'bat', jackpot: 'slot seven', detonation: 'blast', bloom: 'flower' };
+    const chipCss = id => D.chipStyle(D.ICONS[id].element, EFFECT_INFO[id].kind);
     const ELEMENT_UK = { red: 'Червоний', blue: 'Синій', black: 'Чорний', gold: 'Золотий', purple: 'Фіолетовий', green: 'Зелений' };
     const nm = id => D.ICONS[id].name.uk;
     const $ = id => document.getElementById(id);
 
-    // 1 · The set: zoom, game sizes, the emoji it replaces
+    // 1 · At a glance: the icons at ×2 with no names, the emoji under them, both in greyscale
+    {
+        const ids = [...D.EFFECT_ICON_IDS, ...D.ULTIMATE_ICON_IDS];
+        const row = (label, cls, emoji) => `<div class="f-h">${label}</div>` + ids.map(id => `<div class="cell ${cls}">${emoji
+            ? `<span class="emo" style="font-size:${D.ICONS[id].kind === 'ultimate' ? 22 : 18}px;width:auto">${D.ICONS[id].emoji}</span>` : img(id, 2)}</div>`).join('');
+        $('glance').innerHTML = row('Icons ×2', '') + row('Emoji', '', true) + '<div class="gap"></div>' + row('Icons, greyscale', 'f-gray') + row('Emoji, greyscale', 'f-gray', true);
+    }
+
+    // 2 · The set: zoom, game sizes, the emoji it replaces
     [...D.EFFECT_ICON_IDS, ...D.ULTIMATE_ICON_IDS].forEach(id => {
-        const ic = D.ICONS[id], ult = ic.frame === 'ultimate';
-        const kind = ult ? '<b class="k-ult">ultimate</b>' : `<b class="k-${ic.frame}">${ic.frame}</b>`;
+        const ic = D.ICONS[id], ult = ic.kind === 'ultimate';
+        const kind = ult ? '<b class="k-ult">ultimate</b>' : `<b class="k-${ic.kind}">${ic.kind}</b>`;
         $('set').insertAdjacentHTML('beforeend', `<div class="tile">
             <div class="tile-top"><div class="zoom">${img(id, 6)}</div>
                 <div class="sizes"><span>${img(id, 1)} ×1</span><span>${img(id, 2)} ×2</span><span><span class="emo">${ic.emoji}</span> now</span></div></div>
@@ -197,7 +225,7 @@
     function card(c, px) {
         const chip = id => {
             const e = EFFECT_INFO[id];
-            return px ? `<span class="status-item px ${e.kind}">${img(id)}${nm(id)} · ${e.left}</span>`
+            return px ? `<span class="status-item px" style="${chipCss(id)}">${img(id)}${nm(id)} · ${e.left}</span>`
                       : `<span class="status-item ${e.kind}">${D.ICONS[id].emoji} ${nm(id)} · ${e.left}</span>`;
         };
         return `<div class="fighter-card el-${c.el}"><div class="fighter-name">${c.name}</div>
@@ -219,11 +247,11 @@
     const lk = (id, px, word = true) => {
         const e = EFFECT_INFO[id];
         if (!px) return `<span class="lk ${e.kind}">${D.ICONS[id].emoji}${word ? ' ' + nm(id) : ''}</span>`;
-        return word ? `<span class="lk px ${e.kind}">${img(id)}${nm(id)}</span>` : `<span class="lk px compact">${img(id)}</span>`;
+        return word ? `<span class="lk px" style="${chipCss(id)}">${img(id)}${nm(id)}</span>` : `<span class="lk px compact" style="${chipCss(id)}">${img(id)}</span>`;
     };
     const tick = (id, px) => {
         const v = EFFECT_INFO[id].tick, t = v < 0 ? v : '+' + v, cls = v < 0 ? 'debuff' : 'buff';
-        return px ? `<span class="lk px ${cls}">${img(id)}${t}</span>` : `<span class="lk ${cls}">${D.ICONS[id].emoji} ${t}</span>`;
+        return px ? `<span class="lk px" style="${chipCss(id)}">${img(id)}${t}</span>` : `<span class="lk ${cls}">${D.ICONS[id].emoji} ${t}</span>`;
     };
     const move = (side, n, text, num, defColor, extra = '') => {
         const arrow = `<span class="lc-arrow" style="color:${defColor}">${side === 'left' ? '→' : '←'}</span>`;
@@ -270,6 +298,10 @@
     // 4 · Without colour
     const all = [...D.EFFECT_ICON_IDS, ...D.ULTIMATE_ICON_IDS];
     const fRow = (label, cls, emoji) => `<div class="f-h">${label}</div>` + all.map(id => `<div class="cell ${cls}">${emoji ? `<span class="emo" style="font-size:20px;width:auto">${D.ICONS[id].emoji}</span>` : img(id, 2)}</div>`).join('');
+    const strip = () => D.EFFECT_ICON_IDS.map(id => lk(id, true)).join('') + ['burn', 'poison', 'regen'].map(id => tick(id, true)).join('')
+        + D.EFFECT_ICON_IDS.map(id => lk(id, true, false)).join('');
+    $('chips-col').innerHTML = strip();
+    $('chips-gray').innerHTML = strip();
     $('filters').innerHTML = fRow('Colour', '') + fRow('Greyscale', 'f-gray') + fRow('Deuteranopia', 'f-deut') + fRow('Protanopia', 'f-prot') + fRow('Tritanopia', 'f-trit') + fRow('Emoji, greyscale', 'f-gray', true);
 </script>
 </body>
