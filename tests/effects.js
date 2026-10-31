@@ -59,6 +59,8 @@ const fail = msg => { failures++; console.log(`  ✗ ${msg}`); };
 const pass = msg => console.log(`  ✓ ${msg}`);
 const check = (ok, good, bad) => ok ? pass(good) : fail(bad);
 const strip = s => s.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ');
+// What the overlay shows: its text, each pixel icon as [id] (it shows no emoji), one space between
+const view = s => s.replace(/<img[^>]*\bdata-icon="(\w+)"[^>]*>/g, ' [$1] ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 const fighter = (name, type, title = null, level = 20) => ({ name, color: '#fff', drakeObj: DRAKE_TYPES_BY[type], title, xp: xpFor(level) });
 const DRAKE_TYPES_BY = Object.fromEntries(G.DRAKE_TYPES.map(d => [d.type, d]));
 const xpFor = lvl => { let x = 0; for (let l = 1; l < lvl; l++) x += G.getRequiredXP(l); return x; };
@@ -141,7 +143,6 @@ for (const id of EFFECT_IDS) {
 // with comments stripped. A line that uses one of the icons or words for something unrelated must be listed here,
 // with the reason. An allowlist entry that no longer matches any line fails too, so the list can't go stale.
 const EFFECT_TEXT_ALLOWLIST = [
-    { line: '· 🛡️ ${defs.physDef}%', terms: ['🛡'], why: '!stats card defence figure' },
     { line: '`🛡️ Ультраблок (0 шкоди)!`', terms: ['🛡'], why: 'Ultra Block label in the attack log' },
     { line: '${loseXpText} 🛡️`', terms: ['🛡'], why: "loser's line in the fight result" },
     { line: 'id: 128, rarity:', terms: ['🎯'], why: 'title icon: Missed the Button' },
@@ -153,10 +154,7 @@ const EFFECT_TEXT_ALLOWLIST = [
     { line: 'id: 176, rarity:', terms: ['🛡'], why: 'title icon: Unbreakable Moderator' },
     { line: 'id: 153, rarity:', terms: ['🎰'], why: 'title icon: Roulette Lucky Charm (not the Jackpot ultimate)' },
     { line: 'id: 175, rarity:', terms: ['🦇'], why: 'title icon: Stream Night Vampire (not the Shadow Theft ultimate)' },
-    { line: "'🎰 Шанси рулетки титулів'", terms: ['🎰'], why: '!odds card heading (title roulette), both languages' },
     { line: "legendary: '🌟 ", terms: ['🌟', '🔥'], why: 'title-roll rarity banners (legendary 🌟, mythic 🔥), both languages' },
-    { line: 'ПЕРЕРОДИВСЯ!', terms: ['🔥'], why: '!reroll announcement (uk)' },
-    { line: 'REBORN!', terms: ['🔥'], why: '!reroll announcement (en)' },
     { line: 'активує Щит надії', terms: ['Щит'], why: "Guardian Angel title ability: Щит надії (not the Shield effect)" },
     { line: 'activates Shield of Hope', terms: ['Shield'], why: 'Guardian Angel title ability: Shield of Hope (not the Shield effect)' },
 ];
@@ -165,6 +163,9 @@ console.log('\nEffect and ultimate names and icons only in their tables (EFFECTS
     const lines = html.split(/\r?\n/);
     const tableLines = name => { const s = lines.findIndex(l => l.includes(`const ${name} = {`)); return [s, lines.findIndex((l, i) => i > s && l.trim() === '};')]; };
     const [start, end] = tableLines('EFFECTS'), [uStart, uEnd] = tableLines('CLASS_ULTIMATES');
+    // The icon set's block (a copy of design/icons/icons.js, between its markers) names every effect and ultimate for its
+    // icons' labels; design/icons/test.js checks those names and colours are the tables' own, so it's skipped here
+    const iStart = lines.findIndex(l => l.includes('// ===== ICONS START =====')), iEnd = lines.findIndex(l => l.includes('// ===== ICONS END ====='));
     const bare = s => s.replace(/️/g, '');                       // 🛡️ and 🛡 are the same icon
     const terms = [...new Set([...EFFECT_IDS.map(id => EFFECTS[id]), ...G.ULTIMATE_IDS.map(id => G.CLASS_ULTIMATES[id])]
         .flatMap(x => [x.name.uk, x.name.en, x.acc, bare(x.icon)]).filter(Boolean))];
@@ -176,7 +177,7 @@ console.log('\nEffect and ultimate names and icons only in their tables (EFFECTS
     const used = new Set(), bad = [];
     let hits = 0;
     lines.forEach((raw, i) => {
-        if ((start !== -1 && i >= start && i <= end) || (uStart !== -1 && i >= uStart && i <= uEnd)) return;
+        if ((start !== -1 && i >= start && i <= end) || (uStart !== -1 && i >= uStart && i <= uEnd) || (iStart !== -1 && i >= iStart && i <= iEnd)) return;
         const l = bare(raw.replace(/<!--.*?-->/g, '').replace(/\/\*.*?\*\//g, '').replace(/(^|[\s;{}),])\/\/.*$/, '$1'));
         const found = [...new Set([...(l.match(wordRe) || []), ...iconTerms.filter(t => l.includes(t))])];
         if (!found.length) return;
@@ -219,13 +220,14 @@ console.log('\nEffect names on the log cards: the accusative straight after a ve
     const A = fighter('A', 'red'), B = fighter('B', 'blue');
     const V = { uk: { applies: 'накладає', gets: 'отримує', refreshes: 'оновлює', removes: 'знімає', takes: 'забирає' },
                 en: { applies: 'applies', gets: 'gets', refreshes: 'refreshes', removes: 'removes', takes: 'takes' } };
-    const nom = (id, l) => `${EFFECTS[id].icon} ${EFFECTS[id].name[l]}`;
-    const acc = (id, l) => `${EFFECTS[id].icon} ${l === 'uk' ? ACC_UK[id] || EFFECTS[id].name.uk : EFFECTS[id].name.en}`;
-    // A card's second line: its words and chips in order, one space between
+    // On the overlay an effect is its icon (shown here as [id]) and its name, in its chip
+    const nom = (id, l) => `[${id}] ${EFFECTS[id].name[l]}`;
+    const acc = (id, l) => `[${id}] ${l === 'uk' ? ACC_UK[id] || EFFECTS[id].name.uk : EFFECTS[id].name.en}`;
+    // A card's second line: its words and chips in order, one space between (each icon as [id])
     const line2 = (o, l) => {
         G.setLang(l);
         const html = G.fvCardHtml({ turn: 3, atk: A, def: B, side: 'left', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: null, frozen: false, ...o }, 'left');
-        return [...html.slice(html.indexOf('<div class="lc-l2">')).matchAll(/<span class="l[kx]\b[^"]*"[^>]*>([^<]*)<\/span>/g)].map(m => m[1]).join(' ');
+        return view(html.slice(html.indexOf('<div class="lc-l2">')));
     };
     const cast = (id, result, owner, extra) => ({ casts: [{ id, result, owner, extra }] });
     const cases = [   // [what, the turn record, its second line in language l]
@@ -254,7 +256,7 @@ console.log('\nEffect names on the log cards: the accusative straight after a ve
     const f = fighter('A', 'red', titleWith('opening_buff')), badB = [], shownB = [];
     for (const id of G.POOL_IDS.filter(id => EFFECTS[id].kind === 'buff')) for (const l of ['uk', 'en']) {
         G.setLang(l);
-        const t = strip(G.fvBannerHtml({ kind: 'opening', data: { f, id } }));
+        const t = view(G.fvBannerHtml({ kind: 'opening', data: { f, id } }));
         if (!t.endsWith(l === 'uk' ? `починає бій з бафом ${nom(id, l)}` : `starts with ${nom(id, l)}`)) badB.push(`${id} (${l}): «${t}»`);
         else if (l === 'uk') shownB.push(nom(id, l));
     }
