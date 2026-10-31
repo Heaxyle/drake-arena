@@ -1978,7 +1978,7 @@
             if (!STREAMER_USER) {
                 box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">👑 ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-sub">${uk ? 'Стрімера ще не вказано' : 'No streamer set yet'}</span></div>`;
             } else if (!d) {
-                box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">👑 ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-name pname" style="color:${nameColor('#bfe9ff')}">@${STREAMER_USER}</span><span class="sc-sub">${uk ? 'ще без дракона: !дрейк білий' : 'no dragon yet: !drake white'}</span></div>`;
+                box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">👑 ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-name pname" style="color:${nameColor('#bfe9ff')}">@${STREAMER_USER}</span><span class="sc-sub">${uk ? 'ще без дрейка: !дрейк білий' : 'no drake yet: !drake white'}</span></div>`;
             } else {
                 const st = playerLeaderboardStats[STREAMER_USER] || { wins: 0, losses: 0 };
                 const lvl = calculateLevelAndProgress(d.xp || 0).level;
