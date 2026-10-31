@@ -66,9 +66,9 @@ What changes in the layout when this goes in (all within the fixed heights):
   richest) a solid red edge with gold corners and a white gem on top; meme the odd one out, a dotted edge in pink and yellow
   (confetti); divine white star points at the corners. **In the Top (×1) the frame is left out**: at 12 px its pattern is
   noise, so the Top shows the bare 10 px glyph.
-- **Drake emblems:** the element's sigil on a 10×10 rune tile in its colour (fire, waves, the night moon, a coin, a crystal,
-  a leaf; the White Dragon's wing). The tile keeps them apart from the bare effect glyphs (Burn's flame is not Red's fire tile).
-  They replace 🟥🟦⬛🟨🟪🟩🐉 in names and banners. (Later batch.)
+- **Drake emblems:** each drake's own head, drawn from its sprite, on a 10×10 tile in its colour, facing left like the
+  sprites (mirrored only on the title plate's left side, so both groups face the title). The tile keeps them apart from the
+  bare effect glyphs. They replace 🟥🟦⬛🟨🟪🟩🐉🤍 in names and banners. See "The emblems" below.
 
 ## Colour tells the element
 
@@ -204,7 +204,6 @@ ultra-block (a new `FV_TEXT` key, visual only; the fight already knows which one
 | Icon | Today | Glyph | Where |
 |---|---|---|---|
 | Jackpot: gem / coins / bust | 💎 🪙 💀 | a cut gem / two stacked coins / a red X | the reels chip in the log (the skull is Poison's; the coin reel is not Heads or tails' coin) |
-| Drake emblems | 🟥 🟦 ⬛ 🟨 🟪 🟩 🐉 | rune tiles: fire, waves, the night moon, a coin, a crystal, a leaf, a wing | the intro banner, drake names in info cards |
 | Bonus: HP / crit / defence / effect chance / buff power | ❤️ 💥 🛡️ – – | a heart / the crit «!» / a helmet / a wand with a sparkle / a buff chip's rounded shape with an arrow up | common-to-epic title badges; `!стата` |
 | 1st, 2nd, 3rd place | 🏆 and 🥇, 🥈, 🥉 | a medal: the same red ribbon with a white stripe on all three, a round disc with a rim in gold, silver or bronze, its place (1, 2, 3) bold in the middle; only the metal and the number change, and the ribbon keeps it from reading as Gold's coin. 12×12: at 10×10 the disc came out oval | the Top, the fighter card's name, `!стата`, the podium (×3), the Hall of Fame |
 | The tournament | 🏆 | a trophy | the plate, the sign-up strip, tournament banners |
@@ -227,8 +226,7 @@ Decided: chat replies (⚠️ ℹ️ 🛑 ❌ ✅ 👋 ⌛ 🤡, and «🔄 Ар
 info card's tone (ok, warning, note) already says it. Where a reply names a game thing (a drake, a title, a medal, an effect),
 it shows that thing's icon next to its name, as the reroll line does (the reroll icon and the new drake's emblem).
 
-The emblems can't use the drakes' own sprites (48×36 doesn't fit a line of text) and a drake head in each colour would differ
-by colour only, so each element has a sigil.
+The emblems (first element sigils on rune tiles) are the drakes' heads now: see "The emblems" below.
 
 Reserved, so the batches avoid them: a plain sword (no attack uses one), the horseshoe / U shape (the White Drake's Магніт).
 The skull is Poison's: KO is the tombstone, sudden death the warning sign, Jackpot's bust the X. Crit is the «!», never a blast
@@ -242,7 +240,7 @@ The skull is Poison's: KO is the tombstone, sudden death the warning sign, Jackp
 | The title roulette | 🎰 (odds), 🎲 (the roll card) | a prize wheel, 11×11 (a centre pixel, so the spokes are clean 1-pixel lines): eight sectors in the rarities' colours split by dark spokes, a gold rim and hub, a white pointer triangle on top pointing down into the wheel (a pointer sitting on the rim like a cap read as a bauble) | the odds card (`!шанси`), the roll card's head, the Twitch reward |
 | The meter full | ✦ | the drake's own ultimate icon (×1, 12 px in the 14 px row) | «ГОТОВО» on the Element Power meter |
 | A top-rarity roll | 🌟 / 🔥 / 🤪 | the rolled title's own badge at ×3 in its rarity frame, beside the shout | the roll's info card (legendary, mythic, meme; the card keeps its glow) |
-| The arena's title plate | six coloured squares | the six drake emblems at ×2, three either side of «ДРЕЙК-АРЕНА» | `.plaque` (the plate gets about 70 px wider; it stays centred) |
+| The arena's title plate | six coloured squares | the six drake emblems at ×2, three either side of «ДРЕЙК-АРЕНА», the left three mirrored so both groups face the title | `.plaque` (the plate gets about 70 px wider; it stays centred) |
 | Duel challenged, accepted | ⚔️ | the friendly duel's smile | info cards |
 
 - **Attacking is crossed swords.** A single plain sword stays reserved (no attack type uses one); the pair means only "this one
@@ -282,7 +280,7 @@ sprite's navy outline and slate shade, never Black's neutral grey). Review: revi
 | Магніт | 🔗 | a horseshoe magnet with green poles | its debuff chip; it lasts the target's next attack («ще 1 атака») |
 | Удар ковадла | 🔨 | an anvil, sparks flying off its face (12×12) | line 1 of its log card, the pending cell |
 | «Біла сталь» (title 998) | 👑 | an upright sword in white steel, a green gem in the guard | its badge in the divine frame; the `steel` banner, «Сталь не гнеться» |
-| The White Drake | 🤍 | its head on a white-steel tile, open-jawed, the Dragon's green mane down its neck (`hdSteel`); in the symbol set, its neck with the mane along it (`emSteel`) | in names, the intro banner, replies that name it, the streamer card |
+| The White Drake | 🤍 | the six drakes' head in white steel on a white-steel tile, the green eye, the Dragon's green mane swept back down its neck (`emSteel`; see "The emblems") | in names, the intro banner, replies that name it, the streamer card |
 
 - **The scale is the bar's icon, not the emblem.** A single scale read as Jackpot's gem, the Shield or a drop at 10 px; the
   layered pair doesn't. The emblem shows the drake itself, with the mane its sprite took from the Dragon.
@@ -296,13 +294,31 @@ sprite's navy outline and slate shade, never Black's neutral grey). Review: revi
 - Replies that name a form show its emblem by the name; their own leading 🤍 or 🛑 goes, as decided for chat replies.
 - The review's streamer card uses the game's two sprites, copied by `node design/icons/ref-sprites.js` into `ref/`.
 
-## Still open
+## The emblems: the drakes' heads
 
-0. **The emblem set** (review.html, section 16): the element symbols (`SYMBOL_EMBLEM_IDS`, today's batch-3 tiles plus a White
-   Drake symbol to match) or the drakes' heads (`HEAD_EMBLEM_IDS`: each drawn from its sprite, one pose facing left, on its
-   colour tile). One set for all eight; the other is deleted when the choice is made. Compared at ×1 and ×2 in the queue
-   (where the emblem replaces the 14 px colour square), the Top (before the level; the sprite stays), the card's name line,
-   a log banner and the title plate.
+Picked over the element symbols (the sigils on rune tiles, deleted). `EMBLEM_IDS` in icons.js, review.html section 16. Each is
+its own sprite's head (`DRAKE_SPRITES`) in 8×8 inside the 10×10 tile: the frame in the element's colour (`m`), a dark fill
+(`s`), the head facing left like the sprites. The six viewer drakes share the sprites' one head and keep the mark each sprite
+has, so they differ in outline, not only in colour (one head recoloured six times read as one drake in greyscale, and under
+red-green colour blindness Blue and Purple became one blue head, Red and Green two khaki ones).
+
+| Drake | Its mark |
+|---|---|
+| Red | the upright cream horn, its tip curving back; the crest behind it with orange flame tips |
+| Blue | the teal fin crest, a fan over the back of the head |
+| Black | the flat pale-violet horns, short, straight back; the sprite's violet glow as a rim round the near-black head, so it stands out from the grey tile |
+| Gold | the cream ram's horn curling round behind the eye |
+| Purple | the long horns swept back to the tile's corner, longer than Black's |
+| Green | the leaf blades fanning back, gaps between them |
+| The White Drake | the six drakes' head in white steel, the green eye, the green mane swept back down its neck |
+| The White Dragon | the wyvern's longer, lower snout and the green crown horns, so the two white heads differ in outline |
+
+`node design/icons/test.js` checks it: every two emblems' silhouettes (the drake's pixels against the tile's, colour
+ignored) differ in at least 4 pixels (the closest pair today, Purple and the White Drake, 5). A new drake's emblem must
+pass it too. Where they go: names in info cards and the intro banner, the queue (instead of the 14 px colour square), the
+Top (before the level; the sprite stays), the card's name line, the title plate (the left three mirrored).
+
+## Still open
 
 1. Under deuteranopia and protanopia, Red and Gold come out as close yellows (review.html, "Without colour"). The chips and
    glyphs keep every pair apart, so nothing needs a colour change for it.
