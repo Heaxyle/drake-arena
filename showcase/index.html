@@ -391,14 +391,18 @@
         .log-countdown.podium { gap: 10px; }
         .pd-title { font-size: 20px; font-weight: 800; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; }
         .pd { display: flex; align-items: flex-end; gap: 22px; }
-        .pd-col { width: 210px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .pd-col { width: 236px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
         .pd-sprite { width: 96px; height: 72px; image-rendering: pixelated; }
         .pd-1 .pd-sprite { width: 144px; height: 108px; }
-        .pd-name { max-width: 100%; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; }
-        .pd-step { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--plate); }
+        /* Above each step: the medal next to the name, as the Hall of Fame shows it (the name fitted with fitName) */
+        .pd-who { max-width: 100%; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .pd-medal { flex-shrink: 0; font-size: 20px; line-height: 1; }
+        .pd-name { flex: 0 1 auto; min-width: 0; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; }
+        /* The step holds only its place number, big and centred */
+        .pd-step { width: 100%; display: flex; align-items: center; justify-content: center; background: var(--plate); }
         .pd-1 .pd-step { height: 86px; } .pd-2 .pd-step { height: 62px; } .pd-3 .pd-step { height: 44px; }
-        .pd-medal { font-size: 24px; line-height: 1; }
-        .pd-place { font-family: var(--pixel); font-size: 14px; color: var(--gold); }
+        .pd-place { font-family: var(--pixel); font-size: 24px; line-height: 1; color: var(--gold); }
+        .pd-1 .pd-place { font-size: 32px; }
         /* Tournament rewards: the badge after a name, the champion's golden glow, the Hall of Fame */
         .fighter-name[data-medal]::after { content: attr(data-medal); margin-left: 8px; }
         .lb-medal { margin-left: 6px; }
@@ -1974,7 +1978,7 @@
             if (!STREAMER_USER) {
                 box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">👑 ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-sub">${uk ? 'Стрімера ще не вказано' : 'No streamer set yet'}</span></div>`;
             } else if (!d) {
-                box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">👑 ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-name pname" style="color:${nameColor('#bfe9ff')}">@${STREAMER_USER}</span><span class="sc-sub">${uk ? 'ще без дракона: !дрейк білий' : 'no dragon yet: !drake white'}</span></div>`;
+                box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">👑 ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-name pname" style="color:${nameColor('#bfe9ff')}">@${STREAMER_USER}</span><span class="sc-sub">${uk ? 'ще без дрейка: !дрейк білий' : 'no drake yet: !drake white'}</span></div>`;
             } else {
                 const st = playerLeaderboardStats[STREAMER_USER] || { wins: 0, losses: 0 };
                 const lvl = calculateLevelAndProgress(d.xp || 0).level;
@@ -4292,7 +4296,8 @@ function drakeSpriteURL(type) {
             const cut = [...box.querySelectorAll('.tb-n[data-full]')].filter(el => fitName(el)).map(el => el.dataset.full.slice(1));
             if (tourney && cut.some(n => !(tourney.cut || []).includes(n))) { tourney.cut = [...new Set([...(tourney.cut || []), ...cut])]; tourneySave(); renderArenaHeader(); }
         }
-        // 🥈 🥇 🥉 with names and sprites, in the log area
+        // The podium in the log area, 2nd, 1st, 3rd: each place's drake, its medal next to the name, and a step with only
+        // the place number
         function tourneyShowPodium() {
             if (!FV_LIVE) return;
             const panel = fvEl('log-panel'), box = fvEl('log-countdown'), s = arenaState;
@@ -4302,8 +4307,9 @@ function drakeSpriteURL(type) {
                 const d = name ? tourneyFighter(name) : null;
                 const sprite = d ? drakeSpriteURL(d.drakeObj.type) : '';
                 return `<div class="pd-col pd-${place}">${sprite ? `<img class="pd-sprite" src="${sprite}" alt="">` : ''}`
-                    + `<span class="pd-name pname" style="color:${d ? nameColor(d.color) : 'inherit'}">${name ? '@' + name : ''}</span>`
-                    + `<div class="pd-step frame-sm"><span class="pd-medal">${['🥇', '🥈', '🥉'][place - 1]}</span><span class="pd-place">${place}</span></div></div>`;
+                    + `<span class="pd-who">${name ? `<span class="pd-medal">${['🥇', '🥈', '🥉'][place - 1]}</span>` : ''}`
+                    + `<span class="pd-name pname" style="color:${d ? nameColor(d.color) : 'inherit'}">${name ? '@' + name : ''}</span></span>`
+                    + `<div class="pd-step frame-sm"><span class="pd-place">${place}</span></div></div>`;
             };
             box.className = 'log-countdown podium';
             box.innerHTML = `<span class="pd-title">${tT('podium')}</span><div class="pd">${step(s.podium[1], 2)}${step(s.podium[0], 1)}${step(s.podium[2], 3)}</div>`;

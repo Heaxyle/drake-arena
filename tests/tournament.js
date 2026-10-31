@@ -49,7 +49,8 @@ const { storageSettled } = require('./storage_sync');   // before a reload: the 
 const { tourneyDrawProblems } = require('./tourney_layout');
 
 const ROOT = path.join(__dirname, '..');
-const SHOTS = path.join(__dirname, 'screenshots');
+// A run against another page (TOUR_FILE) keeps its screenshots apart, so it never replaces this page's review shots
+const SHOTS = path.join(__dirname, 'screenshots', process.env.TOUR_FILE ? 'other-page' : '');
 // TOUR_FILE=<another index.html> runs the test against that page instead (the effects-off timeline is compared that way)
 const PAGE = 'file:///' + (process.env.TOUR_FILE ? path.resolve(process.env.TOUR_FILE) : path.join(ROOT, 'showcase/index.html')).replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);

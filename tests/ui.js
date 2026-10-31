@@ -34,7 +34,8 @@ const { offTwitch } = require('./no_twitch');   // a stand-in tmi.js: window.__c
 const { storageSettled } = require('./storage_sync');
 
 const ROOT = path.join(__dirname, '..');
-const SHOTS = path.join(__dirname, 'screenshots');
+// A run against another page (UI_FILE) keeps its screenshots apart, so it never replaces this page's review shots
+const SHOTS = path.join(__dirname, 'screenshots', process.env.UI_FILE ? 'other-page' : '');
 const STEP_MS = 500;              // fake-clock step between layout samples during a fight
 const FIGHT_LIMIT_MS = 5 * 60000; // a 2-minute betting window + 30 turns x 4.5s fits
 // The default seed is one where both languages show a full Element Power meter during the fights
@@ -644,8 +645,10 @@ async function testStreamerCard(browser, key) {
         const reward = { 'custom-reward-id': 'test-reward' };   // !рерол only counts as a channel-point redemption
 
         const none = await card();
-        if (none.type !== 'white' || !none.grey || none.w !== 120 || none.h !== 84) fail(`${tag} with no drake yet the card should show the greyed-out dragon at 120×84, got ${JSON.stringify(none)}`);
-        else pass(`${tag} no drake yet: the greyed-out dragon placeholder (${none.sub})`);
+        // «!дрейк білий» gives the White Drake, so the placeholder asks for a drake, not the dragon
+        const noneSub = lang === 'uk' ? 'ще без дрейка: !дрейк білий' : 'no drake yet: !drake white';
+        if (none.type !== 'white' || !none.grey || none.w !== 120 || none.h !== 84 || none.sub !== noneSub) fail(`${tag} with no drake yet the card should show the greyed-out dragon at 120×84 and "${noneSub}", got ${JSON.stringify(none)}`);
+        else pass(`${tag} no drake yet: the greyed-out dragon placeholder ("${none.sub}")`);
 
         await chat(lang === 'uk' ? '!дрейк білий' : '!drake white');
         const drake = await card();
