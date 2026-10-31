@@ -335,6 +335,9 @@ that every icon is at a whole-number scale of its drawing, and that no icon sits
   «Владика Етеру» their badges (×1), the reroll its two arrows, a duel the friendly smile, the tournament its trophy.
 - **Compact chips:** every note has its own glyph now, so Chaotic charge (the bolt) and Firestorm's «не блокується» (the
   crossed-out wall) compact to their glyph like the rest; armour-piercing is the spear, so no two compact chips look alike.
+- **A top-rarity roll's shout** («ЛЕГЕНДАРНИЙ ТИТУЛ!» …), once only in the hidden record, is on the roll card: in its head
+  line, in the rarity's colour, with the ×3 badge beside the title's name, so the card is no taller than a plain roll's (a
+  taller one made the chat panel drop an older card; `tests/layout.js` checks the three cards fit with a six-row Top).
 - **Quantum Dodge** has its own note in the log, «ухил» / "dodge" with its dashing chevrons (`fvNote('dodge')`, visual only).
 - **An attacking ultimate's card:** the header strip is its words (`УЛЬТИМЕЙТ · Вогняний шторм`); its 24 px icon is on
   line 1 by the move name, after the attack type's glyph (2 px into the gaps of the 20 px line, as planned).

@@ -680,6 +680,35 @@ async function startupNetwork(browser) {
             await context.close();
         }
 
+        // The chat panel with six drakes in the Top (its room shrinks with the Top): !стата, a legendary title roll and the
+        // odds card all stay on it, none taller than on main (a taller card makes addInfo drop the oldest so nothing is cut
+        // off; with the roll's ×3 badge on a line of its own the !стата card went); a 25-letter name on the roll card fits
+        console.log('\nThe chat panel: !стата, a top-rarity roll and the odds together');
+        for (const lang of ['uk', 'en']) {
+            const { page, context } = await open(browser, { lang });
+            const r = await page.evaluate(lang => {
+                const say = (u, m) => handleChatMessage('#test', { username: u, color: '#8ab4f8' }, m, false);
+                const names = ['flame_rider', 'nightowl_ua', 'goldfinch', 'arcane_kit', 'leafy_ua', 'tidecaller'], colours = ['червоний', 'чорний', 'золотий', 'фіолетовий', 'зелений', 'синій'];
+                names.forEach((n, i) => say(n, `!дрейк ${colours[i]}`));
+                const db = getDragonDB(); db.nightowl_ua.title = TITLES_DB.find(t => t.id === 183); saveDragonDB(db);
+                renderLeaderboard();
+                say('nightowl_ua', lang === 'uk' ? '!стата' : '!stats');
+                showTitleRoll('goldfinch', '#ffd166', TITLES_DB.find(t => t.id === 99));
+                showOddsCard();
+                const feed = document.getElementById('info-feed'), cards = [...feed.children];
+                const kinds = cards.map(c => c.classList.contains('stat') ? 'stats' : c.classList.contains('glow-legendary') ? 'roll' : /ic-head/.test(c.innerHTML) && !c.querySelector('[data-icon="stats"]') && c.querySelector('[data-icon="roulette"]') && !c.classList.contains('ok') ? 'odds' : 'other');
+                const roll = cards.find(c => c.classList.contains('glow-legendary'));
+                // The longest name there can be on the same roll card
+                showTitleRoll('mwmwmwmwmwmwmwmwmwmwmwmwm', '#ffd166', TITLES_DB.find(t => t.id === 99));
+                const long = feed.firstElementChild, head = long.querySelector('.ic-head');
+                return { room: feed.clientHeight, kinds, rows: document.querySelectorAll('#leaderboard-list .lb-row').length, rollH: roll ? roll.offsetHeight : 0,
+                    longH: long.offsetHeight, longFits: head.scrollWidth <= head.clientWidth + 1 && long.scrollWidth <= long.clientWidth + 1 };
+            }, lang);
+            check(r.rows === 6 && ['odds', 'roll', 'stats'].every(k => r.kinds.includes(k)) && r.rollH <= 84 && r.longH <= 84 && r.longFits,
+                `[${lang}] with six drakes in the Top (${r.room} px of chat), the odds card, a legendary roll (${r.rollH} px; ${r.longH} px with a 25-letter name, nothing cut off) and !стата all stay on the chat panel`, JSON.stringify(r));
+            await context.close();
+        }
+
         console.log('\nFrame colours');
         {
             const { page, context } = await open(browser, { lang: 'uk' });

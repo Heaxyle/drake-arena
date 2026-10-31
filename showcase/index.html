@@ -641,7 +641,11 @@
         .ic-xp { flex-grow: 1; height: 6px; background: var(--track); overflow: hidden; }
         .ic-xp > div { height: 100%; background: #9b7bff; }
         .ic-title { margin-top: 4px; font-weight: 700; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-        .ic-shout { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+        .ic-shout { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+        .ic-shout .ic-title { margin-top: 0; }
+        .ic-head .ic-shout-text { font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+        .ic-head.one-line .ic-who { min-width: 0; flex: 1 1 auto; overflow: hidden; }
+        .ic-head.one-line .ic-who-name { min-width: 0; overflow: hidden; white-space: nowrap; overflow-wrap: normal; }
         .ic-desc { color: var(--muted); font-size: 12px; }
         .ic-sprite { width: 48px; height: 36px; image-rendering: pixelated; vertical-align: middle; margin-left: 4px; }
         .rarity-tag { font-size: 10px; padding: 1px 4px; border-radius: 2px; border: 1px solid currentColor; margin-left: 4px; font-weight: 700; text-transform: uppercase; vertical-align: middle; }
@@ -5050,12 +5054,16 @@ function drakeSpriteURL(type) {
             const top = ['legendary', 'mythic', 'meme'].includes(title.rarity);
             const SHOUT = { uk: { legendary: 'ЛЕГЕНДАРНИЙ ТИТУЛ!', mythic: 'МІФІЧНИЙ ТИТУЛ!!', meme: 'МЕМНИЙ ТИТУЛ?!' }, en: { legendary: 'LEGENDARY TITLE!', mythic: 'MYTHIC TITLE!!', meme: 'MEME TITLE?!' } };
             const name = `<div class="ic-title" style="color: ${title.color};">${top ? '' : titleIcon(title, 1) + ' '}${title.name[currentLang]}${rarityTag(title)}</div>`;
-            addInfo(`
-                <div class="ic-head"><span style="color: ${userColor};">${pxIcon('roulette', 1)} @${username}</span><span style="font-size: 10px; color: #aaa;">${uk ? 'рулетка титулів' : 'title roulette'}</span></div>
-                ${top ? `<div class="ic-shout">${titleIcon(title, 3)}<div><b style="color: ${title.color};">${SHOUT[currentLang][title.rarity]}</b>${name}</div></div>` : name}
-                <div class="ic-desc">${describeTitleBonus(title)}</div>
+            // A top-rarity roll: the shout takes the head's label, and the ×3 badge sits beside the title and what it gives, so
+            // the card is no taller than a plain roll's (a taller one would push an older card off the chat panel)
+            const desc = `<div class="ic-desc">${describeTitleBonus(title)}</div>`;
+            const card = addInfo(`
+                <div class="ic-head${top ? ' one-line' : ''}"><span class="ic-who" style="color: ${userColor};">${pxIcon('roulette', 1)} <span class="ic-who-name">@${username}</span></span>${top ? `<b class="ic-shout-text" style="color: ${title.color};">${SHOUT[currentLang][title.rarity]}</b>` : `<span style="font-size: 10px; color: #aaa;">${uk ? 'рулетка титулів' : 'title roulette'}</span>`}</div>
+                ${top ? `<div class="ic-shout">${titleIcon(title, 3)}<div>${name}${desc}</div></div>` : name + desc}
                 ${spinsLeft === null ? '' : `<div class="ic-spin">${tH('freeSpin', { n: spinsLeft }, 1)}</div>`}
             `, 'ok', top ? 'glow-' + title.rarity : '');
+            // The shout shares the head's line: a long name shrinks to fit beside it (never below 9 px) instead of wrapping
+            if (top && card && card.querySelector) fitText(card.querySelector('.ic-who-name'), 9);
             if (top) {
                 const shout = uk
                     ? { legendary: '🌟 ЛЕГЕНДАРНИЙ ТИТУЛ!', mythic: '🔥 МІФІЧНИЙ ТИТУЛ!!', meme: '🤪 МЕМНИЙ ТИТУЛ?!' }[title.rarity]
