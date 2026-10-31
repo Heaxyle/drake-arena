@@ -5,7 +5,37 @@
 //    each fight's end (both HPs). This is what the fights *did*, independent of how the log looks, so two versions of
 //    the page can be compared: same events = same fights.
 //  - window.__fights: for each fight, the game time it started (so tests can step to exact turn times)
+//  - window.__vt(el): what an element shows, as text: the overlay draws pixel icons, not emoji, so each icon reads as
+//    [its id] (an effect chip «[mark] Мітку», the meter's «[firestorm] ГОТОВО»), whitespace collapsed. Like innerText,
+//    items that are laid out apart (blocks, flex and grid items) are read apart, but the text is as written (no
+//    text-transform). Checks that once looked for an emoji on screen look for its icon this way. window.__fxv(id, acc):
+//    an effect as a chip shows it (its icon and its name; acc: the name after a verb, in the accusative)
 function pageInit(seed) {
+    window.__vt = el => {
+        if (!el) return '';
+        const parts = [];
+        const apart = e => {
+            if (!e.isConnected) return false;
+            const d = getComputedStyle(e).display, p = e.parentElement && getComputedStyle(e.parentElement).display;
+            return (!!d && !d.startsWith('inline') && d !== 'contents') || /flex|grid/.test(p || '');
+        };
+        const walk = n => {
+            if (n.nodeType === 3) { parts.push(n.nodeValue); return; }
+            if (n.nodeType !== 1) return;
+            if (n.matches('img.px-icon')) { parts.push(` [${n.dataset.icon}] `); return; }
+            const sep = n !== el && apart(n);
+            if (sep) parts.push(' ');
+            n.childNodes.forEach(walk);
+            if (sep) parts.push(' ');
+        };
+        walk(el);
+        return parts.join('').replace(/\s+/g, ' ').trim();
+    };
+    window.__fxv = (id, acc = false) => `[${id}] ${acc && currentLang === 'uk' ? EFFECTS[id].acc : EFFECTS[id].name[currentLang]}`;
+    // The game's own overlay text for a key, as __vt reads it: __fvv (FV_TEXT, the fight view), __tv (TOURNEY_TEXT)
+    const shown = html => { const d = document.createElement('div'); d.innerHTML = html; return window.__vt(d); };
+    window.__fvv = (key, vars) => shown(fvH(key, vars));
+    window.__tv = (key, vars) => shown(tH(key, vars));
     let a = seed >>> 0;
     Math.random = () => {
         a = (a + 0x6D2B79F5) >>> 0;

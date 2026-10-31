@@ -82,7 +82,7 @@ function tourneyScreenProblems() {
 
 // In the page, on the podium (the plain one or the show's «Чемпіон арени»): what's wrong with its three places. Each step
 // holds only its place number, at least 20 px, centred (within 2 px) inside the step with 4 px of room or more; the medal
-// sits right before the name, on its line; no two of the names, medals, sprites (the champion's crown counts as part of
+// (the pixel medal of its place) sits right before the name, on its line; no two of the names, medals, sprites (the champion's crown counts as part of
 // its drake) and numbers overlap, in any column
 function podiumProblems() {
     const out = [], R = e => e.getBoundingClientRect();
@@ -108,6 +108,7 @@ function podiumProblems() {
         if (px < 20) out.push(`place ${place}: the number at ${px} px`);
         if (name && name.textContent.trim()) {
             if (!medal) out.push(`place ${place}: no medal next to the name`);
+            else if (!medal.querySelector(`img.px-icon[data-icon="${['medalGold', 'medalSilver', 'medalBronze'][place - 1]}"]`) || medal.textContent.trim()) out.push(`place ${place}: its medal isn't the pixel ${['gold', 'silver', 'bronze'][place - 1]} medal`);
             else {
                 const m = R(medal), a = R(name);
                 if (Math.abs((m.top + m.bottom - a.top - a.bottom) / 2) > 4) out.push(`place ${place}: the medal isn't on the name's line`);

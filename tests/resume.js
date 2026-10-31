@@ -84,7 +84,8 @@ async function fillQueue(page) {
     for (const n of PLAYERS) await chat(page, n, '!черга');
     return { pair: PLAYERS.slice(0, 2).sort(), waiting: PLAYERS.slice(2) };
 }
-const restartLine = v => v.info.some(t => /^🔄 Арену перезапущено: бій @\S+ — @\S+ починається знову\.$/.test(t.trim()));
+// The reply's 🔄 went (a reply's leading emoji does, on the overlay): its warning card says it
+const restartLine = v => v.info.some(t => /^Арену перезапущено: бій @\S+ — @\S+ починається знову\.$/.test(t.trim()));
 
 async function main() {
     const browser = await chromium.launch();

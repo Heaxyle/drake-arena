@@ -39,6 +39,7 @@ const { chromium } = require('playwright');
 const { pageInit } = require('./page_hooks');
 const { offTwitch } = require('./no_twitch');
 const { settleArena } = require('./settle');
+const { overlayIconIssues, overlaySelfTest } = require('./overlay_icons');
 
 const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
@@ -90,7 +91,7 @@ async function toFightTime(page, ms) {
 
 // ---- In the page: what the arena shows right now ----
 function arenaNow() {
-    const txt = el => el ? el.textContent.replace(/\s+/g, ' ').trim() : '';
+    const txt = el => window.__vt(el);   // each pixel icon as [id]
     const cards = [...document.querySelectorAll('#log-feed .lc')].map(c => ({
         turn: +txt(c.querySelector('.lc-turn')), side: c.classList.contains('left') ? 'left' : 'right', lit: c.classList.contains('lit'),
         crit: c.classList.contains('crit'), ult: txt(c.querySelector('.lc-ult')), l1: txt(c.querySelector('.lc-l1')), l2: [...c.querySelectorAll('.lc-l2 .lk, .lc-l2 .lx')].map(txt).join(' '),
@@ -115,11 +116,22 @@ function cardFitProblems() {
     const sw = document.getElementById('stage').getBoundingClientRect().width, k = sw ? sw / 1920 : 1;   // the review sheet hides the stage
     const width = el => { const sq = el.querySelector(':scope > .squeeze'), cs = getComputedStyle(el);
         return sq ? Math.ceil(sq.getBoundingClientRect().width / k + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)) : el.scrollWidth; };
+    // How far a line's words and chips reach below its box (px): a line that wraps puts them on a second row. A pixel
+    // icon is measured on its own: an ultimate's 24 px icon hangs 2 px into the gaps of its 20 px line, as designed
+    // (design/icons/style.md), and never more
+    const below = l => { const b = l.getBoundingClientRect(), tops = [];
+        l.querySelectorAll('.lk, .lx, .lc-num, .lc-critchip, .lc-turn, .lc-arrow, b, span:not(:has(*))').forEach(x => { if (!x.closest('img')) tops.push(x.getBoundingClientRect().bottom); });
+        const tw = document.createTreeWalker(l, NodeFilter.SHOW_TEXT);
+        for (let n = tw.nextNode(); n; n = tw.nextNode()) if (n.nodeValue.trim()) { const r = document.createRange(); r.selectNodeContents(n); [...r.getClientRects()].forEach(x => tops.push(x.bottom)); }
+        return (tops.length ? Math.max(...tops) : b.bottom) - b.bottom; };
+    const iconsHang = (l, what) => { const b = l.getBoundingClientRect();
+        l.querySelectorAll('img.px-icon').forEach(i => { const r = i.getBoundingClientRect();
+            if (r.top < b.top - 2.5 || r.bottom > b.bottom + 2.5) out.push(`icon ${i.dataset.icon} hangs ${Math.max(b.top - r.top, r.bottom - b.bottom).toFixed(1)} px out of its line on ${what}`); }); };
     const inside = (l2, what) => {
         const b = l2.getBoundingClientRect();
         l2.querySelectorAll('.lk, .lx').forEach(x => { const r = x.getBoundingClientRect();
             if (r.left < b.left - 1 || r.right > b.right + 1 || r.top < b.top - 1 || r.bottom > b.bottom + 1) out.push(`hidden: "${x.textContent}" on ${what}`); });
-        if (l2.querySelector('.lk.more') || [...l2.querySelectorAll('.lk')].some(x => /^\+\d+$/.test(x.textContent.trim()))) out.push(`"+N" on ${what}`);
+        if (l2.querySelector('.lk.more') || [...l2.querySelectorAll('.lk')].some(x => /^\+\d+$/.test(window.__vt(x)))) out.push(`"+N" on ${what}`);
     };
     document.querySelectorAll('#log-feed .lc, #review-sheet .lc').forEach(c => {
         const what = `card "${c.textContent.slice(0, 40)}"`;
@@ -133,7 +145,8 @@ function cardFitProblems() {
         if (wrapped !== c.classList.contains('l3') || (wrapped && !tall)) out.push(`${what}: a wrapped second line without .l3 and .tall`);
         lines.forEach(l => {
             if (width(l) > l.clientWidth + 1) out.push(`cut off: "${l.textContent.slice(0, 60)}" ${width(l)} > ${l.clientWidth}`);
-            if (!(l === l2 && wrapped) && l.scrollHeight > l.clientHeight + 1) out.push(`wraps: "${l.textContent.slice(0, 60)}"`);
+            if (!(l === l2 && wrapped) && below(l) > 1) out.push(`wraps: "${l.textContent.slice(0, 60)}"`);
+            iconsHang(l, what);
         });
         // Second lines are never drawn below 90% of their normal size (font size × any sideways squeeze)
         if (l2) {
@@ -183,8 +196,10 @@ function cardShowsAll(el, rec, side, lang) {
     const keep = currentLang; currentLang = lang;
     const box = document.createElement('div'); box.innerHTML = fvCardHtml(rec, side);
     currentLang = keep;
-    const want = [...box.querySelectorAll('.lc-l2 .lk')].map(k => ({ text: k.textContent, c: k.dataset.c, first: !k.closest('.lg') }));
-    const got = [...el.querySelectorAll('.lc-l2 .lk')].map(k => k.textContent);
+    // A chip's compact form: its icon (data-ci) and its number (data-ct), read as __vt reads the compact chip
+    const compactOf = k => k.dataset.c ? `${k.dataset.ci ? `[${k.dataset.ci}] ` : ''}${k.dataset.ct || ''}`.trim() : undefined;
+    const want = [...box.querySelectorAll('.lc-l2 .lk')].map(k => ({ text: window.__vt(k), c: compactOf(k), first: !k.closest('.lg') }));
+    const got = [...el.querySelectorAll('.lc-l2 .lk')].map(k => window.__vt(k));
     const out = [], left = [...got];
     const alike = {};
     want.forEach(w => {
@@ -598,8 +613,11 @@ async function popAtStep2(page, turn) {
             await register(page, lang, [['kotyk_ua', 'red', '#ff7f50'], ['jade', 'green', '#8c8cff'], ['mwmwmwmwmwmwmwmwmwmwmwmwm', 'black', '#000000'],
                 ['sapphire', 'blue', '#5fd4ff'], ['ruby', 'gold', '#ffd166'], ['mira', 'purple', '#c792ea'], ['streamer_with_long_name', 'white', '#bfe9ff']]);
             const fights = [['kotyk_ua', 'jade', true], ['mwmwmwmwmwmwmwmwmwmwmwmwm', 'sapphire', false], ['ruby', 'mira', true], ['streamer_with_long_name', 'kotyk_ua', false]];
-            const allProblems = [], fit = [], ids = new Set(), tails = [];
+            const allProblems = [], fit = [], ids = new Set(), tails = [], iconIssues = new Set();
             let resultChecks = [], onlyCurrent = [], xpChecks = [];
+            // The overlay check catches what it's for (a planted emoji, an icon at ×1.5, a squeezed icon), then runs every turn
+            const selfMissed = await overlaySelfTest(page);
+            check(!selfMissed.length, `[${lang}] the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon and an icon over its words`, `not reported: ${selfMissed.join(', ')}`);
             for (const [a, b, ranked] of fights) {
                 await page.clock.runFor(4 * 60000);   // a pause between fights (there is no rest now; kept so the seeded fights stay the same)
                 const xpBefore = await page.evaluate(([a, b]) => ({ [a]: getDragonStrict(a).xp, [b]: getDragonStrict(b).xp }), [a, b]);
@@ -609,6 +627,7 @@ async function popAtStep2(page, turn) {
                 const pops = [];
                 const seen = await playChecked(page, `[${lang}] ${a} vs ${b}`, {
                     onStep1: async (s1, turn) => {
+                        (await overlayIconIssues(page)).forEach(i => iconIssues.add(`turn ${turn}: ${i}`));
                         // Only the current fight's cards: after its first turn, no card from an earlier fight
                         if (turn === 1) {
                             // The visible log and the hidden text record (#battle-log) hold only this fight
@@ -652,6 +671,8 @@ async function popAtStep2(page, turn) {
                 JSON.stringify(resultChecks.filter(r => !r.ok).slice(0, 1)));
             check(onlyCurrent.every(Boolean) && onlyCurrent.length === fights.length, `[${lang}] each new fight starts with an empty log and an empty text record (#battle-log): only its own cards, names and turns`, JSON.stringify(onlyCurrent));
             check(!ids.size, `[${lang}] no internal ids, placeholders or broken values on screen`, [...ids].join(', '));
+            (await overlayIconIssues(page)).forEach(i => iconIssues.add(`result: ${i}`));
+            check(!iconIssues.size, `[${lang}] every turn and result of the ${fights.length} fights: no emoji on the overlay, every icon at a whole-number scale of its drawing, none missing`, [...iconIssues].slice(0, 5).join(' | '));
             if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
@@ -710,13 +731,13 @@ async function popAtStep2(page, turn) {
                     await settleArena(page);
                     found = await page.evaluate(id => {
                         const c = [...document.querySelectorAll('#log-feed .lc')].pop();
-                        if (!c || !(c.textContent.includes(fxName(id)) || c.textContent.includes(fxAcc(id)))) return null;
-                        const ownerChips = ['p1', 'p2'].flatMap(p => [...document.querySelectorAll(`#status-${p} .status-item`)].map(x => x.textContent));
-                        return { l2: [...c.querySelectorAll('.lc-l2 .lk, .lc-l2 .lx')].map(x => x.textContent.trim()).join(' '), chip: EFFECTS[id].lasts === 'instant' ? '' : effectChipText({ id, left: EFFECTS[id].count }), ownerChips, forced: forcedCast };
+                        if (!c || !(__vt(c).includes(__fxv(id)) || __vt(c).includes(__fxv(id, true)))) return null;
+                        const ownerChips = ['p1', 'p2'].flatMap(p => [...document.querySelectorAll(`#status-${p} .status-item`)].map(x => __vt(x)));
+                        return { l2: [...c.querySelectorAll('.lc-l2 .lk, .lc-l2 .lx')].map(x => __vt(x)).join(' '), chip: EFFECTS[id].lasts === 'instant' ? '' : `${__fxv(id)} · ${effectLeftText(id, EFFECTS[id].count)}`, ownerChips, forced: forcedCast };
                     }, id);
                 }
                 if (!found) { results.push({ id, ok: false, why: 'never cast' }); continue; }
-                const e = await page.evaluate(id => ({ kind: EFFECTS[id].kind, lasts: EFFECTS[id].lasts, name: fxName(id), acc: fxAcc(id) }), id);
+                const e = await page.evaluate(id => ({ kind: EFFECTS[id].kind, lasts: EFFECTS[id].lasts, name: __fxv(id), acc: __fxv(id, true) }), id);
                 const label = { uk: e.kind === 'buff' ? 'отримує' : 'накладає', en: e.kind === 'buff' ? 'gets' : 'applies' }[lang];
                 const refresh = { uk: 'оновлює', en: 'refreshes' }[lang], removes = { uk: 'знімає', en: 'removes' }[lang], lost = { uk: 'зникає', en: 'lost' }[lang];
                 // After the verb the accusative («накладає 🎯 Мітку»); a replacement names it first, in the nominative: «X · Y зникає»
@@ -740,11 +761,11 @@ async function popAtStep2(page, turn) {
             await page.click('button[data-i18n="btn_settings"]');
             await page.evaluate(() => setStreamerUser('stalwart'));
             await register(page, lang, [['stalwart', 'steel', '#e8f6ff'], ['ruby', 'red', '#ff7f50']]);
-            const W = await page.evaluate(() => ({ magnet: fxAcc('magnet'), reforge: fxAcc('reforge'), rage: fxName('rage'), burn: fxName('burn'),   // the first two after a verb
-                bounced: fvT('bounced'), pulled: fvT('pulled'), cracked: fvT('cracked'), scales: fvT('scales'), steelIn: fvT('steelIn'), steelWin: fvT('steelWin'), steelLoss: fvT('steelLoss') }));
+            const W = await page.evaluate(() => ({ magnet: __fxv('magnet', true), reforge: __fxv('reforge', true), rage: __fxv('rage'), burn: __fxv('burn'),   // the first two after a verb
+                bounced: __fvv('bounced'), pulled: __fvv('pulled'), cracked: __fvv('cracked'), scales: __fvv('scales'), steelIn: __fvv('steelIn'), steelWin: __fvv('steelWin'), steelLoss: __fvv('steelLoss') }));
             const applies = cmd(lang, 'накладає', 'applies'), gets = cmd(lang, 'отримує', 'gets');
             const pick = async id => { await page.selectOption('#debug-force-cast', ''); if (id) await page.selectOption('#debug-force-cast', id); };
-            const chipOn = (id, side) => page.evaluate(([id, side]) => [...document.querySelectorAll(`#status-${side} .status-item`)].some(x => x.textContent.startsWith(fxName(id))), [id, side]);
+            const chipOn = (id, side) => page.evaluate(([id, side]) => [...document.querySelectorAll(`#status-${side} .status-item`)].some(x => __vt(x).startsWith(__fxv(id))), [id, side]);
             // What each cast from the menu must say on its card: a Підпал on the White Drake bounces while its scales hold; a
             // Лють the foe casts under Магніт goes to the White Drake
             const says = { burn: l2 => l2.includes(`${W.burn} ${W.bounced}`), magnet: l2 => l2.includes(`${applies} ${W.magnet}`),
@@ -783,8 +804,8 @@ async function popAtStep2(page, turn) {
                         todo.delete(id);
                     } else if (id) await pick('');   // used up by a hit that didn't show it, or not at all: picked again on its turn
                     if (card && card.l2.includes(W.cracked)) crackSeen = true;
-                    if (card && /⚒️ \+\d+/.test(card.l2)) rebuildSeen = true;
-                    if (card && (card.l2.includes(`${W.scales} -`) || /🤍 -\d+/.test(card.l2))) scalesHitSeen = true;
+                    if (card && /\[reforge\] \+\d+/.test(card.l2)) rebuildSeen = true;
+                    if (card && (card.l2.includes(`${W.scales} -`) || /\[scales\] -\d+/.test(card.l2))) scalesHitSeen = true;
                     panel.push(await page.evaluate(() => { const p = document.getElementById('log-panel'); return p.classList.contains('steel-fight') && /^url\(/.test(p.style.backgroundImage); }));
                     const up = await page.evaluate(() => !!battleFx && !!battleFx.stalwart && battleFx.stalwart.scales.now > 0 && battleFx.stalwart.scales.now < battleFx.stalwart.scales.max);
                     if (lang === 'uk' && !shots && done.magnet && up) {
@@ -818,7 +839,7 @@ async function popAtStep2(page, turn) {
             check(!missing.length, `[${lang}] the White Drake's lines: «${(done.burn || '').slice(0, 40)}», «${(done.magnet || '').slice(0, 30)}», «${(done.rage || '').slice(0, 45)}», «${(done.reforge || '').slice(0, 30)}», each chip on the right card`,
                 JSON.stringify({ missing, done, chips }));
             check(menuOnlyWd === true, `[${lang}] Перекування from the test menu waits for the White Drake's own hit (the foe's damaging hit leaves it picked)`, String(menuOnlyWd));
-            check(crackSeen && rebuildSeen && scalesHitSeen, `[${lang}] what a hit takes off the scales («🤍 -N»), «${W.cracked}» and Перекування's «⚒️ +N» on the cards`, JSON.stringify({ crackSeen, rebuildSeen, scalesHitSeen }));
+            check(crackSeen && rebuildSeen && scalesHitSeen, `[${lang}] what a hit takes off the scales («[scales] -N»), «${W.cracked}» and Перекування's «[reforge] +N» on the cards (pixel icons)`, JSON.stringify({ crackSeen, rebuildSeen, scalesHitSeen }));
             check(fights.length && fights.every(r => r.banner && r.line), `[${lang}] every White Drake fight opens with «${W.steelIn}» and its result card says «${W.steelWin}» or «${W.steelLoss}», as it ended (${fights.map(f => f.won ? 'won' : 'lost').join(', ')})`, JSON.stringify(fights));
             check(panel.length && panel.every(Boolean) && plainAfter, `[${lang}] the faint White Dragon behind the log through every turn of its fights (${panel.length}), gone in the next fight without it`, JSON.stringify({ panel: panel.slice(0, 12), plainAfter }));
             if (lang === 'uk') check(shots && logShot, 'screenshots: tests/screenshots/white-drake-card.png, white-drake-fight.png, white-drake-log.png', JSON.stringify({ shots, logShot }));
@@ -831,8 +852,9 @@ async function popAtStep2(page, turn) {
         if (run(5)) for (const lang of ['uk', 'en']) {
             const { page, context, errors } = await open(browser, { lang });
             await page.click('button[data-i18n="btn_settings"]');
-            const ults = await page.evaluate(() => ULTIMATE_IDS.map(id => ({ id, element: CLASS_ULTIMATES[id].element, label: ultLabel(id), name: ultName(id), icon: CLASS_ULTIMATES[id].icon })));
+            const ults = await page.evaluate(() => ULTIMATE_IDS.map(id => ({ id, element: CLASS_ULTIMATES[id].element, label: `${METER.label[currentLang]} · ${CLASS_ULTIMATES[id].name[currentLang]}`, name: `[${id}] ${CLASS_ULTIMATES[id].name[currentLang]}`, icon: CLASS_ULTIMATES[id].icon })));
             const jackpotCases = [['💎', '💎', '💎'], ['💎', '🪙', '💀'], ['🪙', '💀', '💀'], ['💀', '💀', '💀']];
+            const REEL = { '💎': '[reelgem]', '🪙': '[reelcoin]', '💀': '[reelbust]' };   // each reel's pixel icon on the card
             const runs = [...ults.map(u => ({ u })), ...jackpotCases.map(reels => ({ u: ults.find(x => x.id === 'jackpot'), reels }))];
             const results = [];
             let n = 0;
@@ -872,8 +894,8 @@ async function popAtStep2(page, turn) {
                 await page.clock.runFor(HIT + 100);
                 const want = await page.evaluate(([id, lang]) => ({
                     unblockable: { uk: 'не блокується', en: 'unblockable' }[lang], miss: { uk: 'промах', en: 'miss' }[lang],
-                    burn: fxName('burn'), hits: `${CLASS_ULTIMATES.mirror.icon} ${unitLeftText('hits', CLASS_ULTIMATES.mirror.nums.hits)}`,
-                    takes: { uk: 'забирає', en: 'takes' }[lang], forced: { uk: 'гарантований крит', en: 'guaranteed crit' }[lang], rage: fxName('rage'),
+                    burn: __fxv('burn'), hits: `[mirror] ${unitLeftText('hits', CLASS_ULTIMATES.mirror.nums.hits)}`,
+                    takes: { uk: 'забирає', en: 'takes' }[lang], forced: { uk: 'гарантований крит', en: 'guaranteed crit' }[lang], rage: __fxv('rage'),
                     anvil: CLASS_ULTIMATES.anvil.nums.dmgMult,
                 }), [u.id, lang]);
                 let detail = false;
@@ -885,7 +907,7 @@ async function popAtStep2(page, turn) {
                     if (u.id === 'jackpot') {
                         const reels = run.reels || null, miss = reels ? reels.filter(r => r === '💀').length >= 2 : null;
                         const gems = reels ? reels.filter(r => r === '💎').length : 0;
-                        detail = reels ? l2.includes(reels.join(' ')) && (miss ? l2.includes(want.miss) && card.num === '0' : l2.includes(`×${1 + gems}`)) : /💎|🪙|💀/.test(l2);
+                        detail = reels ? l2.includes(reels.map(r => REEL[r]).join(' ')) && (miss ? l2.includes(want.miss) && card.num === '0' : l2.includes(`×${1 + gems}`)) : /\[reel(gem|coin|bust)\]/.test(l2);
                     }
                     if (u.id === 'detonation') detail = /×\d/.test(l2);
                     if (u.id === 'anvil') detail = l2.includes(`×${want.anvil}`);
@@ -896,7 +918,7 @@ async function popAtStep2(page, turn) {
             }
             await page.evaluate(() => { if (window.__realSpin) window.spinReel = window.__realSpin; });
             const bad = results.filter(r => !r.ok);
-            check(!bad.length, `[${lang}] every ultimate from the СИЛА button: the tab shows its icon and name with the stronger glow, the card's header strip says "${lang === 'uk' ? '☄️ УЛЬТИМЕЙТ · …' : '☄️ ULTIMATE · …'}" and lists what it did; Jackpot shows its reels for 💎💎💎, 💎🪙💀 and both misses`,
+            check(!bad.length, `[${lang}] every ultimate from the СИЛА button: the tab shows its icon and name with the stronger glow, the card's header strip says "${lang === 'uk' ? 'УЛЬТИМЕЙТ · …' : 'ULTIMATE · …'}" (its icon on line 1) and lists what it did; Jackpot shows its reels' icons (gem, coins, bust) for 💎💎💎, 💎🪙💀 and both misses`,
                 bad.slice(0, 3).map(r => `${r.id}: ${r.why}`).join(' | '));
             if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
@@ -1018,8 +1040,8 @@ async function popAtStep2(page, turn) {
             const fitIssues = await page.evaluate(cardFitProblems);
             const n = await page.evaluate(() => document.querySelectorAll('#review-sheet .lc').length);
             const burnOnce = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .lc')].filter(c => (c.querySelector('.lc-turn') || {}).textContent === '15')
-                .map(c => [...c.querySelectorAll('.lc-l2 .lk')].filter(x => x.textContent.includes(EFFECTS.burn.icon)).length));
-            check(burnOnce.length === 2 && burnOnce.every(k => k === 1), 'one attack touching the same effect twice (Firestorm applies 🔥 Burn, its cast refreshes it) shows it once', JSON.stringify(burnOnce));
+                .map(c => [...c.querySelectorAll('.lc-l2 .lk')].filter(x => __vt(x).includes('[burn]')).length));
+            check(burnOnce.length === 2 && burnOnce.every(k => k === 1), 'one attack touching the same effect twice (Firestorm applies Burn, its cast refreshes it) shows its chip once', JSON.stringify(burnOnce));
             // Every card on the sheet shows every item it has; the crowded ones (24, and the busiest turn 25 with 26 beside it)
             // keep what the attack did first and in full, the rest compact, no "+N"
             const shown = await page.evaluate(() => window.__sheet.flatMap(({ item, lang }) => item.type !== 'row' ? [] : ['left', 'right']
@@ -1035,8 +1057,10 @@ async function popAtStep2(page, turn) {
                 `the crowded cards (turns 24–26, both languages) show all their items, the lower-priority ones compact: ${crowded.map(x => `[${x.lang}] ${x.turn}: ${x.got.length} chips, ${x.compact} compact, ${x.lines} line${x.lines > 1 ? 's' : ''}`).join(' · ')}`,
                 JSON.stringify(crowded));
             const busiest = crowded.filter(x => x.turn === 25);
-            const pierceChaos = busiest.every(x => x.got.includes(cmd(x.lang, '⚡ хаос', '⚡ chaos')) && x.got.filter(t => t === '⚡').length === 1);
-            check(pierceChaos, 'on the busiest turn armour-piercing is a bare ⚡ and Chaotic charge keeps its word («⚡ хаос» / "⚡ chaos")', JSON.stringify(busiest.map(x => x.got)));
+            // Armour-piercing (a spear through armour) and Chaotic charge (a bolt) are two drawings now, both once, whatever
+            // their form (cardShowsAll already fails any two items shown alike)
+            const pierceChaos = busiest.every(x => x.got.filter(t => t.startsWith('[pierce]')).length === 1 && x.got.filter(t => t.startsWith('[chaos]')).length === 1);
+            check(pierceChaos, 'on the busiest turn armour-piercing and Chaotic charge each show their own icon, once', JSON.stringify(busiest.map(x => x.got)));
             check(busiest.length === 2 && busiest.every(x => x.got.length === 17 && !x.out.length),
                 `the busiest turn there can be (an ultimate, a crit in sudden death, effects landing and ticking, title mechanics): all 17 items in both languages, nothing cut off; ${busiest.map(x => `[${x.lang}] its second line wraps onto ${x.lines} lines`).join(', ')} (the card grows rather than hide anything)`,
                 JSON.stringify(busiest));
@@ -1044,19 +1068,19 @@ async function popAtStep2(page, turn) {
             // The White Drake's own lines, in both languages: the bounce, the pull, the crack, the rebuild, Удар ковадла's
             // re-forge, the banner and both result lines
             const steelMissing = await page.evaluate(() => {
-                const t = document.getElementById('review-sheet').innerText;
-                const want = ['uk', 'en'].flatMap(l => { currentLang = l; return ['bounced', 'pulled', 'cracked', 'steelIn', 'steelWin', 'steelLoss'].map(k => fvT(k))
-                    .concat(`${fvT('pulled')} · ${fxName('regen')} ${fvT('lost')}`); });   // the pulled card (turn 31): «… · 💚 Регенерація зникає»
+                const t = __vt(document.getElementById('review-sheet'));
+                const want = ['uk', 'en'].flatMap(l => { currentLang = l; return ['bounced', 'pulled', 'cracked', 'steelIn', 'steelWin', 'steelLoss'].map(k => __fvv(k))
+                    .concat(`${fvT('pulled')} · ${__fxv('regen')} ${fvT('lost')}`); });   // the pulled card (turn 31): «… · [regen] Регенерація зникає»
                 currentLang = 'uk';
-                return [...new Set(want)].concat([`${EFFECTS.reforge.icon} +15`, '🤍 +31', `${CLASS_ULTIMATES.anvil.icon} `]).filter(w => !t.replace(/\s+/g, ' ').includes(w));
+                return [...new Set(want)].concat(['[reforge] +15', '[scales] +31', '[anvil] ']).filter(w => !t.includes(w));
             });
             check(!steelMissing.length, "the White Drake's cards on the sheet, both languages: a debuff bounced off its scales, a buff pulled to it (replacing one), the scales cracking, Перекування's rebuild, Удар ковадла re-forging them, its banner and both result lines",
                 steelMissing.join(' | '));
             // A dropped effect is named first, then «зникає» (its name stays in the nominative): a replaced buff (turn 9), a
             // replaced debuff (the busiest turn), Shadow Theft's lost buff (turn 18); no card says «замінює» any more
             const dropped = await page.evaluate(() => {
-                const t = document.getElementById('review-sheet').innerText.replace(/\s+/g, ' ');
-                const want = ['uk', 'en'].flatMap(l => { currentLang = l; return [`${fxName('divine')} · ${fxName('blessing')} ${fvT('lost')}`, `· ${fxName('weakness')} ${fvT('lost')}`, `${fxName('shield')} · ${fxName('blessing')} ${fvT('lost')}`]; });
+                const t = __vt(document.getElementById('review-sheet'));
+                const want = ['uk', 'en'].flatMap(l => { currentLang = l; return [`${__fxv('divine')} · ${__fxv('blessing')} ${fvT('lost')}`, `· ${__fxv('weakness')} ${fvT('lost')}`, `${__fxv('shield')} · ${__fxv('blessing')} ${fvT('lost')}`]; });
                 currentLang = 'uk';
                 return { missing: want.filter(w => !t.includes(w)), replaces: /замінює|\breplaces\b/.test(t) };
             });
@@ -1331,11 +1355,11 @@ async function popAtStep2(page, turn) {
             const wd = await page.evaluate(() => {
                 const note = document.querySelector('#log-feed .log-result .lr-note');
                 return { winner: arenaState.winner && arenaState.winner.name, ranked: arenaState.ranked, xp: getDragonStrict('brave').xp, stats: JSON.stringify(playerLeaderboardStats),
-                         note: note && note.textContent, cut: !!note && note.scrollWidth > note.clientWidth + 1,
+                         note: note && __vt(note), cut: !!note && note.scrollWidth > note.clientWidth + 1,
                          xpCells: [...document.querySelectorAll('#log-feed .log-result .lr-xp')].map(c => c.textContent) };
             });
             check(wd.ranked && wd.winner === 'dragonkeeper' && wd.xp - wd0.xp === 10 && wd.stats === wd0.stats && wd.xpCells.includes('+10 XP')
-                && wd.note === cmd(lang, '🐉 Бій з Білим Драконом: без перемоги й поразки в Топі', '🐉 A fight with the White Dragon: no win or loss in the Top') && !wd.cut,
+                && wd.note === cmd(lang, '[emDragon] Бій з Білим Драконом: без перемоги й поразки в Топі', '[emDragon] A fight with the White Dragon: no win or loss in the Top') && !wd.cut,
                 `${tag} a ranked fight against the White Dragon: @brave +10 XP, no win or loss for either side, and the result card says "${wd.note}", not cut off`, JSON.stringify({ wd, wd0 }));
             await page.locator('#log-feed .log-result').screenshot({ path: path.join(SHOTS, `fightview-dragon-result-${lang}.png`) });
             await hold();

@@ -29,6 +29,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { chromium } = require('playwright');
 const { pageInit } = require('./page_hooks');
+const { overlayIconIssues } = require('./overlay_icons');
 const { settleArena } = require('./settle');
 const { offTwitch } = require('./no_twitch');   // a stand-in tmi.js: window.__chat types into chat, nothing reaches Twitch
 const { storageSettled } = require('./storage_sync');
@@ -101,7 +102,7 @@ function infoFeedProblems() {
 
 // Runs in the page: text of every buff/debuff chip on both cards, and whether its ellipsis cut it off
 function effectChips() {
-    return [...document.querySelectorAll('#status-p1 .status-item, #status-p2 .status-item')].map(c => [c.innerText.trim(), c.scrollWidth > c.clientWidth + 1]);
+    return [...document.querySelectorAll('#status-p1 .status-item, #status-p2 .status-item')].map(c => [window.__vt(c), c.scrollWidth > c.clientWidth + 1]);   // the effect's icon as [id]
 }
 
 // Runs in the page: the Element Power meter rows — where they sit relative to their neighbours (the chips above, the HP
@@ -117,7 +118,8 @@ function powerMeters() {
         const content = kids.length ? Math.max(...kids.map(c => c.right)) : r.left;
         const name = document.getElementById(`name-${p}`).innerText.replace('@', '').trim();
         const st = isBattleRunning && typeof battleFx !== 'undefined' && battleFx && battleFx[name];   // between fights the cards are idle
-        return { p, text: row.innerText.replace(/\s+/g, ' ').trim(), pips: row.querySelectorAll('.pm-pip').length, on: row.querySelectorAll('.pm-pip.on').length,
+        const d = getDragonStrict(name), ult = d && d.drakeObj ? ultimateFor(d.drakeObj.type) : null;   // «ГОТОВО» shows this ultimate's icon
+        return { p, ult, text: window.__vt(row), pips: row.querySelectorAll('.pm-pip').length, on: row.querySelectorAll('.pm-pip.on').length,
                  meter: st ? st.meter : null, overlapsChips: r.height > 0 && r.top < chips.bottom - 0.5, overlapsHp: r.height > 0 && r.bottom > hp.top + 0.5,
                  // the sprite is on the right of the left card and on the left of the right card: check both sides
                  overlapsSprite: Math.min(content, sprite.right) > Math.max(from, sprite.left) + 0.5 && r.bottom > sprite.top && r.top < sprite.bottom, cut: row.scrollWidth > row.clientWidth + 1,
@@ -164,7 +166,9 @@ async function testVersion(browser, key) {
     await page.addStyleTag({ content: 'html { background: #1e1f26; }' });
 
     // Animations run on real time, not the fake clock: let every one in the arena finish first
-    const shot = async name => { await settleArena(page); await page.screenshot({ path: path.join(SHOTS, `${key}-${name}.png`) }); };
+    // Every screenshot is also an overlay check: no emoji on stream, every icon at a whole-number scale
+    const iconIssues = new Set();
+    const shot = async name => { await settleArena(page); (await overlayIconIssues(page)).forEach(i => iconIssues.add(`${name}: ${i}`)); await page.screenshot({ path: path.join(SHOTS, `${key}-${name}.png`) }); };
     const chat = (user, msg, extra) => page.evaluate(([u, m, e]) => window.__chat(u, m, e), [user, msg, extra]);
     const logText = () => page.locator('#battle-log').innerText();
     const infoCount = () => page.locator('#info-feed .info-card').count();
@@ -242,7 +246,7 @@ async function testVersion(browser, key) {
                 meterTexts.add(m.text);
                 meterLangs[lang] = (meterLangs[lang] || 0) + 1;
                 if (m.meter === 5) meterFullLangs[lang] = (meterFullLangs[lang] || 0) + 1;
-                const short = lang === 'uk' ? 'СИЛА' : 'POWER', ready = lang === 'uk' ? '✦ ГОТОВО' : '✦ READY';
+                const short = lang === 'uk' ? 'СИЛА' : 'POWER', ready = `[${m.ult}] ${lang === 'uk' ? 'ГОТОВО' : 'READY'}`;   // the drake's own ultimate icon, no ✦
                 if (m.pips !== 5 || m.on !== m.meter || !m.text.startsWith(short)) meterIssues.add(`${label}: #power-${m.p} shows ${m.on}/${m.pips} pips "${m.text}" for meter ${m.meter}`);
                 if (m.meter === 5) { meterFullSeen++; if (!m.text.includes(ready)) meterIssues.add(`${label}: full meter without "${ready}": "${m.text}"`); }
                 else if (m.text.includes(ready)) meterIssues.add(`${label}: "${ready}" shown at meter ${m.meter}`);
@@ -417,9 +421,9 @@ async function testVersion(browser, key) {
             db.__worst = { name: '__worst', color: '#fff', drakeObj: DRAKE_TYPES.find(d => d.type === 'blue'), title: TITLES_DB.find(t => t.name.uk.length > 25) || TITLES_DB[0], xp: 0 };
             updateFighterCard('p1', db.__worst, fx);
             updateStatusUI('__worst', 1, 'blue', db.__worst.title, fx);
-            const chips = [...document.querySelectorAll('#status-p1 .status-item')].map(c => ({ text: c.innerText, cut: c.scrollWidth > c.clientWidth + 1 }));
+            const chips = [...document.querySelectorAll('#status-p1 .status-item')].map(c => ({ text: window.__vt(c), cut: c.scrollWidth > c.clientWidth + 1 }));
             const row = document.getElementById('power-p1');
-            return { chips, meter: row.innerText.replace(/\s+/g, ' ').trim(), meterCut: row.scrollWidth > row.clientWidth + 1 };
+            return { chips, meter: window.__vt(row), meterCut: row.scrollWidth > row.clientWidth + 1 };
         }, lang);
         const meterIssue = (await page.evaluate(powerMeters))[0];
         const bad = worst.chips.filter(c => c.cut).map(c => c.text);
@@ -433,15 +437,15 @@ async function testVersion(browser, key) {
     await checkFeed('after all fights');
 
     // 4. Verdicts
-    // Chips say what's left in words, e.g. "💢 Лють · ще 2 атаки" / "💢 Rage · 2 attacks left", and fit on the card
-    const CHIP_RE = { uk: /^\S+ .+ · ще \d+ (атака|атаки|атак|удар|удари|ударів|хід|ходи|ходів)$/, en: /^\S+ .+ · \d+ (attack|hit|turn)s? left$/ };
+    // Chips say what's left in words, after the effect's icon, e.g. "[rage] Лють · ще 2 атаки" / "[rage] Rage · 2 attacks left", and fit on the card
+    const CHIP_RE = { uk: /^\[\w+\] .+ · ще \d+ (атака|атаки|атак|удар|удари|ударів|хід|ходи|ходів)$/, en: /^\[\w+\] .+ · \d+ (attack|hit|turn)s? left$/ };
     const badChips = [...chipsSeen.keys()].filter(t => !CHIP_RE[chipLangs.get(t)].test(t));
     // Both languages must actually have been on screen, for chips and for the meter row (including a full one)
     for (const l of ['uk', 'en']) {
         const chips = [...chipLangs.values()].filter(x => x === l).length;
         if (!chips) fail(`no buff/debuff chip was seen with the page in ${l}`);
         if (!meterLangs[l]) fail(`no Element Power meter row was seen with the page in ${l}`);
-        else if (!meterFullLangs[l]) fail(`no full meter ("✦ ...") was seen with the page in ${l}`);
+        else if (!meterFullLangs[l]) fail(`no full meter ("[ultimate] ...") was seen with the page in ${l}`);
         else pass(`[${l}] ${chips} different chips and ${meterLangs[l]} meter-row samples (${meterFullLangs[l]} full) checked in this language`);
     }
     const cutChips = [...chipsSeen].filter(([, cut]) => cut).map(([t]) => t);
@@ -465,6 +469,8 @@ async function testVersion(browser, key) {
         if (feedIssues.size) feedIssues.forEach((v, kind) => fail(`info feed: ${kind} — first ${v.when} (${v.detail}), seen in ${v.count} check(s)`));
         else pass('info feed never overflowed its column');
     }
+    if (iconIssues.size) [...iconIssues].slice(0, 8).forEach(i => fail(`overlay: ${i}`));
+    else pass('every screenshot of the run: no emoji on the overlay, every icon at a whole-number scale of its drawing');
     if (pageErrors.length) [...new Set(pageErrors)].forEach(e => fail(`JS error: ${e}`));
     else pass('no JS errors');
     skipped.forEach(s => console.log(`    – skipped: ${s}`));
@@ -626,6 +632,7 @@ async function testStreamerCard(browser, key) {
         const page = await context.newPage();
         page.on('pageerror', e => pageErrors.push(e.message));
         await offTwitch(page);
+        await page.addInitScript(pageInit, SEED);   // __vt: the card's icons read as [id]
         await page.addInitScript(([k, u]) => { localStorage.clear(); localStorage.setItem(k, u); }, [cfg.dragon.storageKey, streamer]);
         await page.goto('file:///' + path.join(ROOT, cfg.file).replace(/\\/g, '/') + '?lang=' + lang);
         await page.addStyleTag({ content: 'html { background: #1e1f26; }' });
@@ -638,7 +645,9 @@ async function testStreamerCard(browser, key) {
             const type = DRAKE_TYPES.map(d => d.type).find(t => drakeSpriteURL(t) === img.getAttribute('src')) || '?';
             const slotTop = b.top + (b.height - 84) / 2;   // the 120×84 slot, centred in the card's height
             return { type, w: Math.round(r.width), h: Math.round(r.height), dx: Math.round(r.left + r.width / 2 - (slotLeft + 60)), dy: Math.round(r.top + r.height / 2 - (slotTop + 42)),
-                textLeft: Math.round(id.getBoundingClientRect().left), grey: /grayscale/.test(img.getAttribute('style') || ''), sub: box.querySelector('.sc-sub').innerText };
+                textLeft: Math.round(id.getBoundingClientRect().left), grey: /grayscale/.test(img.getAttribute('style') || ''), sub: window.__vt(box.querySelector('.sc-sub')),
+                title: window.__vt(box.querySelector('.sc-title')), titleFrame: (box.querySelector('.sc-title img.px-icon') || { dataset: {} }).dataset.frame || null,
+                titleGrey: !!box.querySelector('.sc-title img.px-icon.gray') };
         });
         const tag = `[${lang}]`;
         const drakeName = lang === 'uk' ? 'Білий Дрейк' : 'White Drake', dragonName = lang === 'uk' ? 'Білий Дракон' : 'White Dragon';
@@ -647,13 +656,13 @@ async function testStreamerCard(browser, key) {
         const none = await card();
         // «!дрейк білий» gives the White Drake, so the placeholder asks for a drake, not the dragon
         const noneSub = lang === 'uk' ? 'ще без дрейка: !дрейк білий' : 'no drake yet: !drake white';
-        if (none.type !== 'white' || !none.grey || none.w !== 120 || none.h !== 84 || none.sub !== noneSub) fail(`${tag} with no drake yet the card should show the greyed-out dragon at 120×84 and "${noneSub}", got ${JSON.stringify(none)}`);
-        else pass(`${tag} no drake yet: the greyed-out dragon placeholder ("${none.sub}")`);
+        if (none.type !== 'white' || !none.grey || none.w !== 120 || none.h !== 84 || none.sub !== noneSub || !none.title.startsWith('[emDragon] ') || !none.titleGrey) fail(`${tag} with no drake yet the card should show the greyed-out dragon at 120×84, the Dragon's emblem greyed on the title line and "${noneSub}", got ${JSON.stringify(none)}`);
+        else pass(`${tag} no drake yet: the greyed-out dragon placeholder ("${none.sub}"), its emblem greyed on the title line`);
 
         await chat(lang === 'uk' ? '!дрейк білий' : '!drake white');
         const drake = await card();
-        if (drake.type !== 'steel' || drake.grey || drake.w !== 96 || drake.h !== 72 || !drake.sub.startsWith(drakeName)) fail(`${tag} after !дрейк білий the card should show the White Drake at 96×72, got ${JSON.stringify(drake)}`);
-        else pass(`${tag} the White Drake: its sprite at 96×72, "${drake.sub}"`);
+        if (drake.type !== 'steel' || drake.grey || drake.w !== 96 || drake.h !== 72 || !drake.sub.startsWith(`[emSteel] ${drakeName}`) || !drake.title.startsWith('[whiteSteel] ') || drake.titleFrame !== 'divine') fail(`${tag} after !дрейк білий the card should show the White Drake at 96×72, its emblem by its name and «Біла сталь»'s badge in the divine frame, got ${JSON.stringify(drake)}`);
+        else pass(`${tag} the White Drake: its sprite at 96×72, "${drake.sub}" (its emblem), the title line "${drake.title}" (the sword in the divine frame)`);
         if (drake.dx !== 0 || drake.dy !== 0) fail(`${tag} the White Drake should be centred in the 120×84 slot (centre offset 0,0), got ${drake.dx},${drake.dy}`);
         else pass(`${tag} the White Drake is centred in the dragon's 120×84 slot`);
         if (lang === 'uk') await page.locator('#side').screenshot({ path: path.join(SHOTS, `${key}-streamer-card-white-drake.png`) });
@@ -665,15 +674,15 @@ async function testStreamerCard(browser, key) {
 
         await chat(lang === 'uk' ? '!дракон' : '!dragon');
         const dragon = await card();
-        if (dragon.type !== 'white' || dragon.dx || dragon.dy || dragon.grey || dragon.w !== 120 || dragon.h !== 84 || !dragon.sub.startsWith(dragonName)) fail(`${tag} after !дракон the card should show the dragon at 120×84, got ${JSON.stringify(dragon)}`);
-        else pass(`${tag} the White Dragon: dragon sprite at 120×84, "${dragon.sub}"`);
+        if (dragon.type !== 'white' || dragon.dx || dragon.dy || dragon.grey || dragon.w !== 120 || dragon.h !== 84 || !dragon.sub.startsWith(`[emDragon] ${dragonName}`) || !dragon.title.startsWith('[sovereign] ') || dragon.titleFrame !== 'divine') fail(`${tag} after !дракон the card should show the dragon at 120×84, its emblem by its name and the Sovereign's badge, got ${JSON.stringify(dragon)}`);
+        else pass(`${tag} the White Dragon: dragon sprite at 120×84, "${dragon.sub}" (its emblem), the title line "${dragon.title}"`);
         if (dragon.textLeft !== drake.textLeft) fail(`${tag} the text column should stay where it was (at ${drake.textLeft}), got ${dragon.textLeft}`);
         else pass(`${tag} the text column didn't move`);
         if (lang === 'uk') await page.locator('#side').screenshot({ path: path.join(SHOTS, `${key}-streamer-card-dragon.png`) });
 
         await chat(lang === 'uk' ? '!дракон' : '!dragon');
         const back = await card();
-        if (back.type !== 'steel' || back.w !== 96 || back.h !== 72 || back.dx || back.dy || back.textLeft !== drake.textLeft || !back.sub.startsWith(drakeName)) fail(`${tag} after !дракон again the card should show the White Drake at 96×72 again, got ${JSON.stringify(back)}`);
+        if (back.type !== 'steel' || back.w !== 96 || back.h !== 72 || back.dx || back.dy || back.textLeft !== drake.textLeft || !back.sub.startsWith(`[emSteel] ${drakeName}`)) fail(`${tag} after !дракон again the card should show the White Drake at 96×72 again, got ${JSON.stringify(back)}`);
         else pass(`${tag} !дракон again: the White Drake at 96×72 again`);
         await page.close();
     }

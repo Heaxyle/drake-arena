@@ -94,8 +94,8 @@ const MUTATIONS = [
         'before + Math.round(attackerMaxHP * ult.nums.heal / 100)', 'before'],
     ['no 90% cap', 'effect reductions are capped at 100% instead of 90%',
         'const EFFECT_CAPS = { cut: 90, healCut: 90 };', 'const EFFECT_CAPS = { cut: 100, healCut: 100 };'],
-    ['ultimate icon typed outside the table', "the meter row spells out 💠 instead of reading Ice Mirror's icon from CLASS_ULTIMATES",
-        '${CLASS_ULTIMATES.mirror.icon} ${unitLeftText(', '💠 ${unitLeftText('],
+    ['ultimate icon typed outside the table', "the text record's Ice Mirror line spells out 💠 instead of reading Ice Mirror's icon and name from CLASS_ULTIMATES (ultName)",
+        '? `${ultName(\'mirror\')}: ${would} → ${finalDmg}, -${back} назад', '? `💠 ${CLASS_ULTIMATES.mirror.name.uk}: ${would} → ${finalDmg}, -${back} назад'],
     // Interaction choices (each flipped)
     ['attacking ultimate is not an attack', "an attacking ultimate doesn't count down the attacker's \"own attacks\" effects",
         "countDownEffects(atkFx, 'attacks', id => !onCasts(id));", "if (!ult) countDownEffects(atkFx, 'attacks', id => !onCasts(id));"],
@@ -342,7 +342,7 @@ const MUTATIONS = [
     ["the White Drake's fights don't count", 'a ranked fight against the White Drake gives no win or loss either',
         'const dragonFight = [p1, p2].some(f => f.drakeObj && f.drakeObj.type === DRAGON_TYPE);', 'const dragonFight = [p1, p2].some(f => f.drakeObj && STREAMER_TYPES.includes(f.drakeObj.type));'],
     ["the White Drake can't sign up", 'the White Drake gets the Dragon\'s refusal at tournament sign-up',
-        "else if (d.drakeObj && d.drakeObj.type === DRAGON_TYPE) addInfo(tT('dragon', { who }), 'warn');", "else if (d.drakeObj && STREAMER_TYPES.includes(d.drakeObj.type)) addInfo(tT('dragon', { who }), 'warn');"],
+        "else if (d.drakeObj && d.drakeObj.type === DRAGON_TYPE) addInfo(tH('dragon', { who }), 'warn');", "else if (d.drakeObj && STREAMER_TYPES.includes(d.drakeObj.type)) addInfo(tH('dragon', { who }), 'warn');"],
     ['old Dragon save: a level-20 White Drake', "an old Dragon save's 1,000,000 XP goes to its White Drake",
         'if (!d.regular) { d.regular = { drakeObj: whiteDrakeOf(), title: titleById(WHITE_DRAKE_TITLE_ID), xp: 0 }; changed = true; }', 'if (!d.regular) { d.regular = { drakeObj: whiteDrakeOf(), title: titleById(WHITE_DRAKE_TITLE_ID), xp: d.xp }; changed = true; }'],
     ['the streamer keeps a viewer element', "an old save's regular drake isn't turned into the White Drake",
@@ -369,7 +369,7 @@ const MUTATIONS = [
     ['Мітку is Мітка again', "Мітка's accusative is the nominative again («накладає 🎯 Мітка»)",
         "acc: 'Мітку',", "acc: 'Мітка',"],
     ['the log cards: the nominative after a verb', 'the log cards name an effect after «накладає», «отримує», «оновлює», «знімає», «забирає» in the nominative again',
-        '${fxAcc(id)}</span>`;', '${fxName(id)}</span>`;'],
+        "const fvAccChip = id => fvChip(id, currentLang === 'uk' ? EFFECTS[id].acc : EFFECTS[id].name[currentLang]);", 'const fvAccChip = id => fvChip(id, EFFECTS[id].name[currentLang]);'],
     ["the accusative on the fighter cards' chips", "the fighter cards' chips name the effect in the accusative («🎯 Мітку · ще 1 удар»)",
         '${EFFECTS[inst.id].icon} ${EFFECTS[inst.id].name[lang]} · ${effectLeftText', "${EFFECTS[inst.id].icon} ${lang === 'uk' ? EFFECTS[inst.id].acc : EFFECTS[inst.id].name[lang]} · ${effectLeftText"],
     ['Shadow Theft: «забирає» + the nominative', "Shadow Theft's log line names the buffs it takes in the nominative again («забирає 💚 Регенерація»)",
@@ -386,10 +386,25 @@ const MUTATIONS = [
         'відновлює HP завдяки бафу ${fxName(inst.id)}', 'відновлює HP завдяки ${fxName(inst.id)}'],
     ['«через» + a bare name', 'the damage tick names its debuff straight after «через» again («через ☠️ Отруєння»)',
         'втрачає HP через дебаф ${fxName(inst.id)}', 'втрачає HP через ${fxName(inst.id)}'],
+    // The icon set (design/icons/test.js)
+    ['an emblem the set lacks', "the White Drake's emblem points at an icon the set doesn't have",
+        "steel: 'emSteel', white: 'emDragon' };", "steel: 'emSteelHead', white: 'emDragon' };"],
+    ['an icon list one short', "the start banner's list has one icon for its two emoji (the die would silently go)",
+        "fightStart: ['bell', 'die'],", "fightStart: ['bell'],"],
+    ['an emoji with no icon list', 'a tournament reply with an emoji and no list (the overlay would drop it without a word)',
+        "spins: ['ticket'], freeSpin: ['ticket'],", "spins: ['ticket'],"],
+    ['an effect off its element colour', "Rage keeps its old colour instead of Red's",
+        "rage:     { element: 'red',    kind: 'buff',   icon: '💢', color: '#ff4f5a'", "rage:     { element: 'red',    kind: 'buff',   icon: '💢', color: '#ff4d4d'"],
+    ['a title badge from the wrong bonus', 'a crit-power title shows the HP heart instead of the crit «!»',
+        "power: 'crit', def: 'defence'", "power: 'hp', def: 'defence'"],
+    ['a mechanic title shows its bonus', "titles with a mechanic show their stat bonus's glyph instead of the mechanic's",
+        "if (b.mechanic) { const id =", "if (false) { const id ="],
+    ['the page\'s icon block edited by hand', "the page's copy of icons.js no longer matches design/icons/icons.js",
+        '    const SIZES = { buff: 10, debuff: 10, ultimate: 12,', '    const SIZES = { buff: 10, debuff: 10, ultimate: 11,'],
 ];
 
-// Runs both test files (effects.js and ultimates.js) against one copy of the game; resolves with what each reported
-const TESTS = ['effects.js', 'ultimates.js', 'rules.js'];
+// Runs the test files against one copy of the game; resolves with what each reported (design/icons/test.js: the icon set)
+const TESTS = ['effects.js', 'ultimates.js', 'rules.js', '../design/icons/test.js'];
 const runOne = (file, html) => new Promise(resolve => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'drake-mutation-'));
     fs.writeFileSync(path.join(dir, 'index.html'), html);

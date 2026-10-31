@@ -49,6 +49,8 @@ const fail = msg => { failures++; console.log(`  ✗ ${msg}`); };
 const pass = msg => console.log(`  ✓ ${msg}`);
 const check = (ok, good, bad) => ok ? pass(good) : fail(`${good} — ${bad}`);
 const strip = s => s.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ');
+// What the overlay shows: its text, each pixel icon as [id] (it shows no emoji), one space between
+const view = s => s.replace(/<img[^>]*\bdata-icon="(\w+)"[^>]*>/g, ' [$1] ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 const xpFor = lvl => { let x = 0; for (let l = 1; l < lvl; l++) x += G.getRequiredXP(l); return x; };
 const DRAKE = Object.fromEntries(G.DRAKE_TYPES.map(d => [d.type, d]));
 const drake = (name, type = 'plain', level = 20, title = null) => ({ name, color: '#fff', title, xp: xpFor(level),
@@ -476,9 +478,11 @@ check(!dragonMeter.length, 'the White Dragon never had a meter point or an ultim
     G.renderPowerMeter('p1', G.DRAGON_TYPE, { meter: 3, mirror: 0 });
     const dragonRow = document.getElementById('power-p1').innerHTML;
     G.renderPowerMeter('p1', 'red', { meter: METER.max, mirror: 0 });
-    const redRow = strip(document.getElementById('power-p1').innerHTML);
-    check(dragonRow === '' && redRow.includes(METER.short.en) && redRow.includes(METER.ready.en),
-        `fighter card: the White Dragon's meter row stays empty; a full meter reads "${redRow}"`, `dragon row "${dragonRow}", red row "${redRow}"`);
+    const redRow = view(document.getElementById('power-p1').innerHTML);
+    // Full: the drake's own ultimate icon in place of METER.ready's ✦ (the overlay shows no emoji), then the word
+    const ready = `[${G.ultimateFor('red')}] ${METER.ready.en.replace(/^\S+\s*/, '')}`;
+    check(dragonRow === '' && redRow.includes(METER.short.en) && redRow.includes(ready) && !/✦/.test(redRow),
+        `fighter card: the White Dragon's meter row stays empty; a full meter reads "${redRow}" (Firestorm's icon, no ✦)`, `dragon row "${dragonRow}", red row "${redRow}", want "${ready}"`);
 }
 check(seenUlt.size === ULTIMATE_IDS.length, `all ${ULTIMATE_IDS.length} ultimates fired in real fights (uk and en)`, `never fired: ${ULTIMATE_IDS.filter(id => !seenUlt.has(id)).join(', ')}`);
 check(!idLeaks.length, 'no internal ultimate id in the battle log', idLeaks.join(' | '));
