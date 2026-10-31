@@ -1147,17 +1147,18 @@
             'msssssnnnm',
             '.mmmmmmmm.',
         ],
-        // The White Drake: the six drakes' head in white steel, the green eye, the green mane swept back down its neck
+        // The White Drake: the six drakes' head in white steel, the green eye, three green mane spikes swept back from the back of
+        // the head and down the neck, each growing from it; a dark steel fill (never the Dragon's navy), so the jaw and neck show
         emSteel: [
             '.mmmmmmmm.',
-            'msssssspsm',
-            'mssssspssm',
-            'mssshhhspm',
-            'mshhhphpsm',
-            'mwhhhhhdsm',
+            'mssssssspm',
+            'mssssssppm',
+            'mssshhhpsm',
+            'mshhhphdpm',
+            'mwhhhhhppm',
             'msddddddsm',
-            'mssssdddsm',
             'mssssdddpm',
+            'mssssddppm',
             '.mmmmmmmm.',
         ],
     };
@@ -1275,7 +1276,7 @@
         emPurple:    { kind: 'emblem', element: 'purple', name: { uk: 'Фіолетовий Дрейк', en: 'Purple Drake' }, emoji: '🟪', pal: { p: '#eadcff', q: '#a98be0', s: '#1d0c33', h: '#c79bff', n: '#7d45c9', k: '#5ee0f0', w: '#efe2ff' } },
         emGreen:     { kind: 'emblem', element: 'green', name: { uk: 'Зелений Дрейк', en: 'Green Drake' }, emoji: '🟩', pal: { p: '#c4ff8f', q: '#2f9a3e', s: '#0a2412', h: '#8ff0a8', n: '#2f9c55', k: '#ffd23f', w: '#dcffe4' } },
         emDragon:    { kind: 'emblem', color: '#bfe9ff', name: { uk: 'Білий Дракон', en: 'White Dragon' }, emoji: '🐉', pal: { p: '#58e888', s: '#16264a', h: '#f2f8ff', n: '#8fb2dc', k: '#1a2044', w: '#ffffff' } },
-        emSteel:     { kind: 'emblem',   element: 'steel', name: { uk: 'Білий Дрейк', en: 'White Drake' },          emoji: '🤍', ...STEEL },
+        emSteel:     { kind: 'emblem',   element: 'steel', name: { uk: 'Білий Дрейк', en: 'White Drake' },          emoji: '🤍', ...STEEL, pal: { ...STEEL.pal, s: '#1a1e28' } },
     };
     Object.values(ICONS).forEach(ic => { if (ic.element) ic.color = ELEMENT_COLORS[ic.element]; });
     const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison'];

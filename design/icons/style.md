@@ -280,7 +280,7 @@ sprite's navy outline and slate shade, never Black's neutral grey). Review: revi
 | Магніт | 🔗 | a horseshoe magnet with green poles | its debuff chip; it lasts the target's next attack («ще 1 атака») |
 | Удар ковадла | 🔨 | an anvil, sparks flying off its face (12×12) | line 1 of its log card, the pending cell |
 | «Біла сталь» (title 998) | 👑 | an upright sword in white steel, a green gem in the guard | its badge in the divine frame; the `steel` banner, «Сталь не гнеться» |
-| The White Drake | 🤍 | the six drakes' head in white steel on a white-steel tile, the green eye, the Dragon's green mane swept back down its neck (`emSteel`; see "The emblems") | in names, the intro banner, replies that name it, the streamer card |
+| The White Drake | 🤍 | the six drakes' head in white steel on a white-steel tile, the green eye, three green mane spikes swept back down its neck (`emSteel`; see "The emblems") | in names, the intro banner, replies that name it, the streamer card |
 
 - **The scale is the bar's icon, not the emblem.** A single scale read as Jackpot's gem, the Shield or a drop at 10 px; the
   layered pair doesn't. The emblem shows the drake itself, with the mane its sprite took from the Dragon.
@@ -310,11 +310,11 @@ red-green colour blindness Blue and Purple became one blue head, Red and Green t
 | Gold | the cream ram's horn curling round behind the eye |
 | Purple | the long horns swept back to the tile's corner, longer than Black's |
 | Green | the leaf blades fanning back, gaps between them |
-| The White Drake | the six drakes' head in white steel, the green eye, the green mane swept back down its neck |
+| The White Drake | the six drakes' head in white steel, the green eye, three green mane spikes swept back from the back of the head and down the neck, each growing from it (no loose pixels); a dark steel fill (#1a1e28) as deep as the others' and apart from the Dragon's navy, so the steel jaw and neck (#6a78a2) don't melt into it |
 | The White Dragon | the wyvern's longer, lower snout and the green crown horns, so the two white heads differ in outline |
 
 `node design/icons/test.js` checks it: every two emblems' silhouettes (the drake's pixels against the tile's, colour
-ignored) differ in at least 4 pixels (the closest pair today, Purple and the White Drake, 5). A new drake's emblem must
+ignored) differ in at least 4 pixels (the closest pair today, Red and Blue, 6). A new drake's emblem must
 pass it too. Where they go: names in info cards and the intro banner, the queue (instead of the 14 px colour square), the
 Top (before the level; the sprite stays), the card's name line, the title plate (the left three mirrored).
 
