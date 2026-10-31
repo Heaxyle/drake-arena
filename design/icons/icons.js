@@ -1443,9 +1443,12 @@
         g.drawImage(makeIconCanvas(id, doc), 1, 1);
         return (titleCache[key] = c);
     }
+    // The badge's data URL, made once per glyph and rarity
+    const titleURLs = {};
+    const titleURL = (id, rarity) => titleURLs[id + '|' + rarity] || (titleURLs[id + '|' + rarity] = makeTitleCanvas(id, rarity).toDataURL());
     function titleImg(id, rarity, scale = 2, cls = 'px-icon') {
         const s = Math.max(1, Math.round(scale));
-        return `<img class="${cls}" src="${makeTitleCanvas(id, rarity).toDataURL()}" width="${12 * s}" height="${12 * s}" alt="${ICONS[id].name.en}" style="image-rendering: pixelated">`;
+        return `<img class="${cls}" src="${titleURL(id, rarity)}" width="${12 * s}" height="${12 * s}" alt="${ICONS[id].name.en}" style="image-rendering: pixelated">`;
     }
 
     // ----- Rows: the glyph itself (no frame), checked against its category's size -----
@@ -1467,7 +1470,9 @@
         rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (row[x] !== '.') { g.fillStyle = pal[row[x]]; g.fillRect(x, y, 1, 1); } });
         return (cache[id] = c);
     }
-    const iconURL = id => makeIconCanvas(id).toDataURL();
+    // The icon's data URL, made once (every <img> of an icon shares it)
+    const iconURLs = {};
+    const iconURL = id => iconURLs[id] || (iconURLs[id] = makeIconCanvas(id).toDataURL());
     // <img> at a whole-number scale (1, 2, 3 …), never anything in between
     function iconImg(id, scale = 2, cls = 'px-icon') {
         const c = makeIconCanvas(id), s = Math.max(1, Math.round(scale));
@@ -1507,5 +1512,5 @@
     // The CSS for a chip of this element and kind (the element's text colour goes with it)
     const chipStyle = (element, kind) => `border-style: solid; border-width: 1px ${CHIP.cap}px; border-image: url(${chipURL(element, kind)}) 1 ${CHIP.cap} fill / 1px ${CHIP.cap}px stretch; color: ${mix(ELEMENT_COLORS[element], '#ffffff', 0.35)};`;
 
-    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, EMBLEM_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
+    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, EMBLEM_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleURL, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
 })(typeof window !== 'undefined' ? window : globalThis);

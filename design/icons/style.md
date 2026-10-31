@@ -318,6 +318,29 @@ ignored) differ in at least 4 pixels (the closest pair today, Red and Blue, 6). 
 pass it too. Where they go: names in info cards and the intro banner, the queue (instead of the 14 px colour square), the
 Top (before the level; the sprite stays), the card's name line, the title plate (the left three mirrored).
 
+## Wired in (showcase/index.html)
+
+The page carries `icons.js` between its `// ===== ICONS START/END =====` markers (`node design/icons/embed.js`); `test.js`
+(in `npm test`) fails while the copy differs, and checks that every icon the game asks for exists. The game draws them with
+`pxIcon`, `titleIcon`, `emblem` and `chipClass` (CLAUDE.md, "Icons"); every `<img>` carries `data-icon` and `data-n` (its
+drawing's size), so `tests/overlay_icons.js` can check, at the browser tests' screenshots, that no emoji is on the overlay,
+that every icon is at a whole-number scale of its drawing, and that no icon sits on its words.
+
+- **What keeps its emoji:** the hidden text record (`addLog`) and the play-log export, as before, so the tables that also
+  feed them (`FV_TEXT`, `TOURNEY_TEXT`, `SHOW_TEXT`, `METER.ready`, the `icon` of effects, ultimates and titles, the drakes'
+  names) keep theirs; the overlay draws them through an icon list per text (`FV_ICONS`, `TOURNEY_ICONS`, `SHOW_ICONS`).
+  The demo controls (`#cam-col`, never on stream) keep theirs too.
+- **Chat replies:** no leading emoji; the card's tone says it. Two replies whose emoji was the only sign became warnings:
+  a declined duel (❌) and a challenge nobody answered (⌛). A drake named in a reply shows its emblem, «Біла сталь» and
+  «Владика Етеру» their badges (×1), the reroll its two arrows, a duel the friendly smile, the tournament its trophy.
+- **Compact chips:** every note has its own glyph now, so Chaotic charge (the bolt) and Firestorm's «не блокується» (the
+  crossed-out wall) compact to their glyph like the rest; armour-piercing is the spear, so no two compact chips look alike.
+- **Quantum Dodge** has its own note in the log, «ухил» / "dodge" with its dashing chevrons (`fvNote('dodge')`, visual only).
+- **An attacking ultimate's card:** the header strip is its words (`УЛЬТИМЕЙТ · Вогняний шторм`); its 24 px icon is on
+  line 1 by the move name, after the attack type's glyph (2 px into the gaps of the 20 px line, as planned).
+- **Effect and ultimate colours** in `EFFECTS` / `CLASS_ULTIMATES` are `ELEMENT_COLORS` (`test.js` checks it).
+- **Not used:** the XP sparkle (the overlay had no ✨: Gold's bonus XP line is in the hidden record only).
+
 ## Still open
 
 1. Under deuteranopia and protanopia, Red and Gold come out as close yellows (review.html, "Without colour"). The chips and
