@@ -20,6 +20,10 @@ const { settleArena } = require('./settle');
 const { pageInit } = require('./page_hooks');
 const { offTwitch } = require('./no_twitch');
 const { tourneyScreens, SIZES } = require('./tourney_layout');
+const { overlayIconIssues, overlaySelfTest } = require('./overlay_icons');
+// The overlay check, at every screenshot (both languages): no emoji on stream, every icon at a whole-number scale
+const iconIssues = new Set();
+const iconCheck = async (page, where) => (await overlayIconIssues(page)).forEach(i => iconIssues.add(`${where}: ${i}`));
 const SEED = Number(process.env.UI_SEED || 3);   // seeded fights: the same every run
 
 const ROOT = path.join(__dirname, '..');
@@ -359,6 +363,8 @@ async function layoutChecks(browser, lang) {
     const problems = await page.evaluate(layoutProblems);
     check(!problems.length, `${tag} worst case fits at 1920×1080: name "${worst.longName}", title "${worst.longTitle}", "${worst.longDrake}", 4 longest chips, full СИЛА + Ice Mirror, 7 leaderboard rows, a stats card`,
         problems.slice(0, 6).join(' | '));
+    await iconCheck(page, `layout-worst-${lang}`);
+    if (lang === 'uk') { const missed = await overlaySelfTest(page); check(!missed.length, 'the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon and an icon over its words', `not reported: ${missed.join(', ')}`); }
     await page.screenshot({ path: path.join(SHOTS, `layout-worst-${lang}.png`) });
     const pops = await page.evaluate(popPositions);
     check(pops.length === 4 && pops.every(x => x.over), `${tag} hit numbers pop over each card's drake (a hit and a small "back" number on both cards)`, JSON.stringify(pops.filter(x => !x.over)));
@@ -453,6 +459,7 @@ async function startupNetwork(browser) {
             check(!cam.length && !note.length, `[${lang}] nothing visible in the camera column or the notification strip`, `camera: ${cam.slice(0, 4).join(', ')} | notifications: ${note.slice(0, 4).join(', ')}`);
             const problems = await page.evaluate(layoutProblems);
             check(!problems.length, `[${lang}] worst case also fits in OBS mode`, problems.slice(0, 4).join(' | '));
+            await iconCheck(page, `layout-obs-${lang}`);
             await page.screenshot({ path: path.join(SHOTS, `layout-obs-${lang}.png`), omitBackground: true });
             await context.close();
         }
@@ -593,6 +600,7 @@ async function startupNetwork(browser) {
                 `[${lang}] the winner (${w && w.name}) is framed in gold with "${W}", the loser greyed with "${L}"`, JSON.stringify(res) + ' ' + await page.evaluate(() => JSON.stringify({ kind: arenaState.kind, turn: arenaState.turn, running: isBattleRunning, hold: !!fv.hold, log: [...document.getElementById('battle-log').children].slice(-2).map(x => x.textContent) })));
             const plate = await page.evaluate(() => document.getElementById('status-plate').innerText);
             check(plate.includes('@' + winnerName.toUpperCase()) || plate.includes('@' + winnerName), `[${lang}] the status plate names the winner ("${plate}")`, plate);
+            await iconCheck(page, `layout-result-${lang}`);
             await page.screenshot({ path: path.join(SHOTS, `layout-result-${lang}.png`) });
             // A draw frames neither card as the winner or the loser (both say «Нічия»; fightview.js checks the tags)
             await page.evaluate(() => setArenaState({ kind: 'result', ranked: true, winner: null, turns: 30 }));
@@ -623,14 +631,16 @@ async function startupNetwork(browser) {
         const wordEn = n => n === 1 ? 'turn' : 'turns';
         const wordUk = n => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'хід' : (a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'ходи' : 'ходів'); };
         const FIGHT = {
-            uk: { idle: 'Арена чекає на бійців', ranked: '🏆 Рейтинговий бій', friendly: '🤝 Товариська дуель', word: wordUk },
-            en: { idle: 'The arena awaits fighters', ranked: '🏆 Ranked battle', friendly: '🤝 Friendly duel', word: wordEn },
+            // The fight's kind after its icon: the podium for ranked, the smile for a friendly duel (read as [id])
+            uk: { idle: 'Арена чекає на бійців', ranked: '[ranked] Рейтинговий бій', friendly: '[friendly] Товариська дуель', word: wordUk },
+            en: { idle: 'The arena awaits fighters', ranked: '[ranked] Ranked battle', friendly: '[friendly] Friendly duel', word: wordEn },
         };
         for (const lang of ['uk', 'en']) {
             const { page, context } = await open(browser, { lang });
             const W = FIGHT[lang], uk = lang === 'uk';
-            const header = () => page.evaluate(() => ({ type: document.getElementById('fight-type').textContent, shown: document.getElementById('fight-type').innerText,
-                plate: document.getElementById('status-plate').textContent }));
+            const header = () => page.evaluate(() => ({ type: __vt(document.getElementById('fight-type')), shown: document.getElementById('fight-type').innerText.trim(),
+                plate: __vt(document.getElementById('status-plate')) }));
+            const words = t => t.replace(/^\[\w+\] /, '');   // what innerText shows: the words (the icon is an image)
             const idle = await header();
             check(idle.type === W.idle && idle.shown === W.idle.toUpperCase(), `[${lang}] idle: "${idle.shown}"`, JSON.stringify(idle));
             await page.evaluate(uk => {
@@ -660,13 +670,42 @@ async function startupNetwork(browser) {
                 const turns = after && /· (\d+) /.exec(after.type);
                 const n = turns ? +turns[1] : NaN;
                 const wantAfter = `${want} · ${n} ${W.word(n)}`;
-                check(during && during.type === want && during.shown === want.toUpperCase() && after.type === wantAfter && n >= 1 && n <= 30,
+                check(during && during.type === want && during.shown === words(want).toUpperCase() && after.type === wantAfter && n >= 1 && n <= 30,
                     `[${lang}] ${label}: "${during && during.shown}" during the fight, "${after.shown}" after`, JSON.stringify({ during, after, wantAfter }));
             }
             // Every turn-count word form, straight through the header
-            const forms = await page.evaluate(() => [1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 30].map(n => { setArenaState({ kind: 'result', ranked: true, winner: null, turns: n }); return [n, document.getElementById('fight-type').textContent]; }));
+            const forms = await page.evaluate(() => [1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 30].map(n => { setArenaState({ kind: 'result', ranked: true, winner: null, turns: n }); return [n, __vt(document.getElementById('fight-type'))]; }));
             const badForms = forms.filter(([n, t]) => t !== `${W.ranked} · ${n} ${W.word(n)}`);
             check(!badForms.length, `[${lang}] turn counts read right: ${forms.map(([, t]) => t.split(' · ')[1]).join(', ')}`, JSON.stringify(badForms));
+            await context.close();
+        }
+
+        // The chat panel with six drakes in the Top (its room shrinks with the Top): !стата, a legendary title roll and the
+        // odds card all stay on it, none taller than on main (a taller card makes addInfo drop the oldest so nothing is cut
+        // off; with the roll's ×3 badge on a line of its own the !стата card went); a 25-letter name on the roll card fits
+        console.log('\nThe chat panel: !стата, a top-rarity roll and the odds together');
+        for (const lang of ['uk', 'en']) {
+            const { page, context } = await open(browser, { lang });
+            const r = await page.evaluate(lang => {
+                const say = (u, m) => handleChatMessage('#test', { username: u, color: '#8ab4f8' }, m, false);
+                const names = ['flame_rider', 'nightowl_ua', 'goldfinch', 'arcane_kit', 'leafy_ua', 'tidecaller'], colours = ['червоний', 'чорний', 'золотий', 'фіолетовий', 'зелений', 'синій'];
+                names.forEach((n, i) => say(n, `!дрейк ${colours[i]}`));
+                const db = getDragonDB(); db.nightowl_ua.title = TITLES_DB.find(t => t.id === 183); saveDragonDB(db);
+                renderLeaderboard();
+                say('nightowl_ua', lang === 'uk' ? '!стата' : '!stats');
+                showTitleRoll('goldfinch', '#ffd166', TITLES_DB.find(t => t.id === 99));
+                showOddsCard();
+                const feed = document.getElementById('info-feed'), cards = [...feed.children];
+                const kinds = cards.map(c => c.classList.contains('stat') ? 'stats' : c.classList.contains('glow-legendary') ? 'roll' : /ic-head/.test(c.innerHTML) && !c.querySelector('[data-icon="stats"]') && c.querySelector('[data-icon="roulette"]') && !c.classList.contains('ok') ? 'odds' : 'other');
+                const roll = cards.find(c => c.classList.contains('glow-legendary'));
+                // The longest name there can be on the same roll card
+                showTitleRoll('mwmwmwmwmwmwmwmwmwmwmwmwm', '#ffd166', TITLES_DB.find(t => t.id === 99));
+                const long = feed.firstElementChild, head = long.querySelector('.ic-head');
+                return { room: feed.clientHeight, kinds, rows: document.querySelectorAll('#leaderboard-list .lb-row').length, rollH: roll ? roll.offsetHeight : 0,
+                    longH: long.offsetHeight, longFits: head.scrollWidth <= head.clientWidth + 1 && long.scrollWidth <= long.clientWidth + 1 };
+            }, lang);
+            check(r.rows === 6 && ['odds', 'roll', 'stats'].every(k => r.kinds.includes(k)) && r.rollH <= 84 && r.longH <= 84 && r.longFits,
+                `[${lang}] with six drakes in the Top (${r.room} px of chat), the odds card, a legendary roll (${r.rollH} px; ${r.longH} px with a 25-letter name, nothing cut off) and !стата all stay on the chat panel`, JSON.stringify(r));
             await context.close();
         }
 
@@ -891,7 +930,7 @@ async function startupNetwork(browser) {
                     await page.addInitScript(init, fx);
                     const tag = `${n}${fx ? '' : '-plain'}`, label = `${n} players${fx ? '' : ', effects off'}`;
                     if (!fx) await page.evaluate(() => setShowFx(false));
-                    const results = await tourneyScreens(page, lang, n, name => page.screenshot({ path: path.join(SHOTS, `layout-tourney-${tag}-${name}-${lang}.png`) }));
+                    const results = await tourneyScreens(page, lang, n, async name => { await iconCheck(page, `layout-tourney-${tag}-${name}-${lang}`); await page.screenshot({ path: path.join(SHOTS, `layout-tourney-${tag}-${name}-${lang}.png`) }); });
                     for (const [screen, problems] of results) {
                         const podium = /podium/.test(screen) ? '; the name, the medal (before the name), the sprite and the number never overlap, and each step holds only its number, centred inside it' : '';
                         check(!problems.length, `[${lang}] ${label}, ${screen}: every name at 12 px or more (cut in the middle, not squeezed), nothing overflowing, outside the log area or overlapping${podium}`, problems.slice(0, 4).join(' | '));
@@ -901,6 +940,8 @@ async function startupNetwork(browser) {
                 }
             }
         }
+        check(!iconIssues.size, 'every screen of the run, both languages (worst cases, OBS, the result, the tournament screens): no emoji on the overlay, every icon at a whole-number scale of its drawing',
+            [...iconIssues].slice(0, 8).join(' | '));
     } finally {
         await browser.close();
     }

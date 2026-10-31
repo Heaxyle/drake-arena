@@ -98,7 +98,10 @@ const xpFor = lvl => { let x = 0; for (let l = 1; l < lvl; l++) x += G.getRequir
 const DRAKE = Object.fromEntries(G.DRAKE_TYPES.map(d => [d.type, d]));
 
 let infos = [], logs = [], fightsStarted = [];
-G.wrapAddInfo(h => infos.push(strip(h)));
+// Replies as the overlay shows them: the text, each pixel icon as [id] (a reply's leading emoji went; a drake, a title or a
+// medal it names shows its icon)
+const viewInfo = s => s.replace(/<img[^>]*\bdata-icon="(\w+)"[^>]*>/g, '[$1]').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+G.wrapAddInfo(h => infos.push(viewInfo(h)));
 // onSimError: run once, right when a "simulation error" is logged (inside the fight loop's catch, before its 2 s nextFight)
 let onSimError = null;
 G.wrapAddLog(t => { logs.push(strip(t)); if (onSimError && /simulation error|помилка симуляції/i.test(strip(t))) { const f = onSimError; onSimError = null; f(); } });
@@ -186,7 +189,7 @@ for (const lang of ['en', 'uk']) {
     const reroll = lastInfo();
     G.say('boss', t('!dragon', '!дракон'), 'boss');
     const toDragon = lastInfo(), boss = G.getDragonDB().boss;
-    check(reroll.endsWith(t('Level reset to 1!', 'Рівень скинуто до 1!')) && boss.drakeObj.type === G.DRAGON_TYPE && G.calculateLevelAndProgress(boss.xp).level === 20 && toDragon.includes(t('becomes the White Dragon', 'стає Білим Драконом')),
+    check(reroll.endsWith(t('Level reset to 1!', 'Рівень скинуто до 1!')) && boss.drakeObj.type === G.DRAGON_TYPE && G.calculateLevelAndProgress(boss.xp).level === 20 && toDragon.includes(t('becomes the [emDragon] White Dragon', 'стає [emDragon] Білим Драконом')),
         `7. the streamer's "${t('!reroll white', '!рерол білий')}" gives the White Drake ("${t('Level reset to 1!', 'Рівень скинуто до 1!')}"); "${t('!dragon', '!дракон')}" gives the White Dragon at level 20`,
         JSON.stringify({ reroll, toDragon }));
     make('rerolly', 'red', { level: 4 });
@@ -256,7 +259,7 @@ for (const lang of ['en', 'uk']) {
     // !battle to a viewer in the waiting duel: said at once, no challenge opened
     G.say('d3', t('!battle @d1', '!бій @d1'));
     const toWaiting = lastInfo(), pendingD1 = G.pending.d1;
-    const wantWait = t('⏳ @d1 is waiting for a duel. Challenge them after the next fight.', '⏳ @d1 чекає на дуель. Киньте виклик після наступного бою.');
+    const wantWait = t('@d1 is waiting for a duel. Challenge them after the next fight.', '@d1 чекає на дуель. Киньте виклик після наступного бою.');   // its ⏳ went: the warning card says it
     check(toWaiting === wantWait && pendingD1 === undefined, `11. "!battle" to a viewer whose duel is waiting says "${wantWait}" and opens no challenge`, `reply: ${toWaiting}; pending ${JSON.stringify(G.pending)}`);
     G.say('d3', t('!battle @d4', '!бій @d4'));
     G.say('d4', t('!accept', '!прийняти'));
@@ -292,7 +295,7 @@ for (const lang of ['en', 'uk']) {
     make('hinty', 'red');
     G.say('hinty', t('!queue', '!черга')); make('other', 'blue'); G.say('other', t('!queue', '!черга'));   // hinty is fighting
     G.say('hinty', t('!battle', '!бій'));
-    const want12 = t('ℹ️ @hinty, to challenge someone type !battle @name.', 'ℹ️ @hinty, щоб кинути виклик, напишіть !бій @нік.');
+    const want12 = t('@hinty, to challenge someone type !battle @name.', '@hinty, щоб кинути виклик, напишіть !бій @нік.');   // its ℹ️ went: the warning card says it
     check(lastInfo() === want12, `12. "${t('!battle', '!бій')}" with no name (even mid-fight) replies "${want12}"`, lastInfo());
     __drain();
 
@@ -716,9 +719,10 @@ for (const lang of ['en', 'uk']) {
             `19. the podium (🏆 @${p1[0]}, 🥈 @${p1[1]}, 🥉 @${p1[2]}) gets the badges, one medal each, 3 / 2 / 1 free title spins and a Hall of Fame entry`, JSON.stringify(h));
         G.renderLeaderboard();
         G.say('ra', t('!stats', '!стата')); const stats = lastInfo();
-        check(G.topHtml.includes('@ra<span class="lb-medal">🏆</span>') && G.topHtml.includes(`@${p1[1]}<span class="lb-medal">🥈</span>`) && !G.topHtml.includes('@re<span')
-            && stats.includes('@ra 🏆') && stats.includes('🏆×1 🥈×0 🥉×0') && /Free title spins: 3|Безкоштовні прокрути титулу: 3/.test(stats),
-            '19. the badges in the Top (🏆 after @ra, 🥈 after the runner-up, none for @re) and in !stats, with the medal count and the spins left', `${stats}`);
+        const medalAfter = (n, id) => new RegExp(`@${n}<span class="lb-medal"><img[^>]*data-icon="${id}"`).test(G.topHtml);
+        check(medalAfter('ra', 'medalGold') && medalAfter(p1[1], 'medalSilver') && !G.topHtml.includes('@re<span')
+            && stats.includes('@ra [medalGold]') && stats.includes('[medalGold]×1 [medalSilver]×0 [medalBronze]×0') && /\[ticket\] (Free title spins: 3|Безкоштовні прокрути титулу: 3)/.test(stats),
+            '19. the badges in the Top (the gold medal after @ra, the silver after the runner-up, none for @re) and in !stats, with the medal count and the spins left (the ticket)', `${stats}`);
         const titleOf = n => G.getDragonDB()[n].title.id;
         // !title typed in chat: a free spin pays for it; a channel-point redemption doesn't use one; none left: the usual reply
         const before = titleOf('ra');
@@ -745,11 +749,11 @@ for (const lang of ['en', 'uk']) {
         const raSpins = 2 + [3, 2, 1][p2.indexOf('ra')];
         G.renderLeaderboard();
         check(JSON.stringify(h.holders) === JSON.stringify(p2) && h.medals.ra.join() === raMedals.join() && h.spins.ra === raSpins && h.hall.length === 2
-            && G.topHtml.includes('@re<span class="lb-medal">🏆</span>') && !G.topHtml.includes('@ra<span class="lb-medal">🏆</span>'),
+            && medalAfter('re', 'medalGold') && !medalAfter('ra', 'medalGold'),
             `19. the next tournament (🏆 @${p2[0]}, 🥈 @${p2[1]}, 🥉 @${p2[2]}) takes the badges; @ra's medals add up (${raMedals.join('/')}), and so do the spins (2 left + ${raSpins - 2} = ${raSpins})`,
             JSON.stringify(h));
         G.say('viewer', t('!hall', '!зала')); const hall = lastInfo();
-        check(/Hall of Fame|Зала слави/.test(hall) && hall.includes('🥇 @' + p2[0]) && hall.includes('🥇 @' + p1[0]) && hall.indexOf('@' + p2[0]) < hall.indexOf('🥇 @' + p1[0]) && /Most wins|Найбільше перемог/.test(hall),
+        check(/\[hall\] (Hall of Fame|Зала слави)/.test(hall) && hall.includes('[medalGold] @' + p2[0]) && hall.includes('[medalGold] @' + p1[0]) && hall.indexOf('@' + p2[0]) < hall.indexOf('[medalGold] @' + p1[0]) && /Most wins|Найбільше перемог/.test(hall),
             '19. !hall: both tournaments, the latest first, and who has won the most', hall);
         __drain(); fresh(); G.honoursReset();
     }
@@ -1088,13 +1092,13 @@ for (const lang of ['en', 'uk']) {
     const stayMsg = lastInfo(), stayed = me().drakeObj.type;
     G.say('streamchannel', '!дракон');
     const back = me(), backMsg = lastInfo();
-    check(/Білий Дрейк чекає на рівні 7\.$/.test(toMsg) && /знову Білий Дрейк: рівень 7, нічого не втрачено\.$/.test(backMsg),
+    check(/\[emSteel\] Білий Дрейк чекає на рівні 7\.$/.test(toMsg) && /знову \[emSteel\] Білий Дрейк: рівень 7, нічого не втрачено\.$/.test(backMsg),   // each form by its emblem
         `23. both switches name the White Drake's level: «${toMsg.slice(toMsg.indexOf('стає'))}», «${backMsg.slice(backMsg.indexOf('знову'))}»`, JSON.stringify({ toMsg, backMsg }));
     check(asDragon.drakeObj.type === G.DRAGON_TYPE && asDragon.title.id === G.DRAGON_TITLE_ID && G.calculateLevelAndProgress(asDragon.xp).level === 20 && dragonGain === 0
         && back.drakeObj.type === WD && back.xp === xpFor(7) + 13 && back.title.id === G.WHITE_DRAKE_TITLE_ID && G.queue.join() === 'q1,streamchannel,q2',
         "23. !дракон and back: the Dragon at level 20 gains nothing (+0 XP for a win's 40), the White Drake returns with its exact XP (level 7) and title; the queue place stays (#2)",
         JSON.stringify({ asDragon: [asDragon.drakeObj.type, asDragon.xp], dragonGain, back: [back.drakeObj.type, back.xp, back.title.id], queue: G.queue }));
-    check(stayed === G.DRAGON_TYPE && stayMsg === '🐉 @streamchannel, зараз ви Білий Дракон. Повернутися до Білого Дрейка: !дракон.',
+    check(stayed === G.DRAGON_TYPE && stayMsg === '@streamchannel, зараз ви [emDragon] Білий Дракон. Повернутися до [emSteel] Білого Дрейка: !дракон.',   // its 🐉 went; each form by its emblem
         `23. «!рерол білий» as the Dragon changes nothing and says how to go back: «${stayMsg}»`, JSON.stringify({ stayed, stayMsg }));
     const forms = plays.filter(p => p.type === 'form');
     check(hasPlayLog && forms.length === 2 && forms[0].from === WD && forms[0].to === G.DRAGON_TYPE && forms[0].level === 7 && forms[1].from === G.DRAGON_TYPE && forms[1].to === WD && forms[1].level === 7,

@@ -47,6 +47,7 @@ const { settleArena } = require('./settle');
 const { offTwitch } = require('./no_twitch');   // a stand-in tmi.js: nothing reaches Twitch, no live chat gets in
 const { storageSettled } = require('./storage_sync');   // before a reload: the game's own save has reached the browser
 const { tourneyDrawProblems } = require('./tourney_layout');
+const { overlayIconIssues } = require('./overlay_icons');
 
 const ROOT = path.join(__dirname, '..');
 // A run against another page (TOUR_FILE) keeps its screenshots apart, so it never replaces this page's review shots
@@ -133,7 +134,7 @@ async function register(page, lang, names, levels = {}) {
 }
 // What the arena and the chat panel show
 const view = page => page.evaluate(() => {
-    const txt = el => el ? el.textContent.replace(/\s+/g, ' ').trim() : '';
+    const txt = el => window.__vt(el);   // each pixel icon as [id]
     return { line: txt(document.getElementById('queue-hint')), plate: txt(document.getElementById('status-plate')), type: txt(document.getElementById('fight-type')),
         kind: arenaState.kind, counting: document.getElementById('log-panel').classList.contains('counting'), timer: txt(document.getElementById('cd-time')),
         cdTitle: txt(document.querySelector('#log-countdown .cd-title')), bracket: !!document.querySelector('#log-countdown.with-bracket .tb'),
@@ -148,7 +149,11 @@ async function until(page, cond, arg, { step = 1000, max = 4 * 3600000 } = {}) {
     }
     throw new Error('timed out waiting for ' + cond.toString().slice(0, 120));
 }
-const shot = async (page, name) => { await settleArena(page); await page.screenshot({ path: path.join(SHOTS, name) }); };
+// Every screenshot is also an overlay check (no emoji on stream, every icon at a whole-number scale); judged at the end
+const iconIssues = new Set();
+const shot = async (page, name) => { await settleArena(page); (await overlayIconIssues(page)).forEach(i => iconIssues.add(`${name}: ${i}`)); await page.screenshot({ path: path.join(SHOTS, name) }); };
+// A queue badge as __vt reads it, «1 [emRed] @name»: its place, the player's emblem, the name; the emblem checked and dropped
+const badges = qs => qs.map(q => q.replace(/\s/g, '')).filter(q => /^\d+\[em[A-Z]\w*\]@/.test(q)).map(q => q.replace(/\[em\w+\]/, '')).join();
 // After a reload, what the new page found: the saved tournament as it reads it now, what it loaded, the arena's state
 const afterReload = page => page.evaluate(k => {
     const raw = localStorage.getItem(k);
@@ -158,9 +163,9 @@ const afterReload = page => page.evaluate(k => {
         running: isBattleRunning, hold: !!resultHold, waiting: !!bettingWait, ready: document.readyState, lang: document.documentElement.lang, now: Date.now() };
 }, KEY);
 // The moments section 3 reloads at: at(state) says when (in the page), expect(after, before) what the arena shows 0.5 s later
-const tourPlate = a => /^🏆 Турнір · /.test(a.plate);
+const tourPlate = a => /^\[trophy\] Турнір · /.test(a.plate);
 const RELOAD_PHASES = [
-    { label: 'during sign-up', signup: true, expect: a => a.tourney && a.tourney.phase === 'signup' && a.line === '🏆 Турнір: реєстрація · 2/4 · !учасник' },
+    { label: 'during sign-up', signup: true, expect: a => a.tourney && a.tourney.phase === 'signup' && a.line === '[trophy] Турнір: реєстрація · 2/4 · !учасник' },
     { label: 'during the betting window', betting: true, at: () => arenaState.kind === 'countdown' && arenaState.betting,
       expect: a => a.kind === 'countdown' && tourPlate(a) && /Гра 1/.test(a.plate) },
     { label: 'in the middle of a game', at: () => tourGame && tourGame.stage === 'sf' && arenaState.kind === 'fight' && arenaState.turn >= 2,
@@ -205,7 +210,7 @@ const key = (a, b) => [a, b].sort().join('-');
         await mod(page, cmd(lang, '!турнір', '!tournament'));
         const opened = await view(page);
         check(/немає реєстрації|no tournament sign-up/.test(none) && !viewerTried.tourney && opened.tourney && opened.tourney.size === 8
-            && opened.line === cmd(lang, '🏆 Турнір: реєстрація · 0/8 · !учасник', '🏆 Tournament: sign-up · 0/8 · !join'),
+            && opened.line === cmd(lang, '[trophy] Турнір: реєстрація · 0/8 · !учасник', '[trophy] Tournament: sign-up · 0/8 · !join'),
             `a viewer's ${cmd(lang, '!турнір', '!tournament')} does nothing; a moderator's opens sign-up for 8 (the default): "${opened.line}"`, JSON.stringify({ none, viewer: viewerTried.tourney, line: opened.line }));
         for (const n of names.slice(0, 5)) await say(page, n, cmd(lang, '!учасник', '!join'));
         const five = await view(page);
@@ -245,7 +250,7 @@ const key = (a, b) => [a, b].sort().join('-');
         await say(page, 'late_viewer', cmd(lang, '!учасник', '!join')); replies.full = (await view(page)).chat;
         await say(page, 'bohdan', cmd(lang, '!вийти', '!leave')); replies.noLeave = (await view(page)).chat;
         check(startedWith4.tourney && startedWith4.tourney.phase !== 'signup' && /Замало|Not enough/.test(tooFew.chat) && tooFew.tourney.phase === 'signup'
-            && full4.tourney.phase !== 'signup' && full4.line === cmd(lang, '🏆 Турнір триває · черга чекає', '🏆 Tournament on · the queue waits'),
+            && full4.tourney.phase !== 'signup' && full4.line === cmd(lang, '[trophy] Турнір триває · черга чекає', '[trophy] Tournament on · the queue waits'),
             `${cmd(lang, '!турнір старт', '!tournament start')} closes sign-up with 4, not with 3 ("${tooFew.chat}"); the 4th of 4 closes it by itself; the line then says "${full4.line}"`,
             JSON.stringify({ started: startedWith4.tourney && startedWith4.tourney.phase, tooFew: tooFew.chat, full: full4.tourney.phase, line: full4.line }));
         check(/сітка вже заповнена|bracket is full/.test(replies.full) && /лише під час реєстрації|only leave during sign-up/.test(replies.noLeave),
@@ -315,14 +320,14 @@ const key = (a, b) => [a, b].sort().join('-');
         for (const n of players) await say(page, n, '!учасник');           // the 8th closes sign-up
         const closed = await view(page);
         const snapshot = () => page.evaluate(ps => ({ db: ps.map(n => [n, getDragonDB()[n].xp, getDragonDB()[n].level]), stats: JSON.stringify(playerLeaderboardStats),
-            top: [...document.querySelectorAll('#leaderboard-list .lb-row')].map(r => r.textContent.replace(/[🏆🥈🥉]/gu, '').replace(/\s+/g, ' ').trim()) }), players);   // order and records (badges come with the podium)
+            top: [...document.querySelectorAll('#leaderboard-list .lb-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()) }), players);   // order and records (badges come with the podium)
         check(closed.tourney.phase === 'ready' && closed.running && closed.kind === 'fight', 'the 8th player closes sign-up; the ranked fight on screen carries on',
             JSON.stringify({ phase: closed.tourney.phase, kind: closed.kind }));
         // The plan: QF1 2:0, QF2 2:1, QF3 a draw then 2:0, QF4 2:1; SF1 2:0, SF2 2:1; 3rd place; final 2:1
         const qf = closed.tourney.rounds[0].map(m => [m.a, m.b]);
         // Level shapes the bracket: the two highest (@oleh_the_great 16, @ira_77 12) in opposite halves
         const half = n => Math.floor(qf.findIndex(m => m.includes(n)) / 2);
-        const seedsLine = '🏆 Найвищі рівні — @oleh_the_great і @ira_77: вони в різних половинах сітки й можуть зустрітися лише у фіналі або в матчі за 3-тє місце.';
+        const seedsLine = '[trophy] Найвищі рівні — @oleh_the_great і @ira_77: вони в різних половинах сітки й можуть зустрітися лише у фіналі або в матчі за 3-тє місце.';
         check(half('oleh_the_great') !== half('ira_77') && closed.chat === seedsLine,
             `the two highest levels in opposite halves of the bracket; the ЧАТ panel: «${closed.chat}»`, JSON.stringify({ qf, chat: closed.chat }));
         const plan = {
@@ -341,7 +346,7 @@ const key = (a, b) => [a, b].sort().join('-');
             'the tournament waits for the arena: the ranked fight, its result screen, the duel waiting after it, its result screen; then QF1 game 1 opens with the betting window',
             JSON.stringify({ order, firstStart }));
         const bets = await view(page);
-        check(bets.counting && bets.bracket && /^1:5\d$|^2:00$/.test(bets.timer) && bets.plate === '🏆 Турнір · Чвертьфінал · Гра 1 · 0:0' && bets.type === '⏳ Ставки відкрито',
+        check(bets.counting && bets.bracket && /^1:5\d$|^2:00$/.test(bets.timer) && bets.plate === '[trophy] Турнір · Чвертьфінал · Гра 1 · 0:0' && bets.type === '[hourglass] Ставки відкрито',
             `the betting window: the bracket under the timer (${bets.timer}), the plate "${bets.plate}", "${bets.type}" on the left`, JSON.stringify(bets));
         const bracket = await page.evaluate(() => ({ cols: [...document.querySelectorAll('#log-countdown .tb-col')].map(c => c.querySelector('.tb-h').textContent),
             names: [...document.querySelectorAll('#log-countdown .tb-col:first-child .tb-n')].map(n => n.textContent), live: document.querySelectorAll('#log-countdown .tb-m.live').length,
@@ -354,7 +359,8 @@ const key = (a, b) => [a, b].sort().join('-');
         await say(page, 'q_first', '!черга'); await say(page, 'q_second', '!черга'); await say(page, 'q_third', '!черга');
         await say(page, 'q_first', '!бій @q_second'); const duelReply = (await view(page)).chat;
         const queued = await view(page);
-        check(queued.queue.map(q => q.replace(/\s/g, '')).join() === '1@q_first,2@q_second,3@q_third' && /триває турнір: дуелі — після турніру/.test(duelReply),
+        // Each queue badge: its place, the player's emblem, the name
+        check(badges(queued.queue) === '1@q_first,2@q_second,3@q_third' && /триває турнір: дуелі — після турніру/.test(duelReply),
             '!черга still joins the queue (1 @q_first, 2 @q_second, 3 @q_third); !бій gets "зараз триває турнір: дуелі — після турніру"', JSON.stringify({ queue: queued.queue, duelReply }));
         // !старт skips the betting window
         await mod(page, '!старт');
@@ -362,7 +368,7 @@ const key = (a, b) => [a, b].sort().join('-');
         const mid = await view(page);
         const cards = await page.evaluate(() => ['p1', 'p2'].map(p => { const n = document.getElementById(`name-${p}`).textContent.replace('@', ''); const d = getDragonStrict(n);
             return { n, info: document.getElementById(`info-${p}`).textContent, hp: document.getElementById(`hp-text-${p}`).textContent.split('/')[1], want: getMaxHP(20, d.drakeObj.type, d.title), saved: calculateLevelAndProgress(d.xp).level }; }));
-        check(mid.kind === 'fight' && mid.plate === '🏆 Турнір · Чвертьфінал · Гра 1 · 0:0' && /^⚔️ Хід \d+ \/ 30$/.test(mid.type),
+        check(mid.kind === 'fight' && mid.plate === '[trophy] Турнір · Чвертьфінал · Гра 1 · 0:0' && /^\[turn\] Хід \d+ \/ 30$/.test(mid.type),
             `!старт skips the window; mid-fight the plate says "${mid.plate}" and the turn moves to the left ("${mid.type}")`, JSON.stringify(mid));
         check(cards.every(c => / · Рівень 20$/.test(c.info) && +c.hp === c.want) && cards.some(c => c.saved < 20),
             `both fight at level 20: ${cards.map(c => `@${c.n} (saved level ${c.saved}) ${c.info.split('·')[1].trim()}, max HP ${c.hp}`).join('; ')}`, JSON.stringify(cards));
@@ -372,7 +378,7 @@ const key = (a, b) => [a, b].sort().join('-');
         await page.clock.runFor(20000 - 500 + 1500);
         const cd2 = await view(page);
         const s2 = await page.evaluate(() => window.__starts.filter(s => s.tour)[1]);
-        check(s2 && s2.t - end1 === 20000 && !s2.betting && s2.total === 10000 && !s2.bracket && cd2.cdTitle === 'Чвертьфінал · Гра 2' && cd2.plate === '🏆 Турнір · Чвертьфінал · Гра 2 · 1:0',
+        check(s2 && s2.t - end1 === 20000 && !s2.betting && s2.total === 10000 && !s2.bracket && cd2.cdTitle === 'Чвертьфінал · Гра 2' && cd2.plate === '[trophy] Турнір · Чвертьфінал · Гра 2 · 1:0',
             `game 2: 20 s after game 1 ends, a 10 s countdown "${cd2.cdTitle}" (no betting window, no bracket); the plate "${cd2.plate}"`, JSON.stringify({ s2, end1, cd2 }));
         await page.clock.runFor(10000 + 4500 * 4);
         await shot(page, 'tournament-plate.png');
@@ -409,14 +415,14 @@ const key = (a, b) => [a, b].sort().join('-');
             `the betting window (with the bracket) before game 1 of all 8 matches, the 3rd-place game and the final included; the ${rest.length} other games (and the replay) get the 10 s countdown`,
             JSON.stringify(starts.map(s => [s.tour.stage, s.tour.game, s.betting, s.total])));
         check(games.every(g => g.lv[0] === 20 && g.lv[1] === 20), `all ${games.length} games at level 20`, JSON.stringify(games.map(g => g.lv)));
-        const wantPlates = ['🏆 Турнір · Чвертьфінал · Гра 3', '🏆 Турнір · Півфінал · Гра 1', '🏆 Турнір · Півфінал · Гра 2', '🏆 Турнір · Матч за 3-тє місце', '🏆 Турнір · Фінал · Гра 1', '🏆 Турнір · Фінал · Гра 3'];
+        const wantPlates = ['[trophy] Турнір · Чвертьфінал · Гра 3', '[trophy] Турнір · Півфінал · Гра 1', '[trophy] Турнір · Півфінал · Гра 2', '[trophy] Турнір · Матч за 3-тє місце', '[trophy] Турнір · Фінал · Гра 1', '[trophy] Турнір · Фінал · Гра 3'];
         check(wantPlates.every(p => Object.keys(plates).includes(p)), `the plate at every stage: ${Object.values(plates).slice(0, 12).join(' | ')}`, JSON.stringify(Object.keys(plates)));
         // The podium
         const podium = await view(page);
-        const pd = await page.evaluate(() => [...document.querySelectorAll('#log-countdown .pd-col')].map(c => ({ name: c.querySelector('.pd-name').textContent, medal: c.querySelector('.pd-medal').textContent, sprite: !!c.querySelector('img.pd-sprite') })));
+        const pd = await page.evaluate(() => [...document.querySelectorAll('#log-countdown .pd-col')].map(c => ({ name: c.querySelector('.pd-name').textContent, medal: (c.querySelector('.pd-medal img.px-icon') || { dataset: {} }).dataset.icon, sprite: !!c.querySelector('img.pd-sprite') })));
         const [gold, silver, bronze] = [qf[0][0], qf[2][0], qf[1][0]];
-        check(screenshotPodium && pd.map(c => c.medal + c.name).join() === `🥈@${silver},🥇@${gold},🥉@${bronze}` && pd.every(c => c.sprite) && podium.type === '🏆 Турнір завершено' && podium.plate === `🥇 @${gold}`,
-            `the podium: 🥇 @${gold}, 🥈 @${silver}, 🥉 @${bronze}, with sprites; "${podium.type}" · "${podium.plate}"`, JSON.stringify({ pd, type: podium.type, plate: podium.plate }));
+        check(screenshotPodium && pd.map(c => c.medal + c.name).join() === `medalSilver@${silver},medalGold@${gold},medalBronze@${bronze}` && pd.every(c => c.sprite) && podium.type === '[trophy] Турнір завершено' && podium.plate === `[medalGold] @${gold}`,
+            `the podium: the gold medal @${gold}, silver @${silver}, bronze @${bronze} (pixel medals by the names), with sprites; "${podium.type}" · "${podium.plate}"`, JSON.stringify({ pd, type: podium.type, plate: podium.plate }));
         await shot(page, 'tournament-podium.png');
         const after = await snapshot();
         check(JSON.stringify(after.db) === JSON.stringify(before.db) && after.stats === before.stats && JSON.stringify(after.top) === JSON.stringify(before.top),
@@ -438,7 +444,7 @@ const key = (a, b) => [a, b].sort().join('-');
         const nextFight = await page.evaluate(() => window.__starts[window.__starts.length - 1]);
         await say(page, 'duel_a', '!бій @duel_b'); const challenged = await page.evaluate(() => pendingChallenges.duel_b);
         check(!back.tourney && back.line === 'стати в чергу: !черга' && nextFight.ranked && [nextFight.a, nextFight.b].join() === 'q_first,q_second'
-            && back.queue.map(q => q.replace(/\s/g, '')).join() === '1@q_third' && challenged === 'duel_a' && !(await page.evaluate(k => localStorage.getItem(k), KEY)),
+            && badges(back.queue) === '1@q_third' && challenged === 'duel_a' && !(await page.evaluate(k => localStorage.getItem(k), KEY)),
             'after the podium: the tournament is gone (its save too); the queue carries on in its order (@q_first against @q_second, @q_third next) and !бій works again',
             JSON.stringify({ line: back.line, nextFight, queue: back.queue, challenged }));
         // The run's timeline: when every fight started (game clock), with the tournament's stage and game. With the
@@ -471,7 +477,7 @@ const key = (a, b) => [a, b].sort().join('-');
         await page.clock.runFor(1000);
         const resumed = await view(page), diag = await afterReload(page);
         check(keyOk && saved.phase === 'running' && saved.rounds[0][0].winner === sf[0][0] && resumed.tourney && resumed.tourney.rounds[0][0].winner === sf[0][0]
-            && resumed.kind === 'countdown' && /^🏆 Турнір · Півфінал · Гра 2 · (1:0|0:1)$/.test(resumed.plate) && resumed.cdTitle === 'Півфінал · Гра 2',
+            && resumed.kind === 'countdown' && /^\[trophy\] Турнір · Півфінал · Гра 2 · (1:0|0:1)$/.test(resumed.plate) && resumed.cdTitle === 'Півфінал · Гра 2',
             `after a reload: the saved tournament (key "${KEY}", no "db" or "stats" in it) resumes at the second semifinal, game 2 replayed: "${resumed.plate}"`,
             JSON.stringify({ phase: saved.phase, resumed: { kind: resumed.kind, plate: resumed.plate, cd: resumed.cdTitle }, diag, errors }));
         await until(page, () => arenaState.kind === 'podium', null, { step: 5000 });
@@ -574,10 +580,10 @@ const key = (a, b) => [a, b].sort().join('-');
             const r1 = t.rounds[0].flatMap(m => [m.a, m.b]).filter(Boolean).sort();
             check(t.bracket === 4 && t.rounds.length === 2 && r1.join() === 'ava,ben,cleo' && t.qual.length === 1 && [t.qual[0].a, t.qual[0].b].sort().join() === 'dan,eve',
                 '5 players: a main bracket of 4; @ava, @ben and @cleo (the first three) straight into the semifinals; @dan and @eve (the last two) in the qualifier', JSON.stringify(t));
-            check(v.chat === '🏆 5 players: 3 with the highest levels straight into the semifinals, 2 play a qualifier for 1 spot', `the ЧАТ panel: "${v.chat}"`, v.chat);
+            check(v.chat === '[trophy] 5 players: 3 with the highest levels straight into the semifinals, 2 play a qualifier for 1 spot', `the ЧАТ panel: "${v.chat}"`, v.chat);
             const start = await page.evaluate(() => window.__starts[window.__starts.length - 1]);
             const c = await cols(page);
-            check(start.tour.stage === 'qual' && !start.betting && start.total === 10000 && start.bracket && v.plate === '🏆 Tournament · Qualifier 1/1' && v.cdTitle === 'Qualifier 1/1'
+            check(start.tour.stage === 'qual' && !start.betting && start.total === 10000 && start.bracket && v.plate === '[trophy] Tournament · Qualifier 1/1' && v.cdTitle === 'Qualifier 1/1'
                 && c.map(x => x.h).join() === 'Qualifier,Semifinal,Final' && c[0].ms.length === 1 && c[0].ms[0].live && c[1].ms.flatMap(m => m.p).filter(p => p === '…').length === 1
                 && c[1].ms.flatMap(m => m.raw).includes('qualifier 1'),
                 `the qualifier game: no betting window, the 10 s countdown with the bracket, the qualifier its own first column (live), one semifinal place "…"; "${v.plate}"`,
@@ -592,7 +598,7 @@ const key = (a, b) => [a, b].sort().join('-');
             const done = (await view(page)).tourney;
             const starts = await page.evaluate(() => window.__starts.filter(s => s.tour));
             const qualWinner = done.qual[0].winner;
-            check([...plates].join() === '🏆 Tournament · Qualifier 1/1,🏆 Tournament · Semifinal,🏆 Tournament · 3rd-place match,🏆 Tournament · Final'
+            check([...plates].join() === '[trophy] Tournament · Qualifier 1/1,[trophy] Tournament · Semifinal,[trophy] Tournament · 3rd-place match,[trophy] Tournament · Final'
                 && done.rounds[0].flatMap(m => [m.a, m.b]).sort().join() === ['ava', 'ben', 'cleo', qualWinner].sort().join()
                 && starts.filter(s => s.tour.stage === 'qual').every(s => !s.betting) && starts.filter(s => s.tour.stage !== 'qual' && s.tour.game === 1 && !s.tour.replay).every(s => s.betting),
                 `English plates: ${[...plates].join(' | ')}; the qualifier's winner (@${qualWinner}) plays the semifinals; game 1 of every later match opens the betting window`,
@@ -614,9 +620,9 @@ const key = (a, b) => [a, b].sort().join('-');
             check(t.bracket === 8 && c[1].ms.flatMap(m => m.p).filter(p => p !== '…').sort().join() === '@ava,@ben,@cleo' && t.qual.length === 5
                 && t.qual.flatMap(m => [m.a, m.b]).sort().join() === ps.slice(3).join(),
                 '13 players: a main bracket of 8; the first 3 straight into the quarterfinals, the other 10 in 5 qualifier games', JSON.stringify(t.qual));
-            check(v.chat === '🏆 13 учасників: 3 з найвищим рівнем — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць', `the ЧАТ panel: «${v.chat}»`, v.chat);
+            check(v.chat === '[trophy] 13 учасників: 3 з найвищим рівнем — одразу в чвертьфінал, 10 грають кваліфікацію за 5 місць', `the ЧАТ panel: «${v.chat}»`, v.chat);
             check(c.map(x => x.h).join() === 'Кваліфікація,Чвертьфінал,Півфінал,Фінал' && c[0].ms.length === 5 && c[0].ms[0].live && c[1].ms.flatMap(m => m.p).filter(p => p === '…').length === 5
-                && v.plate === '🏆 Турнір · Кваліфікація 1/5' && await fits(page),
+                && v.plate === '[trophy] Турнір · Кваліфікація 1/5' && await fits(page),
                 `the bracket: «Кваліфікація» (5 games, the first live) before the quarterfinals (5 places «…»), all inside the countdown; «${v.plate}»`, JSON.stringify({ c, plate: v.plate }));
             await shot(page, 'tournament-qualifier.png');
             // Each qualifier game's first-named player wins: one game each, then the quarterfinals with all 8
@@ -646,8 +652,8 @@ const key = (a, b) => [a, b].sort().join('-');
             await page.clock.runFor(1000);
             const v9 = { ...await view(page), chat: news9 };
             check(v9.tourney.bracket === 8 && v9.tourney.qual.length === 1 && [v9.tourney.qual[0].a, v9.tourney.qual[0].b].sort().join() === 'hal,ivy'
-                && v9.chat === '🏆 9 players: 7 with the highest levels straight into the quarterfinals, 2 play a qualifier for 1 spot'
-                && v9.plate === '🏆 Tournament · Qualifier 1/1' && v9.counting && v9.queue.length === 2,
+                && v9.chat === '[trophy] 9 players: 7 with the highest levels straight into the quarterfinals, 2 play a qualifier for 1 spot'
+                && v9.plate === '[trophy] Tournament · Qualifier 1/1' && v9.counting && v9.queue.length === 2,
                 `9 players: @hal and @ivy (the last two) play for the last place; "${v9.chat}"; "${v9.plate}"; the queue waits (2 in it)`, JSON.stringify({ qual: v9.tourney.qual, chat: v9.chat, plate: v9.plate, queue: v9.queue }));
             await mod(page, '!tournament stop');
             const stopped = await view(page);
@@ -662,7 +668,7 @@ const key = (a, b) => [a, b].sort().join('-');
             await mod(page, '!tournament start');
             await page.clock.runFor(1000);
             const v15 = await view(page), c15 = await cols(page);
-            check(v15.tourney.bracket === 8 && v15.chat === '🏆 15 players: 1 with the highest levels straight into the quarterfinals, 14 play a qualifier for 7 spots'
+            check(v15.tourney.bracket === 8 && v15.chat === '[trophy] 15 players: 1 with the highest levels straight into the quarterfinals, 14 play a qualifier for 7 spots'
                 && c15[0].h === 'Qualifier' && c15[0].ms.length === 7 && c15[1].ms.flatMap(m => m.p).filter(p => p !== '…').join() === '@ava' && await fits(page),
                 `15 players: only @ava straight in; 7 qualifier games in their column, all inside the countdown; "${v15.chat}"`, JSON.stringify({ chat: v15.chat, c15 }));
             // !tournament stop in the middle of a qualifier game: the game is fought to its end, counting for nothing
@@ -672,7 +678,7 @@ const key = (a, b) => [a, b].sort().join('-');
             await until(page, () => !isBattleRunning && !resultHold, null, { step: 2000 });
             const after15 = await view(page);
             const end15 = await page.evaluate(n => ({ finished: window.__games.length === n + 1, aborted: /simulation error/i.test(document.body.innerText) }), gamesBefore);
-            check(midPlate === '🏆 Tournament · Qualifier 1/7' && end15.finished && !end15.aborted && !after15.tourney && !(await page.evaluate(k => localStorage.getItem(k), KEY)) && !errors.length,
+            check(midPlate === '[trophy] Tournament · Qualifier 1/7' && end15.finished && !end15.aborted && !after15.tourney && !(await page.evaluate(k => localStorage.getItem(k), KEY)) && !errors.length,
                 `!tournament stop during a qualifier game ("${midPlate}"): the game is fought to its end (no "simulation error"), and the tournament is gone`, JSON.stringify({ midPlate, end15, errors }));
             // 16 players: exactly a bracket of 16, no qualifier (the 16th closes sign-up)
             await mod(page, '!tournament 16');
@@ -680,7 +686,7 @@ const key = (a, b) => [a, b].sort().join('-');
             await page.clock.runFor(1000);
             const v16 = await view(page), c16 = await cols(page);
             const mid16 = await page.evaluate(() => { const m = document.querySelector('#log-countdown .tb-mirror .tb-mid'); return m ? { h: m.querySelector('.tb-h').textContent, timer: !!m.querySelector('.tb-timer #cd-time'), matches: m.querySelectorAll('.tb-m').length } : null; });
-            check(v16.tourney.bracket === 16 && !v16.tourney.qual.length && v16.plate === '🏆 Tournament · Round of 16 · Game 1 · 0:0'
+            check(v16.tourney.bracket === 16 && !v16.tourney.qual.length && v16.plate === '[trophy] Tournament · Round of 16 · Game 1 · 0:0'
                 && c16.map(x => x.h).join() === 'Round of 16,Quarterfinal,Semifinal,Semifinal,Quarterfinal,Round of 16' && c16[0].ms.length === 4 && c16[5].ms.length === 4
                 && mid16 && mid16.h === 'Final' && mid16.timer && mid16.matches === 2 && !/qualifier/.test(v16.chat) && await fits(page),
                 `16 players: a bracket of 16, no qualifier, mirrored: two halves of 4 round-of-16 matches meeting at the final in the middle (the timer above it, the 3rd-place game under it); "${v16.plate}"`,
@@ -757,7 +763,7 @@ const key = (a, b) => [a, b].sort().join('-');
         const p1 = await play(['ruslana', 'petro', 'marta', 'ostap'], ['ruslana', 'petro', 'marta', 'ostap']);
         await page.clock.runFor(20000 + 500);                                // the podium's 20 s: then the Hall of Fame
         const hallScreen = await page.evaluate(() => ({ kind: arenaState.kind, on: document.getElementById('log-countdown').classList.contains('hall') && document.getElementById('log-panel').classList.contains('counting'),
-            rows: [...document.querySelectorAll('#log-countdown .hf-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()), type: document.getElementById('fight-type').textContent, tourney: !!tourney }));
+            rows: [...document.querySelectorAll('#log-countdown .hf-row')].map(r => __vt(r)), type: __vt(document.getElementById('fight-type')), tourney: !!tourney }));
         // !турнір стоп during the Hall of Fame: the tournament is over, so it's refused and the prizes stay
         await mod(page, '!турнір стоп');
         const hallStop = await view(page), hallPrizes = await page.evaluate(() => getHonours().hall.length);
@@ -765,25 +771,25 @@ const key = (a, b) => [a, b].sort().join('-');
             `!турнір стоп during the Hall of Fame: refused («${hallStop.chat}»), the Hall of Fame stays and so do the prizes`, JSON.stringify({ phase: hallStop.tourney && hallStop.tourney.phase, chat: hallStop.chat, hallPrizes }));
         await page.clock.runFor(15000 + 500);
         const afterHall = await page.evaluate(() => ({ kind: arenaState.kind, on: document.getElementById('log-countdown').classList.contains('hall'), tourney: !!tourney }));
-        check(hallScreen.kind === 'hall' && hallScreen.on && hallScreen.tourney && hallScreen.rows.length === 1 && hallScreen.rows[0].includes(`🥇 @${p1[0]}`) && hallScreen.rows[0].includes('4 учасників')
-            && hallScreen.type === '🏛️ Зала слави' && !afterHall.tourney && afterHall.on,
+        check(hallScreen.kind === 'hall' && hallScreen.on && hallScreen.tourney && hallScreen.rows.length === 1 && hallScreen.rows[0].includes(`[medalGold] @${p1[0]}`) && hallScreen.rows[0].includes('4 учасників')
+            && hallScreen.type === '[hall] Зала слави' && !afterHall.tourney && afterHall.on,
             `after the podium, the Hall of Fame for 15 s ("${hallScreen.rows[0]}"); then the tournament is over and it stays on the arena`, JSON.stringify({ hallScreen, afterHall }));
         // Badges: the Top, the arena cards, !стата
-        const top = await page.evaluate(() => [...document.querySelectorAll('#leaderboard-list .lb-row')].map(r => r.querySelector('.lb-name').textContent));
-        check(top.includes(`@${p1[0]}🏆`) && top.includes(`@${p1[1]}🥈`) && top.includes(`@${p1[2]}🥉`) && top.includes('@nadiia'),
-            `the Top: ${top.filter(x => /🏆|🥈|🥉/.test(x)).join(', ')} (no badge for @nadiia)`, JSON.stringify(top));
+        const top = await page.evaluate(() => [...document.querySelectorAll('#leaderboard-list .lb-row')].map(r => __vt(r.querySelector('.lb-name'))));
+        check(top.includes(`@${p1[0]} [medalGold]`) && top.includes(`@${p1[1]} [medalSilver]`) && top.includes(`@${p1[2]} [medalBronze]`) && top.includes('@nadiia'),
+            `the Top: ${top.filter(x => /\[medal/.test(x)).join(', ')} (no badge for @nadiia)`, JSON.stringify(top));
         await say(page, p1[0], `!бій @nadiia`); await say(page, 'nadiia', '!прийняти');
         await page.clock.runFor(4500 + 4500 * 2);
         const cards = await page.evaluate(() => ['p1', 'p2'].map(p => { const n = document.getElementById(`name-${p}`), c = document.getElementById(`card-${p}`);
-            return { text: n.textContent, medal: getComputedStyle(n, '::after').content, champion: c.classList.contains('champion'), glow: getComputedStyle(c.querySelector('.drake-sprite')).filter }; }));
+            return { text: n.textContent, medal: n.dataset.medal || 'none', medalDrawn: /^url\(/.test(getComputedStyle(n, '::after').backgroundImage), champion: c.classList.contains('champion'), glow: getComputedStyle(c.querySelector('.drake-sprite')).filter }; }));
         const champ = cards.find(c => c.text === '@' + p1[0]), other = cards.find(c => c.text === '@nadiia');
-        check(champ && other && champ.medal === '"🏆"' && champ.champion && /drop-shadow/.test(champ.glow) && other.medal === 'none' && !other.champion && !/drop-shadow/.test(other.glow),
-            `the arena card: "@${p1[0]}" with 🏆 after the name (the name's text stays the name) and a golden glow on the drake; @nadiia neither`, JSON.stringify(cards));
+        check(champ && other && champ.medal === 'medalGold' && champ.medalDrawn && champ.champion && /drop-shadow/.test(champ.glow) && other.medal === 'none' && !other.medalDrawn && !other.champion && !/drop-shadow/.test(other.glow),
+            `the arena card: "@${p1[0]}" with the gold medal drawn after the name (the name's text stays the name) and a golden glow on the drake; @nadiia neither`, JSON.stringify(cards));
         await shot(page, 'tournament-champion.png');
         await say(page, p1[0], '!стата');
         const stata = (await view(page)).chat;
-        check(stata.includes(`@${p1[0]} 🏆`) && stata.includes('🏆×1 🥈×0 🥉×0') && stata.includes('Безкоштовні прокрути титулу: 3'),
-            `!стата: "${stata.slice(0, 40)}…" with the badge, "🏆×1 🥈×0 🥉×0" and the 3 free spins`, stata);
+        check(stata.includes(`@${p1[0]} [medalGold]`) && stata.includes('[medalGold] ×1 [medalSilver] ×0 [medalBronze] ×0') && stata.includes('[ticket] Безкоштовні прокрути титулу: 3'),
+            `!стата: "${stata.slice(0, 40)}…" with the badge, the medal count and the 3 free spins`, stata);
         // Free spins
         await say(page, p1[0], '!титул'); const spin1 = (await view(page)).chat;
         await say(page, p1[0], '!титул', { 'custom-reward-id': 'reward-xyz' }); const pts = (await view(page)).chat;
@@ -813,8 +819,8 @@ const key = (a, b) => [a, b].sort().join('-');
             && Object.keys(hx.spins).every(k => /^p\d{3}$/.test(k)) && !players.some(n => exp.includes(n)),
             `the play log export has the honours (the last podium, medals, spins, both Hall of Fame entries), every player as an id, no name left`, JSON.stringify({ hx, idOf }));
         await say(page, 'viewer_x', '!зала');
-        const card = await page.evaluate(() => { const c = document.querySelector('#info-feed .info-card.hall-card'); return c ? { rows: [...c.querySelectorAll('.hf-card-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()), text: c.textContent.replace(/\s+/g, ' ') } : null; });
-        check(card && card.rows.length === 2 && card.rows[0].includes(`🥇 @${p2[0]}`) && card.rows[1].includes(`🥇 @${p1[0]}`) && /Найбільше перемог: .* — 🏆×1/.test(card.text),
+        const card = await page.evaluate(() => { const c = document.querySelector('#info-feed .info-card.hall-card'); return c ? { rows: [...c.querySelectorAll('.hf-card-row')].map(r => __vt(r)), text: __vt(c) } : null; });
+        check(card && card.rows.length === 2 && card.rows[0].includes(`[medalGold] @${p2[0]}`) && card.rows[1].includes(`[medalGold] @${p1[0]}`) && /Найбільше перемог: .* — \[medalGold\] ×1/.test(card.text),
             `!зала (anyone, no drake needed): a card with both tournaments, the latest first, and who has won the most`, JSON.stringify(card));
         await shot(page, 'tournament-hall-card.png');
         // The ladder wipe, with a sign-up open; then a reload: the idle arena shows the Hall of Fame
@@ -848,7 +854,7 @@ const key = (a, b) => [a, b].sort().join('-');
         // The show's state: arena classes, overlays, the pips, what's in the log area; and where things are
         const looks = () => page.evaluate(() => {
             const arena = document.getElementById('arena'), box = document.getElementById('log-countdown');
-            const txt = el => el ? el.textContent.replace(/\s+/g, ' ').trim() : '';
+            const txt = el => window.__vt(el);   // each pixel icon as [id]
             const pips = id => [...document.querySelectorAll(`#${id} .ts-pip`)].map(p => p.className.replace('ts-pip', '').trim() || '·');
             return { kind: arenaState.kind, cls: [...arena.classList].filter(c => c.startsWith('ts-')), box: box.className,
                 over: [...document.querySelectorAll('.ts-over')].map(o => o.className.replace('ts-over', '').trim()),
@@ -1169,7 +1175,7 @@ const key = (a, b) => [a, b].sort().join('-');
                 col.className = `pd-col ${flip ? 'pd-2' : 'pd-1'}`;
                 col.innerHTML = `<img class="pd-sprite" src="${drakeSpriteURL(d.type)}" alt=""${flip ? ' style="transform:scaleX(-1)"' : ''}>`
                     + `<span class="pd-name" style="color:${ELEMENT_COLORS[d.type]}">${d.name[currentLang].replace(/\s*\S+$/u, '')}${flip ? ' ⇆' : ''}</span>`
-                    + (flip ? '' : `<div class="pd-step frame-sm"><span class="pd-medal">🥇</span><span class="pd-place">1</span></div>`);
+                    + (flip ? '' : `<div class="pd-step frame-sm"><span class="pd-medal">${pxIcon('medalGold', 3)}</span><span class="pd-place">1</span></div>`);
                 st.appendChild(col);
                 const img = col.querySelector('.pd-sprite'), wrap = showCrown(img, d.type);
                 const s = img.getBoundingClientRect(), c = wrap.querySelector('.ts-crown').getBoundingClientRect();
@@ -1190,6 +1196,7 @@ const key = (a, b) => [a, b].sort().join('-');
         await context.close();
     }
 
+    check(!iconIssues.size, 'every screenshot of the tournament (sign-up, bracket, games, plate, podium, champion, Hall of Fame, the show): no emoji on the overlay, every icon at a whole-number scale', [...iconIssues].slice(0, 8).join(' | '));
     await browser.close();
     console.log(failures ? `\n${failures} tournament check(s) failed.` : '\nAll tournament checks passed.');
     process.exit(failures ? 1 : 0);

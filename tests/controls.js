@@ -108,8 +108,8 @@ const armed = page => page.evaluate(() => ({ armed: forcedCast, shown: document.
                 const snap = () => page.evaluate(() => ['p1', 'p2'].map(p => {
                     const card = document.getElementById(`card-${p}`), r = el => { const b = el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)].join(','); };
                     const txt = id => document.getElementById(id).textContent.replace(/\s+/g, ' ').trim();
-                    return { badge: (card.querySelector('.fighter-title-badge') || {}).textContent, info: txt(`info-${p}`), stats: txt(`stats-sub-${p}`),
-                        chips: [...card.querySelectorAll('.status-item')].map(x => x.textContent), power: (card.querySelector('.pm-label') || {}).textContent || '',
+                    return { badge: __vt(card.querySelector('.fighter-title-badge')), info: __vt(document.getElementById(`info-${p}`)), stats: txt(`stats-sub-${p}`),
+                        chips: [...card.querySelectorAll('.status-item')].map(x => __vt(x)), power: (card.querySelector('.pm-label') || {}).textContent || '',
                         hp: txt(`hp-text-${p}`), pips: card.querySelectorAll('.pm-pip.on').length, boxes: [...card.children].filter(c => !c.classList.contains('fx-layer')).map(r).join(' ') };
                 }));
                 const before = await snap();
@@ -117,8 +117,9 @@ const armed = page => page.evaluate(() => ({ armed: forcedCast, shown: document.
                 const after = await snap();
                 const expect = await page.evaluate(() => ['p1', 'p2'].map(p => {
                     const f = p === 'p1' ? fv.p1 : fv.p2, st = battleFx[f.name];
-                    return { badge: `${f.title.icon} ${f.title.name[currentLang]}`, drake: f.drakeObj.name[currentLang].replace(/\s*\S*$/u, '').trim() || f.drakeObj.name[currentLang],
-                        stat: currentLang === 'uk' ? 'КРИТ' : 'CRIT', power: METER.short[currentLang], chips: [...st.buff, ...st.debuff].map(x => effectChipText(x)) };
+                    // The title's badge glyph and name, the emblem by the drake's name, each chip's icon, name and what's left (icons as [id])
+                    return { badge: `[${titleGlyph(f.title)}] ${f.title.name[currentLang]}`, drake: `[${EMBLEMS[f.drakeObj.type]}] ${drakeLabel(f.drakeObj)}`,
+                        stat: currentLang === 'uk' ? 'КРИТ' : 'CRIT', power: METER.short[currentLang], chips: [...st.buff, ...st.debuff].map(x => `[${x.id}] ${EFFECTS[x.id].name[currentLang]} · ${effectLeftText(x.id, x.left)}`) };
                 }));
                 const problems = [];
                 after.forEach((a, i) => {
