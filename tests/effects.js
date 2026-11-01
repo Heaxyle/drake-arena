@@ -163,9 +163,12 @@ console.log('\nEffect and ultimate names and icons only in their tables (EFFECTS
     const lines = html.split(/\r?\n/);
     const tableLines = name => { const s = lines.findIndex(l => l.includes(`const ${name} = {`)); return [s, lines.findIndex((l, i) => i > s && l.trim() === '};')]; };
     const [start, end] = tableLines('EFFECTS'), [uStart, uEnd] = tableLines('CLASS_ULTIMATES');
-    // The icon set's block (a copy of design/icons/icons.js, between its markers) names every effect and ultimate for its
-    // icons' labels; design/icons/test.js checks those names and colours are the tables' own, so it's skipped here
+    // The icon set's blocks (a copy of design/icons/icons.js, then the V2 set's, design/icons/v2/, between their markers)
+    // name every effect and ultimate for their icons' labels; design/icons/test.js checks those names and colours are the
+    // tables' own (the V2 names icons.js's, each copy the files'), so they're skipped here
     const iStart = lines.findIndex(l => l.includes('// ===== ICONS START =====')), iEnd = lines.findIndex(l => l.includes('// ===== ICONS END ====='));
+    const vStart = lines.findIndex(l => l.includes('// ===== ICONS V2 START =====')), vEnd = lines.findIndex(l => l.includes('// ===== ICONS V2 END ====='));
+    const inBlock = i => (iStart !== -1 && i >= iStart && i <= iEnd) || (vStart !== -1 && i >= vStart && i <= vEnd);
     const bare = s => s.replace(/️/g, '');                       // 🛡️ and 🛡 are the same icon
     const terms = [...new Set([...EFFECT_IDS.map(id => EFFECTS[id]), ...G.ULTIMATE_IDS.map(id => G.CLASS_ULTIMATES[id])]
         .flatMap(x => [x.name.uk, x.name.en, x.acc, bare(x.icon)]).filter(Boolean))];
@@ -177,7 +180,7 @@ console.log('\nEffect and ultimate names and icons only in their tables (EFFECTS
     const used = new Set(), bad = [];
     let hits = 0;
     lines.forEach((raw, i) => {
-        if ((start !== -1 && i >= start && i <= end) || (uStart !== -1 && i >= uStart && i <= uEnd) || (iStart !== -1 && i >= iStart && i <= iEnd)) return;
+        if ((start !== -1 && i >= start && i <= end) || (uStart !== -1 && i >= uStart && i <= uEnd) || inBlock(i)) return;
         const l = bare(raw.replace(/<!--.*?-->/g, '').replace(/\/\*.*?\*\//g, '').replace(/(^|[\s;{}),])\/\/.*$/, '$1'));
         const found = [...new Set([...(l.match(wordRe) || []), ...iconTerms.filter(t => l.includes(t))])];
         if (!found.length) return;

@@ -1,0 +1,1130 @@
+{
+ "burn": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Підпал",
+   "en": "Burn"
+  },
+  "still": "icons/debuff/burn.png",
+  "anim": "icons/debuff/burn-anim.png"
+ },
+ "shield": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Щит",
+   "en": "Shield"
+  },
+  "still": "icons/buff/shield.png",
+  "anim": "icons/buff/shield-anim.png"
+ },
+ "firestorm": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Вогняний шторм",
+   "en": "Firestorm"
+  },
+  "still": "icons/ultimate/firestorm.png",
+  "anim": "icons/ultimate/firestorm-anim.png"
+ },
+ "frost": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Мороз",
+   "en": "Frost"
+  },
+  "still": "icons/debuff/frost.png",
+  "anim": "icons/debuff/frost-anim.png"
+ },
+ "detonation": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Арканна детонація",
+   "en": "Arcane Detonation"
+  },
+  "still": "icons/ultimate/detonation.png",
+  "anim": "icons/ultimate/detonation-anim.png"
+ },
+ "crit": {
+  "kind": "note",
+  "size": 40,
+  "frames": 8,
+  "ms": 110,
+  "name": {
+   "uk": "Крит",
+   "en": "Crit"
+  },
+  "still": "icons/note/crit.png",
+  "anim": "icons/note/crit-anim.png"
+ },
+ "physical": {
+  "kind": "attack",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Фізична",
+   "en": "Physical"
+  },
+  "still": "icons/attack/physical.png",
+  "anim": "icons/attack/physical-anim.png"
+ },
+ "reelgem": {
+  "kind": "reel",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Самоцвіт",
+   "en": "Gem"
+  },
+  "still": "icons/reel/reelgem.png",
+  "anim": "icons/reel/reelgem-anim.png"
+ },
+ "hp": {
+  "kind": "bonus",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "HP",
+   "en": "HP"
+  },
+  "still": "icons/bonus/hp.png",
+  "anim": "icons/bonus/hp-anim.png"
+ },
+ "medalGold": {
+  "kind": "medal",
+  "size": 48,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "1-ше місце",
+   "en": "1st place"
+  },
+  "still": "icons/medal/medalGold.png",
+  "anim": "icons/medal/medalGold-anim.png"
+ },
+ "trophy": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Турнір",
+   "en": "Tournament"
+  },
+  "still": "icons/ui/trophy.png",
+  "anim": "icons/ui/trophy-anim.png"
+ },
+ "emRed": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Червоний Дрейк",
+   "en": "Red Drake"
+  },
+  "still": "icons/emblem/emRed.png",
+  "anim": "icons/emblem/emRed-anim.png"
+ },
+ "emBlue": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Синій Дрейк",
+   "en": "Blue Drake"
+  },
+  "still": "icons/emblem/emBlue.png",
+  "anim": "icons/emblem/emBlue-anim.png"
+ },
+ "emBlack": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Чорний Дрейк",
+   "en": "Black Drake"
+  },
+  "still": "icons/emblem/emBlack.png",
+  "anim": "icons/emblem/emBlack-anim.png"
+ },
+ "emGold": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Золотий Дрейк",
+   "en": "Gold Drake"
+  },
+  "still": "icons/emblem/emGold.png",
+  "anim": "icons/emblem/emGold-anim.png"
+ },
+ "emPurple": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Фіолетовий Дрейк",
+   "en": "Purple Drake"
+  },
+  "still": "icons/emblem/emPurple.png",
+  "anim": "icons/emblem/emPurple-anim.png"
+ },
+ "emGreen": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Зелений Дрейк",
+   "en": "Green Drake"
+  },
+  "still": "icons/emblem/emGreen.png",
+  "anim": "icons/emblem/emGreen-anim.png"
+ },
+ "emDragon": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Білий Дракон",
+   "en": "White Dragon"
+  },
+  "still": "icons/emblem/emDragon.png",
+  "anim": "icons/emblem/emDragon-anim.png"
+ },
+ "emSteel": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Білий Дрейк",
+   "en": "White Drake"
+  },
+  "still": "icons/emblem/emSteel.png",
+  "anim": "icons/emblem/emSteel-anim.png"
+ },
+ "rage": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Лють",
+   "en": "Rage"
+  },
+  "still": "icons/buff/rage.png",
+  "anim": "icons/buff/rage-anim.png"
+ },
+ "shadow": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Тінь",
+   "en": "Shadow"
+  },
+  "still": "icons/buff/shadow.png",
+  "anim": "icons/buff/shadow-anim.png"
+ },
+ "weakness": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Слабкість",
+   "en": "Weakness"
+  },
+  "still": "icons/debuff/weakness.png",
+  "anim": "icons/debuff/weakness-anim.png"
+ },
+ "blessing": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Благословіння",
+   "en": "Blessing"
+  },
+  "still": "icons/buff/blessing.png",
+  "anim": "icons/buff/blessing-anim.png"
+ },
+ "mark": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Мітка",
+   "en": "Mark"
+  },
+  "still": "icons/debuff/mark.png",
+  "anim": "icons/debuff/mark-anim.png"
+ },
+ "divine": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Божественна міць",
+   "en": "Divine Might"
+  },
+  "still": "icons/buff/divine.png",
+  "anim": "icons/buff/divine-anim.png"
+ },
+ "dispel": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Розвіювання",
+   "en": "Dispel"
+  },
+  "still": "icons/debuff/dispel.png",
+  "anim": "icons/debuff/dispel-anim.png"
+ },
+ "regen": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Регенерація",
+   "en": "Regeneration"
+  },
+  "still": "icons/buff/regen.png",
+  "anim": "icons/buff/regen-anim.png"
+ },
+ "poison": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Отруєння",
+   "en": "Poison"
+  },
+  "still": "icons/debuff/poison.png",
+  "anim": "icons/debuff/poison-anim.png"
+ },
+ "reforge": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Перекування",
+   "en": "Reforging"
+  },
+  "still": "icons/buff/reforge.png",
+  "anim": "icons/buff/reforge-anim.png"
+ },
+ "magnet": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Магніт",
+   "en": "Magnet"
+  },
+  "still": "icons/debuff/magnet.png",
+  "anim": "icons/debuff/magnet-anim.png"
+ },
+ "mirror": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Крижане дзеркало",
+   "en": "Ice Mirror"
+  },
+  "still": "icons/ultimate/mirror.png",
+  "anim": "icons/ultimate/mirror-anim.png"
+ },
+ "theft": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Крадіжка тіні",
+   "en": "Shadow Theft"
+  },
+  "still": "icons/ultimate/theft.png",
+  "anim": "icons/ultimate/theft-anim.png"
+ },
+ "jackpot": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Джекпот",
+   "en": "Jackpot"
+  },
+  "still": "icons/ultimate/jackpot.png",
+  "anim": "icons/ultimate/jackpot-anim.png"
+ },
+ "bloom": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Цвітіння",
+   "en": "Bloom"
+  },
+  "still": "icons/ultimate/bloom.png",
+  "anim": "icons/ultimate/bloom-anim.png"
+ },
+ "anvil": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Удар ковадла",
+   "en": "Anvil Strike"
+  },
+  "still": "icons/ultimate/anvil.png",
+  "anim": "icons/ultimate/anvil-anim.png"
+ },
+ "magical": {
+  "kind": "attack",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Магічна",
+   "en": "Magical"
+  },
+  "still": "icons/attack/magical.png",
+  "anim": "icons/attack/magical-anim.png"
+ },
+ "vampire": {
+  "kind": "attack",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Вампірська",
+   "en": "Vampire"
+  },
+  "still": "icons/attack/vampire.png",
+  "anim": "icons/attack/vampire-anim.png"
+ },
+ "reelcoin": {
+  "kind": "reel",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Монети",
+   "en": "Coins"
+  },
+  "still": "icons/reel/reelcoin.png",
+  "anim": "icons/reel/reelcoin-anim.png"
+ },
+ "reelbust": {
+  "kind": "reel",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Невдача",
+   "en": "Bust"
+  },
+  "still": "icons/reel/reelbust.png",
+  "anim": "icons/reel/reelbust-anim.png"
+ },
+ "defence": {
+  "kind": "bonus",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Захист",
+   "en": "Defence"
+  },
+  "still": "icons/bonus/defence.png",
+  "anim": "icons/bonus/defence-anim.png"
+ },
+ "effect": {
+  "kind": "bonus",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Шанс ефекту",
+   "en": "Effect chance"
+  },
+  "still": "icons/bonus/effect.png",
+  "anim": "icons/bonus/effect-anim.png"
+ },
+ "buffpower": {
+  "kind": "bonus",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Сила бафів",
+   "en": "Buff power"
+  },
+  "still": "icons/bonus/buffpower.png",
+  "anim": "icons/bonus/buffpower-anim.png"
+ },
+ "block": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Ультраблок",
+   "en": "Ultra-block"
+  },
+  "still": "icons/note/block.png",
+  "anim": "icons/note/block-anim.png"
+ },
+ "dodge": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Квантовий ухил",
+   "en": "Quantum Dodge"
+  },
+  "still": "icons/note/dodge.png",
+  "anim": "icons/note/dodge-anim.png"
+ },
+ "miss": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Промах",
+   "en": "Miss"
+  },
+  "still": "icons/note/miss.png",
+  "anim": "icons/note/miss-anim.png"
+ },
+ "unblockable": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Не блокується",
+   "en": "Unblockable"
+  },
+  "still": "icons/note/unblockable.png",
+  "anim": "icons/note/unblockable-anim.png"
+ },
+ "immune": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Імунітет",
+   "en": "Immune"
+  },
+  "still": "icons/note/immune.png",
+  "anim": "icons/note/immune-anim.png"
+ },
+ "pierce": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Крізь броню",
+   "en": "Armour-piercing"
+  },
+  "still": "icons/note/pierce.png",
+  "anim": "icons/note/pierce-anim.png"
+ },
+ "execute": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Добивання",
+   "en": "Execute"
+  },
+  "still": "icons/note/execute.png",
+  "anim": "icons/note/execute-anim.png"
+ },
+ "sleep": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 120,
+  "name": {
+   "uk": "Проспав хід",
+   "en": "Slept through it"
+  },
+  "still": "icons/note/sleep.png",
+  "anim": "icons/note/sleep-anim.png"
+ },
+ "chaos": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 80,
+  "name": {
+   "uk": "Хаос",
+   "en": "Chaos"
+  },
+  "still": "icons/note/chaos.png",
+  "anim": "icons/note/chaos-anim.png"
+ },
+ "thorns": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Шипи",
+   "en": "Thorns"
+  },
+  "still": "icons/note/thorns.png",
+  "anim": "icons/note/thorns-anim.png"
+ },
+ "lifesteal": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Вампіризм титулу",
+   "en": "Title lifesteal"
+  },
+  "still": "icons/note/lifesteal.png",
+  "anim": "icons/note/lifesteal-anim.png"
+ },
+ "vampheal": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Лікування укусом",
+   "en": "Vampire heal"
+  },
+  "still": "icons/note/vampheal.png",
+  "anim": "icons/note/vampheal-anim.png"
+ },
+ "coin": {
+  "kind": "note",
+  "size": 40,
+  "frames": 16,
+  "ms": 90,
+  "name": {
+   "uk": "Герб чи число",
+   "en": "Heads or tails"
+  },
+  "still": "icons/note/coin.png",
+  "anim": "icons/note/coin-anim.png"
+ },
+ "fortune": {
+  "kind": "note",
+  "size": 40,
+  "frames": 16,
+  "ms": 90,
+  "name": {
+   "uk": "Фортуна · 1 HP",
+   "en": "Fortune · 1 HP"
+  },
+  "still": "icons/note/fortune.png",
+  "anim": "icons/note/fortune-anim.png"
+ },
+ "cat": {
+  "kind": "note",
+  "size": 40,
+  "frames": 16,
+  "ms": 100,
+  "name": {
+   "uk": "Кіт",
+   "en": "Cat"
+  },
+  "still": "icons/note/cat.png",
+  "anim": "icons/note/cat-anim.png"
+ },
+ "guardian": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Ангел-охоронець",
+   "en": "Guardian angel"
+  },
+  "still": "icons/note/guardian.png",
+  "anim": "icons/note/guardian-anim.png"
+ },
+ "opening": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Баф на старті",
+   "en": "Opening buff"
+  },
+  "still": "icons/note/opening.png",
+  "anim": "icons/note/opening-anim.png"
+ },
+ "sovereign": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Атака розсіюється",
+   "en": "The attack dissolves"
+  },
+  "still": "icons/note/sovereign.png",
+  "anim": "icons/note/sovereign-anim.png"
+ },
+ "wrath": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Кара етеру",
+   "en": "Aether wrath"
+  },
+  "still": "icons/note/wrath.png",
+  "anim": "icons/note/wrath-anim.png"
+ },
+ "reflect": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Відбиває",
+   "en": "Reflects"
+  },
+  "still": "icons/note/reflect.png",
+  "anim": "icons/note/reflect-anim.png"
+ },
+ "suddendeath": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Раптова смерть",
+   "en": "Sudden death"
+  },
+  "still": "icons/note/suddendeath.png",
+  "anim": "icons/note/suddendeath-anim.png"
+ },
+ "knockout": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Нокаут",
+   "en": "Knockout"
+  },
+  "still": "icons/note/knockout.png",
+  "anim": "icons/note/knockout-anim.png"
+ },
+ "scales": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Луска Дракона",
+   "en": "Dragon Scales"
+  },
+  "still": "icons/note/scales.png",
+  "anim": "icons/note/scales-anim.png"
+ },
+ "bounce": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Відскочило від луски",
+   "en": "Bounced off the scales"
+  },
+  "still": "icons/note/bounce.png",
+  "anim": "icons/note/bounce-anim.png"
+ },
+ "cracked": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Луска розкололася",
+   "en": "The scales cracked"
+  },
+  "still": "icons/note/cracked.png",
+  "anim": "icons/note/cracked-anim.png"
+ },
+ "whiteSteel": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Біла сталь",
+   "en": "White Steel"
+  },
+  "still": "icons/note/whiteSteel.png",
+  "anim": "icons/note/whiteSteel-anim.png"
+ },
+ "ranked": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Рейтинговий бій",
+   "en": "Ranked battle"
+  },
+  "still": "icons/ui/ranked.png",
+  "anim": "icons/ui/ranked-anim.png"
+ },
+ "friendly": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Товариська дуель",
+   "en": "Friendly duel"
+  },
+  "still": "icons/ui/friendly.png",
+  "anim": "icons/ui/friendly-anim.png"
+ },
+ "victory": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 16,
+  "ms": 90,
+  "name": {
+   "uk": "Перемога",
+   "en": "Victory"
+  },
+  "still": "icons/ui/victory.png",
+  "anim": "icons/ui/victory-anim.png"
+ },
+ "draw": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 16,
+  "ms": 100,
+  "name": {
+   "uk": "Нічия",
+   "en": "Draw"
+  },
+  "still": "icons/ui/draw.png",
+  "anim": "icons/ui/draw-anim.png"
+ },
+ "hourglass": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Очікування, час",
+   "en": "Waiting, time"
+  },
+  "still": "icons/ui/hourglass.png",
+  "anim": "icons/ui/hourglass-anim.png"
+ },
+ "turn": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 24,
+  "ms": 100,
+  "name": {
+   "uk": "Хід",
+   "en": "Turn"
+  },
+  "still": "icons/ui/turn.png",
+  "anim": "icons/ui/turn-anim.png"
+ },
+ "die": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Жереб",
+   "en": "Chance"
+  },
+  "still": "icons/ui/die.png",
+  "anim": "icons/ui/die-anim.png"
+ },
+ "bell": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 16,
+  "ms": 90,
+  "name": {
+   "uk": "Бій почався",
+   "en": "The fight is on"
+  },
+  "still": "icons/ui/bell.png",
+  "anim": "icons/ui/bell-anim.png"
+ },
+ "levelup": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Новий рівень",
+   "en": "Level up"
+  },
+  "still": "icons/ui/levelup.png",
+  "anim": "icons/ui/levelup-anim.png"
+ },
+ "hall": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Зала слави",
+   "en": "Hall of Fame"
+  },
+  "still": "icons/ui/hall.png",
+  "anim": "icons/ui/hall-anim.png"
+ },
+ "ticket": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Безкоштовний прокрут",
+   "en": "Free spin"
+  },
+  "still": "icons/ui/ticket.png",
+  "anim": "icons/ui/ticket-anim.png"
+ },
+ "stats": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Стата",
+   "en": "Stats"
+  },
+  "still": "icons/ui/stats.png",
+  "anim": "icons/ui/stats-anim.png"
+ },
+ "xp": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Досвід",
+   "en": "XP"
+  },
+  "still": "icons/ui/xp.png",
+  "anim": "icons/ui/xp-anim.png"
+ },
+ "reroll": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 24,
+  "ms": 80,
+  "name": {
+   "uk": "Рерол",
+   "en": "Reroll"
+  },
+  "still": "icons/ui/reroll.png",
+  "anim": "icons/ui/reroll-anim.png"
+ },
+ "attacking": {
+  "kind": "ui",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Атакує",
+   "en": "Attacking"
+  },
+  "still": "icons/ui/attacking.png",
+  "anim": "icons/ui/attacking-anim.png"
+ },
+ "roulette": {
+  "kind": "ui",
+  "size": 44,
+  "frames": 24,
+  "ms": 80,
+  "name": {
+   "uk": "Рулетка титулів",
+   "en": "Title roulette"
+  },
+  "still": "icons/ui/roulette.png",
+  "anim": "icons/ui/roulette-anim.png"
+ },
+ "medalSilver": {
+  "kind": "medal",
+  "size": 48,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "2-ге місце",
+   "en": "2nd place"
+  },
+  "still": "icons/medal/medalSilver.png",
+  "anim": "icons/medal/medalSilver-anim.png"
+ },
+ "medalBronze": {
+  "kind": "medal",
+  "size": 48,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "3-тє місце",
+   "en": "3rd place"
+  },
+  "still": "icons/medal/medalBronze.png",
+  "anim": "icons/medal/medalBronze-anim.png"
+ },
+ "frame-common": {
+  "kind": "frame",
+  "size": 48,
+  "frames": 16,
+  "ms": 100,
+  "name": {
+   "uk": "Звичайний",
+   "en": "Common"
+  },
+  "still": "frames/frame-common.png",
+  "anim": "frames/frame-common-anim.png"
+ },
+ "frame-uncommon": {
+  "kind": "frame",
+  "size": 48,
+  "frames": 16,
+  "ms": 100,
+  "name": {
+   "uk": "Незвичайний",
+   "en": "Uncommon"
+  },
+  "still": "frames/frame-uncommon.png",
+  "anim": "frames/frame-uncommon-anim.png"
+ },
+ "frame-rare": {
+  "kind": "frame",
+  "size": 48,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Рідкісний",
+   "en": "Rare"
+  },
+  "still": "frames/frame-rare.png",
+  "anim": "frames/frame-rare-anim.png"
+ },
+ "frame-epic": {
+  "kind": "frame",
+  "size": 48,
+  "frames": 24,
+  "ms": 70,
+  "name": {
+   "uk": "Епічний",
+   "en": "Epic"
+  },
+  "still": "frames/frame-epic.png",
+  "anim": "frames/frame-epic-anim.png"
+ },
+ "frame-legendary": {
+  "kind": "frame",
+  "size": 48,
+  "frames": 24,
+  "ms": 70,
+  "name": {
+   "uk": "Легендарний",
+   "en": "Legendary"
+  },
+  "still": "frames/frame-legendary.png",
+  "anim": "frames/frame-legendary-anim.png"
+ },
+ "frame-mythic": {
+  "kind": "frame",
+  "size": 48,
+  "frames": 24,
+  "ms": 70,
+  "name": {
+   "uk": "Міфічний",
+   "en": "Mythic"
+  },
+  "still": "frames/frame-mythic.png",
+  "anim": "frames/frame-mythic-anim.png"
+ },
+ "frame-meme": {
+  "kind": "frame",
+  "size": 48,
+  "frames": 16,
+  "ms": 100,
+  "name": {
+   "uk": "Мемний",
+   "en": "Meme"
+  },
+  "still": "frames/frame-meme.png",
+  "anim": "frames/frame-meme-anim.png"
+ },
+ "frame-divine": {
+  "kind": "frame",
+  "size": 48,
+  "frames": 24,
+  "ms": 70,
+  "name": {
+   "uk": "Божественний",
+   "en": "Divine"
+  },
+  "still": "frames/frame-divine.png",
+  "anim": "frames/frame-divine-anim.png"
+ }
+}

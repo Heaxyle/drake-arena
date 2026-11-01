@@ -1,7 +1,8 @@
-// Drake Arena icon set: first batch (the 12 effects and the 6 class ultimates). Design only: the game doesn't load this yet.
-// Same format as DRAKE_SPRITES: a palette plus rows of palette letters ('.' = transparent), drawn once to a canvas and
-// cached, shown only at whole-number scales (see style.md). No frames: every effect glyph has the whole 10×10 (buff or
-// debuff shows in the chip around it: CHIP_SHAPES below), every ultimate its own 12×12 silhouette.
+// Drake Arena icon set: the glyphs, the set's record (each icon's size, names, element colour, its chip). The overlay draws
+// the V2 set drawn from them (design/icons/v2/: 4× denser, a still and an idle loop each; style.md, "V2"); the review page
+// and the player guide draw these. Same format as DRAKE_SPRITES: a palette plus rows of palette letters ('.' = transparent),
+// drawn once to a canvas and cached, shown only at whole-number scales (see style.md). No frames: every effect glyph has the
+// whole 10×10 (buff or debuff shows in the chip around it: CHIP_SHAPES below), every ultimate its own 12×12 silhouette.
 // Colour = element: every effect and the ultimate of an element share its colour family (ELEMENT_COLORS). When this is wired
 // in, these become the `color` values in EFFECTS / CLASS_ULTIMATES (a visual-only change), which stay the only source. The
 // palette letters:

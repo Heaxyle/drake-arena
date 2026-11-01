@@ -2,6 +2,7 @@
 // phone viewer's 360p (a third), the way a stream player scales it down. Design only: not part of npm test.
 //   node design/icons/shoot.js   →   tests/screenshots/icons-review.png, tests/screenshots/icons-review-phone.png
 // Offline like the game: the network is blocked and the game's embedded fonts (showcase/index.html) replace the web fonts.
+// The V2 icons show their stills (prefers-reduced-motion), so the screenshots don't depend on when they're taken.
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -17,7 +18,7 @@ const PAGE = 'file:///' + path.join(__dirname, 'review.html').replace(/\\/g, '/'
     fs.mkdirSync(OUT, { recursive: true });
 
     const browser = await chromium.launch();
-    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+    const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, reducedMotion: 'reduce' });   // the V2 stills, so the sheet is the same every run
     await page.route(url => !url.href.startsWith('file:') && !url.href.startsWith('data:'), r => r.abort());
     await page.goto(PAGE);
     await page.evaluate(css => {

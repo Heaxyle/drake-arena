@@ -39,8 +39,8 @@ const fail = msg => { failures++; console.log(`  ✗ ${msg}`); };
 const pass = msg => console.log(`  ✓ ${msg}`);
 const check = (ok, good, bad) => ok ? pass(good) : fail(`${good} — ${bad}`);
 
-async function open(browser, { lang = 'uk', obs = false, width = 1920, height = 1080 } = {}) {
-    const context = await browser.newContext({ viewport: { width, height } });
+async function open(browser, { lang = 'uk', obs = false, width = 1920, height = 1080, dpr = 1 } = {}) {
+    const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, reducedMotion: 'reduce' });   // the icons' stills (prefers-reduced-motion), so the screenshots are the same on every run
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
@@ -364,7 +364,7 @@ async function layoutChecks(browser, lang) {
     check(!problems.length, `${tag} worst case fits at 1920×1080: name "${worst.longName}", title "${worst.longTitle}", "${worst.longDrake}", 4 longest chips, full СИЛА + Ice Mirror, 7 leaderboard rows, a stats card`,
         problems.slice(0, 6).join(' | '));
     await iconCheck(page, `layout-worst-${lang}`);
-    if (lang === 'uk') { const missed = await overlaySelfTest(page); check(!missed.length, 'the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon and an icon over its words', `not reported: ${missed.join(', ')}`); }
+    if (lang === 'uk') { const missed = await overlaySelfTest(page); check(!missed.length, "the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon, an icon over its words, an icon with another icon's art, one sharing another icon's copy, an icon smoothed or pixelated against the display rule and a badge glyph a pixel off", `not reported: ${missed.join(', ')}`); }
     await page.screenshot({ path: path.join(SHOTS, `layout-worst-${lang}.png`) });
     const pops = await page.evaluate(popPositions);
     check(pops.length === 4 && pops.every(x => x.over), `${tag} hit numbers pop over each card's drake (a hit and a small "back" number on both cards)`, JSON.stringify(pops.filter(x => !x.over)));
@@ -436,6 +436,73 @@ async function startupNetwork(browser) {
     await context.close();
 }
 
+// The V2 icons beyond the screenshots' stills (every other check here runs under prefers-reduced-motion). On a full
+// overlay (the worst-case cards with their chips and title badges, the medal after a fighter's name, the Top with medals,
+// !стата, a legendary title roll with its ×3 badge, the odds card, the title plate): while motion is allowed every icon
+// shows its loop; turning prefers-reduced-motion on swaps every one to its still, the medal after the name too, and turning
+// it off brings the loops back; the overlay check holds in each. At devicePixelRatio 2 (a 4K canvas) the overlay check
+// holds with the ×2 icons pixelated (their art 1:1) and the ×1 and ×3 ones smoothed; at 1 (1080p) every icon is smoothed.
+async function iconScene(page) {
+    await page.evaluate(fillWorstCase);
+    await page.evaluate(() => {   // the medals: gold for the left fighter (on its card and in its !стата), silver and bronze for two of the Top
+        const left = document.getElementById('name-p1').innerText.replace('@', '').trim(), top = Object.keys(getDragonDB()).filter(n => /^\d/.test(n));
+        saveHonours({ ...getHonours(), holders: [left, top[0], top[1]], medals: { [left]: [1, 2, 0] } });
+    });
+    await page.evaluate(fillWorstCase);   // again, with the medals
+    await page.evaluate(() => { showTitleRoll('goldfinch', '#ffd166', TITLES_DB.find(t => t.id === 99)); showOddsCard(); });
+}
+function iconTally() {
+    const icons = [...document.querySelectorAll('#stage img.px-icon')].filter(i => !i.closest('#cam-col, #battle-log'));
+    const shows = k => icons.filter(i => { const c = iconCopies.get(i); return !!c && c.url === i.getAttribute('src') && c.id === i.dataset.icon && c.still === (k === 'still'); }).length;
+    const medal = document.querySelector('#stage .fighter-name[data-medal]'), art = medal && ICONS_V2[medal.dataset.medal];
+    const bg = medal && getComputedStyle(medal, '::after').backgroundImage;
+    const by = s => icons.filter(i => i.dataset.s === s);
+    const drawn = (list, r) => list.filter(i => getComputedStyle(i).imageRendering === r).length;
+    return {
+        icons: icons.length, loops: shows('anim'), stills: shows('still'), badges: document.querySelectorAll('#stage .px-badge').length,
+        medal: !medal ? 'none' : bg === `url("${art.anim}")` ? 'loop' : bg === `url("${art.still}")` ? 'still' : 'other',
+        x1: by('1').length, x2: by('2').length, x3: by('3').length,
+        x2crisp: drawn(by('2'), 'pixelated'), x13smooth: drawn([...by('1'), ...by('3')], 'auto'), smooth: drawn(icons, 'auto'),
+    };
+}
+async function iconLoopsAndStills(browser) {
+    {
+        const { page, context, errors } = await open(browser, { lang: 'uk' });   // opened under prefers-reduced-motion
+        await iconScene(page);
+        // A media change reaches the page at its next rendering update: settle gives it that (real time), then the count
+        const state = async reducedMotion => { if (reducedMotion) await page.emulateMedia({ reducedMotion }); await settle(page); return [await page.evaluate(iconTally), await overlayIconIssues(page)]; };
+        const [first, firstIssues] = await state(null);
+        const [moving, movingIssues] = await state('no-preference');
+        const [still, stillIssues] = await state('reduce');
+        const [back, backIssues] = await state('no-preference');
+        check(first.stills === first.icons && first.medal === 'still' && !firstIssues.length,
+            `opened under prefers-reduced-motion, every icon shows its still: ${first.icons} icons (${first.x1} at ×1, ${first.x2} at ×2, ${first.x3} at ×3, ${first.badges} title badges) and the medal after a fighter's name`,
+            JSON.stringify({ first, issues: firstIssues.slice(0, 4) }));
+        check(moving.icons >= 40 && moving.badges >= 3 && moving.x1 && moving.x2 && moving.x3 && moving.icons === first.icons && moving.loops === moving.icons && moving.medal === 'loop' && !movingIssues.length,
+            'prefers-reduced-motion off: every one swaps to its loop, the medal too', JSON.stringify({ moving, issues: movingIssues.slice(0, 4) }));
+        check(still.stills === still.icons && still.icons === first.icons && still.medal === 'still' && !stillIssues.length,
+            'on again: all back to their stills', JSON.stringify({ still, issues: stillIssues.slice(0, 4) }));
+        check(back.loops === back.icons && back.icons === first.icons && back.medal === 'loop' && !backIssues.length,
+            'off again: the loops are back', JSON.stringify({ back, issues: backIssues.slice(0, 4) }));
+        check(moving.smooth === moving.icons, `at devicePixelRatio 1 (1080p) every icon is smoothed: its art is ${await page.evaluate(() => ICON_DENSITY)}× denser than the screen`, JSON.stringify(moving));
+        if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+        await context.close();
+    }
+    {
+        const { page, context, errors } = await open(browser, { lang: 'uk', dpr: 2 });
+        await iconScene(page);
+        await settle(page);
+        const t = await page.evaluate(iconTally), issues = await overlayIconIssues(page);
+        const shot = path.join(SHOTS, 'layout-icons-4k.png');
+        await page.screenshot({ path: shot, clip: { x: 500, y: 118, width: 1380, height: 520 } });
+        check(t.icons === t.stills && t.x2 && t.x2crisp === t.x2 && t.x13smooth === t.x1 + t.x3 && !issues.length,
+            `at devicePixelRatio 2 (a 4K canvas) the ${t.x2} icons at ×2 are pixelated (their art 1:1) and the ${t.x1 + t.x3} at ×1 and ×3 smoothed (layout-icons-4k.png)`,
+            JSON.stringify({ t, issues: issues.slice(0, 4) }));
+        if (errors.length) fail(`page errors at devicePixelRatio 2: ${errors.slice(0, 3).join(' | ')}`);
+        await context.close();
+    }
+}
+
 (async () => {
     fs.mkdirSync(SHOTS, { recursive: true });
     const browser = await chromium.launch();
@@ -444,6 +511,9 @@ async function startupNetwork(browser) {
             console.log(`\nLayout, ${lang}`);
             await layoutChecks(browser, lang);
         }
+
+        console.log('\nThe V2 icons: loops, stills, the display rule');
+        await iconLoopsAndStills(browser);
 
         console.log('\nStartup: nothing from the network but Twitch chat');
         await startupNetwork(browser);

@@ -29,6 +29,9 @@
 //   - The log scrolls: a 30-turn fight keeps every row and its top is reachable; scrolled up, the view stays still while
 //     turns arrive and "↓ нові ходи (N)" counts them; back at the bottom (or the pill) it follows again; 15 s untouched
 //     during a fight brings it back; the result screen scrolls from the intro banner to the result card and stays put
+//   - Icons that don't change keep their elements (a new <img> restarts its image's loop): marked at turn 1, the cards',
+//     the plate's, the fight type's, the title plate's, the Top's, the queue's, the log's and the chat cards' icons are the
+//     same elements three turns later; a new chip and another title's badge are new elements, the rest stay
 //   - Review screenshots: tests/screenshots/fightview-cards.png (log cards of every kind, both languages) and
 //     tests/screenshots/fightview-turn.png (countdowns, the turn steps, an ultimate, the result, both languages)
 //
@@ -46,7 +49,7 @@ const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
 const TURN = 4500, HIT = 600;
-// FV_ONLY=2,4 runs only those sections (0–11, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
+// FV_ONLY=2,4 runs only those sections (0–12, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
 const ONLY = (process.env.FV_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
 
@@ -55,8 +58,9 @@ const fail = msg => { failures++; console.log(`  ✗ ${msg}`); };
 const pass = msg => console.log(`  ✓ ${msg}`);
 const check = (ok, good, bad) => ok ? pass(good) : fail(`${good} — ${bad}`);
 
-async function open(browser, { lang = 'uk', betting = false, width = 1920, height = 1080 } = {}) {
-    const context = await browser.newContext({ viewport: { width, height } });
+async function open(browser, { lang = 'uk', betting = false, width = 1920, height = 1080, dpr = 1, motion = false } = {}) {
+    // The icons' stills (prefers-reduced-motion), so the screenshots are the same on every run; motion: the loops (section 13)
+    const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, reducedMotion: motion ? 'no-preference' : 'reduce' });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
@@ -615,9 +619,9 @@ async function popAtStep2(page, turn) {
             const fights = [['kotyk_ua', 'jade', true], ['mwmwmwmwmwmwmwmwmwmwmwmwm', 'sapphire', false], ['ruby', 'mira', true], ['streamer_with_long_name', 'kotyk_ua', false]];
             const allProblems = [], fit = [], ids = new Set(), tails = [], iconIssues = new Set();
             let resultChecks = [], onlyCurrent = [], xpChecks = [];
-            // The overlay check catches what it's for (a planted emoji, an icon at ×1.5, a squeezed icon), then runs every turn
+            // The overlay check catches what it's for (each fault overlaySelfTest plants), then runs every turn
             const selfMissed = await overlaySelfTest(page);
-            check(!selfMissed.length, `[${lang}] the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon and an icon over its words`, `not reported: ${selfMissed.join(', ')}`);
+            check(!selfMissed.length, `[${lang}] the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon, an icon over its words, an icon with another icon's art, one sharing another icon's copy, an icon smoothed or pixelated against the display rule and a badge glyph a pixel off`, `not reported: ${selfMissed.join(', ')}`);
             for (const [a, b, ranked] of fights) {
                 await page.clock.runFor(4 * 60000);   // a pause between fights (there is no rest now; kept so the seeded fights stay the same)
                 const xpBefore = await page.evaluate(([a, b]) => ({ [a]: getDragonStrict(a).xp, [b]: getDragonStrict(b).xp }), [a, b]);
@@ -1365,6 +1369,180 @@ async function popAtStep2(page, turn) {
             await hold();
             await page.evaluate(() => setStreamerUser(''));
             if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // ===== 12. Icons that don't change keep their elements (a new <img> restarts the image's loop) =====
+        // At turn 1 of a ranked fight every icon on the cards, the plate, the fight type, the title plate, the Top, the queue,
+        // the log's legend, the log and the chat cards is marked; three turns later (and with the Top, the queue, the legend
+        // and the title plate drawn again too), each one still drawn with the same id and size where it was (its card, log
+        // row or chat card) must be the very same element. Then a changed icon must be a new one: a chip for a buff the card
+        // didn't show (the other chips keep theirs) and another title's badge (the card's emblem keeps its own).
+        console.log('\nIcons kept across redraws');
+        if (run(12)) {
+            const { page, context, errors } = await open(browser, { lang: 'uk' });
+            await register(page, 'uk', [['kotyk_ua', 'red'], ['jade', 'green'], ['sapphire', 'blue']]);
+            await page.evaluate(() => {
+                const db = getDragonDB();
+                db.kotyk_ua.title = TITLES_DB.find(t => t.id === 183); db.jade.title = TITLES_DB.find(t => t.id === 98); db.sapphire.title = TITLES_DB.find(t => t.id === 74);
+                saveDragonDB(db);
+                saveHonours({ ...getHonours(), holders: ['kotyk_ua', 'jade', 'sapphire'] });
+                renderLeaderboard();
+            });
+            for (const u of ['kotyk_ua', 'jade', 'sapphire']) await say(page, u, '!черга');
+            const until = async cond => { for (let i = 0; i < 240 && !(await page.evaluate(cond)); i++) await page.clock.runFor(250); };
+            await until(() => arenaState.kind === 'fight' && arenaState.turn >= 1);
+            await page.clock.runFor(HIT + 400);
+            await settleArena(page);
+            const AREAS = ['#card-p1', '#card-p2', '#status-plate', '#fight-type', '.plaque', '#leaderboard-list', '#queue-list-ui', '#log-head', '#log-list', '#info-feed'];
+            const inPage = `const key = i => i.matches('.px-badge') ? 'badge ' + i.dataset.frame + ' ' + i.querySelector('.px-glyph').dataset.icon + ' ' + i.style.width : i.dataset.icon + ' ×' + i.dataset.s;
+                const boxes = el => [...el.querySelectorAll('.px-badge, img.px-icon')].filter(i => !i.parentElement.classList.contains('px-badge'));`;
+            const before = await page.evaluate(([areas, src]) => {
+                const { key, boxes } = new Function(`${src} return { key, boxes };`)();
+                window.__marks = [];
+                areas.forEach(sel => document.querySelectorAll(sel).forEach(area => boxes(area).forEach(node => window.__marks.push({
+                    sel, key: key(node), node, unit: node.closest('.log-row, .log-banner, .log-result, .info-card') || area }))));
+                return { n: window.__marks.length, turn: arenaState.turn, plate: __vt(document.getElementById('status-plate')) };
+            }, [AREAS, inPage]);
+            for (let i = 0; i < 3; i++) {
+                await page.clock.runFor(TURN);
+                await page.evaluate(() => { renderLeaderboard(); updateQueueUI(); fvHead(); renderPlaque(); });   // drawn again, unchanged
+            }
+            await page.clock.runFor(HIT + 400);
+            await settleArena(page);
+            const after = await page.evaluate(src => {
+                const { key, boxes } = new Function(`${src} return { key, boxes };`)();
+                const out = { kept: [], lost: [], gone: 0, turn: arenaState.turn, plate: __vt(document.getElementById('status-plate')) };
+                for (const m of window.__marks) {
+                    // A log row, a banner or a chat card that's gone took its icons with it; elsewhere the area stays
+                    if (!m.unit.isConnected) { out.gone++; continue; }
+                    const same = boxes(m.unit).filter(i => key(i) === m.key);
+                    if (!same.length) { out.gone++; continue; }   // changed: not drawn there any more
+                    (same.includes(m.node) ? out.kept : out.lost).push(`${m.sel}: ${m.key}`);
+                }
+                return out;
+            }, inPage);
+            const areasKept = [...new Set(after.kept.map(k => k.split(':')[0]))];
+            check(after.turn >= before.turn + 3 && after.plate !== before.plate && !after.lost.length && after.kept.length >= 30 && AREAS.slice(0, 8).every(a => areasKept.includes(a)),
+                `icons that don't change keep their elements: of ${before.n} marked at turn ${before.turn}, ${after.kept.length} are the same elements at turn ${after.turn} (the plate went from «${before.plate}» to «${after.plate}»; ${after.gone} no longer drawn), in ${areasKept.join(', ')}`,
+                `drawn again as new elements: ${after.lost.slice(0, 8).join(' | ')} (kept in: ${areasKept.join(', ')}; turn ${before.turn} → ${after.turn})`);
+            // A changed icon is a new element: a new chip (the others keep theirs), another title's badge (the emblem stays)
+            const chip = await page.evaluate(() => {
+                const name = document.getElementById('name-p1').innerText.replace('@', '').trim(), box = document.getElementById('status-p1');
+                const d = getDragonDB()[name], lvl = calculateLevelAndProgress(d.xp || 0).level;
+                const draw = (buff, debuff) => updateStatusUI(name, lvl, d.drakeObj.type, d.title, { buff: buff.map(id => ({ id, left: 2, power: 1 })), debuff: debuff.map(id => ({ id, left: 2, power: 1 })) });
+                draw(['rage'], ['burn']);   // two chips on the card
+                const old = [...box.querySelectorAll('img.px-icon')];
+                draw(['rage', 'shield'], ['burn']);   // and a buff it didn't show
+                const now = [...box.querySelectorAll('img.px-icon')], added = now.find(i => i.dataset.icon === 'shield');
+                return { kept: old.filter(i => now.includes(i)).length, old: old.map(i => i.dataset.icon), isNew: !!added && !old.includes(added), now: now.map(i => i.dataset.icon) };
+            });
+            check(chip.old.length === 2 && chip.isNew && chip.kept === 2, `a new chip (shield) gets a new icon; the card's other chips (${chip.old.join(', ')}) keep theirs`, JSON.stringify(chip));
+            const badge = await page.evaluate(() => {
+                const name = document.getElementById('name-p1').innerText.replace('@', '').trim(), d = getDragonDB()[name];
+                const oldBadge = document.querySelector('#badge-container-p1 .px-badge'), oldEmblem = document.querySelector('#info-p1 img.px-icon');
+                const was = oldBadge && oldBadge.dataset.frame;
+                d.title = TITLES_DB.find(t => t.id === (d.title && d.title.id === 96 ? 98 : 96));
+                updateFighterCard('p1', d, null);
+                const newBadge = document.querySelector('#badge-container-p1 .px-badge');
+                return { was, now: newBadge && newBadge.dataset.frame, glyph: newBadge && newBadge.querySelector('.px-glyph').dataset.icon,
+                    replaced: !!oldBadge && !!newBadge && newBadge !== oldBadge && !oldBadge.isConnected, emblemKept: !!oldEmblem && document.querySelector('#info-p1 img.px-icon') === oldEmblem };
+            });
+            check(badge.replaced && badge.emblemKept, `another title's badge (${badge.was} → ${badge.now}, ${badge.glyph}) is a new element; the card's emblem stays the same one`, JSON.stringify(badge));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // ===== 13. A new copy of an icon doesn't restart the ones already on screen =====
+        // Every icon <img> has its own copy of its image (a blob: URL no other icon on the page shows), so a new icon starts its
+        // own loop and the ones already there run on (a new icon taking a freed copy's URL starts that loop over too). With the loops on and at devicePixelRatio 2 (the ×2 icons drawn pixel for pixel), the
+        // frame an icon shows is read off a screenshot, matched against Burn's 12 frames (all different, decoded in the page).
+        // Each icon is read while mid-loop, the new copy goes in, and about 0.45 s later the icon must show the frame its own
+        // loop has reached by then (± 1), not the new copy's (whose loop starts when it appears): Burn's chip on a fighter card
+        // when the next log card shows Burn's tick, and Burn on a chat card when a new chat card shows it (with one image
+        // shared by all copies, the chat card's icon started over with the new one's: the previous commit's page fails here)
+        console.log('\nAn icon keeps its loop when a new copy of it appears');
+        if (run(13)) {
+            const { page, context, errors } = await open(browser, { lang: 'uk', dpr: 2, motion: true });
+            await register(page, 'uk', [['kotyk_ua', 'red'], ['jade', 'green']]);
+            for (const u of ['kotyk_ua', 'jade']) await say(page, u, '!черга');
+            for (let i = 0; i < 240 && !(await page.evaluate(() => arenaState.kind === 'fight' && arenaState.turn >= 1)); i++) await page.clock.runFor(250);
+            // Burn on a card: the next hit casts it (the test menu picker's own handler), until a card shows its chip
+            let chip = null;
+            for (let i = 0; i < 10 && !chip; i++) {
+                if (!(await page.evaluate('forcedCast'))) await page.evaluate(() => setForcedCast('burn'));
+                await page.clock.runFor(TURN);
+                chip = await page.$('.fighter-card .status-item[data-fx="burn"] img.px-icon');
+            }
+            await page.evaluate(() => setForcedCast(''));
+            await settleArena(page);
+            const loopMs = await page.evaluate(() => ICONS_V2.burn.ms), N = await page.evaluate(async () => {
+                const dec = new ImageDecoder({ data: await (await fetch(ICONS_V2.burn.anim)).arrayBuffer(), type: 'image/png' });
+                await dec.tracks.ready;
+                window.__burnFrames = [];
+                for (let i = 0; i < dec.tracks.selectedTrack.frameCount; i++) {
+                    const { image } = await dec.decode({ frameIndex: i });
+                    const c = new OffscreenCanvas(image.displayWidth, image.displayHeight);
+                    c.getContext('2d').drawImage(image, 0, 0);
+                    image.close();
+                    window.__burnFrames.push(c.getContext('2d').getImageData(0, 0, c.width, c.height).data);
+                }
+                return window.__burnFrames.length;
+            });
+            // The frame an icon shows now (its opaque pixels against each of Burn's frames), and when (the screenshot's middle)
+            const read = async el => {
+                const box = await el.boundingBox(), t0 = Date.now();
+                const shot = await page.screenshot({ clip: box });
+                const t = (t0 + Date.now()) / 2;
+                const f = await page.evaluate(async src => {
+                    const im = new Image(); im.src = src; await im.decode();
+                    const c = new OffscreenCanvas(im.width, im.height), g = c.getContext('2d'); g.drawImage(im, 0, 0);
+                    const d = g.getImageData(0, 0, im.width, im.height).data;
+                    const err = window.__burnFrames.map(fr => { let e = 0; for (let i = 0; i < fr.length; i += 4) if (fr[i + 3] === 255) e += Math.abs(fr[i] - d[i]) + Math.abs(fr[i + 1] - d[i + 1]) + Math.abs(fr[i + 2] - d[i + 2]); return e; });
+                    return err.indexOf(Math.min(...err));
+                }, 'data:image/png;base64,' + shot.toString('base64'));
+                return { f, t };
+            };
+            const gap = (a, b) => { const d = Math.abs(a - b) % N; return Math.min(d, N - d); };
+            const midLoop = async el => { let r = await read(el); for (let i = 0; i < 25 && (r.f < 4 || r.f > 7); i++) { await page.waitForTimeout(60); r = await read(el); } return r; };
+            // Each its own copy: the old icon and the new one each hold a live copy of their own, and show it
+            const ownCopies = (a, b) => page.evaluate(([a, b]) => { if (typeof iconCopies === 'undefined') return false; const ca = iconCopies.get(a), cb = iconCopies.get(b); return !!ca && !!cb && ca.url !== cb.url && a.getAttribute('src') === ca.url && b.getAttribute('src') === cb.url; }, [a, b]);
+            // A: Burn's chip on the card, the next log card with Burn's tick
+            const card = { chip: !!chip };
+            if (chip) {
+                const r0 = await midLoop(chip);
+                const old = await page.evaluateHandle(() => [...document.querySelectorAll('#log-list img.px-icon[data-icon="burn"]')]);
+                let fresh = null;
+                for (let i = 0; i < 4 && !fresh; i++) {
+                    await page.clock.runFor(TURN);
+                    const h = await page.evaluateHandle(old => [...document.querySelectorAll('#log-list img.px-icon[data-icon="burn"]')].find(i => !old.includes(i)) || null, old);
+                    fresh = h.asElement();
+                }
+                const appeared = Date.now();
+                await page.waitForTimeout(450);
+                const r1 = await read(chip), g1 = fresh ? await read(fresh) : null;
+                Object.assign(card, { f0: r0.f, f1: r1.f, loop: (r0.f + Math.round((r1.t - r0.t) / loopMs)) % N, fresh: g1 && g1.f, since: Math.round(r1.t - appeared),
+                    sameNode: await chip.evaluate(el => el.isConnected && el === document.querySelector('.fighter-card .status-item[data-fx="burn"] img.px-icon')),
+                    own: fresh ? await ownCopies(chip, fresh) : false });
+            }
+            check(card.chip && card.fresh !== null && card.sameNode && card.own && gap(card.f1, card.loop) <= 1 && gap(card.f1, card.fresh) >= 2,
+                `Burn's chip on the card keeps its loop when a new log card shows Burn: frame ${card.f0} → ${card.f1} (its loop: ${card.loop}), the new card's icon at ${card.fresh}, ${card.since} ms after it appeared; each its own copy, the chip the same element`,
+                JSON.stringify(card));
+            // B: Burn on a chat card, a new chat card with Burn 1.5 s later
+            await page.evaluate(() => addInfo(`<div class="ic-head"><span>${pxIcon('burn')} 1</span></div>`, 'note'));
+            await page.waitForTimeout(1500);
+            const first = await page.$('#info-feed .info-card:first-child img.px-icon[data-icon="burn"]');
+            const a0 = await midLoop(first);
+            await page.evaluate(() => addInfo(`<div class="ic-head"><span>${pxIcon('burn')} 2</span></div>`, 'note'));
+            const added = Date.now();
+            await page.waitForTimeout(450);
+            const second = await page.$('#info-feed .info-card:first-child img.px-icon[data-icon="burn"]');
+            const a1 = await read(first), n1 = await read(second);
+            const chat = { f0: a0.f, f1: a1.f, loop: (a0.f + Math.round((a1.t - a0.t) / loopMs)) % N, fresh: n1.f, since: Math.round(a1.t - added), own: await ownCopies(first, second) };
+            check(chat.own && gap(chat.f1, chat.loop) <= 1 && gap(chat.f1, chat.fresh) >= 2,
+                `Burn on a chat card keeps its loop when a new chat card shows Burn: frame ${chat.f0} → ${chat.f1} (its loop: ${chat.loop}), the new card's icon at ${chat.fresh}, ${chat.since} ms after it appeared; each its own copy`,
+                JSON.stringify(chat));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
 
