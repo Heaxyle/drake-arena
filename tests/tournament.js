@@ -151,6 +151,26 @@ async function until(page, cond, arg, { step = 1000, max = 4 * 3600000 } = {}) {
 }
 // Every screenshot is also an overlay check (no emoji on stream, every icon at a whole-number scale); judged at the end
 const iconIssues = new Set();
+// Every icon on the page shows its own copy of its image (iconCopies), and once a whole tournament has run: the copies in
+// use are exactly the icons on the page, each a URL of its own; every other copy handed out during the run went back to its
+// kind's pool (iconPool: an icon's still or loop), none both on the page and free, each free one kept loaded by a detached
+// <img> of it (so the next icon takes it without loading it again), each kind's count adding up; and no kind has more URLs
+// than the most of its copies that were on the page at once (a URL is made only when all of them are in use)
+const copiesCheck = async (page, what) => {
+    const c = await page.evaluate(() => {
+        const icons = [...document.querySelectorAll('img.px-icon')], live = [...iconCopies.values()], pools = Object.entries(iconPool);
+        const kept = pools.flatMap(([, p]) => p.free), free = kept.map(f => f.url), shown = new Set(live.map(x => x.url)), kind = x => `${x.id}|${x.still ? 'still' : 'anim'}`;
+        return { onPage: icons.length, live: live.length, own: icons.filter(i => iconCopies.has(i) && iconCopies.get(i).url === i.getAttribute('src')).length,
+            unique: shown.size, freeShown: free.filter(u => shown.has(u)).length, freeTwice: free.length - new Set(free).size,
+            notKept: kept.filter(f => !(f.keep instanceof HTMLImageElement) || f.keep.isConnected || f.keep.getAttribute('src') !== f.url || !f.keep.complete || !f.keep.naturalWidth).length,
+            miscounted: pools.filter(([k, p]) => p.use !== live.filter(x => kind(x) === k).length || p.use + p.free.length !== p.urls).map(([k]) => k),
+            overPeak: pools.filter(([, p]) => p.urls !== p.peak).map(([k]) => k),
+            urls: pools.reduce((a, [, p]) => a + p.urls, 0), free: free.length, made: iconCopiesMade };
+    });
+    check(c.onPage > 0 && c.live === c.onPage && c.own === c.onPage && c.unique === c.live && !c.freeShown && !c.freeTwice && !c.notKept && !c.miscounted.length && !c.overPeak.length,
+        `${what}: ${c.live} image copies in use for the ${c.onPage} icons on the page, each showing its own; ${c.made} handed out during the run from ${c.urls} URLs (${c.free} free for the next icons, each kept loaded), no kind of icon with more URLs than the most of its copies on the page at once`,
+        JSON.stringify(c));
+};
 const shot = async (page, name) => { await settleArena(page); (await overlayIconIssues(page)).forEach(i => iconIssues.add(`${name}: ${i}`)); await page.screenshot({ path: path.join(SHOTS, name) }); };
 // A queue badge as __vt reads it, «1 [emRed] @name»: its place, the player's emblem, the name; the emblem checked and dropped
 const badges = qs => qs.map(q => q.replace(/\s/g, '')).filter(q => /^\d+\[em[A-Z]\w*\]@/.test(q)).map(q => q.replace(/\[em\w+\]/, '')).join();
@@ -447,6 +467,7 @@ const key = (a, b) => [a, b].sort().join('-');
             && badges(back.queue) === '1@q_third' && challenged === 'duel_a' && !(await page.evaluate(k => localStorage.getItem(k), KEY)),
             'after the podium: the tournament is gone (its save too); the queue carries on in its order (@q_first against @q_second, @q_third next) and !бій works again',
             JSON.stringify({ line: back.line, nextFight, queue: back.queue, challenged }));
+        await copiesCheck(page, 'after the whole 8-player tournament');
         // The run's timeline: when every fight started (game clock), with the tournament's stage and game. With the
         // effects off it must match the page without the show (TOUR_FILE=<that page> TOUR_ONLY=2 prints its own)
         const timeline = await page.evaluate(() => window.__starts.map(s => [s.t, s.a, s.b, s.tour && s.tour.stage, s.tour && s.tour.game]));
@@ -1080,6 +1101,7 @@ const key = (a, b) => [a, b].sort().join('-');
         await until(page, () => !tourney, null, { step: 1000 });
         const after = await looks();
         check(!after.cls.includes('ts-on') && !after.over.length, 'after the Hall of Fame: the frame goes, the arena is back to normal', JSON.stringify(after));
+        await copiesCheck(page, 'after the whole tournament with its show');
 
         // 9. The setting off: no draw (the first game starts as sign-up closes) and none of the show
         await page.evaluate(() => setShowFx(false));

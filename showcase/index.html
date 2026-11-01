@@ -1060,9 +1060,9 @@
         // ×2 is 20 CSS px. The art is ICON_DENSITY times denser than its glyph (40×40 there), so it is drawn pixelated only
         // where its size on screen × devicePixelRatio is a whole multiple of the art (a 4K canvas: ×2 maps 1:1) and smoothed
         // otherwise (1080p: the 40 px art in 20 px); iconCrisp keeps that up to date. data-n is the glyph's size and data-s the
-        // scale, so a test can check both; the label (alt) is the icon's name in the current language. In Node there are no
-        // images: the <img> has no src, the rest is the same. The overlay shows no emoji; the hidden text record (addLog)
-        // keeps them.
+        // scale, so a test can check both; the label (alt) is the icon's name in the current language. Each <img> on the page
+        // shows its own copy of its image (iconOwn, below), so its loop is its own. In Node there are no images: the <img> has
+        // no src, the rest is the same. The overlay shows no emoji; the hidden text record (addLog) keeps them.
         const ICONS_DRAWN = typeof document !== 'undefined' && !!document.body && !!document.createElement('canvas').getContext;
         const ICON_DENSITY = 4;
         const iconsMissing = new Set();
@@ -1070,6 +1070,80 @@
         let iconStill = !!(motionQuery && motionQuery.matches);
         // The V2 image an icon shows: its loop, or its still under prefers-reduced-motion
         const iconSrc = id => ICONS_DRAWN && ICONS_V2[id] ? ICONS_V2[id][iconStill ? 'still' : 'anim'] : '';
+        // ----- Each icon its own copy of its image -----
+        // With one image shared by its copies, a new <img> of it can start that image's loop over for copies already on the
+        // page (a chat card's icon did, when the next chat card showed the same icon). So each icon <img> gets its own copy as
+        // it goes into the page (iconOwn): a blob: URL of its V2 image that no other element on the page shows, so a new icon
+        // starts its own loop and never restarts the ones already there (copies of an icon run out of step). Once the element
+        // has left the page its copy is freed (iconFree): its URL goes back to the pool of its icon (and still or loop), and
+        // the next new icon of that kind takes it. A URL is made only when all of that kind's URLs are in use, so there are
+        // never more than the most copies of an icon ever on the page at once, however long the stream. A free copy is kept
+        // loaded, not revoked: Chrome holds about 30 KB for every blob: URL a page has shown, revoked or not, and about 20 KB
+        // more each time it loads one again after letting its image go (a new URL for every new icon grew the overlay by
+        // about 3.5 MB a fight, and reusing URLs that then loaded again by about 0.8 MB). So each free copy has a detached
+        // <img> of its own that keeps its image loaded, and the next icon takes it as it is. An element moved within the page keeps its copy; one
+        // that comes back after leaving gets one again. The markup still carries the shared image (iconSrc: a normal image box
+        // from the start, measured right away by fitText), and a MutationObserver (iconWatch) swaps in the element's own copy
+        // before the next paint; the browser shows the shared image until the copy has loaded, so nothing blinks. An <img>
+        // given some other image (the overlay check's self-test plants) keeps it. iconCopies holds the copies in use, iconPool
+        // each kind's count and free copies (the tests compare both with the page).
+        const iconBlobs = {}, iconCopies = new Map(), iconFreed = new WeakSet(), iconPool = {};
+        let iconCopiesMade = 0;   // copies handed out since the page loaded
+        // A kind's pool: free (copies no element on the page shows: each URL with the detached <img> that keeps its image
+        // loaded), use (its copies on the page), peak (the most at once), urls (made in all: always the peak)
+        const iconPoolOf = (id, still) => { const k = `${id}|${still ? 'still' : 'anim'}`; return iconPool[k] || (iconPool[k] = { free: [], use: 0, peak: 0, urls: 0 }); };
+        function iconTake(id, still) {
+            const p = iconPoolOf(id, still);
+            iconCopiesMade++;
+            p.use++;
+            p.peak = Math.max(p.peak, p.use);
+            if (p.free.length) return p.free.pop().url;
+            p.urls++;
+            return URL.createObjectURL(iconBlob(id, still));
+        }
+        function iconGive(copy) {
+            const p = iconPoolOf(copy.id, copy.still), keep = new Image();
+            keep.src = copy.url;
+            p.use--;
+            p.free.push({ url: copy.url, keep });
+        }
+        function iconBlob(id, still) {
+            const k = `${id}|${still ? 'still' : 'anim'}`;
+            if (!iconBlobs[k]) {
+                const bin = atob(ICONS_V2[id][still ? 'still' : 'anim'].split(',')[1]), bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                iconBlobs[k] = new Blob([bytes], { type: 'image/png' });
+            }
+            return iconBlobs[k];
+        }
+        function iconOwn(img) {
+            if (iconCopies.has(img)) return;
+            const id = img.dataset.icon, art = ICONS_V2[id], src = img.getAttribute('src');
+            if (!art || !(src === art.anim || src === art.still || iconFreed.has(img))) return;
+            const copy = { id, still: iconStill, url: iconTake(id, iconStill) };
+            iconCopies.set(img, copy);
+            iconFreed.delete(img);
+            img.src = copy.url;
+        }
+        function iconFree(img) {
+            const copy = iconCopies.get(img);
+            if (!copy) return;
+            iconCopies.delete(img);
+            iconFreed.add(img);
+            iconGive(copy);
+        }
+        function iconWatch() {
+            if (!ICONS_DRAWN || typeof MutationObserver !== 'function' || iconWatch.on) return;
+            iconWatch.on = true;
+            const icons = (n, into) => { if (n.nodeType !== 1) return; if (n.matches('img.px-icon')) into.add(n); n.querySelectorAll('img.px-icon').forEach(i => into.add(i)); };
+            new MutationObserver(records => {
+                const out = new Set(), inn = new Set();
+                for (const r of records) { r.removedNodes.forEach(n => icons(n, out)); r.addedNodes.forEach(n => icons(n, inn)); }
+                out.forEach(i => { if (!i.isConnected) iconFree(i); });
+                inn.forEach(i => { if (i.isConnected) iconOwn(i); });
+            }).observe(document.documentElement, { childList: true, subtree: true });
+            document.querySelectorAll('img.px-icon').forEach(iconOwn);
+        }
         const iconLabel = id => DrakeIcons.ICONS[id].name[currentLang];
         const iconTag = (id, n, s, cls, alt, extra = '') =>
             `<img class="px-icon${cls ? ' ' + cls : ''}" data-icon="${id}" data-n="${n}" data-s="${s}"${extra} src="${iconSrc(id)}" width="${n * s}" height="${n * s}" alt="${alt}" draggable="false">`;
@@ -1102,7 +1176,13 @@
         // fighter's name too
         function iconMotion() {
             iconStill = !!(motionQuery && motionQuery.matches);
-            document.querySelectorAll('img.px-icon[data-icon]').forEach(img => { const src = iconSrc(img.dataset.icon); if (src && img.getAttribute('src') !== src) img.src = src; });
+            iconCopies.forEach((copy, img) => {
+                if (copy.still === iconStill) return;
+                iconGive(copy);
+                copy.still = iconStill;
+                copy.url = iconTake(copy.id, iconStill);
+                img.src = copy.url;
+            });
             document.querySelectorAll('[data-medal]').forEach(el => el.style.setProperty('--medal', `url(${iconSrc(el.dataset.medal)})`));
         }
         if (motionQuery) motionQuery.addEventListener('change', iconMotion);
@@ -1250,8 +1330,9 @@
         }
         function morphNode(o, n) {
             if (o.nodeType !== 1) { if (o.nodeValue !== n.nodeValue) o.nodeValue = n.nodeValue; return; }
-            for (const a of [...o.attributes]) if (!n.hasAttribute(a.name)) o.removeAttribute(a.name);
-            for (const a of [...n.attributes]) if (o.getAttribute(a.name) !== a.value) o.setAttribute(a.name, a.value);
+            const own = o.tagName === 'IMG' && o.classList.contains('px-icon');   // a kept icon keeps its own copy (its src)
+            for (const a of [...o.attributes]) if (!n.hasAttribute(a.name) && !(own && a.name === 'src')) o.removeAttribute(a.name);
+            for (const a of [...n.attributes]) if (!(own && a.name === 'src') && o.getAttribute(a.name) !== a.value) o.setAttribute(a.name, a.value);
             if (o.tagName !== 'IMG') morphChildren(o, n);
         }
         // A player's name on a tournament screen: it shrinks to fit (never below minPx, 12 px by default, so it stays
@@ -8182,6 +8263,7 @@ const ICONS_V2 = {
         }
 
         function initPage() {
+            iconWatch();   // before anything draws: every icon gets its own copy of its image as it goes in
             const params = new URLSearchParams(location.search);
             if (params.has('obs')) document.body.classList.add('obs');
             if (['uk', 'en'].includes(params.get('lang'))) currentLang = params.get('lang');

@@ -7,16 +7,17 @@
 //   - any emoji in its text, in a CSS ::before / ::after, or in an <img>-less icon (alt text and title tooltips aren't
 //     drawn, so they don't count): emoji are only in the hidden record and the play-log export
 //   - any pixel icon (img.px-icon) not drawn at a whole-number multiple of its glyph's size (data-n), or drawn differently
-//     across and down, or not from its own V2 art (the page's ICONS_V2: its loop, or its still under prefers-reduced-motion,
-//     an image ICON_DENSITY times its glyph's size), or not rendered by the display rule: pixelated exactly when its size on
+//     across and down, or not showing its own copy of its V2 art (the page's ICONS_V2, an image ICON_DENSITY times its
+//     glyph's size: its loop, or its still under prefers-reduced-motion, as a blob: URL no other icon on the page shows, iconCopies),
+//     or sharing its image with another icon, or not rendered by the display rule: pixelated exactly when its size on
 //     screen × devicePixelRatio is a whole multiple of its art, smoothed otherwise
 //   - any title badge (.px-badge) that isn't its rarity's frame with the glyph on top, one glyph pixel in (s CSS px at ×s)
 //   - any icon the game asked for that the set doesn't have (pxIcon's iconsMissing)
 // Run it after settleArena (animations finished: a pop-in or a slam mid-way scales everything in it).
 //
 //   await overlaySelfTest(page)   // plants an emoji, an icon at ×1.5, a squeezed icon, an icon over its words, an icon with
-//                                 // another's art, a smoothed icon that should be crisp (and the reverse) and a badge whose
-//                                 // glyph is off by a pixel: each must be reported
+//                                 // another's art, one sharing another icon's copy, a smoothed icon that should be crisp
+//                                 // (and the reverse) and a badge whose glyph is off by a pixel: each must be reported
 function overlayScan() {
     const EMOJI = /(?:\p{Extended_Pictographic}|✦)/u;
     const stage = document.getElementById('stage');
@@ -46,11 +47,18 @@ function overlayScan() {
             if (c && c !== 'none' && c !== 'normal' && EMOJI.test(c) && shown(el)) out.push(`emoji in ${where(el)}${pseudo}: ${c.slice(0, 40)}`);
         }
     });
-    // The V2 art each icon must show (the page's copy of design/icons/v2, which design/icons/test.js holds to the files)
-    const V2 = typeof ICONS_V2 !== 'undefined' ? ICONS_V2 : {};
+    // The V2 art each icon must show (the page's copy of design/icons/v2, which design/icons/test.js holds to the files), as
+    // its own copy: the page's iconCopies gives each icon <img> a blob: URL of its image that no other icon on the page shows
+    const V2 = typeof ICONS_V2 !== 'undefined' ? ICONS_V2 : {}, copies = typeof iconCopies !== 'undefined' ? iconCopies : new Map();
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches, dpr = window.devicePixelRatio || 1;
     const whole = k => Math.abs(k - Math.round(k)) < 0.01 && Math.round(k) >= 1;
     const rule = (cssPx, art) => whole(cssPx * dpr / art) ? 'pixelated' : 'auto';
+    const shownBy = new Map();   // src → the first icon showing it
+    document.querySelectorAll('img.px-icon').forEach(img => {
+        const src = img.getAttribute('src');
+        if (shownBy.has(src)) out.push(`icon ${img.dataset.icon} in ${where(img.parentElement)} shares its image with icon ${shownBy.get(src).dataset.icon} in ${where(shownBy.get(src).parentElement)} (each needs its own copy)`);
+        else shownBy.set(src, img);
+    });
     stage.querySelectorAll('img.px-icon').forEach(img => {
         if (skip(img) || !shown(img)) return;
         const r = img.getBoundingClientRect(), n = Number(img.dataset.n), id = img.dataset.icon, art = V2[id];
@@ -59,7 +67,8 @@ function overlayScan() {
         if (!whole(kx) || !whole(ky) || Math.abs(kx - ky) > 0.01) out.push(`icon ${id} in ${where(img.parentElement)} drawn at ×${kx.toFixed(3)} × ×${ky.toFixed(3)} (${r.width.toFixed(2)}×${r.height.toFixed(2)} px of a ${n}×${n} glyph)`);
         if (!art) { out.push(`icon ${id} in ${where(img.parentElement)}: no V2 art for it`); return; }
         if (art.size !== n * ICON_DENSITY) out.push(`icon ${id}: its V2 art is ${art.size} px, not ${ICON_DENSITY} × its ${n}×${n} glyph`);
-        if (img.getAttribute('src') !== art[still ? 'still' : 'anim']) out.push(`icon ${id} in ${where(img.parentElement)} doesn't show its V2 ${still ? 'still' : 'loop'}`);
+        const copy = copies.get(img);
+        if (!copy || copy.url !== img.getAttribute('src') || copy.id !== id || copy.still !== still) out.push(`icon ${id} in ${where(img.parentElement)} doesn't show its own copy of its V2 ${still ? 'still' : 'loop'}`);
         if (img.complete && img.naturalWidth && (img.naturalWidth !== art.size || img.naturalHeight !== art.size)) out.push(`icon ${id}: its image is ${img.naturalWidth}×${img.naturalHeight}, not its ${art.size}×${art.size} art`);
         const got = getComputedStyle(img).imageRendering, want = rule(r.width, art.size);
         if (got !== want) out.push(`icon ${id} in ${where(img.parentElement)} drawn ${got}: ${r.width.toFixed(2)} px × devicePixelRatio ${dpr} for its ${art.size} px art wants ${want}`);
@@ -119,10 +128,14 @@ async function overlayIconIssues(page) {
 // showing another icon's art, an icon smoothed where it should be pixelated and one pixelated where it should be smoothed,
 // and a badge whose glyph sits a pixel off: each gets reported
 async function overlaySelfTest(page) {
-    return page.evaluate(scan => {
+    return page.evaluate(async scan => {
         const run = new Function(`return (${scan})()`);
         const host = document.getElementById('status-plate');
-        const plant = html => { const s = document.createElement('span'); s.className = 'selftest'; s.innerHTML = html; host.appendChild(s); return s; };
+        const plant = html => () => { const s = document.createElement('span'); s.className = 'selftest'; s.innerHTML = html; host.appendChild(s); return s; };
+        // One plant at a time, checked once the page's MutationObserver has run (a planted icon showing its own art gets a copy
+        // of its own, as any icon does), so each case is the only thing wrong on the stage while it is checked. The wait is a
+        // microtask, queued after the observer's: the tests' pages run on a paused clock, where a timer would never fire
+        const tick = () => Promise.resolve();
         const art = id => ICONS_V2[id][matchMedia('(prefers-reduced-motion: reduce)').matches ? 'still' : 'anim'];
         const icon = (id, w, style = '', src = art(id)) => `<img class="px-icon" data-icon="${id}" data-n="10" src="${src}" width="${w}" height="${w}" alt="" style="${style}">`;
         // At this devicePixelRatio, the 10×10 trophy at a CSS size that maps whole (its 40 px art × a whole number) and one that doesn't
@@ -134,15 +147,19 @@ async function overlaySelfTest(page) {
             ['an icon at ×1.5', plant(icon('trophy', 15)), /drawn at ×1\.500/],
             ['an icon squeezed sideways', plant(`<span style="display:inline-block;transform:scaleX(0.8)">${icon('trophy', 20)}</span>`), /drawn at ×1\.600/],
             ['an icon over its words', plant(`${icon('trophy', 20)}<span style="margin-left:-12px">WORDS</span>`), /icon trophy overlaps «WORDS»/],
-            ["an icon showing another icon's art", plant(icon('trophy', 20, '', art('hall'))), /icon trophy .*doesn't show its V2/],
+            ["an icon showing another icon's art", plant(icon('trophy', 20, '', art('hall'))), /icon trophy .*doesn't show its own copy of its V2/],
+            ["an icon sharing another icon's copy", () => { const other = document.querySelector('#stage img.px-icon'); return plant(icon(other.dataset.icon, 20, '', other.getAttribute('src')))(); }, /shares its image with icon/],
             ['an icon smoothed where its art maps whole', plant(icon('trophy', crispPx, 'image-rendering:auto')), /icon trophy .*drawn auto: .* wants pixelated/],
             ['an icon pixelated where its art does not map whole', plant(icon('trophy', smoothPx, 'image-rendering:pixelated')), /icon trophy .*drawn pixelated: .* wants auto/],
             ['a badge whose glyph is a pixel off', plant(badge(1)), /title badge crit .*its glyph sits 1\.00, 2\.00 px into its frame/],
         ];
         const missed = [];
-        for (const [what, el, want] of cases) {
+        for (const [what, make, want] of cases) {
+            const el = make();
+            await tick();
             if (!run().some(i => want.test(i))) missed.push(what);
             el.remove();
+            await tick();
         }
         return missed;
     }, overlayScan.toString());

@@ -25,11 +25,16 @@ player guide still draw from them. Change a V2 image in `v2/`, never in the page
 - **The animation.** Each item has a still (`<id>.png`, the loop's first frame) and its idle loop (`<id>-anim.png`, an APNG
   that loops forever; its frame count and frame time are in the manifest: 8 to 24 frames of 70 to 120 ms). The overlay shows
   the loop, and the still under `prefers-reduced-motion` (the page swaps them live, `iconMotion`); the browser tests take their
-  screenshots that way, so those stay the same from run to run. The browser plays one loop per image: every `<img>` of an icon
-  shows the same frame, and a new `<img>` of it starts that loop over for all of them (an `<img>` moved within the page keeps
-  it). So a redraw keeps the elements of the icons that haven't changed (`morphHtml`: the cards, the plate, the title plate,
-  the log, the queue, the Top, the streamer card), and only an icon that changes is a new element; a new log card's icons still
-  start their images' loops over. No glow is baked in: the fire glow, the chips and the meter pips stay CSS.
+  screenshots that way, so those stay the same from run to run. Each icon `<img>` shows its own copy of its image (`iconOwn`:
+  a blob: URL no other element on the page shows), so its loop is its own: a new icon starts its own loop and never restarts
+  the ones already on screen (with one image shared by its copies, a new `<img>` could start the loop over for them), and
+  copies of an icon run out of step. When an element leaves the page its copy goes back to its icon's pool for the next one
+  (`iconFree`), so there are never more copies of an icon than the most on the page at once (a free copy is kept loaded by a
+  detached `<img>`, never revoked: Chrome keeps about 30 KB for every blob: URL a page has shown, and about 20 KB more each
+  time it loads one again after letting its image go). A new element starts its loop over, so a redraw keeps the
+  elements of the icons that haven't changed (`morphHtml`: the cards, the plate, the title plate, the log, the queue, the Top,
+  the streamer card; an `<img>` moved within the page keeps its loop), and only an icon that changes is a new element. No glow
+  is baked in: the fire glow, the chips and the meter pips stay CSS.
 - **A title badge** is two loops, each running on its own: its rarity's frame (`frame-<rarity>-anim.png`, 48×48 art for a
   12×12 glyph) with the title's glyph (its mechanic's note, else its main bonus) on top, one glyph pixel in: 4 art pixels, so
   s CSS px at ×s. The badge is 12 × s CSS px, as before; in the Top (×1) it stays the bare glyph. In the page it's a

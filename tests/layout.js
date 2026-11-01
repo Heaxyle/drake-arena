@@ -364,7 +364,7 @@ async function layoutChecks(browser, lang) {
     check(!problems.length, `${tag} worst case fits at 1920×1080: name "${worst.longName}", title "${worst.longTitle}", "${worst.longDrake}", 4 longest chips, full СИЛА + Ice Mirror, 7 leaderboard rows, a stats card`,
         problems.slice(0, 6).join(' | '));
     await iconCheck(page, `layout-worst-${lang}`);
-    if (lang === 'uk') { const missed = await overlaySelfTest(page); check(!missed.length, "the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon, an icon over its words, an icon with another icon's art, an icon smoothed or pixelated against the display rule and a badge glyph a pixel off", `not reported: ${missed.join(', ')}`); }
+    if (lang === 'uk') { const missed = await overlaySelfTest(page); check(!missed.length, "the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon, an icon over its words, an icon with another icon's art, one sharing another icon's copy, an icon smoothed or pixelated against the display rule and a badge glyph a pixel off", `not reported: ${missed.join(', ')}`); }
     await page.screenshot({ path: path.join(SHOTS, `layout-worst-${lang}.png`) });
     const pops = await page.evaluate(popPositions);
     check(pops.length === 4 && pops.every(x => x.over), `${tag} hit numbers pop over each card's drake (a hit and a small "back" number on both cards)`, JSON.stringify(pops.filter(x => !x.over)));
@@ -453,7 +453,7 @@ async function iconScene(page) {
 }
 function iconTally() {
     const icons = [...document.querySelectorAll('#stage img.px-icon')].filter(i => !i.closest('#cam-col, #battle-log'));
-    const shows = k => icons.filter(i => i.getAttribute('src') === ICONS_V2[i.dataset.icon][k]).length;
+    const shows = k => icons.filter(i => { const c = iconCopies.get(i); return !!c && c.url === i.getAttribute('src') && c.id === i.dataset.icon && c.still === (k === 'still'); }).length;
     const medal = document.querySelector('#stage .fighter-name[data-medal]'), art = medal && ICONS_V2[medal.dataset.medal];
     const bg = medal && getComputedStyle(medal, '::after').backgroundImage;
     const by = s => icons.filter(i => i.dataset.s === s);

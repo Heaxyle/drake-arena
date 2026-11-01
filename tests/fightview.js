@@ -58,8 +58,9 @@ const fail = msg => { failures++; console.log(`  ✗ ${msg}`); };
 const pass = msg => console.log(`  ✓ ${msg}`);
 const check = (ok, good, bad) => ok ? pass(good) : fail(`${good} — ${bad}`);
 
-async function open(browser, { lang = 'uk', betting = false, width = 1920, height = 1080 } = {}) {
-    const context = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });   // the icons' stills (prefers-reduced-motion), so the screenshots are the same on every run
+async function open(browser, { lang = 'uk', betting = false, width = 1920, height = 1080, dpr = 1, motion = false } = {}) {
+    // The icons' stills (prefers-reduced-motion), so the screenshots are the same on every run; motion: the loops (section 13)
+    const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, reducedMotion: motion ? 'no-preference' : 'reduce' });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
@@ -620,7 +621,7 @@ async function popAtStep2(page, turn) {
             let resultChecks = [], onlyCurrent = [], xpChecks = [];
             // The overlay check catches what it's for (each fault overlaySelfTest plants), then runs every turn
             const selfMissed = await overlaySelfTest(page);
-            check(!selfMissed.length, `[${lang}] the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon, an icon over its words, an icon with another icon's art, an icon smoothed or pixelated against the display rule and a badge glyph a pixel off`, `not reported: ${selfMissed.join(', ')}`);
+            check(!selfMissed.length, `[${lang}] the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon, an icon over its words, an icon with another icon's art, one sharing another icon's copy, an icon smoothed or pixelated against the display rule and a badge glyph a pixel off`, `not reported: ${selfMissed.join(', ')}`);
             for (const [a, b, ranked] of fights) {
                 await page.clock.runFor(4 * 60000);   // a pause between fights (there is no rest now; kept so the seeded fights stay the same)
                 const xpBefore = await page.evaluate(([a, b]) => ({ [a]: getDragonStrict(a).xp, [b]: getDragonStrict(b).xp }), [a, b]);
@@ -1448,6 +1449,99 @@ async function popAtStep2(page, turn) {
                     replaced: !!oldBadge && !!newBadge && newBadge !== oldBadge && !oldBadge.isConnected, emblemKept: !!oldEmblem && document.querySelector('#info-p1 img.px-icon') === oldEmblem };
             });
             check(badge.replaced && badge.emblemKept, `another title's badge (${badge.was} → ${badge.now}, ${badge.glyph}) is a new element; the card's emblem stays the same one`, JSON.stringify(badge));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // ===== 13. A new copy of an icon doesn't restart the ones already on screen =====
+        // Every icon <img> has its own copy of its image (a blob: URL no other icon on the page shows), so a new icon starts its
+        // own loop and the ones already there run on (a new icon taking a freed copy's URL starts that loop over too). With the loops on and at devicePixelRatio 2 (the ×2 icons drawn pixel for pixel), the
+        // frame an icon shows is read off a screenshot, matched against Burn's 12 frames (all different, decoded in the page).
+        // Each icon is read while mid-loop, the new copy goes in, and about 0.45 s later the icon must show the frame its own
+        // loop has reached by then (± 1), not the new copy's (whose loop starts when it appears): Burn's chip on a fighter card
+        // when the next log card shows Burn's tick, and Burn on a chat card when a new chat card shows it (with one image
+        // shared by all copies, the chat card's icon started over with the new one's: the previous commit's page fails here)
+        console.log('\nAn icon keeps its loop when a new copy of it appears');
+        if (run(13)) {
+            const { page, context, errors } = await open(browser, { lang: 'uk', dpr: 2, motion: true });
+            await register(page, 'uk', [['kotyk_ua', 'red'], ['jade', 'green']]);
+            for (const u of ['kotyk_ua', 'jade']) await say(page, u, '!черга');
+            for (let i = 0; i < 240 && !(await page.evaluate(() => arenaState.kind === 'fight' && arenaState.turn >= 1)); i++) await page.clock.runFor(250);
+            // Burn on a card: the next hit casts it (the test menu picker's own handler), until a card shows its chip
+            let chip = null;
+            for (let i = 0; i < 10 && !chip; i++) {
+                if (!(await page.evaluate('forcedCast'))) await page.evaluate(() => setForcedCast('burn'));
+                await page.clock.runFor(TURN);
+                chip = await page.$('.fighter-card .status-item[data-fx="burn"] img.px-icon');
+            }
+            await page.evaluate(() => setForcedCast(''));
+            await settleArena(page);
+            const loopMs = await page.evaluate(() => ICONS_V2.burn.ms), N = await page.evaluate(async () => {
+                const dec = new ImageDecoder({ data: await (await fetch(ICONS_V2.burn.anim)).arrayBuffer(), type: 'image/png' });
+                await dec.tracks.ready;
+                window.__burnFrames = [];
+                for (let i = 0; i < dec.tracks.selectedTrack.frameCount; i++) {
+                    const { image } = await dec.decode({ frameIndex: i });
+                    const c = new OffscreenCanvas(image.displayWidth, image.displayHeight);
+                    c.getContext('2d').drawImage(image, 0, 0);
+                    image.close();
+                    window.__burnFrames.push(c.getContext('2d').getImageData(0, 0, c.width, c.height).data);
+                }
+                return window.__burnFrames.length;
+            });
+            // The frame an icon shows now (its opaque pixels against each of Burn's frames), and when (the screenshot's middle)
+            const read = async el => {
+                const box = await el.boundingBox(), t0 = Date.now();
+                const shot = await page.screenshot({ clip: box });
+                const t = (t0 + Date.now()) / 2;
+                const f = await page.evaluate(async src => {
+                    const im = new Image(); im.src = src; await im.decode();
+                    const c = new OffscreenCanvas(im.width, im.height), g = c.getContext('2d'); g.drawImage(im, 0, 0);
+                    const d = g.getImageData(0, 0, im.width, im.height).data;
+                    const err = window.__burnFrames.map(fr => { let e = 0; for (let i = 0; i < fr.length; i += 4) if (fr[i + 3] === 255) e += Math.abs(fr[i] - d[i]) + Math.abs(fr[i + 1] - d[i + 1]) + Math.abs(fr[i + 2] - d[i + 2]); return e; });
+                    return err.indexOf(Math.min(...err));
+                }, 'data:image/png;base64,' + shot.toString('base64'));
+                return { f, t };
+            };
+            const gap = (a, b) => { const d = Math.abs(a - b) % N; return Math.min(d, N - d); };
+            const midLoop = async el => { let r = await read(el); for (let i = 0; i < 25 && (r.f < 4 || r.f > 7); i++) { await page.waitForTimeout(60); r = await read(el); } return r; };
+            // Each its own copy: the old icon and the new one each hold a live copy of their own, and show it
+            const ownCopies = (a, b) => page.evaluate(([a, b]) => { if (typeof iconCopies === 'undefined') return false; const ca = iconCopies.get(a), cb = iconCopies.get(b); return !!ca && !!cb && ca.url !== cb.url && a.getAttribute('src') === ca.url && b.getAttribute('src') === cb.url; }, [a, b]);
+            // A: Burn's chip on the card, the next log card with Burn's tick
+            const card = { chip: !!chip };
+            if (chip) {
+                const r0 = await midLoop(chip);
+                const old = await page.evaluateHandle(() => [...document.querySelectorAll('#log-list img.px-icon[data-icon="burn"]')]);
+                let fresh = null;
+                for (let i = 0; i < 4 && !fresh; i++) {
+                    await page.clock.runFor(TURN);
+                    const h = await page.evaluateHandle(old => [...document.querySelectorAll('#log-list img.px-icon[data-icon="burn"]')].find(i => !old.includes(i)) || null, old);
+                    fresh = h.asElement();
+                }
+                const appeared = Date.now();
+                await page.waitForTimeout(450);
+                const r1 = await read(chip), g1 = fresh ? await read(fresh) : null;
+                Object.assign(card, { f0: r0.f, f1: r1.f, loop: (r0.f + Math.round((r1.t - r0.t) / loopMs)) % N, fresh: g1 && g1.f, since: Math.round(r1.t - appeared),
+                    sameNode: await chip.evaluate(el => el.isConnected && el === document.querySelector('.fighter-card .status-item[data-fx="burn"] img.px-icon')),
+                    own: fresh ? await ownCopies(chip, fresh) : false });
+            }
+            check(card.chip && card.fresh !== null && card.sameNode && card.own && gap(card.f1, card.loop) <= 1 && gap(card.f1, card.fresh) >= 2,
+                `Burn's chip on the card keeps its loop when a new log card shows Burn: frame ${card.f0} → ${card.f1} (its loop: ${card.loop}), the new card's icon at ${card.fresh}, ${card.since} ms after it appeared; each its own copy, the chip the same element`,
+                JSON.stringify(card));
+            // B: Burn on a chat card, a new chat card with Burn 1.5 s later
+            await page.evaluate(() => addInfo(`<div class="ic-head"><span>${pxIcon('burn')} 1</span></div>`, 'note'));
+            await page.waitForTimeout(1500);
+            const first = await page.$('#info-feed .info-card:first-child img.px-icon[data-icon="burn"]');
+            const a0 = await midLoop(first);
+            await page.evaluate(() => addInfo(`<div class="ic-head"><span>${pxIcon('burn')} 2</span></div>`, 'note'));
+            const added = Date.now();
+            await page.waitForTimeout(450);
+            const second = await page.$('#info-feed .info-card:first-child img.px-icon[data-icon="burn"]');
+            const a1 = await read(first), n1 = await read(second);
+            const chat = { f0: a0.f, f1: a1.f, loop: (a0.f + Math.round((a1.t - a0.t) / loopMs)) % N, fresh: n1.f, since: Math.round(a1.t - added), own: await ownCopies(first, second) };
+            check(chat.own && gap(chat.f1, chat.loop) <= 1 && gap(chat.f1, chat.fresh) >= 2,
+                `Burn on a chat card keeps its loop when a new chat card shows Burn: frame ${chat.f0} → ${chat.f1} (its loop: ${chat.loop}), the new card's icon at ${chat.fresh}, ${chat.since} ms after it appeared; each its own copy`,
+                JSON.stringify(chat));
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
