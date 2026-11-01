@@ -25,14 +25,25 @@ player guide still draw from them. Change a V2 image in `v2/`, never in the page
 - **The animation.** Each item has a still (`<id>.png`, the loop's first frame) and its idle loop (`<id>-anim.png`, an APNG
   that loops forever; its frame count and frame time are in the manifest: 8 to 24 frames of 70 to 120 ms). The overlay shows
   the loop, and the still under `prefers-reduced-motion` (the page swaps them live, `iconMotion`); the browser tests take their
-  screenshots that way, so those stay the same from run to run. Each `<img>` plays its own loop, so an icon drawn again starts
-  it over. No glow is baked in: the fire glow, the chips and the meter pips stay CSS.
+  screenshots that way, so those stay the same from run to run. The browser plays one loop per image: every `<img>` of an icon
+  shows the same frame, and a new `<img>` of it starts that loop over for all of them (an `<img>` moved within the page keeps
+  it). So a redraw keeps the elements of the icons that haven't changed (`morphHtml`: the cards, the plate, the title plate,
+  the log, the queue, the Top, the streamer card), and only an icon that changes is a new element; a new log card's icons still
+  start their images' loops over. No glow is baked in: the fire glow, the chips and the meter pips stay CSS.
 - **A title badge** is two loops, each running on its own: its rarity's frame (`frame-<rarity>-anim.png`, 48×48 art for a
   12×12 glyph) with the title's glyph (its mechanic's note, else its main bonus) on top, one glyph pixel in: 4 art pixels, so
   s CSS px at ×s. The badge is 12 × s CSS px, as before; in the Top (×1) it stays the bare glyph. In the page it's a
   `.px-badge` box holding the two images, and `fitText` scales it back as one icon.
-- **Emblems: the elements' symbols** on a tile, lit from the top left like every icon, so never mirrored: see "The emblems"
-  below.
+- **What V2 draws** where it isn't the glyph the batch tables below describe: Shadow Theft a shadow vortex, three grey smoke
+  arms round a dark eye, drawing small green buff arrows in; Ultra-block a barrier dome, a hit splashing off it; Unblockable
+  a shield shattered into shards round a red impact flash; Effect chance a lilac coin, a green buff arrow on one face and an
+  orange debuff arrow on the other (it flips); Magical an arcane ray, a beam pouring down from a spark into a pool of light;
+  Vampire white teeth with two long fangs, blood on the edges, a drop falling; Rage two blazing eyes in a seething red spiky
+  shadow; Ice Mirror a faceted ice teardrop; Miss a target on its stand, untouched, the arrow stuck in the ground beside it;
+  Defence a steel great helm with a red plume.
+- **Emblems: the elements' symbols** on a tile, lit from the top left like every icon, so never mirrored: Red a magma core,
+  Blue a crystal fan, Black a crescent moon, Gold a four-leaf clover, Purple an arcane orb, Green a sprout, the White Dragon
+  an eye, the White Drake a steel ring with a green flame (see "The emblems" below).
 - Every `<img>` carries `data-icon`, `data-n` (its glyph's size) and `data-s` (the scale), so `tests/overlay_icons.js` can hold
   it to its glyph's size × a whole number, its own V2 art and the display rule; `test.js` holds the files to the manifest (the
   sizes, a loop that loops forever, the frames, the still its first frame) and the page's copy to the files.
@@ -169,6 +180,8 @@ shrunk to 360p, a phone viewer (a third: a 20 px icon becomes ~7 px).
 - Icons of their own: only the divine title 999 «Владика Етеру» and, with the White Drake, «Біла сталь» (998).
 - The joke stays in the name. Two titles with the same bonus show the same icon; the name tells them apart. Title 163
   «Магніт для критів» is a crit title, so a crit glyph in a rare frame, not a magnet.
+
+The batch tables below describe the icons.js glyphs; the overlay draws V2 (see "V2: the animated set").
 
 ## The first batch (effects and ultimates)
 
@@ -315,10 +328,10 @@ sprite's navy outline and slate shade, never Black's neutral grey). Review: revi
 | Магніт | 🔗 | a horseshoe magnet with green poles | its debuff chip; it lasts the target's next attack («ще 1 атака») |
 | Удар ковадла | 🔨 | an anvil, sparks flying off its face (12×12) | line 1 of its log card, the pending cell |
 | «Біла сталь» (title 998) | 👑 | an upright sword in white steel, a green gem in the guard | its badge in the divine frame; the `steel` banner, «Сталь не гнеться» |
-| The White Drake | 🤍 | a green flame (its mane's green) in a steel ring on its white-steel tile (`emSteel`; see "The emblems"; the glyph was the six drakes' head in white steel) | in names, the intro banner, replies that name it, the streamer card |
+| The White Drake | 🤍 | a steel ring with a green flame (its mane's green) on its white-steel tile (`emSteel`; see "The emblems"; the glyph was the six drakes' head in white steel) | in names, the intro banner, replies that name it, the streamer card |
 
 - **The scale is the bar's icon, not the emblem.** A single scale read as Jackpot's gem, the Shield or a drop at 10 px; the
-  layered pair doesn't. The emblem is the White Drake's symbol, a green flame in a steel ring.
+  layered pair doesn't. The emblem is the White Drake's symbol, a steel ring with a green flame.
 - **No crown on the White Drake.** 👑 stays the Sovereign's (title 999, the Sovereign's note). «Біла сталь» takes the single
   sword, kept free for it in batch 4 (attacking is the crossed pair). «Дракон це запамʼятав…» takes the White Dragon's wing.
 - **Магніт is free:** title 163 «Магніт для критів» is a crit title, its badge the crit glyph in a rare frame.
@@ -339,14 +352,14 @@ not only by colour, so a greyscale or colour-blind viewer can read them too:
 
 | Drake | Its symbol |
 |---|---|
-| Red | a molten rock split by glowing orange cracks, white-hot at the heart (fire) |
-| Blue | a cluster of ice crystals, the tallest in the middle |
-| Black | a violet crescent moon |
-| Gold | a four-leaf clover on a short stem (luck), its leaves square to the tile, nothing that turns |
-| Purple | an arcane orb inside two crossing orbits, cyan at their ends |
-| Green | a sprout: two leaves on a stem |
-| The White Dragon | its own eye, green with a slit pupil |
-| The White Drake | a green flame (its mane's green) in a steel ring |
+| Red | a magma core |
+| Blue | a crystal fan |
+| Black | a crescent moon |
+| Gold | a four-leaf clover |
+| Purple | an arcane orb |
+| Green | a sprout |
+| The White Dragon | an eye |
+| The White Drake | a steel ring with a green flame |
 
 `node design/icons/test.js` checks it: the eight emblems are one tile (its frame the same pixels in every one, colour aside),
 and every two symbols (the pixels inside the tile that aren't the tile's, colour ignored) differ in at least 64 art pixels,

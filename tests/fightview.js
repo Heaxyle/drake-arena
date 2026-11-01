@@ -29,6 +29,9 @@
 //   - The log scrolls: a 30-turn fight keeps every row and its top is reachable; scrolled up, the view stays still while
 //     turns arrive and "↓ нові ходи (N)" counts them; back at the bottom (or the pill) it follows again; 15 s untouched
 //     during a fight brings it back; the result screen scrolls from the intro banner to the result card and stays put
+//   - Icons that don't change keep their elements (a new <img> restarts its image's loop): marked at turn 1, the cards',
+//     the plate's, the fight type's, the title plate's, the Top's, the queue's, the log's and the chat cards' icons are the
+//     same elements three turns later; a new chip and another title's badge are new elements, the rest stay
 //   - Review screenshots: tests/screenshots/fightview-cards.png (log cards of every kind, both languages) and
 //     tests/screenshots/fightview-turn.png (countdowns, the turn steps, an ultimate, the result, both languages)
 //
@@ -46,7 +49,7 @@ const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
 const TURN = 4500, HIT = 600;
-// FV_ONLY=2,4 runs only those sections (0–11, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
+// FV_ONLY=2,4 runs only those sections (0–12, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
 const ONLY = (process.env.FV_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
 
@@ -1365,6 +1368,87 @@ async function popAtStep2(page, turn) {
             await hold();
             await page.evaluate(() => setStreamerUser(''));
             if (errors.length) fail(`${tag} page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // ===== 12. Icons that don't change keep their elements (a new <img> restarts the image's loop) =====
+        // At turn 1 of a ranked fight every icon on the cards, the plate, the fight type, the title plate, the Top, the queue,
+        // the log's legend, the log and the chat cards is marked; three turns later (and with the Top, the queue, the legend
+        // and the title plate drawn again too), each one still drawn with the same id and size where it was (its card, log
+        // row or chat card) must be the very same element. Then a changed icon must be a new one: a chip for a buff the card
+        // didn't show (the other chips keep theirs) and another title's badge (the card's emblem keeps its own).
+        console.log('\nIcons kept across redraws');
+        if (run(12)) {
+            const { page, context, errors } = await open(browser, { lang: 'uk' });
+            await register(page, 'uk', [['kotyk_ua', 'red'], ['jade', 'green'], ['sapphire', 'blue']]);
+            await page.evaluate(() => {
+                const db = getDragonDB();
+                db.kotyk_ua.title = TITLES_DB.find(t => t.id === 183); db.jade.title = TITLES_DB.find(t => t.id === 98); db.sapphire.title = TITLES_DB.find(t => t.id === 74);
+                saveDragonDB(db);
+                saveHonours({ ...getHonours(), holders: ['kotyk_ua', 'jade', 'sapphire'] });
+                renderLeaderboard();
+            });
+            for (const u of ['kotyk_ua', 'jade', 'sapphire']) await say(page, u, '!черга');
+            const until = async cond => { for (let i = 0; i < 240 && !(await page.evaluate(cond)); i++) await page.clock.runFor(250); };
+            await until(() => arenaState.kind === 'fight' && arenaState.turn >= 1);
+            await page.clock.runFor(HIT + 400);
+            await settleArena(page);
+            const AREAS = ['#card-p1', '#card-p2', '#status-plate', '#fight-type', '.plaque', '#leaderboard-list', '#queue-list-ui', '#log-head', '#log-list', '#info-feed'];
+            const inPage = `const key = i => i.matches('.px-badge') ? 'badge ' + i.dataset.frame + ' ' + i.querySelector('.px-glyph').dataset.icon + ' ' + i.style.width : i.dataset.icon + ' ×' + i.dataset.s;
+                const boxes = el => [...el.querySelectorAll('.px-badge, img.px-icon')].filter(i => !i.parentElement.classList.contains('px-badge'));`;
+            const before = await page.evaluate(([areas, src]) => {
+                const { key, boxes } = new Function(`${src} return { key, boxes };`)();
+                window.__marks = [];
+                areas.forEach(sel => document.querySelectorAll(sel).forEach(area => boxes(area).forEach(node => window.__marks.push({
+                    sel, key: key(node), node, unit: node.closest('.log-row, .log-banner, .log-result, .info-card') || area }))));
+                return { n: window.__marks.length, turn: arenaState.turn, plate: __vt(document.getElementById('status-plate')) };
+            }, [AREAS, inPage]);
+            for (let i = 0; i < 3; i++) {
+                await page.clock.runFor(TURN);
+                await page.evaluate(() => { renderLeaderboard(); updateQueueUI(); fvHead(); renderPlaque(); });   // drawn again, unchanged
+            }
+            await page.clock.runFor(HIT + 400);
+            await settleArena(page);
+            const after = await page.evaluate(src => {
+                const { key, boxes } = new Function(`${src} return { key, boxes };`)();
+                const out = { kept: [], lost: [], gone: 0, turn: arenaState.turn, plate: __vt(document.getElementById('status-plate')) };
+                for (const m of window.__marks) {
+                    // A log row, a banner or a chat card that's gone took its icons with it; elsewhere the area stays
+                    if (!m.unit.isConnected) { out.gone++; continue; }
+                    const same = boxes(m.unit).filter(i => key(i) === m.key);
+                    if (!same.length) { out.gone++; continue; }   // changed: not drawn there any more
+                    (same.includes(m.node) ? out.kept : out.lost).push(`${m.sel}: ${m.key}`);
+                }
+                return out;
+            }, inPage);
+            const areasKept = [...new Set(after.kept.map(k => k.split(':')[0]))];
+            check(after.turn >= before.turn + 3 && after.plate !== before.plate && !after.lost.length && after.kept.length >= 30 && AREAS.slice(0, 8).every(a => areasKept.includes(a)),
+                `icons that don't change keep their elements: of ${before.n} marked at turn ${before.turn}, ${after.kept.length} are the same elements at turn ${after.turn} (the plate went from «${before.plate}» to «${after.plate}»; ${after.gone} no longer drawn), in ${areasKept.join(', ')}`,
+                `drawn again as new elements: ${after.lost.slice(0, 8).join(' | ')} (kept in: ${areasKept.join(', ')}; turn ${before.turn} → ${after.turn})`);
+            // A changed icon is a new element: a new chip (the others keep theirs), another title's badge (the emblem stays)
+            const chip = await page.evaluate(() => {
+                const name = document.getElementById('name-p1').innerText.replace('@', '').trim(), box = document.getElementById('status-p1');
+                const d = getDragonDB()[name], lvl = calculateLevelAndProgress(d.xp || 0).level;
+                const draw = (buff, debuff) => updateStatusUI(name, lvl, d.drakeObj.type, d.title, { buff: buff.map(id => ({ id, left: 2, power: 1 })), debuff: debuff.map(id => ({ id, left: 2, power: 1 })) });
+                draw(['rage'], ['burn']);   // two chips on the card
+                const old = [...box.querySelectorAll('img.px-icon')];
+                draw(['rage', 'shield'], ['burn']);   // and a buff it didn't show
+                const now = [...box.querySelectorAll('img.px-icon')], added = now.find(i => i.dataset.icon === 'shield');
+                return { kept: old.filter(i => now.includes(i)).length, old: old.map(i => i.dataset.icon), isNew: !!added && !old.includes(added), now: now.map(i => i.dataset.icon) };
+            });
+            check(chip.old.length === 2 && chip.isNew && chip.kept === 2, `a new chip (shield) gets a new icon; the card's other chips (${chip.old.join(', ')}) keep theirs`, JSON.stringify(chip));
+            const badge = await page.evaluate(() => {
+                const name = document.getElementById('name-p1').innerText.replace('@', '').trim(), d = getDragonDB()[name];
+                const oldBadge = document.querySelector('#badge-container-p1 .px-badge'), oldEmblem = document.querySelector('#info-p1 img.px-icon');
+                const was = oldBadge && oldBadge.dataset.frame;
+                d.title = TITLES_DB.find(t => t.id === (d.title && d.title.id === 96 ? 98 : 96));
+                updateFighterCard('p1', d, null);
+                const newBadge = document.querySelector('#badge-container-p1 .px-badge');
+                return { was, now: newBadge && newBadge.dataset.frame, glyph: newBadge && newBadge.querySelector('.px-glyph').dataset.icon,
+                    replaced: !!oldBadge && !!newBadge && newBadge !== oldBadge && !oldBadge.isConnected, emblemKept: !!oldEmblem && document.querySelector('#info-p1 img.px-icon') === oldEmblem };
+            });
+            check(badge.replaced && badge.emblemKept, `another title's badge (${badge.was} → ${badge.now}, ${badge.glyph}) is a new element; the card's emblem stays the same one`, JSON.stringify(badge));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
 

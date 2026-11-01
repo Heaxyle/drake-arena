@@ -93,6 +93,7 @@
     .v2item .t-name { font-size: 13px; }
     .v2item .word { font-size: 10px; color: var(--dim); line-height: 40px; }
     .v2op { font-size: 16px; color: var(--muted); }
+    .v2item .v2art { color: var(--text2); }
 
     /* The review sheet itself */
     .page { padding: 28px 20px 40px; display: flex; flex-direction: column; gap: 34px; }
@@ -418,7 +419,7 @@
             sledgehammer tilted 45°, head up, green sparks off its striking face, in a buff chip. <b>Магніт</b>: a horseshoe magnet with green poles, in a debuff chip; it lasts the target's
             next attack («ще 1 атака»). <b>Удар ковадла</b>: an anvil with sparks off its face, 12×12, a silhouette no other ultimate has. <b>«Біла сталь»</b>: an
             upright sword in white steel with a green gem in the guard (a single sword was kept free for it), in the divine frame like title 999, so the White
-            Drake has no crown: 👑 stays the Sovereign's. <b>The emblem</b>: a green flame (its mane's green) in a steel ring on its white-steel tile, in place of 🤍;
+            Drake has no crown: 👑 stays the Sovereign's. <b>The emblem</b>: a steel ring with a green flame (its mane's green), on its white-steel tile, in place of 🤍;
             the scale is its bar's icon, not its emblem (all eight emblems: section 16). Below the set: each new icon beside the ones it could
             be taken for, in colour and greyscale.</div>
     </section>
@@ -449,9 +450,9 @@
         </div>
         <div class="note">Each drake's emblem is its element's symbol on a tile (top row: the still and the loop at 1:1, ×4). The tile is the same for every
             drake, only its colours change: a frame in the element's colour, its light edge up and left and its dark edge down and right, a dark fill, and a
-            round disc a shade lighter behind the symbol. The symbol tells them apart by shape, not only by colour: <b>Red</b> a molten rock split by glowing
-            cracks (fire), <b>Blue</b> a cluster of ice crystals, <b>Black</b> a violet crescent moon, <b>Gold</b> a four-leaf clover, <b>Purple</b> an arcane orb in
-            two crossing orbits, <b>Green</b> a sprout; <b>the White Dragon</b> its green eye, <b>the White Drake</b> a green flame in a steel ring.
+            round disc a shade lighter behind the symbol. The symbol tells them apart by shape, not only by colour: <b>Red</b> a magma core,
+            <b>Blue</b> a crystal fan, <b>Black</b> a crescent moon, <b>Gold</b> a four-leaf clover, <b>Purple</b> an arcane orb, <b>Green</b> a sprout;
+            <b>the White Dragon</b> an eye, <b>the White Drake</b> a steel ring with a green flame.
             <code>node design/icons/test.js</code> checks it: the eight are one tile, and every two symbols (the pixels inside the tile that aren't the tile's,
             colour ignored) differ in at least 64 art pixels, 4 glyph pixels at the 4× density. Lit from the top left like every icon, an emblem is never
             mirrored: on the title plate all six face the same way. In place: the queue (instead of the old 14 px colour square), the Top (before the level;
@@ -478,7 +479,7 @@
     // A title badge: the rarity frame's loop with the glyph's on top, one glyph pixel in (s CSS px at ×s)
     const badge = (id, rarity, s = 2) => `<span class="px-badge" style="width:${12 * s}px;height:${12 * s}px">${v2Img(`frame-${rarity}`, s)}${v2Img(id, s, 'px-icon', `left:${s}px;top:${s}px`)}</span>`;
     const EFFECT_INFO = {
-        rage:     { kind: 'buff',   left: 'ще 2 атаки', glyph: 'spiky angry face' },
+        rage:     { kind: 'buff',   left: 'ще 2 атаки', glyph: 'two blazing eyes in a seething red spiky shadow' },
         burn:     { kind: 'debuff', left: 'ще 3 ходи',  glyph: 'flame', tick: -9 },
         shield:   { kind: 'buff',   left: 'ще 2 удари', glyph: 'shield' },
         frost:    { kind: 'debuff', left: 'ще 1 атака', glyph: 'snowflake' },
@@ -491,13 +492,24 @@
         regen:    { kind: 'buff',   left: 'ще 3 ходи',  glyph: 'plus', tick: 12 },
         poison:   { kind: 'debuff', left: 'ще 3 ходи',  glyph: 'skull', tick: -5 },
     };
-    const ULT_GLYPH = { firestorm: 'meteor', mirror: 'ice shard', theft: 'shadow vortex', jackpot: 'slot seven', detonation: 'blast', bloom: 'flower head' };
+    const ULT_GLYPH = { firestorm: 'meteor', mirror: 'a faceted ice teardrop', theft: 'a shadow vortex, three grey smoke arms round a dark eye, drawing small green buff arrows in', jackpot: 'slot seven', detonation: 'blast', bloom: 'flower head' };
     const chipCss = id => D.chipStyle(D.ICONS[id].element, EFFECT_INFO[id].kind);
     const ELEMENT_UK = { red: 'Червоний', blue: 'Синій', black: 'Чорний', gold: 'Золотий', purple: 'Фіолетовий', green: 'Зелений' };
     const nm = id => D.ICONS[id].name.uk;
     const $ = id => document.getElementById(id);
 
     // 0 · V2: every item's glyph (icons.js, the record), its still and loop at 1:1, its loop at ×2; then how a badge is built
+    // What V2 draws where it isn't the glyph (style.md, "V2: the animated set")
+    const V2_ART = {
+        theft: 'a shadow vortex, three grey smoke arms round a dark eye, drawing small green buff arrows in',
+        block: 'a barrier dome, a hit splashing off it', unblockable: 'a shield shattered into shards round a red impact flash',
+        effect: 'a lilac coin, a green buff arrow on one face and an orange debuff arrow on the other; it flips',
+        magical: 'an arcane ray, a beam pouring down from a spark into a pool of light', vampire: 'white teeth with two long fangs, blood on the edges, a drop falling',
+        rage: 'two blazing eyes in a seething red spiky shadow', mirror: 'a faceted ice teardrop', miss: 'a target on its stand, untouched, the arrow stuck in the ground beside it',
+        defence: 'a steel great helm with a red plume',
+        emRed: 'a magma core', emBlue: 'a crystal fan', emBlack: 'a crescent moon', emGold: 'a four-leaf clover', emPurple: 'an arcane orb', emGreen: 'a sprout',
+        emDragon: 'an eye', emSteel: 'a steel ring with a green flame',
+    };
     {
         const fig = (html, cap) => `<figure>${html}<figcaption>${cap}</figcaption></figure>`;
         const items = [...Object.keys(D.ICONS), ...Object.keys(D.TITLE_FRAMES).map(r => `frame-${r}`)];
@@ -505,7 +517,8 @@
             const n = glyphN(id), frame = id.startsWith('frame-');
             return `<div class="v2item"><div class="v2row">${fig(frame ? '<span class="word">—</span>' : D.iconImg(id, 4), 'glyph ×4')}${fig(v2Img(id, 4, 'px-icon', '', 'still'), 'still 1:1')}`
                 + `${fig(v2Img(id, 4), 'loop 1:1')}${fig(v2Img(id, 2), 'loop ×2')}</div>`
-                + `<div class="t-name">${frame ? `${id.slice(6)} frame` : nm(id)}</div><div class="t-meta">${id} · ${n}×${n} → ${n * DENSITY}×${n * DENSITY}</div></div>`;
+                + `<div class="t-name">${frame ? `${id.slice(6)} frame` : nm(id)}</div><div class="t-meta">${id} · ${n}×${n} → ${n * DENSITY}×${n * DENSITY}</div>`
+                + `${V2_ART[id] ? `<div class="t-meta v2art">${V2_ART[id]}</div>` : ''}</div>`;
         }).join('');
         const T = [['common', 'hp'], ['epic', 'buffpower'], ['legendary', 'guardian'], ['mythic', 'thorns'], ['meme', 'coin'], ['divine', 'whiteSteel']];
         $('v2badges').innerHTML = T.map(([r, id]) => `<div class="f-h" style="color:${D.RARITY_COLORS[r]}">${r} · ${nm(id)}</div><div class="vs-set">${fig(v2Img(`frame-${r}`, 2), 'frame ×2')}`
@@ -801,7 +814,7 @@
     EFFECT_INFO.reforge = { kind: 'buff', left: 'ще 2 атаки', glyph: 'sledgehammer at 45°', tick: 9 };
     EFFECT_INFO.magnet = { kind: 'debuff', left: 'ще 1 атака', glyph: 'horseshoe magnet' };
     const STEEL_GLYPH = { scales: 'a scale over a scale', bounce: 'an arrow glancing off', cracked: 'the scale, cracked', reforge: 'sledgehammer at 45°', magnet: 'horseshoe magnet',
-                          anvil: 'anvil', whiteSteel: 'upright sword', emSteel: 'green flame, steel ring' };
+                          anvil: 'anvil', whiteSteel: 'upright sword', emSteel: 'steel ring, green flame' };
     {
         const ids = D.STEEL_ICON_IDS;
         const row = (label, cls, emoji) => `<div class="f-h">${label}</div>` + ids.map(id => `<div class="cell ${cls}">${emoji ? `<span class="emo" style="font-size:16px;width:auto">${D.ICONS[id].emoji}</span>` : img(id, 2)}</div>`).join('');
@@ -826,7 +839,7 @@
             ['The scale', [[img('scales', 2), 'scales'], [img('cracked', 2), 'cracked']], [[img('reelgem', 2), 'gem'], [img('shield', 2), 'Shield'], [img('defence', 2), 'defence'], [img('vampheal', 2), 'bite heal'], [img('immune', 2), 'immune']]],
             ['Bounced', [[img('bounce', 2), 'bounce']], [[img('reflect', 2), 'reflect'], [img('miss', 2), 'miss'], [img('block', 2), 'block'], [img('dodge', 2), 'dodge']]],
             ['The White Drake\'s chips', [[chipImg('reforge'), 'Перекування'], [chipImg('magnet'), 'Магніт']], [[chipImg('shadow'), 'Тінь'], [chipImg('weakness'), 'Слабкість'], [chipImg('shield'), 'Щит'], [chipImg('dispel'), 'Розвіювання']]],
-            ['The hammer, the anvil', [[img('reforge', 2), 'hammer'], [img('anvil', 2), 'anvil']], [[img('execute', 2), 'axe'], [img('theft', 2), 'bat'], [img('mirror', 2), 'mirror'], [img('detonation', 2), 'blast']]],
+            ['The hammer, the anvil', [[img('reforge', 2), 'hammer'], [img('anvil', 2), 'anvil']], [[img('execute', 2), 'axe'], [img('theft', 2), 'vortex'], [img('mirror', 2), 'mirror'], [img('detonation', 2), 'blast']]],
             ['The sword, its badge', [[img('whiteSteel', 2), 'sword'], [badge('whiteSteel', 'divine', 2), '998']], [[img('attacking', 2), 'attacking'], [img('physical', 2), 'physical'], [img('pierce', 2), 'pierce'], [badge('sovereign', 'divine', 2), '999']]],
             ['The emblem', [[img('emSteel', 2), 'White Drake']], [[img('emDragon', 2), 'Dragon'], [img('emBlack', 2), 'Black'], [img('emBlue', 2), 'Blue'], [img('emGreen', 2), 'Green']]],
         ];
@@ -903,7 +916,7 @@
     // 16 · The emblems: each one's still and loop at 1:1, the set at three scales, greyscale and deuteranopia, then in place
     {
         const E8 = D.EMBLEM_IDS, NAMES = ['Червоний', 'Синій', 'Чорний', 'Золотий', 'Фіолетовий', 'Зелений', 'Білий Дракон', 'Білий Дрейк'];
-        const SYMBOLS = ['molten rock', 'ice crystals', 'crescent moon', 'four-leaf clover', 'arcane orb', 'sprout', 'dragon eye', 'flame in a steel ring'];
+        const SYMBOLS = ['magma core', 'crystal fan', 'crescent moon', 'four-leaf clover', 'arcane orb', 'sprout', 'eye', 'steel ring, green flame'];
         $('emheads').innerHTML = E8.map((id, i) => `<figure><div class="eh">${v2Img(id, 4, 'px-icon', '', 'still')}${img(id, 4)}</div><figcaption>${NAMES[i]} · ${SYMBOLS[i]}</figcaption></figure>`).join('');
         const row = (label, s, cls = '') => `<div class="f-h">${label}</div>` + E8.map(id => `<div class="cell ${cls}">${img(id, s)}</div>`).join('');
         $('emsets').innerHTML = `<div class="f-h"></div>${NAMES.map(n => `<div class="cell em-n">${n}</div>`).join('')}` +

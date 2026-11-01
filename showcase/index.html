@@ -997,16 +997,16 @@
             if (!queueContainer) return;
 
             const hint = document.getElementById('queue-hint');
-            if (hint) hint.innerHTML = currentLang === 'uk' ? 'стати в чергу: <b>!черга</b>' : 'join the queue: <b>!queue</b>';
+            if (hint) morphHtml(hint, currentLang === 'uk' ? 'стати в чергу: <b>!черга</b>' : 'join the queue: <b>!queue</b>');
             // A tournament: its sign-up line (or "on, the queue waits") takes the hint's place, in gold
             if (hint) {
                 hint.classList.toggle('tourney', !!tourney);
-                if (tourney) hint.innerHTML = tourney.phase === 'signup' ? tH('signupLine', { n: tourney.players.length, size: tourney.size }) : tH('onLine');
+                if (tourney) morphHtml(hint, tourney.phase === 'signup' ? tH('signupLine', { n: tourney.players.length, size: tourney.size }) : tH('onLine'));
                 showStrip(hint);
             }
             showBoardSync();
             if (matchmakingQueue.length === 0) {
-                queueContainer.innerHTML = `<span class="queue-empty">${translations[currentLang].queue_empty}</span>`;
+                morphHtml(queueContainer, `<span class="queue-empty">${translations[currentLang].queue_empty}</span>`);
                 return;
             }
 
@@ -1015,9 +1015,9 @@
             matchmakingQueue.forEach((user, index) => {
                 const d = db[user];
                 const el = d && d.drakeObj ? d.drakeObj.type : null;
-                html += `<span class="queue-badge"><span class="qn">${index + 1}</span>${el ? emblem(el) : '<span class="el-square"></span>'}<span class="pname" style="color:${nameColor(d && d.color)}">@${user}</span></span>`;
+                html += `<span class="queue-badge" data-key="${user}"><span class="qn">${index + 1}</span>${el ? emblem(el) : '<span class="el-square"></span>'}<span class="pname" style="color:${nameColor(d && d.color)}">@${user}</span></span>`;
             });
-            queueContainer.innerHTML = html;
+            morphHtml(queueContainer, html);
             // Whoever doesn't fit on the strip is counted in a "+N" badge instead of being cut off
             const badges = [...queueContainer.querySelectorAll('.queue-badge')];
             let hidden = 0;
@@ -1179,7 +1179,12 @@
                 // whole-number size
                 const icons = iconBoxes(el), iw = icons.reduce((s, i) => s + i.offsetWidth, 0);
                 const k = Math.floor(1000 * (el.clientWidth - pad - 1 - iw) / Math.max(1, el.scrollWidth - pad - iw)) / 1000;
-                el.innerHTML = `<span class="squeeze" style="transform: scaleX(${k})">${el.innerHTML}</span>`;
+                // The content moves into the squeeze span (never re-parsed: an icon made anew would start its loop over)
+                const squeeze = document.createElement('span');
+                squeeze.className = 'squeeze';
+                squeeze.style.transform = `scaleX(${k})`;
+                while (el.firstChild) squeeze.appendChild(el.firstChild);
+                el.appendChild(squeeze);
                 if (k > 0) iconBoxes(el).forEach(i => {
                     const room = i.offsetWidth * (1 / k - 1) / 2, ics = getComputedStyle(i);
                     i.style.transform = `scaleX(${1 / k})`;
@@ -1190,12 +1195,64 @@
         }
         // The icons in an element, each as the box that keeps its size: a title badge, or a bare icon outside one
         const iconBoxes = el => [...el.querySelectorAll('.px-badge, img.px-icon')].filter(i => !(i.parentElement && i.parentElement.classList.contains('px-badge')));
-        // Undoes fitText's sideways squeeze (and the icons' counter-scale inside it)
+        // Undoes fitText's sideways squeeze (and the icons' counter-scale inside it), moving the content back out
         function unsqueeze(el) {
             const old = el.firstElementChild;
             if (!old || !old.classList || !old.classList.contains('squeeze') || el.childNodes.length !== 1) return;
-            el.innerHTML = old.innerHTML;
+            while (old.firstChild) el.insertBefore(old.firstChild, old);
+            old.remove();
             iconBoxes(el).forEach(i => { i.style.transform = ''; i.style.marginLeft = ''; i.style.marginRight = ''; });
+        }
+
+        // ----- Redraws that keep their icons -----
+        // An icon's loop starts over whenever a new <img> of its image goes in (and with it every <img> showing that image),
+        // so a redraw leaves alone the icons that haven't changed: morphHtml(el, html) gives el the content of html changing
+        // only what differs. html is parsed inert (in a <template>: nothing in it loads) and each of its nodes either brings
+        // an old node up to date or goes in new. An icon takes an old one of the same id and size, a title badge one of the
+        // same frame, glyph and size, an effect's chip (data-fx) one of the same effect, a Top row or a queue badge (data-key)
+        // the one of the same player, from anywhere among its old siblings (moved within the page, an <img> keeps its loop);
+        // any other element takes the first unused old one of its tag, text the first unused old text; their attributes and
+        // children are then brought up to date the same way, and what's left over goes. An element marked data-new is always
+        // made new (the countdown's bar: a new one each second, so it steps rather than glides through its transition). The
+        // fighter cards, the plate, the title plate, the log, the queue, the Top and the streamer card draw through it; the
+        // chat cards are only ever added or dropped, never redrawn, and fitText's squeeze moves nodes rather than re-parsing.
+        const morphKey = n => {
+            if (n.nodeType !== 1) return null;
+            if (n.classList.contains('px-badge')) { const g = n.querySelector('.px-glyph'); return `badge|${n.dataset.frame}|${g ? g.dataset.icon : ''}|${n.style.width}`; }
+            if (n.classList.contains('px-icon')) return `icon|${n.dataset.icon}|${n.dataset.s}`;
+            return n.dataset.fx ? `fx|${n.dataset.fx}` : n.dataset.key ? `key|${n.dataset.key}` : null;
+        };
+        const morphFits = (o, n) => o.nodeType === n.nodeType && (o.nodeType !== 1 || (o.tagName === n.tagName && !o.hasAttribute('data-new') && !n.hasAttribute('data-new')));
+        function morphHtml(el, html) {
+            if (!el) return;
+            if (!ICONS_DRAWN || !el.firstChild) { el.innerHTML = html; return; }
+            const t = document.createElement('template');
+            t.innerHTML = html;
+            morphChildren(el, t.content);
+        }
+        function morphChildren(live, next) {
+            unsqueeze(live);   // fitText runs again after the redraw
+            const old = [...live.childNodes], used = new Set();
+            const plan = [...next.childNodes].map(n => {
+                const k = morphKey(n);
+                const o = old.find(x => !used.has(x) && morphFits(x, n) && morphKey(x) === k);
+                if (!o) return n;
+                used.add(o);
+                morphNode(o, n);
+                return o;
+            });
+            let at = live.firstChild;
+            for (const node of plan) {
+                if (node === at) at = at.nextSibling;
+                else live.insertBefore(node, at);
+            }
+            while (at) { const gone = at; at = at.nextSibling; gone.remove(); }
+        }
+        function morphNode(o, n) {
+            if (o.nodeType !== 1) { if (o.nodeValue !== n.nodeValue) o.nodeValue = n.nodeValue; return; }
+            for (const a of [...o.attributes]) if (!n.hasAttribute(a.name)) o.removeAttribute(a.name);
+            for (const a of [...n.attributes]) if (o.getAttribute(a.name) !== a.value) o.setAttribute(a.name, a.value);
+            if (o.tagName !== 'IMG') morphChildren(o, n);
         }
         // A player's name on a tournament screen: it shrinks to fit (never below minPx, 12 px by default, so it stays
         // readable on stream), and only then is cut in the middle with an ellipsis that keeps its end (@the_real_sl…dy_123),
@@ -1275,8 +1332,8 @@
             // A tournament game: the plate says «Турнір · Півфінал · Гра 2 · 1:0» after the trophy; the countdown, turn or winner moves to the left
             plate.classList.remove('two');
             if (tourGame && ['countdown', 'fight', 'result'].includes(s.kind)) {
-                type.innerHTML = s.kind === 'countdown' ? fvH(s.betting ? 'plateBets' : 'plateStart')
-                    : s.kind === 'fight' ? turnText : winText(s.winner ? `@${s.winner.name}` : null);
+                morphHtml(type, s.kind === 'countdown' ? fvH(s.betting ? 'plateBets' : 'plateStart')
+                    : s.kind === 'fight' ? turnText : winText(s.winner ? `@${s.winner.name}` : null));
                 fitText(type, 10);
                 // A name the bracket had to cut: both names in full under the label, as on the cards (left, then right)
                 const g = tourGame, cut = (tourney && tourney.cut) || [];
@@ -1284,34 +1341,34 @@
                     const flip = fv.p1 && fv.p1.name === g.b;
                     const nm = n => { const f = tourneyFighter(n); return `<span class="pname" style="color:${nameColor(f ? f.color : '#e8eaf2')}">@${n}</span>`; };
                     plate.classList.add('two');
-                    plate.innerHTML = `<span class="pl-label">${iconText(tourneyPlate(g), ['trophy'])}</span><span class="pl-names">${flip ? `${nm(g.b)} — ${nm(g.a)}` : `${nm(g.a)} — ${nm(g.b)}`}</span>`;
+                    morphHtml(plate, `<span class="pl-label">${iconText(tourneyPlate(g), ['trophy'])}</span><span class="pl-names">${flip ? `${nm(g.b)} — ${nm(g.a)}` : `${nm(g.a)} — ${nm(g.b)}`}</span>`);
                     plate.querySelectorAll('.pl-label, .pl-names').forEach(el => fitText(el, 11));
                 } else {
-                    plate.innerHTML = iconText(tourneyPlate(g), ['trophy']);
+                    morphHtml(plate, iconText(tourneyPlate(g), ['trophy']));
                     fitText(plate, 11);
                 }
             } else if (s.kind === 'draw') {
-                type.innerHTML = `${pxIcon('trophy')} ${tT('name')}`;
-                plate.innerHTML = sH('drawPlate');
+                morphHtml(type, `${pxIcon('trophy')} ${tT('name')}`);
+                morphHtml(plate, sH('drawPlate'));
             } else if (s.kind === 'podium') {
-                type.innerHTML = tH('podium');
-                plate.innerHTML = tH('champion', { who: '@' + s.podium[0] });
+                morphHtml(type, tH('podium'));
+                morphHtml(plate, tH('champion', { who: '@' + s.podium[0] }));
                 fitText(plate, 11);
             } else if (s.kind === 'hall') {
-                type.innerHTML = tH('hall');
+                morphHtml(type, tH('hall'));
                 plate.textContent = tT('tournaments', { n: getHonours().hall.length });
             } else if (s.kind === 'idle') {
                 type.textContent = uk ? 'Арена чекає на бійців' : 'The arena awaits fighters';
-                plate.innerHTML = `${pxIcon('hourglass')} ${uk ? 'Очікування' : 'Waiting'}`;
+                morphHtml(plate, `${pxIcon('hourglass')} ${uk ? 'Очікування' : 'Waiting'}`);
             } else if (s.kind === 'countdown') {
-                type.innerHTML = fightName;
-                plate.innerHTML = fvH(s.betting ? 'plateBets' : 'plateStart');
+                morphHtml(type, fightName);
+                morphHtml(plate, fvH(s.betting ? 'plateBets' : 'plateStart'));
             } else if (s.kind === 'fight') {
-                type.innerHTML = fightName;
-                plate.innerHTML = turnText;
+                morphHtml(type, fightName);
+                morphHtml(plate, turnText);
             } else {
-                type.innerHTML = `${fightName} · ${s.turns} ${uk ? turnsWordUk(s.turns) : (s.turns === 1 ? 'turn' : 'turns')}`;
-                plate.innerHTML = winText(s.winner ? `<span class="pname" style="color:${s.winner.color}">@${s.winner.name}</span>` : null);
+                morphHtml(type, `${fightName} · ${s.turns} ${uk ? turnsWordUk(s.turns) : (s.turns === 1 ? 'turn' : 'turns')}`);
+                morphHtml(plate, winText(s.winner ? `<span class="pname" style="color:${s.winner.color}">@${s.winner.name}</span>` : null));
             }
             plate.style.textTransform = 'uppercase';
             type.style.textTransform = 'uppercase';
@@ -1605,17 +1662,17 @@
             if (!el) return;
             if (item.type === 'banner') {
                 el.className = `log-banner ${item.kind}`;
-                el.innerHTML = `<span class="lc-ctext">${fvBannerHtml(item)}</span>`;
+                morphHtml(el, `<span class="lc-ctext">${fvBannerHtml(item)}</span>`);
                 fitText(el, 10);
             } else if (item.type === 'row') {
                 el.className = 'log-row';
-                el.innerHTML = fvCellHtml(item.cells.left, 'left') + fvCellHtml(item.cells.right, 'right');
+                morphHtml(el, fvCellHtml(item.cells.left, 'left') + fvCellHtml(item.cells.right, 'right'));
                 el.querySelectorAll('.lc-move').forEach(m => fitText(m, 11));
                 el.querySelectorAll('.lc-l2').forEach(fvFitLine);
                 el.querySelectorAll('.lc-cell').forEach(c => fitText(c, 10));
             } else if (item.type === 'result') {
                 el.className = 'log-result frame-sm';
-                el.innerHTML = fvResultHtml(item.data);
+                morphHtml(el, fvResultHtml(item.data));
                 el.querySelectorAll('.lr-title, .lr-grid > span, .lr-note').forEach(s => fitText(s, 10));
             }
         }
@@ -1638,7 +1695,7 @@
                 if (!groups.length) continue;
                 groups.forEach(g => {
                     g.querySelectorAll('.lx').forEach(x => x.remove());
-                    g.querySelectorAll('.lk[data-c]').forEach(k => { k.innerHTML = (k.dataset.ci ? pxIcon(k.dataset.ci) : '') + (k.dataset.ct ? `<span class="lkt">${k.dataset.ct}</span>` : ''); k.classList.add('compact'); });
+                    g.querySelectorAll('.lk[data-c]').forEach(k => { morphHtml(k, (k.dataset.ci ? pxIcon(k.dataset.ci) : '') + (k.dataset.ct ? `<span class="lkt">${k.dataset.ct}</span>` : '')); k.classList.add('compact'); });
                 });
                 fitText(l, min);
                 if (!over()) return;
@@ -1814,9 +1871,9 @@
             const head = fvEl('log-head');
             if (!head) return;
             const legend = ['physical', 'magical', 'vampire'].map(t => `<span class="t-${t}">${pxIcon(t)} ${fvT(t)}</span>`).join('');
-            head.innerHTML = fv.p1
+            morphHtml(head, fv.p1
                 ? `<span class="lh-side">${fvT('attacks')} ${fvWho(fv.p1)}</span><span class="lh-legend">${legend}</span><span class="lh-side lh-right">${fvT('attacks')} ${fvWho(fv.p2)}</span>`
-                : `<span class="lh-side"></span><span class="lh-legend">${legend}</span><span class="lh-side"></span>`;
+                : `<span class="lh-side"></span><span class="lh-legend">${legend}</span><span class="lh-side"></span>`);
         }
         function fvCards(fn) { ['p1', 'p2'].forEach(p => { const c = fvEl(`card-${p}`); if (c && c.classList) fn(c, p); }); }
 
@@ -1904,9 +1961,10 @@
                     showBracket(box);
                     return;
                 }
-                box.innerHTML = `<span class="cd-label">${fvT('cdLabel')}</span><span class="cd-time" id="cd-time">${time}</span>`
-                    + `<div class="cd-bar"><div class="px-track"><div class="px-fill cd-fill" id="cd-fill" style="transform:scaleX(${left / total})"></div></div></div>`
-                    + `<span class="cd-title">${title}</span><span class="cd-sub">${sub}</span>`;
+                // The bar is made anew each second (data-new), so it steps as before; the die in the line under it keeps its loop
+                morphHtml(box, `<span class="cd-label">${fvT('cdLabel')}</span><span class="cd-time" id="cd-time">${time}</span>`
+                    + `<div class="cd-bar"><div class="px-track"><div class="px-fill cd-fill" id="cd-fill" data-new style="transform:scaleX(${left / total})"></div></div></div>`
+                    + `<span class="cd-title">${title}</span><span class="cd-sub">${sub}</span>`);
             };
             paint();
             const left0 = ends - Date.now(), n = Math.ceil(left0 / 1000);
@@ -1980,7 +2038,7 @@
                 c.classList.toggle('ult-turn', p === me && !!ultId);
             });
             const tab = fvEl(`tab-${me}`);
-            if (tab) tab.innerHTML = ultId ? ultNameHtml(ultId) : fvH('tab');
+            if (tab) morphHtml(tab, ultId ? ultNameHtml(ultId) : fvH('tab'));
             fvSetCell(rec.turn, { k: 'pending', f: rec.atk, ult: ultId });
             if (rec.turn % 2) { const row = fvRow(fvSlot(rec.turn).round); if (row && row.cells.right.k === 'empty') { row.cells.right = { k: 'wait', f: rec.def }; fvPaint(row); } }
             rec.ticks.forEach((t, i) => fvPop(me, t.v < 0 ? String(t.v) : '+' + t.v, `small ${t.v < 0 ? '' : 'heal'}`, i));
@@ -2156,17 +2214,17 @@
             const sprite = drakeSpriteURL(type);
             const img = sprite ? `<img class="sc-sprite${type === DRAGON_TYPE ? '' : ' drake'}" src="${sprite}" alt=""${d ? '' : ' style="filter: grayscale(1) brightness(0.5)"'}>` : '';
             if (!STREAMER_USER) {
-                box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">${emblem(DRAGON_TYPE, 1, 'gray')} ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-sub">${uk ? 'Стрімера ще не вказано' : 'No streamer set yet'}</span></div>`;
+                morphHtml(box, `${img}<div class="sc-id"><span class="sc-title">${emblem(DRAGON_TYPE, 1, 'gray')} ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-sub">${uk ? 'Стрімера ще не вказано' : 'No streamer set yet'}</span></div>`);
             } else if (!d) {
-                box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">${emblem(DRAGON_TYPE, 1, 'gray')} ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-name pname" style="color:${nameColor('#bfe9ff')}">@${STREAMER_USER}</span><span class="sc-sub">${uk ? 'ще без дрейка: !дрейк білий' : 'no drake yet: !drake white'}</span></div>`;
+                morphHtml(box, `${img}<div class="sc-id"><span class="sc-title">${emblem(DRAGON_TYPE, 1, 'gray')} ${uk ? 'Стрімер' : 'Streamer'}</span><span class="sc-name pname" style="color:${nameColor('#bfe9ff')}">@${STREAMER_USER}</span><span class="sc-sub">${uk ? 'ще без дрейка: !дрейк білий' : 'no drake yet: !drake white'}</span></div>`);
             } else {
                 const st = playerLeaderboardStats[STREAMER_USER] || { wins: 0, losses: 0 };
                 const lvl = calculateLevelAndProgress(d.xp || 0).level;
                 const t = d.title;
-                box.innerHTML = `${img}<div class="sc-id"><span class="sc-title">${t ? `${titleIcon(t, 1)} ${t.name[currentLang]}` : (uk ? 'Стрімер' : 'Streamer')}</span>` +
+                morphHtml(box, `${img}<div class="sc-id"><span class="sc-title">${t ? `${titleIcon(t, 1)} ${t.name[currentLang]}` : (uk ? 'Стрімер' : 'Streamer')}</span>` +
                     `<span class="sc-name pname" style="color:${nameColor(d.color)}">@${STREAMER_USER}</span>` +
                     `<span class="sc-sub">${emblem(type, 1)} ${drakeLabel(d.drakeObj)} · ${uk ? 'Рівень' : 'Level'} ${lvl}</span></div>` +
-                    `<span class="wl">${st.wins}<i> – </i>${st.losses}</span>`;
+                    `<span class="wl">${st.wins}<i> – </i>${st.losses}</span>`);
             }
             box.querySelectorAll('.sc-name, .sc-sub, .sc-title').forEach(el => fitText(el, 9));
         }
@@ -6544,14 +6602,14 @@ const ICONS_V2 = {
             const el = document.getElementById(`power-${prefix}`);
             if (!el) return;
             const ultId = drakeType ? ultimateFor(drakeType) : null;
-            if (drakeType && !ultId) { el.innerHTML = ''; el.title = ''; el.classList.remove('full'); return; }
+            if (drakeType && !ultId) { morphHtml(el, ''); el.title = ''; el.classList.remove('full'); return; }
             const lang = currentLang, v = st ? st.meter : 0;
             let pips = '';
             for (let i = 0; i < METER.max; i++) pips += `<span class="pm-pip${i < v ? ' on' : ''}"></span>`;
             let html = `<span class="pm-label">${METER.short[lang]}</span><span class="pm-pips">${pips}</span>`;
             html += v >= METER.max ? `<span class="pm-ready">${iconText(METER.ready[lang], [ultId], {}, 1, 'METER.ready')}</span>` : `<span class="pm-count">${v} / ${METER.max}</span>`;
             if (st && st.mirror) html += `<span class="pm-mirror">${pxIcon('mirror', 1)} ${unitLeftText('hits', st.mirror, lang)}</span>`;
-            el.innerHTML = html;
+            morphHtml(el, html);
             el.classList.toggle('full', v >= METER.max);
             el.title = `${METER.name[lang]}: ${v}/${METER.max}` + (ultId ? ` — ${ultName(ultId, lang)}: ${describeUltimate(ultId, lang)}` : '');
         }
@@ -6594,11 +6652,11 @@ const ICONS_V2 = {
 
             let badgeContainer = document.getElementById(`badge-container-${prefix}`);
             if (dragon.title) {
-                badgeContainer.innerHTML = `<span class="fighter-title-badge" style="color: ${dragon.title.color};">${titleHtml(dragon.title)}</span>`;
-            } else badgeContainer.innerHTML = '';
+                morphHtml(badgeContainer, `<span class="fighter-title-badge" style="color: ${dragon.title.color};">${titleHtml(dragon.title)}</span>`);
+            } else morphHtml(badgeContainer, '');
 
             const uk = currentLang === 'uk';
-            document.getElementById(`info-${prefix}`).innerHTML = `${emblem(drakeType)} ${drakeLabel(dragon.drakeObj)} · ${uk ? 'Рівень' : 'Level'} ${prog.level}`.trim();
+            morphHtml(document.getElementById(`info-${prefix}`), `${emblem(drakeType)} ${drakeLabel(dragon.drakeObj)} · ${uk ? 'Рівень' : 'Level'} ${prog.level}`.trim());
             const xpEl = document.getElementById(`xp-${prefix}`), xpBar = document.getElementById(`xpbar-${prefix}`);
             if (xpEl) xpEl.innerText = prog.level >= 20 ? 'XP MAX' : `XP ${prog.currentXP} / ${prog.requiredXP}`;
             if (xpBar) xpBar.style.transform = `scaleX(${(prog.level >= 20 ? 100 : Math.floor(100 * prog.currentXP / prog.requiredXP)) / 100})`;
@@ -7509,7 +7567,7 @@ const ICONS_V2 = {
             let db = getDragonDB();
             let allUsers = Object.keys(db).filter(user => user !== "QA-Tester-Alpha" && user !== "QA-Tester-Omega" && !isStreamer(user));
             if (allUsers.length === 0) {
-                listElement.innerHTML = `<li class="lb-empty">${translations[currentLang].no_drakes}</li>`;
+                morphHtml(listElement, `<li class="lb-empty">${translations[currentLang].no_drakes}</li>`);
                 return;
             }
             // More wins first (ranked fights only); on equal wins fewer losses, then the higher level. The rows show wins – losses,
@@ -7522,16 +7580,16 @@ const ICONS_V2 = {
                 if ((ra.losses || 0) !== (rb.losses || 0)) return (ra.losses || 0) - (rb.losses || 0);
                 return lvlOf(b) - lvlOf(a);
             });
-            listElement.innerHTML = allUsers.slice(0, LB_ROWS).map((user, index) => {
+            morphHtml(listElement, allUsers.slice(0, LB_ROWS).map((user, index) => {
                 const d = db[user], st = playerLeaderboardStats[user] || { wins: 0, losses: 0 };
                 const lvl = calculateLevelAndProgress(d.xp || 0).level;
                 const sprite = drakeSpriteURL(d.drakeObj ? d.drakeObj.type : 'red');
                 const title = d.title ? ` · ${titleIcon(d.title, 1, false)} ${d.title.name[currentLang]}` : '';
-                return `<li class="lb-row"><span class="lb-rank">${index + 1}</span>` +
+                return `<li class="lb-row" data-key="${user}"><span class="lb-rank">${index + 1}</span>` +
                     (sprite ? `<img class="lb-sprite" src="${sprite}" alt="">` : '<span></span>') +
                     `<div class="lb-id"><span class="lb-name pname" style="color:${nameColor(d.color)}">@${user}${medalOf(user) ? `<span class="lb-medal">${pxIcon(medalOf(user))}</span>` : ''}</span><span class="lb-sub">${d.drakeObj ? emblem(d.drakeObj.type, 1) + ' ' : ''}${uk ? 'Рівень' : 'Level'} ${lvl}${title}</span></div>` +
                     `<span class="wl">${st.wins}<i> – </i>${st.losses}</span></li>`;
-            }).join('');
+            }).join(''));
             listElement.querySelectorAll('.lb-name, .lb-sub').forEach(el => fitText(el, 9));
         }
 
@@ -8118,8 +8176,8 @@ const ICONS_V2 = {
         function renderPlaque() {
             const dots = document.querySelectorAll('.plaque .plaque-dots');
             if (dots.length !== 2) return;
-            dots[0].innerHTML = ['red', 'blue', 'black'].map(t => emblem(t, 2)).join('');
-            dots[1].innerHTML = ['gold', 'purple', 'green'].map(t => emblem(t, 2)).join('');
+            morphHtml(dots[0], ['red', 'blue', 'black'].map(t => emblem(t, 2)).join(''));
+            morphHtml(dots[1], ['gold', 'purple', 'green'].map(t => emblem(t, 2)).join(''));
             dots.forEach(d => d.classList.add('px'));
         }
 
@@ -8160,9 +8218,9 @@ const ICONS_V2 = {
             if (!container) return;
             renderStatsRow(prefix, level, drakeType, title, fx);
             const list = [...(fx ? fx.buff : []), ...(fx ? fx.debuff : [])];
-            container.innerHTML = list.length
+            morphHtml(container, list.length
                 ? list.map(inst => `<span class="status-item fx ${EFFECTS[inst.id].kind} ${chipClass(inst.id)}" data-fx="${inst.id}" title="${describeEffect(inst.id, currentLang, inst.power)}">${pxIcon(inst.id)}<span class="lkt">${EFFECTS[inst.id].name[currentLang]} · ${effectLeftText(inst.id, inst.left)}</span></span>`).join('')
-                : `<span class="status-empty">${currentLang === 'uk' ? 'без ефектів' : 'no effects'}</span>`;
+                : `<span class="status-empty">${currentLang === 'uk' ? 'без ефектів' : 'no effects'}</span>`);
             fitChips(container);
         }
     </script>
