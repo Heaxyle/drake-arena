@@ -150,7 +150,7 @@ async function testVersion(browser, key) {
     // Each user's drake type as the save has it when a fight starts (the streamer changes form during the run)
     let typeOf = {};
 
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, reducedMotion: 'reduce' });   // the icons' stills (prefers-reduced-motion), so the screenshots are the same on every run
     const page = await context.newPage();
     const pageErrors = [];
     page.on('pageerror', e => pageErrors.push(e.message));
@@ -626,7 +626,7 @@ async function testStreamerCard(browser, key) {
     const streamer = cfg.dragon.streamer;
     console.log(`\n=== ${key}: streamer card sprite ===`);
 
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, reducedMotion: 'reduce' });   // the icons' stills (prefers-reduced-motion), so the screenshots are the same on every run
     const pageErrors = [];
     for (const lang of ['uk', 'en']) {
         const page = await context.newPage();

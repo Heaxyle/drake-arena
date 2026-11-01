@@ -56,7 +56,7 @@ const pass = msg => console.log(`  ✓ ${msg}`);
 const check = (ok, good, bad) => ok ? pass(good) : fail(`${good} — ${bad}`);
 
 async function open(browser, { lang = 'uk', betting = false, width = 1920, height = 1080 } = {}) {
-    const context = await browser.newContext({ viewport: { width, height } });
+    const context = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });   // the icons' stills (prefers-reduced-motion), so the screenshots are the same on every run
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
@@ -615,9 +615,9 @@ async function popAtStep2(page, turn) {
             const fights = [['kotyk_ua', 'jade', true], ['mwmwmwmwmwmwmwmwmwmwmwmwm', 'sapphire', false], ['ruby', 'mira', true], ['streamer_with_long_name', 'kotyk_ua', false]];
             const allProblems = [], fit = [], ids = new Set(), tails = [], iconIssues = new Set();
             let resultChecks = [], onlyCurrent = [], xpChecks = [];
-            // The overlay check catches what it's for (a planted emoji, an icon at ×1.5, a squeezed icon), then runs every turn
+            // The overlay check catches what it's for (each fault overlaySelfTest plants), then runs every turn
             const selfMissed = await overlaySelfTest(page);
-            check(!selfMissed.length, `[${lang}] the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon and an icon over its words`, `not reported: ${selfMissed.join(', ')}`);
+            check(!selfMissed.length, `[${lang}] the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon, an icon over its words, an icon with another icon's art, an icon smoothed or pixelated against the display rule and a badge glyph a pixel off`, `not reported: ${selfMissed.join(', ')}`);
             for (const [a, b, ranked] of fights) {
                 await page.clock.runFor(4 * 60000);   // a pause between fights (there is no rest now; kept so the seeded fights stay the same)
                 const xpBefore = await page.evaluate(([a, b]) => ({ [a]: getDragonStrict(a).xp, [b]: getDragonStrict(b).xp }), [a, b]);

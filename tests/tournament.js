@@ -66,7 +66,7 @@ const check = (ok, good, bad) => ok ? pass(good) : fail(`${good} — ${bad}`);
 
 // Sections 1–5 run with the tournament effects off (so their timings are the tournament's own); section 6 turns them on
 async function open(browser, { lang = 'uk', betting = false, fx = false, sound = false } = {}) {
-    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, reducedMotion: 'reduce' });   // the icons' stills (prefers-reduced-motion), so the screenshots are the same on every run
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));

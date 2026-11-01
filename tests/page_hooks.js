@@ -6,7 +6,8 @@
 //    the page can be compared: same events = same fights.
 //  - window.__fights: for each fight, the game time it started (so tests can step to exact turn times)
 //  - window.__vt(el): what an element shows, as text: the overlay draws pixel icons, not emoji, so each icon reads as
-//    [its id] (an effect chip «[mark] Мітку», the meter's «[firestorm] ГОТОВО»), whitespace collapsed. Like innerText,
+//    [its id] (an effect chip «[mark] Мітку», the meter's «[firestorm] ГОТОВО»), a title badge as its glyph's (its frame is
+//    the rarity, in data-frame: «[immune] Абсолютний Дрейк»), whitespace collapsed. Like innerText,
 //    items that are laid out apart (blocks, flex and grid items) are read apart, but the text is as written (no
 //    text-transform). Checks that once looked for an emoji on screen look for its icon this way. window.__fxv(id, acc):
 //    an effect as a chip shows it (its icon and its name; acc: the name after a verb, in the accusative)
@@ -22,6 +23,7 @@ function pageInit(seed) {
         const walk = n => {
             if (n.nodeType === 3) { parts.push(n.nodeValue); return; }
             if (n.nodeType !== 1) return;
+            if (n.matches('.px-badge')) { const g = n.querySelector('img.px-glyph'); parts.push(` [${g ? g.dataset.icon : ''}] `); return; }
             if (n.matches('img.px-icon')) { parts.push(` [${n.dataset.icon}] `); return; }
             const sep = n !== el && apart(n);
             if (sep) parts.push(' ');

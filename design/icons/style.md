@@ -2,7 +2,40 @@
 
 Icons made for Drake Arena's mechanics and its UI, replacing the emoji (see inventory.md). They are pixel art like the drakes
 and Press Start 2P, and each one means one thing everywhere. First batch: the 12 effects and the 6 ultimates (`icons.js`,
-reviewed in `review.html`); batches 2–4 follow below.
+reviewed in `review.html`); batches 2–4 follow below. The overlay now draws the V2 set, the same icons redrawn at 4× the
+density with an idle loop (next section); the glyphs in `icons.js` stay the set's record.
+
+## V2: the animated set
+
+`design/icons/v2/` (its `README.md` and `manifest.json`): every icon of `icons.js` and the eight rarity title frames, each a
+still and an idle loop. The overlay draws these (`ICONS_V2`, the page's copy, made by `node design/icons/embed.js`); the glyphs
+in `icons.js` stay the record of the set (each icon's glyph size, names, element colour, its chip), and the review page and the
+player guide still draw from them. Change a V2 image in `v2/`, never in the page.
+
+- **The density: 4×.** Every V2 image is its glyph four times denser, across and down: a 10×10 glyph is 40×40 art, the 12×12
+  ones (ultimates, medals, the title frames) are 48×48, the 11×11 roulette 44×44. One glyph pixel is 4 art pixels.
+- **The sizes don't change.** An icon is shown at exactly its glyph's size × the same whole-number scale as before (×1 in the
+  side column, ×2 in the fight, ×3 for big moments): a 10×10 glyph at ×2 is still 20 CSS px, now with 40 px of art in it. So
+  nothing in the layout moves; "The grid" below still gives every size.
+- **The display rule.** `image-rendering: pixelated` only where the icon's CSS size × `devicePixelRatio` is a whole multiple of
+  its art, so every art pixel lands on whole device pixels; everywhere else smoothed (`auto`). At 1080p (devicePixelRatio 1)
+  the 40 px art shows in 20 px, smoothed; on a 4K canvas (2) the ×2 icons map 1:1, pixelated, and ×1 and ×3 are smoothed. In
+  the page `iconCrisp` puts `px-crisp-<scale>` on `<html>` for the scales that map whole (it follows the stage's own scale and
+  any devicePixelRatio change), and the CSS does the rest.
+- **The animation.** Each item has a still (`<id>.png`, the loop's first frame) and its idle loop (`<id>-anim.png`, an APNG
+  that loops forever; its frame count and frame time are in the manifest: 8 to 24 frames of 70 to 120 ms). The overlay shows
+  the loop, and the still under `prefers-reduced-motion` (the page swaps them live, `iconMotion`); the browser tests take their
+  screenshots that way, so those stay the same from run to run. Each `<img>` plays its own loop, so an icon drawn again starts
+  it over. No glow is baked in: the fire glow, the chips and the meter pips stay CSS.
+- **A title badge** is two loops, each running on its own: its rarity's frame (`frame-<rarity>-anim.png`, 48×48 art for a
+  12×12 glyph) with the title's glyph (its mechanic's note, else its main bonus) on top, one glyph pixel in: 4 art pixels, so
+  s CSS px at ×s. The badge is 12 × s CSS px, as before; in the Top (×1) it stays the bare glyph. In the page it's a
+  `.px-badge` box holding the two images, and `fitText` scales it back as one icon.
+- **Emblems: the elements' symbols** on a tile, lit from the top left like every icon, so never mirrored: see "The emblems"
+  below.
+- Every `<img>` carries `data-icon`, `data-n` (its glyph's size) and `data-s` (the scale), so `tests/overlay_icons.js` can hold
+  it to its glyph's size × a whole number, its own V2 art and the display rule; `test.js` holds the files to the manifest (the
+  sizes, a loop that loops forever, the frames, the still its first frame) and the page's copy to the files.
 
 ## Format
 
@@ -15,8 +48,9 @@ reviewed in `review.html`); batches 2–4 follow below.
   (the same rule as effect names and icons today).
 - Light comes from the top left: the light side up and left, the dark side down and right, a 1-pixel dark outline around
   every shape, so it stands on any background.
-- Shown only at whole-number scales (`image-rendering: pixelated`, width and height = art size × 1, 2 or 3). Never scaled by
-  `fitText` or any transform: text around an icon may shrink, the icon keeps its size.
+- Shown only at whole-number scales (width and height = the glyph's size × 1, 2 or 3; V2 draws its 4× art in that box,
+  pixelated or smoothed by the display rule above). Never scaled by `fitText` or any transform: text around an icon may
+  shrink, the icon keeps its size.
 
 ## The grid
 
@@ -66,9 +100,9 @@ What changes in the layout when this goes in (all within the fixed heights):
   richest) a solid red edge with gold corners and a white gem on top; meme the odd one out, a dotted edge in pink and yellow
   (confetti); divine white star points at the corners. **In the Top (×1) the frame is left out**: at 12 px its pattern is
   noise, so the Top shows the bare 10 px glyph.
-- **Drake emblems:** each drake's own head, drawn from its sprite, on a 10×10 tile in its colour, facing left like the
-  sprites (mirrored only on the title plate's left side, so both groups face the title). The tile keeps them apart from the
-  bare effect glyphs. They replace 🟥🟦⬛🟨🟪🟩🐉🤍 in names and banners. See "The emblems" below.
+- **Drake emblems:** each drake's element symbol on a 10×10 tile in its colour (40×40 art), lit from the top left like every
+  icon, so never mirrored (the title plate's six all face the same way). The tile keeps them apart from the bare effect
+  glyphs. They replace 🟥🟦⬛🟨🟪🟩🐉🤍 in names and banners. See "The emblems" below.
 
 ## Colour tells the element
 
@@ -226,7 +260,8 @@ Decided: chat replies (⚠️ ℹ️ 🛑 ❌ ✅ 👋 ⌛ 🤡, and «🔄 Ар
 info card's tone (ok, warning, note) already says it. Where a reply names a game thing (a drake, a title, a medal, an effect),
 it shows that thing's icon next to its name, as the reroll line does (the reroll icon and the new drake's emblem).
 
-The emblems (first element sigils on rune tiles) are the drakes' heads now: see "The emblems" below.
+The emblems were element sigils on rune tiles at first, then the drakes' heads (the glyphs in `icons.js`); in V2 they are the
+elements' symbols on lit tiles: see "The emblems" below.
 
 Reserved, so the batches avoid them: a plain sword (no attack uses one), the horseshoe / U shape (the White Drake's Магніт).
 The skull is Poison's: KO is the tombstone, sudden death the warning sign, Jackpot's bust the X. Crit is the «!», never a blast
@@ -240,7 +275,7 @@ The skull is Poison's: KO is the tombstone, sudden death the warning sign, Jackp
 | The title roulette | 🎰 (odds), 🎲 (the roll card) | a prize wheel, 11×11 (a centre pixel, so the spokes are clean 1-pixel lines): eight sectors in the rarities' colours split by dark spokes, a gold rim and hub, a white pointer triangle on top pointing down into the wheel (a pointer sitting on the rim like a cap read as a bauble) | the odds card (`!шанси`), the roll card's head, the Twitch reward |
 | The meter full | ✦ | the drake's own ultimate icon (×1, 12 px in the 14 px row) | «ГОТОВО» on the Element Power meter |
 | A top-rarity roll | 🌟 / 🔥 / 🤪 | the rolled title's own badge at ×3 in its rarity frame, beside the shout | the roll's info card (legendary, mythic, meme; the card keeps its glow) |
-| The arena's title plate | six coloured squares | the six drake emblems at ×2, three either side of «ДРЕЙК-АРЕНА», the left three mirrored so both groups face the title | `.plaque` (the plate gets about 70 px wider; it stays centred) |
+| The arena's title plate | six coloured squares | the six drake emblems at ×2, three either side of «ДРЕЙК-АРЕНА»; the heads' left three were mirrored to face the title, V2's symbols are lit from the top left, so none is | `.plaque` (the plate gets about 70 px wider; it stays centred) |
 | Duel challenged, accepted | ⚔️ | the friendly duel's smile | info cards |
 
 - **Attacking is crossed swords.** A single plain sword stays reserved (no attack type uses one); the pair means only "this one
@@ -280,10 +315,10 @@ sprite's navy outline and slate shade, never Black's neutral grey). Review: revi
 | Магніт | 🔗 | a horseshoe magnet with green poles | its debuff chip; it lasts the target's next attack («ще 1 атака») |
 | Удар ковадла | 🔨 | an anvil, sparks flying off its face (12×12) | line 1 of its log card, the pending cell |
 | «Біла сталь» (title 998) | 👑 | an upright sword in white steel, a green gem in the guard | its badge in the divine frame; the `steel` banner, «Сталь не гнеться» |
-| The White Drake | 🤍 | the six drakes' head in white steel on a white-steel tile, the green eye, three green mane spikes swept back down its neck (`emSteel`; see "The emblems") | in names, the intro banner, replies that name it, the streamer card |
+| The White Drake | 🤍 | a green flame (its mane's green) in a steel ring on its white-steel tile (`emSteel`; see "The emblems"; the glyph was the six drakes' head in white steel) | in names, the intro banner, replies that name it, the streamer card |
 
 - **The scale is the bar's icon, not the emblem.** A single scale read as Jackpot's gem, the Shield or a drop at 10 px; the
-  layered pair doesn't. The emblem shows the drake itself, with the mane its sprite took from the Dragon.
+  layered pair doesn't. The emblem is the White Drake's symbol, a green flame in a steel ring.
 - **No crown on the White Drake.** 👑 stays the Sovereign's (title 999, the Sovereign's note). «Біла сталь» takes the single
   sword, kept free for it in batch 4 (attacking is the crossed pair). «Дракон це запамʼятав…» takes the White Dragon's wing.
 - **Магніт is free:** title 163 «Магніт для критів» is a crit title, its badge the crit glyph in a rare frame.
@@ -294,37 +329,42 @@ sprite's navy outline and slate shade, never Black's neutral grey). Review: revi
 - Replies that name a form show its emblem by the name; their own leading 🤍 or 🛑 goes, as decided for chat replies.
 - The review's streamer card uses the game's two sprites, copied by `node design/icons/ref-sprites.js` into `ref/`.
 
-## The emblems: the drakes' heads
+## The emblems: the elements' symbols
 
-Picked over the element symbols (the sigils on rune tiles, deleted). `EMBLEM_IDS` in icons.js, review.html section 16. Each is
-its own sprite's head (`DRAKE_SPRITES`) in 8×8 inside the 10×10 tile: the frame in the element's colour (`m`), a dark fill
-(`s`), the head facing left like the sprites. The six viewer drakes share the sprites' one head and keep the mark each sprite
-has, so they differ in outline, not only in colour (one head recoloured six times read as one drake in greyscale, and under
-red-green colour blindness Blue and Purple became one blue head, Red and Green two khaki ones).
+Each drake's emblem is its element's symbol on a tile (`EMBLEM_IDS`, `v2/icons/emblem/`, review.html section 16). The tile is
+the same for every drake, only its colours change: 40×40 art for the 10×10 glyph, a frame in the element's colour with its
+light edge up and left and its dark edge down and right (lit from the top left, like every icon, so an emblem is never
+mirrored), a dark fill, and a round disc a shade lighter behind the symbol. The symbol tells the drakes apart, by shape and
+not only by colour, so a greyscale or colour-blind viewer can read them too:
 
-| Drake | Its mark |
+| Drake | Its symbol |
 |---|---|
-| Red | the upright cream horn, its tip curving back; the crest behind it with orange flame tips |
-| Blue | the teal fin crest, a fan over the back of the head |
-| Black | the flat pale-violet horns, short, straight back; the sprite's violet glow as a rim round the near-black head, so it stands out from the grey tile |
-| Gold | the cream ram's horn curling round behind the eye |
-| Purple | the long horns swept back to the tile's corner, longer than Black's |
-| Green | the leaf blades fanning back, gaps between them |
-| The White Drake | the six drakes' head in white steel, the green eye, three green mane spikes swept back from the back of the head and down the neck, each growing from it (no loose pixels); a dark steel fill (#1a1e28) as deep as the others' and apart from the Dragon's navy, so the steel jaw and neck (#6a78a2) don't melt into it |
-| The White Dragon | the wyvern's longer, lower snout and the green crown horns, so the two white heads differ in outline |
+| Red | a molten rock split by glowing orange cracks, white-hot at the heart (fire) |
+| Blue | a cluster of ice crystals, the tallest in the middle |
+| Black | a violet crescent moon |
+| Gold | a four-leaf clover on a short stem (luck), its leaves square to the tile, nothing that turns |
+| Purple | an arcane orb inside two crossing orbits, cyan at their ends |
+| Green | a sprout: two leaves on a stem |
+| The White Dragon | its own eye, green with a slit pupil |
+| The White Drake | a green flame (its mane's green) in a steel ring |
 
-`node design/icons/test.js` checks it: every two emblems' silhouettes (the drake's pixels against the tile's, colour
-ignored) differ in at least 4 pixels (the closest pair today, Red and Blue, 6). A new drake's emblem must
-pass it too. Where they go: names in info cards and the intro banner, the queue (instead of the 14 px colour square), the
-Top (before the level; the sprite stays), the card's name line, the title plate (the left three mirrored).
+`node design/icons/test.js` checks it: the eight emblems are one tile (its frame the same pixels in every one, colour aside),
+and every two symbols (the pixels inside the tile that aren't the tile's, colour ignored) differ in at least 64 art pixels,
+the old 4 glyph pixels at the 4× density (the closest pair today, Purple and Green, 102). A new drake's emblem must pass it
+too. Where they go: names in info cards and the intro banner, the queue (instead of the 14 px colour square), the Top (before
+the level; the sprite stays), the card's name line, the title plate (all six the same way round). The emblem glyphs in
+`icons.js` are still the drakes' heads (what the player guide draws); the overlay shows the symbols.
 
 ## Wired in (showcase/index.html)
 
-The page carries `icons.js` between its `// ===== ICONS START/END =====` markers (`node design/icons/embed.js`); `test.js`
-(in `npm test`) fails while the copy differs, and checks that every icon the game asks for exists. The game draws them with
-`pxIcon`, `titleIcon`, `emblem` and `chipClass` (CLAUDE.md, "Icons"); every `<img>` carries `data-icon` and `data-n` (its
-drawing's size), so `tests/overlay_icons.js` can check, at the browser tests' screenshots, that no emoji is on the overlay,
-that every icon is at a whole-number scale of its drawing, and that no icon sits on its words.
+The page carries `icons.js` between its `// ===== ICONS START/END =====` markers and the V2 set (`ICONS_V2`) between its
+`// ===== ICONS V2 START/END =====` markers (`node design/icons/embed.js`); `test.js` (in `npm test`) fails while a copy
+differs, and checks that every icon the game asks for exists with its V2 still and loop. The game draws them with `pxIcon`,
+`titleIcon`, `emblem` and `chipClass` (CLAUDE.md, "Icons"); every `<img>` carries `data-icon`, `data-n` (its glyph's size)
+and `data-s` (the scale), so `tests/overlay_icons.js` can check, at the browser tests' screenshots, that no emoji is on the
+overlay, that every icon is at its glyph's size × a whole number, shows its own V2 art (the loop, or the still under
+`prefers-reduced-motion`) and is drawn by the display rule, that every title badge is its frame with the glyph one glyph
+pixel in, and that no icon sits on its words.
 
 - **What keeps its emoji:** the hidden text record (`addLog`) and the play-log export, as before, so the tables that also
   feed them (`FV_TEXT`, `TOURNEY_TEXT`, `SHOW_TEXT`, `METER.ready`, the `icon` of effects, ultimates and titles, the drakes'
