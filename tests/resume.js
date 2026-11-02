@@ -230,10 +230,13 @@ async function main() {
             const fresh = await page.evaluate(fxOf);
             const counts = await page.evaluate(() => Object.fromEntries(EFFECT_IDS.map(id => [id, EFFECTS[id].count])));
             const want = await page.evaluate(() => { const d = getDragonDB().stream_owner, lvl = calculateLevelAndProgress(d.xp).level; return scalesOf(lvl, getMaxHP(lvl, d.drakeObj.type, d.title)); });
+            // The card's steel segment (at the VS end of its HP row): shown, its number the starting size, its fill full
             const card = await page.evaluate(() => { const side = document.getElementById('name-p1').textContent.includes('stream_owner') ? 'p1' : 'p2';
-                return { text: document.getElementById(`scale-text-${side}`).textContent, on: document.getElementById(`card-${side}`).classList.contains('has-scales') }; });
-            check(fresh && fresh.turn <= 1 && fresh.scales.now === want && fresh.scales.max === want && card.on && card.text === String(want),
-                `the fight starts again with the scales full at their starting size (${want}), the card showing «${card.text}»`, JSON.stringify({ fresh, want, card }));
+                const seg = document.querySelector(`#card-${side} .scale-seg`);
+                return { text: seg.querySelector('.scale-num').textContent, fill: new DOMMatrix(getComputedStyle(seg.querySelector('.scale-fill')).transform).a,
+                         on: document.getElementById(`card-${side}`).classList.contains('has-scales') && getComputedStyle(seg).display !== 'none' }; });
+            check(fresh && fresh.turn <= 1 && fresh.scales.now === want && fresh.scales.max === want && card.on && card.text === String(want) && card.fill === 1,
+                `the fight starts again with the scales full at their starting size (${want}), the card's segment showing «${card.text}», full`, JSON.stringify({ fresh, want, card }));
             check(fresh && !fresh.debuffs.length && fresh.buffs.every(([id, left]) => left === counts[id]),
                 `no effect carried over from before the reload (before: ${before.buffs.length + before.debuffs.length} up; now: ${fresh ? fresh.buffs.map(b => b[0]).join(', ') || 'none' : '?'}, fresh)`, JSON.stringify({ before, fresh }));
             await until(page, () => arenaState.kind === 'result', null, 1000);

@@ -33,8 +33,9 @@
 //      as the !зала card; !турнір стоп refused during the Hall of Fame; a ladder wipe (every key with "db" or "stats" in
 //      its name) leaves the rewards and an open sign-up alone
 //   7  The streamer's White Drake plays a 4-player tournament (Ukrainian): it fights as the White Drake at level 20, its
-//      scales on its card; !дракон is refused in its game's countdown, mid-game, once it's knocked out with the 3rd-place
-//      game and the final to come, and on the podium (which shows the White Drake); once the tournament is over it works
+//      scales' segment on its card; !дракон is refused in its game's countdown, mid-game, once it's knocked out with the
+//      3rd-place game and the final to come, and on the podium (which shows the White Drake); once the tournament is over
+//      it works
 //   Screenshots (Ukrainian): tests/screenshots/tournament-signup.png, -bracket.png, -plate.png, -podium.png, -qualifier.png,
 //   -hall-idle.png (the Hall of Fame on the idle arena), -hall-card.png (the !зала card), -champion.png (badges, glow)
 //
@@ -299,10 +300,12 @@ const key = (a, b) => [a, b].sort().join('-');
         const moments = {};
         await until(page, () => tourGame && tourGame.stage === 'sf' && [tourGame.a, tourGame.b].includes('streamer_kit') && arenaState.kind === 'countdown');
         moments.countdown = await tryForm();
-        await until(page, () => tourGame && tourGame.stage === 'sf' && [tourGame.a, tourGame.b].includes('streamer_kit') && arenaState.kind === 'fight' && arenaState.turn >= 2, null, { step: 250 });
+        // Mid-game, with no hit in the air (the card is drawn with the fight's scales once a hit lands)
+        await until(page, () => tourGame && tourGame.stage === 'sf' && [tourGame.a, tourGame.b].includes('streamer_kit') && arenaState.kind === 'fight' && arenaState.turn >= 2 && !fv.hold, null, { step: 250 });
         const card = await page.evaluate(() => { const side = document.getElementById('name-p1').textContent.includes('streamer_kit') ? 'p1' : 'p2', f = side === 'p1' ? fv.p1 : fv.p2;
-            return { type: f && f.drakeObj.type, level: f && calculateLevelAndProgress(f.xp).level, scales: document.getElementById(`card-${side}`).classList.contains('has-scales'),
-                     text: document.getElementById(`scale-text-${side}`).textContent }; });
+            const seg = document.querySelector(`#card-${side} .scale-seg`), sc = battleFx && battleFx.streamer_kit && battleFx.streamer_kit.scales;
+            return { type: f && f.drakeObj.type, level: f && calculateLevelAndProgress(f.xp).level, scales: document.getElementById(`card-${side}`).classList.contains('has-scales') && getComputedStyle(seg).display !== 'none',
+                     text: seg.querySelector('.scale-num').textContent, now: sc ? String(Math.max(0, sc.now)) : null }; });
         moments.midGame = await tryForm();
         await until(page, () => tourney.rounds[0].some(m => m.winner && [m.a, m.b].includes('streamer_kit')) && arenaState.kind === 'result');
         moments.knockedOut = await tryForm();
@@ -311,8 +314,8 @@ const key = (a, b) => [a, b].sort().join('-');
         moments.podium = await tryForm();
         await until(page, () => !tourney);
         moments.over = await tryForm();
-        check(card.type === 'steel' && card.level === 20 && card.scales && /^\d+$/.test(card.text),
-            `the streamer fights as the White Drake at level 20, its scales' bar and number on its card («${card.text}»)`, JSON.stringify(card));
+        check(card.type === 'steel' && card.level === 20 && card.scales && /^\d+$/.test(card.text) && card.text === card.now,
+            `the streamer fights as the White Drake at level 20, its scales' segment on its card, the number the fight's own («${card.text}»)`, JSON.stringify(card));
         const waited = ['countdown', 'midGame', 'knockedOut', 'podium'];
         check(waited.every(k => moments[k].type === 'steel' && /змінити форму/.test(moments[k].reply)) && moments.over.type === 'white',
             `!дракон refused in its game's countdown, mid-game, knocked out (3rd-place game and final to come) and on the podium («${moments.countdown.reply}»); after the tournament it works`,

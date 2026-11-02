@@ -443,7 +443,7 @@ White Drake".
 
 | Emoji | Meaning | Where (size) |
 |---|---|---|
-| (none) | the scale bar's number | `.scale-num` on the card (12 px pixel font): the bare number, red when broken |
+| (none) | the scales' number | `.scale-num`, centred in the steel segment at the VS end of the card's HP row (12 px pixel font, white with a 1 px dark outline): the bare number, no icon, red when broken |
 | 🤍 | the scales took the hit | the log card's «🤍 луска -14» (12 px, compacts to icon and number) |
 | 🤍 | a debuff bounced off the scales | the log card's «🤍 відскочило від луски», after the debuff's chip (12 px) |
 | 🤍 | the anvil re-forged the scales | the anvil's log card, «🤍 +38» (12 px) |

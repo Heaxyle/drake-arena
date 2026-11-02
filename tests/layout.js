@@ -10,6 +10,9 @@
 //   - the "Як грати" / "How to play" card shows exactly when the chat panel is empty, and lists real commands
 //   - every player name has at least 4.5:1 contrast against its background, even with very dark Twitch colours
 //   - after a fight the winner's card says "ПЕРЕМОЖЕЦЬ" / "WINNER" and the loser's "НОКАУТ" / "KNOCKED OUT"
+//   - the White Drake's scales, on both cards: a 62×20 steel segment at the VS end of the HP row, 4 px from the HP bar
+//     (66 px shorter; its outer end and the HP number where a viewer card has them) and 12 px from the HP number, its
+//     number centred inside; full, part-gone, broken and rebuilt (the sheet: layout-white-drake-scales.png)
 // Screenshots go to tests/screenshots/ (layout-*.png).
 //
 // Usage: npm run test:layout   (or node tests/layout.js)
@@ -819,53 +822,95 @@ async function iconLoopsAndStills(browser) {
             await context.close();
         }
 
-        console.log('\nThe White Drake\'s scale bar');
+        console.log('\nThe White Drake\'s scales: the steel segment in the HP row');
         for (const lang of ['uk', 'en']) {
             const { page, context, errors } = await open(browser, { lang });
-            // Both cards: the White Drake (scales part-gone), then a viewer drake for the HP bar's place; then broken
-            const look = await page.evaluate(() => {
+            // On each card: a viewer drake, then the White Drake (level 12) with its segment full, part-gone, broken, rebuilt
+            // and at three digits; every state read once its transitions are over
+            const max = await page.evaluate(() => {
                 const xpFor = n => { let x = 0; for (let i = 1; i < n; i++) x += getRequiredXP(i); return x; };
                 const title = TITLES_DB.find(t => t.id === WHITE_DRAKE_TITLE_ID);
-                const wd = { name: 'streamer', color: '#e8f6ff', drakeObj: DRAKE_TYPES.find(d => d.type === WHITE_DRAKE_TYPE), title, xp: xpFor(10) };
-                const red = { name: 'viewer', color: '#ff7f50', drakeObj: DRAKE_TYPES.find(d => d.type === 'red'), title: TITLES_DB[3], xp: xpFor(10) };
-                const max = scalesOf(10, getMaxHP(10, WHITE_DRAKE_TYPE, title));
-                const fx = now => ({ buff: [], debuff: [], meter: 3, halfDone: false, mirror: 0, scales: { now, max } });
-                const plain = { buff: [], debuff: [], meter: 3, halfDone: false, mirror: 0, scales: null };
+                window.__wd = { name: 'streamer', color: '#e8f6ff', drakeObj: DRAKE_TYPES.find(d => d.type === WHITE_DRAKE_TYPE), title, xp: xpFor(12) };
+                window.__viewer = { name: 'viewer', color: '#ff7f50', drakeObj: DRAKE_TYPES.find(d => d.type === 'red'), title: TITLES_DB[3], xp: xpFor(12) };
                 setArenaState({ kind: 'fight', ranked: true, turn: 5 });
-                const r = el => { const b = el.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, w: b.width }; };
-                const read = p => {
-                    const card = document.getElementById(`card-${p}`), row = card.querySelector('.scale-row'), track = card.querySelector('.scale-track');
-                    const fill = document.getElementById(`scales-${p}`), num = document.getElementById(`scale-text-${p}`);
-                    return { shown: getComputedStyle(row).display !== 'none', track: r(track), hp: r(document.getElementById(`bar-${p}`).parentElement),
-                             meter: r(document.getElementById(`power-${p}`)), hpText: r(document.getElementById(`hp-text-${p}`)), num: r(num), text: num.textContent,
-                             fillScale: new DOMMatrix(getComputedStyle(fill).transform).a, cracked: track.classList.contains('cracked') && num.classList.contains('cracked'),
-                             fillOrigin: getComputedStyle(fill).transformOrigin.split(' ')[0] };
-                };
-                const out = {};
-                for (const p of ['p1', 'p2']) {
-                    updateFighterCard(p, red, plain); const viewer = read(p);
-                    updateFighterCard(p, wd, fx(Math.round(max * 0.4))); const part = read(p);
-                    updateFighterCard(p, wd, fx(0)); const broken = read(p);
-                    out[p] = { viewer, part, broken, max, partNow: Math.round(max * 0.4) };
-                }
-                return out;
+                return scalesOf(12, getMaxHP(12, WHITE_DRAKE_TYPE, title));
             });
-            await page.waitForTimeout(400);   // the fill's transition
-            const bad = [];
-            for (const [p, x] of Object.entries(look)) {
-                const { viewer: v, part: a, broken: b } = x;
-                if (v.shown) bad.push(`${p}: a scale bar on a viewer drake's card`);
-                if (!a.shown) bad.push(`${p}: no scale bar on the White Drake's card`);
-                if (Math.abs(a.track.left - a.hp.left) > 0.5 || Math.abs(a.track.right - a.hp.right) > 0.5) bad.push(`${p}: the bar (${a.track.left}–${a.track.right}) isn't over the HP bar (${a.hp.left}–${a.hp.right})`);
-                if (!(a.track.bottom + 1 <= a.hp.top - 2 - 1 && a.track.top - 1 >= a.meter.bottom)) bad.push(`${p}: the bar (${a.track.top}–${a.track.bottom}) isn't in the gap between the СИЛА row (${a.meter.bottom}) and the HP bar (${a.hp.top})`);
-                if (a.num.bottom > a.hpText.top + 0.5 || Math.abs((p === 'p1' ? a.num.right - a.hpText.right : a.num.left - a.hpText.left)) > 0.5) bad.push(`${p}: the number isn't over the HP number`);
-                if (Math.abs(a.hp.top - v.hp.top) > 0.1 || Math.abs(a.hp.left - v.hp.left) > 0.1 || Math.abs(a.hp.w - v.hp.w) > 0.1) bad.push(`${p}: the HP bar moved (${JSON.stringify(v.hp)} → ${JSON.stringify(a.hp)})`);
-                if (a.text !== String(x.partNow) || a.cracked) bad.push(`${p}: part-gone shows "${a.text}"${a.cracked ? ', cracked' : ''}`);
-                if (b.text !== '0' || !b.cracked) bad.push(`${p}: broken shows "${b.text}", cracked ${b.cracked}`);
-                if (a.fillOrigin !== (p === 'p1' ? '0px' : `${a.track.w}px`)) bad.push(`${p}: the bar drains from the wrong side (origin ${a.fillOrigin})`);
+            const show = async (p, who, scales) => {
+                await page.evaluate(([p, who, scales]) => {
+                    updateFighterCard(p, window[who], { buff: [], debuff: [], meter: 3, halfDone: false, mirror: 0, scales });
+                    updateUIHP(150, 220, 150, 220);
+                }, [p, who, scales]);
+                await settle(page);
+                return page.evaluate(p => {
+                    const r = el => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, w: b.width, h: b.height }; };
+                    const fill = document.getElementById(`scales-${p}`), num = document.getElementById(`scale-text-${p}`), seg = fill.parentElement;
+                    const bar = document.getElementById(`bar-${p}`), sc = getComputedStyle(seg), nc = getComputedStyle(num), fc = getComputedStyle(fill), bc = getComputedStyle(bar);
+                    return { shown: document.getElementById(`card-${p}`).classList.contains('has-scales') && sc.display !== 'none',
+                             bar: r(bar.parentElement), seg: r(seg), fill: r(fill), num: r(num), hp: r(document.getElementById(`hp-text-${p}`)), text: num.textContent,
+                             color: nc.color, font: `${nc.fontFamily.split(',')[0].replace(/"/g, '')} ${nc.fontSize}/${nc.lineHeight}`, outline: (nc.textShadow.match(/rgb\(11, 15, 24\)/g) || []).length,
+                             drop: /rgb\(11, 15, 24\) 0px 2px 0px/.test(nc.textShadow), scale: new DOMMatrix(fc.transform).a, origin: fc.transformOrigin.split(' ')[0],
+                             track: sc.backgroundColor, edge: sc.boxShadow, barEdge: getComputedStyle(bar.parentElement).boxShadow, overflow: sc.overflow,
+                             fillBg: fc.backgroundImage, bevel: fc.boxShadow, barBevel: bc.boxShadow, transition: `${fc.transitionProperty} ${fc.transitionDuration} ${fc.transitionTimingFunction}`,
+                             barTransition: `${bc.transitionProperty} ${bc.transitionDuration} ${bc.transitionTimingFunction}` };
+                }, p);
+            };
+            const part = Math.round(max * 0.44), rebuilt = Math.round(max * 0.7);
+            const STEEL = 'rgb(27, 34, 56)', BROKEN = 'rgb(44, 20, 32)', RED = 'rgb(255, 138, 138)', WHITE = 'rgb(255, 255, 255)';
+            const bad = [], seen = {};
+            for (const p of ['p1', 'p2']) {
+                const v = await show(p, '__viewer', null);
+                const s = { full: await show(p, '__wd', { now: max, max }), part: await show(p, '__wd', { now: part, max }), broken: await show(p, '__wd', { now: 0, max }),
+                            rebuilt: await show(p, '__wd', { now: rebuilt, max }), three: await show(p, '__wd', { now: 188, max: 200 }) };
+                seen[p] = s.part;
+                const near = (a, b, d = 0.5) => Math.abs(a - b) <= d;
+                const outer = b => p === 'p1' ? b.left : b.right, vsEnd = b => p === 'p1' ? b.right : b.left, inward = p === 'p1' ? -1 : 1;
+                if (v.shown) bad.push(`${p}: a segment on a viewer drake's card`);
+                for (const [k, x] of Object.entries(s)) {
+                    if (!x.shown) { bad.push(`${p} ${k}: no segment on the White Drake's card`); continue; }
+                    // The HP bar: the viewer card's top, height and outer end; its VS end 66 px in
+                    if (!near(x.bar.top, v.bar.top) || !near(x.bar.h, v.bar.h) || !near(outer(x.bar), outer(v.bar)) || !near(vsEnd(x.bar), vsEnd(v.bar) + inward * 66))
+                        bad.push(`${p} ${k}: the HP bar ${JSON.stringify(x.bar)}, a viewer's ${JSON.stringify(v.bar)}`);
+                    // The segment: 62×20, the HP bar's top and height, 4 px from the bar and 12 px from the HP number (whose box is a viewer card's)
+                    const toBar = p === 'p1' ? x.seg.left - x.bar.right : x.bar.left - x.seg.right, toNum = p === 'p1' ? x.hp.left - x.seg.right : x.seg.left - x.hp.right;
+                    if (!near(x.seg.w, 62) || !near(x.seg.top, x.bar.top) || !near(x.seg.h, x.bar.h) || !near(toBar, 4) || !near(toNum, 12))
+                        bad.push(`${p} ${k}: the segment ${JSON.stringify(x.seg)}, ${toBar} px from the bar and ${toNum} px from the HP number`);
+                    if (['left', 'top', 'w', 'h'].some(d => !near(x.hp[d], v.hp[d]))) bad.push(`${p} ${k}: the HP number ${JSON.stringify(x.hp)}, a viewer's ${JSON.stringify(v.hp)}`);
+                    // The number: centred, wholly inside, the pixel font in white with its outline (red when broken)
+                    if (!near((x.num.left + x.num.right) / 2, (x.seg.left + x.seg.right) / 2) || !near((x.num.top + x.num.bottom) / 2, (x.seg.top + x.seg.bottom) / 2)
+                        || x.num.left < x.seg.left || x.num.right > x.seg.right || x.num.top < x.seg.top || x.num.bottom > x.seg.bottom)
+                        bad.push(`${p} ${k}: the number ${JSON.stringify(x.num)} isn't centred and wholly inside ${JSON.stringify(x.seg)}`);
+                    if (x.font !== 'Press Start 2P 12px/12px' || x.outline !== 9 || !x.drop) bad.push(`${p} ${k}: the number's font ${x.font}, outline ${x.outline} of 9, drop ${x.drop}`);
+                    if (!/linear-gradient\(rgb\(205, 215, 231\), rgb\(158, 172, 198\) 50%, rgb\(117, 132, 159\)\)/.test(x.fillBg) || x.bevel !== x.barBevel || x.transition !== x.barTransition || x.overflow !== 'hidden')
+                        bad.push(`${p} ${k}: the fill ${x.fillBg}, bevel ${x.bevel} (the HP fill's ${x.barBevel}), transition ${x.transition} (${x.barTransition}), overflow ${x.overflow}`);
+                    if (x.origin !== (p === 'p1' ? '0px' : `${x.seg.w}px`)) bad.push(`${p} ${k}: the fill is anchored at ${x.origin}, not the outer side`);
+                }
+                const fillOk = (x, frac) => near(x.scale, frac, 0.002) && near(x.fill.w, 62 * frac) && (frac === 0 || near(outer(x.fill), outer(x.seg)));
+                const steel = x => x.track === STEEL && x.edge === x.barEdge && x.color === WHITE;
+                if (s.full.text !== String(max) || !fillOk(s.full, 1) || !steel(s.full)) bad.push(`${p} full: "${s.full.text}", ${JSON.stringify(s.full.fill)}, ${s.full.track} ${s.full.edge} ${s.full.color}`);
+                if (s.part.text !== String(part) || !fillOk(s.part, part / max) || !steel(s.part)) bad.push(`${p} part-gone: "${s.part.text}" (want ${part}), fill ${JSON.stringify(s.part.fill)} at ${s.part.scale}`);
+                if (s.broken.text !== '0' || s.broken.color !== RED || !fillOk(s.broken, 0) || s.broken.track !== BROKEN || !s.broken.edge.includes(`${RED} 0px 0px 0px 1px inset`) || !s.broken.edge.includes(s.full.edge))
+                    bad.push(`${p} broken: "${s.broken.text}" ${s.broken.color}, fill ${s.broken.fill.w} px, ${s.broken.track}, ${s.broken.edge}`);
+                if (s.rebuilt.text !== String(rebuilt) || !fillOk(s.rebuilt, rebuilt / max) || !steel(s.rebuilt)) bad.push(`${p} rebuilt: "${s.rebuilt.text}", ${s.rebuilt.track} ${s.rebuilt.color}, fill at ${s.rebuilt.scale}`);
+                if (s.three.text !== '188') bad.push(`${p} three digits: "${s.three.text}"`);
             }
-            check(!bad.length, `[${lang}] the White Drake's scales: their own bar right above the HP bar, as wide and lined up with it on both cards, in the gap under the СИЛА row, the number over the HP number; it drains from the VS side like HP, cracks at 0 («0»); the HP bar is where a viewer drake's is`,
+            check(!bad.length, `[${lang}] the White Drake's scales, on both cards: a 62×20 steel segment at the VS end of the HP row, 4 px from the HP bar (66 px shorter: its top, height and outer end a viewer's) and 12 px from the HP number (a viewer's box); its number centred and wholly inside (three digits too), the pixel font in white with its outline; the fill empties from the VS side (part-gone ${part}/${max}: ${seen.p1 && Math.round(seen.p1.fill.w)} px of 62); broken: no fill, a red «0», the red inset; rebuilt: steel again; none on a viewer's card`,
                 bad.join(' | '));
+            if (lang === 'uk') {
+                // The sheet: the White Drake's card full, part-gone and broken (the left card), and part-gone as the right card,
+                // each cut from the arena as drawn, side by side at 1920×1080
+                const cards = [];
+                for (const [p, now, label] of [['p1', max, 'Full'], ['p1', part, 'Part-gone'], ['p1', 0, 'Broken'], ['p2', part, 'The right card (part-gone)']]) {
+                    await show(p === 'p1' ? 'p2' : 'p1', '__viewer', null);
+                    await show(p, '__wd', { now, max });
+                    const box = await page.locator(`#card-${p}`).boundingBox();
+                    cards.push({ label, png: await page.screenshot({ clip: { x: box.x - 16, y: box.y - 16, width: box.width + 32, height: box.height + 32 } }) });
+                }
+                const sheet = await context.newPage();
+                await sheet.setContent(`<body style="margin:0;width:1920px;height:1080px;background:#0b0d14;display:flex;align-items:center;justify-content:center;gap:28px;font:600 18px sans-serif;color:#c9cfe0">`
+                    + cards.map(c => `<figure style="margin:0;display:flex;flex-direction:column;align-items:center;gap:14px"><img src="data:image/png;base64,${c.png.toString('base64')}"><figcaption>${c.label}</figcaption></figure>`).join('') + '</body>');
+                await sheet.screenshot({ path: path.join(SHOTS, 'layout-white-drake-scales.png') });
+                await sheet.close();
+            }
             if (errors.length) fail(`[${lang}] page errors: ${errors.join(' | ')}`);
             await context.close();
         }

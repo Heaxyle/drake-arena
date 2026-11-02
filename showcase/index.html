@@ -184,24 +184,25 @@
         .pm-mirror { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; color: #7fdcff; }
         .fc-hp { position: relative; display: flex; align-items: center; gap: 12px; margin-top: auto; flex-shrink: 0; }
         .hp-bar-container { height: 20px; }
-        /* The White Drake's scales (Луска Дракона): their own thin white-steel bar right above the HP bar, in the gap under
-           the СИЛА row, laid out like the HP row so the bar lines up with the HP bar and its number with the HP number. It
-           empties as it's hit (from the VS side, like HP) and cracks when it breaks. Only on its card (.has-scales) */
-        .scale-row { display: none; position: absolute; left: 0; right: 0; top: -9px; height: 4px; align-items: center; gap: 12px; pointer-events: none; }
-        .fighter-card.has-scales .scale-row { display: flex; }
-        .scale-track { position: relative; flex: 1; height: 4px; background: #1b2238; box-shadow: 0 0 0 1px #8796b6; overflow: hidden; }
-        .scale-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(#ffffff, #d2dbea 50%, #8e9cba); transition: transform 0.3s ease; }
-        .scale-track.cracked { background: #2c1420 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 4' preserveAspectRatio='none'%3E%3Cpolyline points='0,2 9,0 15,4 24,1 31,4 40,0 47,3 56,0 62,4 71,1 79,4 87,0 94,3 103,0 110,4 120,1' fill='none' stroke='%23ff8a8a' stroke-width='1.1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; box-shadow: 0 0 0 1px #ff8a8a; }
-        .scale-num { width: 118px; flex-shrink: 0; font-family: var(--pixel); font-size: 12px; line-height: 12px; color: #e6edf6; text-align: right; white-space: nowrap; }
-        .scale-num.cracked { color: #ff8a8a; }
+        /* The White Drake's scales (Луска Дракона): a steel segment at the VS end of the HP row, 4 px from the HP bar and 12 px
+           from the HP number, with the HP bar's top, height and dark edge; the HP bar is 66 px shorter there, its outer end
+           and the HP number where every card has them. Hits take the segment first, then HP: it empties from the VS side like
+           HP, its number (what's left) centred over the fill; broken (0) it turns red until the White Drake's own buff or
+           ultimate fills it back. Only on the White Drake's card while it shows a fight (.has-scales, cardScales) */
+        .scale-seg { display: none; position: relative; flex: 0 0 62px; height: 20px; margin-left: -8px; align-items: center; justify-content: center; background: #1b2238; box-shadow: 0 0 0 2px var(--edge); overflow: hidden; }
+        .fighter-card.has-scales .scale-seg { display: flex; }
+        .scale-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(#cdd7e7, #9eacc6 50%, #75849f); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.38), inset 0 -2px 0 rgba(0, 0, 0, 0.28); transition: transform 0.3s ease; }
+        .scale-num { position: relative; font-family: var(--pixel); font-size: 12px; line-height: 12px; color: #ffffff; white-space: nowrap;
+                     text-shadow: 1px 0 #0b0f18, -1px 0 #0b0f18, 0 1px #0b0f18, 0 -1px #0b0f18, 1px 1px #0b0f18, -1px 1px #0b0f18, 1px -1px #0b0f18, -1px -1px #0b0f18, 0 2px #0b0f18; }
+        .scale-seg.broken { background: #2c1420; box-shadow: 0 0 0 2px var(--edge), inset 0 0 0 1px #ff8a8a; }
+        .scale-seg.broken .scale-num { color: #ff8a8a; }
         .hp-text { font-family: var(--pixel); font-size: 16px; color: var(--text); width: 118px; text-align: right; white-space: nowrap; overflow: hidden; }
         /* The right card's bars are mirrored, so lost HP disappears on the VS side of both cards: the HP number sits next to
            the VS badge, the HP, ghost and XP bars and the СИЛА pips fill from the outer edge (info line, stats and chips stay left-aligned) */
         #card-p2 .fc-hp { flex-direction: row-reverse; }
         #card-p2 .hp-text { text-align: left; }
         #card-p2 .px-fill, #card-p2 .hp-ghost, #card-p2 .scale-fill { transform-origin: 100% 50%; }
-        #card-p2 .scale-row { flex-direction: row-reverse; }
-        #card-p2 .scale-num { text-align: left; }
+        #card-p2 .scale-seg { margin: 0 -8px 0 0; }   /* row-reverse: the HP bar is on its right */
         #card-p2 .power-meter, #card-p2 .pm-pips { flex-direction: row-reverse; }
 
         /* ===== Turn animation: pre-drawn layers that only fade (opacity) or move (transform), so OBS doesn't drop frames ===== */
@@ -796,8 +797,8 @@
                 <div class="fc-chips" id="status-p1"></div>
                 <div class="power-meter" id="power-p1"></div>
                 <div class="fc-hp">
-                    <div class="scale-row"><div class="scale-track"><div class="scale-fill" id="scales-p1"></div></div><span class="scale-num" id="scale-text-p1"></span></div>
                     <div class="px-track hp-bar-container"><div class="hp-ghost" id="ghost-p1"></div><div class="px-fill hp-bar" id="bar-p1"></div></div>
+                    <div class="scale-seg"><div class="scale-fill" id="scales-p1"></div><span class="scale-num" id="scale-text-p1"></span></div>
                     <span class="hp-text" id="hp-text-p1">—</span>
                 </div>
                 <span class="result-tag frame-sm" id="result-p1"></span>
@@ -821,8 +822,8 @@
                 <div class="fc-chips" id="status-p2"></div>
                 <div class="power-meter" id="power-p2"></div>
                 <div class="fc-hp">
-                    <div class="scale-row"><div class="scale-track"><div class="scale-fill" id="scales-p2"></div></div><span class="scale-num" id="scale-text-p2"></span></div>
                     <div class="px-track hp-bar-container"><div class="hp-ghost" id="ghost-p2"></div><div class="px-fill hp-bar" id="bar-p2"></div></div>
+                    <div class="scale-seg"><div class="scale-fill" id="scales-p2"></div><span class="scale-num" id="scale-text-p2"></span></div>
                     <span class="hp-text" id="hp-text-p2">—</span>
                 </div>
                 <span class="result-tag frame-sm" id="result-p2"></span>
@@ -1455,7 +1456,12 @@
             type.style.textTransform = 'uppercase';
         }
         const turnsWordUk = n => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'хід' : (a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'ходи' : 'ходів'); };
-        function setArenaState(next) { arenaState = next; renderArenaHeader(); renderResultTags(); showSync(); if (next.kind === 'idle') arenaSilhouette(false); }
+        // The White Drake's scales follow the arena too: on from its fight's betting window, gone once the arena leaves its
+        // result screen (cardScales)
+        function setArenaState(next) {
+            arenaState = next; renderArenaHeader(); renderResultTags(); showSync(); if (next.kind === 'idle') arenaSilhouette(false);
+            ['p1', 'p2'].forEach(p => renderScaleSeg(p, cardScales(p, fv[p])));
+        }
 
         // After the fight: the winner's card in gold with "ПЕРЕМОЖЕЦЬ"; the loser's greyed with "НОКАУТ" (knocked out) or
         // "ПОРАЗКА" (lost on HP when time ran out); after a draw both cards say "НІЧИЯ"
@@ -6749,20 +6755,34 @@ const ICONS_V2 = {
             if (xpBar) xpBar.style.transform = `scaleX(${(prog.level >= 20 ? 100 : Math.floor(100 * prog.currentXP / prog.requiredXP)) / 100})`;
 
             renderStatsRow(prefix, prog.level, drakeType, dragon.title, fx);
-            // The White Drake's scales during a fight: their own bar above the HP bar (what's left of their starting size) and
-            // the number; at 0 the bar shows a crack
-            const sc = fx && fx.scales, scaleFill = document.getElementById(`scales-${prefix}`), scaleText = document.getElementById(`scale-text-${prefix}`);
-            const broken = !!sc && sc.now <= 0;
-            if (card && card.classList) card.classList.toggle('has-scales', !!sc);
-            if (scaleFill && scaleFill.style) scaleFill.style.transform = `scaleX(${sc && sc.max > 0 ? Math.max(0, Math.min(1, sc.now / sc.max)) : 0})`;
-            if (scaleFill && scaleFill.parentElement && scaleFill.parentElement.classList) scaleFill.parentElement.classList.toggle('cracked', broken);
-            if (scaleText) {
-                scaleText.textContent = sc ? String(Math.max(0, sc.now)) : '';
-                if (scaleText.classList) scaleText.classList.toggle('cracked', broken);
-            }
+            renderScaleSeg(prefix, cardScales(prefix, dragon, fx));
             fitText(nameEl, 13);
             fitText(badgeContainer.querySelector('.fighter-title-badge'), 9);
             fitText(document.getElementById(`info-${prefix}`), 10);
+        }
+
+        // The White Drake's scales on its card, as { now, max }: its fight's own (fx) while the fight draws its cards; otherwise
+        // the card shows them from the moment it shows the White Drake for a fight (the betting window and the countdown:
+        // full, at the level it fights at) through that fight's result screen (as the fight left them), so its HP bar never
+        // changes width while the card shows that fight. Null for any other drake, and for this card outside a fight
+        const FIGHT_KINDS = ['countdown', 'fight', 'result'];
+        function cardScales(prefix, dragon, fx = null) {
+            if (fx) return fx.scales || null;
+            const f = fv[prefix], steel = d => !!d && !!d.drakeObj && d.drakeObj.type === WHITE_DRAKE_TYPE;
+            if (!steel(dragon) || !steel(f) || f.name !== dragon.name || !FIGHT_KINDS.includes(arenaState.kind)) return null;
+            const st = fv.on && battleFx ? battleFx[f.name] : null;
+            if (st && st.scales) return st.scales;
+            const level = calculateLevelAndProgress(f.xp).level, max = scalesOf(level, getMaxHP(level, f.drakeObj.type, f.title));
+            return { now: max, max };
+        }
+        // The steel segment at the VS end of the HP row (.has-scales): its fill (what's left of the starting size) and number;
+        // red at 0, until the White Drake's own buff or ultimate fills it back
+        function renderScaleSeg(prefix, sc) {
+            const card = document.getElementById(`card-${prefix}`), fill = document.getElementById(`scales-${prefix}`), num = document.getElementById(`scale-text-${prefix}`);
+            if (card && card.classList) card.classList.toggle('has-scales', !!sc);
+            if (fill && fill.style) fill.style.transform = `scaleX(${sc && sc.max > 0 ? Math.max(0, Math.min(1, sc.now / sc.max)) : 0})`;
+            if (fill && fill.parentElement && fill.parentElement.classList) fill.parentElement.classList.toggle('broken', !!sc && sc.now <= 0);
+            if (num) num.textContent = sc ? String(Math.max(0, sc.now)) : '';
         }
 
         // HP: a pixel bar coloured by what's left (green above half, yellow from a quarter, red below), and "44/150"
