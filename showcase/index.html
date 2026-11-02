@@ -1507,7 +1507,7 @@
                   sdBanner: '💀 РАПТОВА СМЕРТЬ з {n}-го ходу · шкода зростає щоходу', timeout: '⏳ ЧАС ВИЙШОВ · ліміт {n} ходів',
                   error: '❌ Помилка симуляції — бій перервано', vs: 'проти', fightStart: '🔔 Бій почався{bets} · 🎲 першим б’є {a}', betsClosed: ' · ставки закрито',
                   opening: '{title}: {who} починає бій з бафом {fx}', knockout: '🏆 НОКАУТ · {w} перемагає за {n} {turns}', timeoutWin: '⏳ ЧАС ВИЙШОВ · {w} перемагає за HP',
-                  draw: '🤝 НІЧИЯ · {n} {turns}', dmg: 'шкода', biggest: 'найсильніший удар', crits: 'крити', xp: 'досвід', noXp: 'без досвіду', maxLvl: 'макс. рівень', noRecord: '🐉 Бій з Білим Драконом: без перемоги й поразки в Топі', underdog: '+{n} за сильнішого суперника',
+                  draw: '🤝 НІЧИЯ · {n} {turns}', dmg: 'шкода', biggest: 'найсильніший удар', crits: 'крити', xp: 'досвід', noXp: 'без досвіду', maxLvl: 'макс. рівень', noRecord: '🐉 Бій з Білим Драконом: без перемоги й поразки в Топі', underdog: '+{n} за сильнішого суперника', weaker: '-{n} за слабшого суперника',
                   cdLabel: 'Старт через', cdBets: 'Ставки відкрито — хто переможе?', cdStart: 'Бій починається!', cdFlip: '🎲 хто б’є першим, вирішить жереб на старті',
                   cdFirst: '🎲 першим б’є {a}', plateBets: '⏳ Ставки відкрито', plateStart: '⏳ Бій починається', levelUp: '⬆️ Новий рівень',
                   reaches: '{who} досягає {n}-го рівня', atkGain: '+{n} до атаки', tierGain: 'стихія сильнішає', meterBtn: '✦ {meter}: {side}',
@@ -1522,7 +1522,7 @@
                   sdBanner: '💀 SUDDEN DEATH from turn {n} · damage grows every turn', timeout: '⏳ TIME OUT · {n}-turn limit',
                   error: '❌ Simulation error — the fight was stopped', vs: 'vs', fightStart: '🔔 The fight is on{bets} · 🎲 {a} strikes first', betsClosed: ' · bets closed',
                   opening: '{title}: {who} starts with {fx}', knockout: '🏆 KNOCKOUT · {w} wins in {n} {turns}', timeoutWin: '⏳ TIME OUT · {w} wins on HP',
-                  draw: '🤝 DRAW · {n} {turns}', dmg: 'damage', biggest: 'biggest hit', crits: 'crits', xp: 'XP', noXp: 'no XP', maxLvl: 'max level', noRecord: '🐉 A fight with the White Dragon: no win or loss in the Top', underdog: '+{n} for a stronger opponent',
+                  draw: '🤝 DRAW · {n} {turns}', dmg: 'damage', biggest: 'biggest hit', crits: 'crits', xp: 'XP', noXp: 'no XP', maxLvl: 'max level', noRecord: '🐉 A fight with the White Dragon: no win or loss in the Top', underdog: '+{n} for a stronger opponent', weaker: '-{n} for a weaker opponent',
                   cdLabel: 'Starts in', cdBets: 'Bets are open — who will win?', cdStart: 'The fight is starting!', cdFlip: '🎲 a coin flip at the start decides who strikes first',
                   cdFirst: '🎲 {a} strikes first', plateBets: '⏳ Bets open', plateStart: '⏳ Fight starting', levelUp: '⬆️ Level up',
                   reaches: '{who} reaches level {n}', atkGain: '+{n} attack', tierGain: 'element passive grows', meterBtn: '✦ {meter}: {side}',
@@ -1935,8 +1935,8 @@
             const st = f => d.stats[f.name] || { dmg: 0, max: 0, crits: 0 };
             const xp = f => {
                 if (!d.ranked) return fvT('noXp');
-                const v = d.xp ? d.xp[f.name] : null, bonus = d.xpBonus ? d.xpBonus[f.name] : 0;
-                return v ? `+${v} XP${bonus ? ` (${fvT('underdog', { n: bonus })})` : ''}` : fvT('maxLvl');
+                const v = d.xp ? d.xp[f.name] : null, bonus = d.xpBonus ? d.xpBonus[f.name] : 0, cut = d.xpCut ? d.xpCut[f.name] : 0;
+                return v ? `+${v} XP${bonus ? ` (${fvT('underdog', { n: bonus })})` : cut ? ` (${fvT('weaker', { n: cut })})` : ''}` : fvT('maxLvl');
             };
             const row = (label, fa, fb, cls) => `<span class="lr-a ${cls}">${fa}</span><span class="lr-k">${label}</span><span class="${cls}">${fb}</span>`;
             return `<div class="lr-title">${title}</div><div class="lr-grid">`
@@ -2195,7 +2195,7 @@
                 }
             }
             const steel = [d.p1, d.p2].find(f => f.drakeObj && f.drakeObj.type === WHITE_DRAKE_TYPE);
-            fvAddItem({ type: 'result', data: { winner: d.winner, loser, ranked: d.ranked, turns: d.turns, timeout: !!(loser && hpOf(loser) > 0), xp: d.xp, xpBonus: d.xpBonus, stats: fv.stats, noRecord: !!d.noRecord,
+            fvAddItem({ type: 'result', data: { winner: d.winner, loser, ranked: d.ranked, turns: d.turns, timeout: !!(loser && hpOf(loser) > 0), xp: d.xp, xpBonus: d.xpBonus, xpCut: d.xpCut, stats: fv.stats, noRecord: !!d.noRecord,
                                                 steel: steel && d.winner ? (d.winner === steel ? 'win' : 'loss') : null } });
             // Level-ups go to the chat panel, with the game's own numbers (max HP and attack from the level)
             if (d.lvl) [d.p1, d.p2].forEach(f => {
@@ -5007,12 +5007,17 @@ const ICONS_V2 = {
             return db[username];
         }
 
-        // Underdog XP (ranked fights): a winner below the loser's level gets UNDERDOG_XP_PER_LEVEL per level of difference
-        // (both levels from before the fight's XP), at most UNDERDOG_XP_MAX, on top of the usual 40. addXP applies the
-        // Gold passive to the whole amount; level 20 gets nothing
-        const UNDERDOG_XP_PER_LEVEL = 5, UNDERDOG_XP_MAX = 40;
+        // A ranked win's XP follows the level gap both ways (both levels from before the fight's XP): WIN_XP, plus
+        // UNDERDOG_XP_PER_LEVEL per level the winner is below the loser (at most UNDERDOG_XP_MAX more), or minus as much per
+        // level above it, never below WIN_XP_MIN (a loss's XP, so a win never gives less than a loss). addXP applies the
+        // Gold passive to the whole amount, after the gap; level 20 gets nothing
+        const WIN_XP = 40, UNDERDOG_XP_PER_LEVEL = 5, UNDERDOG_XP_MAX = 40, WIN_XP_MIN = 10;
         function underdogXp(winnerLevel, loserLevel) {
             return Math.min(UNDERDOG_XP_MAX, UNDERDOG_XP_PER_LEVEL * Math.max(0, loserLevel - winnerLevel));
+        }
+        // The cut for beating a lower level, a positive number taken off WIN_XP (at most down to WIN_XP_MIN)
+        function weakerOpponentCut(winnerLevel, loserLevel) {
+            return Math.min(WIN_XP - WIN_XP_MIN, UNDERDOG_XP_PER_LEVEL * Math.max(0, winnerLevel - loserLevel));
         }
         function addXP(username, amount) {
             let db = getDragonDB();
@@ -5102,8 +5107,9 @@ const ICONS_V2 = {
             try { if (playFight) playFight.players.forEach((p, i) => { p.maxHp = [max1, max2][i]; }); } catch (e) { playLogFailed++; }
         }
         // The fight's end: result 'ko' / 'timeout' / 'draw' (or 'error' for a simulation error), the winner, the turns, and
-        // per player the XP got: { xp, base, underdog, gold } (gold: what the Gold passive added; xp 0 at level 20), null in a duel,
-        // and the HP left (hp: name → HP, shown as the arena shows it: rounded, never below 0)
+        // per player the XP got: { xp, base, underdog, cut, gold } (underdog: the bonus for a stronger opponent, cut: what a
+        // weaker one took off, so xp = base + underdog - cut + gold; gold: what the Gold passive added; xp 0 at level 20),
+        // null in a duel, and the HP left (hp: name → HP, shown as the arena shows it: rounded, never below 0)
         function playFightEnd(end, xp, hp) {
             try {
                 const f = playFight;
@@ -5113,7 +5119,7 @@ const ICONS_V2 = {
                 playLog('fight', { ...f, ended: playNow(), ...end });
             } catch (e) { playLogFailed++; }
         }
-        const playXp = (got, base, underdog = 0) => ({ xp: got, base, underdog: got ? underdog : 0, gold: got ? got - base - underdog : 0 });
+        const playXp = (got, base, underdog = 0, cut = 0) => ({ xp: got, base, underdog: got ? underdog : 0, cut: got ? cut : 0, gold: got ? got - base - underdog + cut : 0 });
         // Tournament events (type 'tournament', event: 'opened', 'joined', 'left', 'closed', 'cancelled', 'podium'). data may
         // be a function, so working out what to log is guarded too: logging never stops the tournament
         function playTourney(event, data) {
@@ -7540,7 +7546,7 @@ const ICONS_V2 = {
             // The streamer's White Dragon can't be beaten: a ranked fight against it gives no win or loss to either side
             // (the XP is as usual), and the result card says so
             const dragonFight = [p1, p2].some(f => f.drakeObj && f.drakeObj.type === DRAGON_TYPE);
-            let fvXp = null, fvXpBonus = null;
+            let fvXp = null, fvXpBonus = null, fvXpCut = null;
 
             // A tournament game: the bracket takes the result (a draw is replayed); no XP, and wins, losses and the Top
             // stay as they were
@@ -7597,14 +7603,17 @@ const ICONS_V2 = {
 
                 const levelBefore = f => calculateLevelAndProgress((getDragonStrict(f.name) || {}).xp || 0).level;
                 const bonus = underdogXp(levelBefore(winner), levelBefore(looser));
-                let winXP = addXP(winner.name, 40 + bonus);
+                const cut = weakerOpponentCut(levelBefore(winner), levelBefore(looser));
+                let winXP = addXP(winner.name, WIN_XP + bonus - cut);
                 let loseXP = addXP(looser.name, 10);
                 fvXp = { [winner.name]: winXP, [looser.name]: loseXP };
-                playGot = { [winner.name]: playXp(winXP, 40, bonus), [looser.name]: playXp(loseXP, 10) };
+                playGot = { [winner.name]: playXp(winXP, WIN_XP, bonus, cut), [looser.name]: playXp(loseXP, 10) };
                 if (bonus && winXP > 0) fvXpBonus = { [winner.name]: bonus };
+                if (cut && winXP > 0) fvXpCut = { [winner.name]: cut };
 
                 let maxLvlText = currentLang === 'uk' ? '(МАХ Рівень)' : '(MAX Level)';
-                let bonusText = bonus && winXP > 0 ? `, +${bonus} ${currentLang === 'uk' ? 'за сильнішого суперника' : 'for a stronger opponent'}` : '';
+                let bonusText = bonus && winXP > 0 ? `, +${bonus} ${currentLang === 'uk' ? 'за сильнішого суперника' : 'for a stronger opponent'}`
+                    : cut && winXP > 0 ? `, -${cut} ${currentLang === 'uk' ? 'за слабшого суперника' : 'for a weaker opponent'}` : '';
                 let winXpText = winXP > 0 ? `(+${winXP} XP${bonusText})` : maxLvlText;
                 let loseXpText = loseXP > 0 ? `(+${loseXP} XP)` : maxLvlText;
 
@@ -7622,7 +7631,7 @@ const ICONS_V2 = {
             updateFighterCard('p2', getDragonStrict(p2.name));
             
             playFightEnd({ result: !winner ? 'draw' : ko ? 'ko' : 'timeout', winner: winner ? winner.name : null, turns: fightTurns }, playGot, { [p1.name]: p1HP, [p2.name]: p2HP });
-            fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: true, turns: fightTurns, xp: fvXp, xpBonus: fvXpBonus, lvl: fvLvl, noRecord: dragonFight });
+            fvFinish({ p1, p2, p1HP, p2HP, winner, loser: looser, ranked: true, turns: fightTurns, xp: fvXp, xpBonus: fvXpBonus, xpCut: fvXpCut, lvl: fvLvl, noRecord: dragonFight });
             setArenaState({ kind: 'result', ranked: true, winner, turns: fightTurns, ko });
             isBattleRunning = false;
             renderLeaderboard();

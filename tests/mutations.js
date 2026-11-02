@@ -178,7 +178,7 @@ const MUTATIONS = [
     ['bonus to the higher-level winner', 'a winner above the loser\'s level gets the bonus too',
         'Math.max(0, loserLevel - winnerLevel)', 'Math.abs(loserLevel - winnerLevel)'],
     ['Gold skips the bonus', 'Gold multiplies only the usual 40, not the bonus',
-        'let winXP = addXP(winner.name, 40 + bonus);', 'let winXP = addXP(winner.name, 40) + bonus;'],
+        'let winXP = addXP(winner.name, WIN_XP + bonus - cut);', 'let winXP = addXP(winner.name, WIN_XP - cut) + bonus;'],
     ['Top by wins − losses', 'the Top is ordered by wins − losses again, not by wins',
         "if ((rb.wins || 0) !== (ra.wins || 0)) return (rb.wins || 0) - (ra.wins || 0);", "const net = ((rb.wins || 0) - (rb.losses || 0)) - ((ra.wins || 0) - (ra.losses || 0)); if (net) return net;"],
     ['Top tie: more losses first', 'on equal wins more losses go first',
@@ -401,6 +401,15 @@ const MUTATIONS = [
         "if (b.mechanic) { const id =", "if (false) { const id ="],
     ['the page\'s icon block edited by hand', "the page's copy of icons.js no longer matches design/icons/icons.js",
         '    const SIZES = { buff: 10, debuff: 10, ultimate: 12,', '    const SIZES = { buff: 10, debuff: 10, ultimate: 11,'],
+    // Ranked win XP from the level gap (caught by rules.js)
+    ['no floor under a win', 'beating a much lower level can give less than a loss (L18 beating L1: 40 − 85, not 10)',
+        'return Math.min(WIN_XP - WIN_XP_MIN, UNDERDOG_XP_PER_LEVEL * Math.max(0, winnerLevel - loserLevel));', 'return UNDERDOG_XP_PER_LEVEL * Math.max(0, winnerLevel - loserLevel);'],
+    ['no cut for a weaker opponent', 'beating a lower level still gives the full 40',
+        'let winXP = addXP(winner.name, WIN_XP + bonus - cut);', 'let winXP = addXP(winner.name, WIN_XP + bonus);'],
+    ['the loser pays the cut', "the cut comes off the loser's 10 instead of the winner's 40",
+        'let winXP = addXP(winner.name, WIN_XP + bonus - cut);\n                let loseXP = addXP(looser.name, 10);', 'let winXP = addXP(winner.name, WIN_XP + bonus);\n                let loseXP = addXP(looser.name, 10 - cut);'],
+    ['Gold before the cut', 'Gold multiplies the whole 40 and the cut comes off after it, instead of Gold on the reduced amount',
+        'let winXP = addXP(winner.name, WIN_XP + bonus - cut);', 'let winXP = addXP(winner.name, WIN_XP + bonus); if (winXP) { const wdb = getDragonDB(); wdb[winner.name].xp -= cut; saveDragonDB(wdb); winXP -= cut; }'],
 ];
 
 // Runs the test files against one copy of the game; resolves with what each reported (design/icons/test.js: the icon set)
