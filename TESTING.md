@@ -7,6 +7,34 @@ Drake Arena is a single HTML file with no build step, so the tests work on that 
 
 Both run in CI (`.github/workflows/ci.yml`) on every pull request and on every push to `main`, so each PR update runs CI once.
 
+## What to run locally
+
+Tests are picked by what a change touches. CI runs the full set on every pull request and every push to `main`, so a local run covers only the affected areas.
+
+- Every change: `npm run test:banned-words`.
+- Then the rows the change touches; for several areas, run every row they hit (`test:…` and `balance:…` are `npm run …`; the commands are under [Running locally](#running-locally)):
+
+| Change touches | Run |
+|---|---|
+| Any change to `showcase/index.html`, a comment too | the three quick checks, `test:banned-words`, `test:effects` and `test:ultimates` (about 11 s together; `test:effects` reads the page's text, so an effect or ultimate name in a multi-line comment fails it), and `test:ui showcase` |
+| Docs, README, review page, comments outside `showcase/index.html` | nothing more |
+| Text on screen (replies, labels, names) | `test:layout`; `test:ui showcase` for chat replies |
+| Icons and art (`design/icons`, the V2 block, sprites) | `test:icons`, `test:layout`, `test:fightview` |
+| Layout and CSS | `test:layout`, `test:fightview`; `test:controls` for the demo controls |
+| Fight view (log cards, countdown, result card) | `test:fightview`, `test:layout` |
+| Effects or ultimates | `npm test`, `test:fightview`; `balance:check` if numbers changed |
+| Balance numbers (elements, rarities, title bonuses) | `npm test`, `balance:check`, `test:balance-gate`; `test:white-drake-gate` when titles or the White Drake change |
+| Chat commands, queue, duels, betting | `test:resume`, `test:playlog` |
+| Tournaments and the show | `test:tournament`, `test:layout`, `test:playlog` |
+| Saves, migration, reloads | `test:resume`, `test:playlog` |
+| The White Drake and the streamer's forms | `npm test`, `test:white-drake-gate`, `test:fightview` |
+| Test panel and demo controls | `test:controls` |
+
+- Visual-only page changes: the UI fight-events fingerprint must match main's (`UI_FILE=<main's index.html> node tests/ui.js showcase`). Compare the balance-gate table with main's only when the diff touches script outside the drawing code and CSS (see [Visual only](#visual-only-the-fights-stay-the-same)).
+- The full set runs locally only when the change touches shared code (the fight loop, saves and their migration, the embed markers, the test harness: `game_env`, `page_hooks`, `sim_harness`, `settle`), when it isn't clear which areas it touches, or when asked for.
+- Never merge a PR before CI is green.
+- Every report lists the tests that were run and why the others weren't needed.
+
 ## Pipeline
 
 ```mermaid
@@ -818,7 +846,7 @@ Screenshots (Ukrainian): `tournament-signup.png` (the sign-up line), `tournament
 
 The view only draws what the fight already decided. In Node (the balance sims, `effects.js`, `ultimates.js`, the mutations) there is no page, so the view switches itself off, and the fight's text record (the hidden `#battle-log`, which the sims and the effect tests read) is unchanged. Three checks back this up:
 
-- `npm run test:balance-gate` prints exactly the same table as on main (same seed).
+- `npm run test:balance-gate` prints exactly the same table as on main (same seed), compared when the diff touches script outside the drawing code and CSS ([What to run locally](#what-to-run-locally)).
 - `ui.js`'s fight-event fingerprint is the same on this branch and on main (`UI_FILE`), with the betting window off.
 - For tournament looks, `tournament.js`'s effects-off timeline is the same on this branch and on main (`TOUR_FILE=<main's page> TOUR_ONLY=2`).
 
