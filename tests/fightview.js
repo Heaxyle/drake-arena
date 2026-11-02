@@ -18,8 +18,11 @@
 //   - The streamer's White Drake, in a duel: Магніт and Перекування from the test menu (cast only by its own hit), a buff
 //     the foe casts under Магніт pulled to it, a debuff bouncing off its scales, the scales cracking and Перекування
 //     rebuilding them, the opening banner, the faint White Dragon behind the log through its fights (gone in the next
-//     fight without it), the result card's line. Screenshots (not tracked): tests/screenshots/white-drake-card.png (its fighter card with the scales up),
-//     white-drake-fight.png (the arena mid-fight, scales up) and white-drake-log.png (its lines in the log)
+//     fight without it), the result card's line; the steel segment at the VS end of its HP row: its number and fill as the
+//     fight's scales on every turn, full in the countdown (and the betting window, with it on), as the fight left it on the
+//     result screen (a ranked fight's too, after the XP redraw), the HP row's boxes the same throughout, none in the next
+//     fight without it. Screenshots (not tracked): tests/screenshots/white-drake-card.png (its fighter card, the segment
+//     part-gone), white-drake-fight.png (the arena mid-fight) and white-drake-log.png (its lines in the log)
 //   - The result card's numbers against the fight's own cards; level-up messages against the game's numbers
 //   - After several fights the log holds only the current fight; no internal ids anywhere; worst-case cards fit
 //   - Nothing on a card is ever hidden (nobody can hover or scroll on stream): a second line that doesn't fit at 90% shows
@@ -776,10 +779,34 @@ async function popAtStep2(page, turn) {
                            rage: l2 => l2.includes(`${W.rage} ${W.pulled}`), reforge: l2 => l2.includes(`${gets} ${W.reforge}`) };
             const todo = new Set(Object.keys(says)), done = {}, chips = {}, panel = [], fights = [];   // panel: the silhouette, turn by turn
             let crackSeen = false, rebuildSeen = false, scalesHitSeen = false, menuOnlyWd = null, shots = false, logShot = false;
+            // The White Drake's card as drawn: its side, its HP row's boxes (the HP bar, the segment, the HP number; the right
+            // card's mirrored about the arena's centre, so a coin flip that moves it to the other card compares too), the
+            // segment's number and fill, and the fight's own scales (battleFx)
+            const wdRow = () => page.evaluate(() => {
+                const side = document.getElementById('name-p1').textContent.includes('stalwart') ? 'p1' : 'p2', other = side === 'p1' ? 'p2' : 'p1';
+                const c1 = document.getElementById('card-p1').getBoundingClientRect(), c2 = document.getElementById('card-p2').getBoundingClientRect(), axis = (c1.left + c2.right) / 2;
+                const box = el => { const b = el.getBoundingClientRect(), [l, r] = side === 'p1' ? [b.left, b.right] : [2 * axis - b.right, 2 * axis - b.left];
+                    return [l, b.top, r - l, b.height].map(v => Math.round(v * 10) / 10).join(','); };
+                const fill = document.getElementById(`scales-${side}`), seg = fill.parentElement, sc = battleFx && battleFx.stalwart && battleFx.stalwart.scales;
+                return { side, kind: arenaState.kind, betting: !!arenaState.betting, shown: document.getElementById(`card-${side}`).classList.contains('has-scales') && getComputedStyle(seg).display !== 'none',
+                         otherShown: document.getElementById(`card-${other}`).classList.contains('has-scales'),
+                         boxes: [document.getElementById(`bar-${side}`).parentElement, seg, document.getElementById(`hp-text-${side}`)].map(box).join(' | '),
+                         text: document.getElementById(`scale-text-${side}`).textContent, scale: new DOMMatrix(getComputedStyle(fill).transform).a, broken: seg.classList.contains('broken'),
+                         fx: sc ? { now: sc.now, max: sc.max } : null };
+            });
+            // The segment matches the scales it should show (the fight's own; full before the fight has any)
+            const segAgrees = (r, sc) => r.shown && !r.otherShown && !!sc && r.text === String(Math.max(0, sc.now)) && Math.abs(r.scale - Math.max(0, sc.now) / sc.max) < 0.002 && r.broken === (sc.now <= 0);
+            const rows = [], segBad = [];   // every sample of the White Drake's HP row, and the turns whose segment disagreed
             for (let duel = 0; duel < 4 && (todo.size || !crackSeen || !rebuildSeen || menuOnlyWd === null); duel++) {
                 await page.clock.runFor(4 * 60000);
                 await say(page, 'stalwart', `${cmd(lang, '!бій', '!battle')} @ruby`); await say(page, 'ruby', cmd(lang, '!прийняти', '!accept'));
                 const wd = await page.evaluate(() => document.getElementById('name-p1').textContent.includes('stalwart') ? 'p1' : 'p2'), foe = wd === 'p1' ? 'p2' : 'p1';
+                // The countdown: the segment is there, full, before the first hit
+                await page.clock.runFor(1000);
+                await settleArena(page);
+                const cd = await wdRow();
+                rows.push({ at: `duel ${duel + 1} countdown`, ...cd });
+                if (cd.kind !== 'countdown' || !segAgrees(cd, cd.fx) || cd.fx.now !== cd.fx.max) segBad.push(`duel ${duel + 1} countdown: ${JSON.stringify(cd)}`);
                 for (let turn = 1; turn <= 30 && await page.evaluate('isBattleRunning'); turn++) {
                     const mine = (turn % 2 === 1) === (wd === 'p1');   // p1 strikes on odd turns
                     await toFightTime(page, turn * TURN - 50);
@@ -796,6 +823,9 @@ async function popAtStep2(page, turn) {
                     if (id) await pick(id);
                     await toFightTime(page, turn * TURN + HIT + 1);
                     await settleArena(page);
+                    const seg = await wdRow();
+                    rows.push({ at: `duel ${duel + 1} turn ${turn}`, ...seg });
+                    if (!segAgrees(seg, seg.fx)) segBad.push(`duel ${duel + 1} turn ${turn}: ${JSON.stringify(seg)}`);
                     const now = await page.evaluate(arenaNow);
                     const card = now.cards.find(c => c.turn === turn);
                     if (probe) {
@@ -827,17 +857,63 @@ async function popAtStep2(page, turn) {
                 await pick('');
                 for (let i = 0; i < 40 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(TURN);
                 await page.clock.runFor(HIT + 100);
+                // The result screen: the segment stays, as the fight left it
+                await settleArena(page);
+                const res = await wdRow();
+                rows.push({ at: `duel ${duel + 1} result`, ...res });
+                if (res.kind !== 'result' || !segAgrees(res, res.fx)) segBad.push(`duel ${duel + 1} result: ${JSON.stringify(res)}`);
                 const end = await page.evaluate(arenaNow);
                 const won = end.textLog.some(l => /(Переміг|Переможець|Winner):? @stalwart\b/.test(l));
                 fights.push({ won, banner: end.banners.some(t => t.includes(W.steelIn)), line: end.result.includes(won ? W.steelWin : W.steelLoss) && !end.result.includes(won ? W.steelLoss : W.steelWin) });
                 await page.clock.runFor(await page.evaluate(() => RESULT_HOLD_MS) + 1000);   // past the result screen's hold
             }
+            // Turn by turn to the result screen, sampling the White Drake's HP row (from step 2 of turn 1 on)
+            const playSampled = async label => {
+                for (let turn = 1; turn <= 30 && await page.evaluate('isBattleRunning'); turn++) {
+                    await toFightTime(page, turn * TURN + HIT + 1);
+                    await settleArena(page);
+                    const r = await wdRow();
+                    rows.push({ at: `${label} turn ${turn}`, ...r });
+                    if (!segAgrees(r, r.fx)) segBad.push(`${label} turn ${turn}: ${JSON.stringify(r)}`);
+                }
+                await page.clock.runFor(HIT + 100);
+                await settleArena(page);
+                const r = await wdRow(), ranked = await page.evaluate(() => !!arenaState.ranked);
+                rows.push({ at: `${label} result`, ...r });
+                if (r.kind !== 'result' || !segAgrees(r, r.fx)) segBad.push(`${label} result: ${JSON.stringify(r)}`);
+                await page.clock.runFor(await page.evaluate(() => RESULT_HOLD_MS) + 1000);
+                return ranked;
+            };
+            // With the betting window on: the betting window shows the segment full (the fight's own scales come with the
+            // fight), then the countdown, every turn and the result screen as before
+            await page.evaluate(() => setBettingWindow(true));
+            await page.clock.runFor(4 * 60000);
+            await say(page, 'stalwart', `${cmd(lang, '!бій', '!battle')} @ruby`); await say(page, 'ruby', cmd(lang, '!прийняти', '!accept'));
+            await page.clock.runFor(1000);
+            await settleArena(page);
+            const bw = await wdRow();
+            const full = await page.evaluate(() => { const f = [fv.p1, fv.p2].find(x => x && x.name === 'stalwart'), lvl = calculateLevelAndProgress(f.xp).level; return scalesOf(lvl, getMaxHP(lvl, f.drakeObj.type, f.title)); });
+            rows.push({ at: 'betting window', ...bw });
+            if (bw.kind !== 'countdown' || !bw.betting || !segAgrees(bw, { now: full, max: full })) segBad.push(`betting window: ${JSON.stringify({ bw, full })}`);
+            await page.evaluate(() => skipBettingWindow());
+            await page.clock.runFor(1000);
+            await settleArena(page);
+            const bcd = await wdRow();
+            rows.push({ at: 'betting duel countdown', ...bcd });
+            if (bcd.kind !== 'countdown' || !segAgrees(bcd, bcd.fx) || bcd.fx.now !== full || bcd.fx.max !== full) segBad.push(`betting duel countdown: ${JSON.stringify({ bcd, full })}`);
+            await playSampled('betting duel');
+            await page.evaluate(() => setBettingWindow(false));
+            // A ranked fight: the cards are drawn again at its end (for the XP), and the segment stays, as the fight left it
+            await page.clock.runFor(4 * 60000);
+            await say(page, 'stalwart', cmd(lang, '!черга', '!queue')); await say(page, 'ruby', cmd(lang, '!черга', '!queue'));
+            const rankedFight = await playSampled('ranked');
             // The next fight, without the White Drake: no silhouette behind the log
             await register(page, lang, [['onyx', 'black', '#a9a9ff']]);
             await page.clock.runFor(4 * 60000);
             await say(page, 'ruby', `${cmd(lang, '!бій', '!battle')} @onyx`); await say(page, 'onyx', cmd(lang, '!прийняти', '!accept'));
             await toFightTime(page, TURN + HIT + 1);
             const plainAfter = await page.evaluate(() => { const p = document.getElementById('log-panel'); return !p.classList.contains('steel-fight') && !p.style.backgroundImage; });
+            const noSegAfter = await page.evaluate(() => !document.querySelector('.fighter-card.has-scales') && ['p1', 'p2'].every(p => getComputedStyle(document.getElementById(`scales-${p}`).parentElement).display === 'none'));
             for (let i = 0; i < 40 && await page.evaluate('isBattleRunning'); i++) await page.clock.runFor(TURN);
             const missing = Object.keys(says).filter(id => !done[id] || !chips[id]);
             check(!missing.length, `[${lang}] the White Drake's lines: «${(done.burn || '').slice(0, 40)}», «${(done.magnet || '').slice(0, 30)}», «${(done.rage || '').slice(0, 45)}», «${(done.reforge || '').slice(0, 30)}», each chip on the right card`,
@@ -846,6 +922,14 @@ async function popAtStep2(page, turn) {
             check(crackSeen && rebuildSeen && scalesHitSeen, `[${lang}] what a hit takes off the scales («[scales] -N»), «${W.cracked}» and Перекування's «[reforge] +N» on the cards (pixel icons)`, JSON.stringify({ crackSeen, rebuildSeen, scalesHitSeen }));
             check(fights.length && fights.every(r => r.banner && r.line), `[${lang}] every White Drake fight opens with «${W.steelIn}» and its result card says «${W.steelWin}» or «${W.steelLoss}», as it ended (${fights.map(f => f.won ? 'won' : 'lost').join(', ')})`, JSON.stringify(fights));
             check(panel.length && panel.every(Boolean) && plainAfter, `[${lang}] the faint White Dragon behind the log through every turn of its fights (${panel.length}), gone in the next fight without it`, JSON.stringify({ panel: panel.slice(0, 12), plainAfter }));
+            // Its scales on its card: the segment's number and fill as battleFx has them on every turn, full from the countdown
+            // (and the betting window), still there on the result screen (a ranked fight's too, after its cards are drawn
+            // again for the XP); the HP row's boxes the same from the first sample to the last
+            const boxes = [...new Set(rows.map(r => r.boxes))], turns = rows.filter(r => / turn /.test(r.at)).length;
+            check(!segBad.length && boxes.length === 1 && turns >= 20 && rankedFight && rows.some(r => r.at === 'betting window') && rows.some(r => r.at === 'ranked result'),
+                `[${lang}] the White Drake's segment matches battleFx's scales, number and fill, on every turn of its fights (${turns} turns, ${fights.length + 2} fights, ${rows.filter(r => r.broken).length} samples broken), full in the countdown and the betting window, as the fight left it on every result screen (a ranked fight's too); its HP row's boxes the same throughout (${boxes[0]})`,
+                JSON.stringify({ segBad: segBad.slice(0, 3), boxes, rankedFight }));
+            check(noSegAfter, `[${lang}] no segment on either card in the next fight without the White Drake`, String(noSegAfter));
             if (lang === 'uk') check(shots && logShot, 'screenshots: tests/screenshots/white-drake-card.png, white-drake-fight.png, white-drake-log.png', JSON.stringify({ shots, logShot }));
             if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
