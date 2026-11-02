@@ -391,7 +391,8 @@ for (const lang of ['en', 'uk']) {
         __drain();
     }
 
-    // 16. Underdog XP (ranked): +5 per level below the loser, at most +40, on top of 40; Gold on the whole amount
+    // 16. Ranked win XP from the level gap: +5 per level below the loser (at most +40) on top of 40, or 5 less per level
+    // above it (never below 10); Gold on the whole amount, after the gap
     {
         const fight = (win, lose, ranked = true, hp = [40, 0]) => {
             const db = G.getDragonDB(), w0 = db[win].xp, l0 = db[lose].xp;
@@ -400,24 +401,48 @@ for (const lang of ['en', 'uk']) {
             const after = G.getDragonDB();
             return [after[win].xp - w0, after[lose].xp - l0];
         };
-        const cases = [];
-        for (const [wl, ll, want] of [[9, 10, 45], [6, 10, 60], [5, 15, 80], [1, 20, 80], [12, 10, 40], [10, 10, 40]]) {
+        const levelCases = list => list.map(([wl, ll, want]) => {
             fresh(); make('uw', 'red', { level: wl }); make('ul', 'blue', { level: ll });
             const [gw, gl] = fight('uw', 'ul');
-            cases.push({ wl, ll, want, got: gw, loser: gl });
-        }
+            return { wl, ll, want, got: gw, loser: gl };
+        });
+        const cases = levelCases([[9, 10, 45], [6, 10, 60], [5, 15, 80], [1, 20, 80], [12, 10, 30], [10, 10, 40]]);
         check(cases.every(c => c.got === c.want && c.loser === (c.ll >= 20 ? 0 : 10)),
-            '16. underdog XP: L9 beats L10 → +45, L6 beats L10 → +60, L5 beats L15 → +80 (capped at +40 bonus), L1 beats L20 → +80; a higher or equal level winner → +40; the loser +10 as before (0 at level 20)',
+            '16. underdog XP: L9 beats L10 → +45, L6 beats L10 → +60, L5 beats L15 → +80 (capped at +40 bonus), L1 beats L20 → +80; an equal level winner → +40, a higher one less (L12 beats L10 → +30); the loser +10 as before (0 at level 20)',
             JSON.stringify(cases));
+        // Beating a lower level: 5 less per level, never below 10 (a loss's XP); the loser's +10 as always
+        const cuts = levelCases([[10, 9, 35], [10, 6, 20], [10, 4, 10], [18, 1, 10], [7, 7, 40]]);
+        check(cuts.every(c => c.got === c.want && c.loser === 10),
+            '16. the cut for a weaker opponent: L10 beats L9 → +35, L10 beats L6 → +20, L10 beats L4 → +10, L18 beats L1 → +10 (the floor, not -45); equal levels (L7) → +40; the loser +10 every time',
+            JSON.stringify(cuts));
         fresh(); make('uw', 'red', { level: 6 }); make('ul', 'blue', { level: 10 });
         fight('uw', 'ul');
         const said = logs.find(l => /stronger opponent|сильнішого суперника/.test(l)) || '';
         check(said.includes(t('+60 XP, +20 for a stronger opponent', '+60 XP, +20 за сильнішого суперника')), '16. the fight record names the bonus: "' + said.slice(0, 90) + '"', said);
+        // The record names the cut the same way: the number before Gold and after the floor (L18 beating L1: -30, not -85)
+        const cutSaid = [[10, 6], [18, 1]].map(([wl, ll]) => {
+            fresh(); make('uw', 'red', { level: wl }); make('ul', 'blue', { level: ll });
+            fight('uw', 'ul');
+            return logs.find(l => /weaker opponent|слабшого суперника/.test(l)) || '';
+        });
+        check(cutSaid[0].includes(t('+20 XP, -20 for a weaker opponent', '+20 XP, -20 за слабшого суперника')) && cutSaid[1].includes(t('+10 XP, -30 for a weaker opponent', '+10 XP, -30 за слабшого суперника'))
+            && !cutSaid.some(s => /stronger opponent|сильнішого суперника/.test(s)),
+            '16. the fight record names the cut: "' + cutSaid.map(s => s.slice(0, 90)).join('" / "') + '"', JSON.stringify(cutSaid));
         // Gold applies to the whole amount (40 + bonus), at the winner's own tier
         fresh(); make('gw', 'gold', { level: 6 }); make('ul', 'blue', { level: 10 });
         const tier = G.getTierMultiplier(6), pct = G.ELEMENT_BASE.goldXp + tier.goldXpBonus;
         const [gold] = fight('gw', 'ul');
         check(gold === Math.round(60 * (1 + pct / 100)), `16. a Gold underdog (L6 beats L10) gets Gold's +${pct}% on all 60: +${gold} XP`, `got ${gold}, want ${Math.round(60 * (1 + pct / 100))}`);
+        // ... and on the reduced amount after a cut (Gold after the gap, not 40 with Gold and then the cut); the record shows the
+        // cut before Gold
+        fresh(); make('gw', 'gold', { level: 10 }); make('ul', 'blue', { level: 6 });
+        const pct10 = G.ELEMENT_BASE.goldXp + G.getTierMultiplier(10).goldXpBonus;
+        const [goldCut, goldLoser] = fight('gw', 'ul');
+        const goldSaid = logs.find(l => /weaker opponent|слабшого суперника/.test(l)) || '';
+        const wantGold = Math.round(20 * (1 + pct10 / 100));
+        check(goldCut === wantGold && goldLoser === 10 && goldSaid.includes(t(`+${wantGold} XP, -20 for a weaker opponent`, `+${wantGold} XP, -20 за слабшого суперника`)),
+            `16. a Gold winner over a lower level (L10 beats L6) gets Gold's +${pct10}% on the reduced 20: +${goldCut} XP (not ${Math.round(40 * (1 + pct10 / 100)) - 20}); the record says "-20"; the loser +10`,
+            JSON.stringify({ goldCut, wantGold, goldLoser, goldSaid: goldSaid.slice(0, 120) }));
         // Level 20 gets nothing; draws and duels are unchanged
         fresh(); make('top', 'red', { level: 20 }); make('ul', 'blue', { level: 20 });
         const [l20] = fight('top', 'ul');
@@ -465,9 +490,9 @@ for (const lang of ['en', 'uk']) {
         const won = ranked('fan', 'streamchannel', [30, 20]);        // a time-out the viewer wins on HP (as if): still not counted
         const wonRec = [rec('streamchannel'), rec('fan')];
         const usual = ranked('pal', 'fan');                          // two viewers: counted as before
-        check(lost.join() === '40,10' && lostRec.join() === '0-0,0-0' && wonRec.join() === '0-0,0-0' && won[0] === 65 && rec('pal') === '1-0' && rec('fan') === '0-1' && usual.join() === '40,10',
-            t('17b. a ranked fight against the White Dragon: no win or loss for either side (the dragon wins: +40 / +10 XP as usual; if the viewer ever won on HP: +65 as usual, still no record); a fight between viewers counts (@pal 1–0, @fan 0–1)',
-              '17b. рейтинговий бій з Білим Драконом: без перемоги й поразки для обох (дракон перемагає: +40 / +10 XP, як завжди; якби глядач переміг за HP: +65, як завжди, і теж без запису); бій між глядачами рахується (@pal 1–0, @fan 0–1)'),
+        check(lost.join() === '15,10' && lostRec.join() === '0-0,0-0' && wonRec.join() === '0-0,0-0' && won[0] === 65 && rec('pal') === '1-0' && rec('fan') === '0-1' && usual.join() === '40,10',
+            t('17b. a ranked fight against the White Dragon: no win or loss for either side (the dragon, level 10 here, beats L5: +15 / +10 XP, as any ranked win; if the viewer ever won on HP: +65 as usual, still no record); a fight between viewers counts (@pal 1–0, @fan 0–1)',
+              '17b. рейтинговий бій з Білим Драконом: без перемоги й поразки для обох (дракон, тут 10-го рівня, перемагає 5-й: +15 / +10 XP, як за будь-яку рейтингову перемогу; якби глядач переміг за HP: +65, як завжди, і теж без запису); бій між глядачами рахується (@pal 1–0, @fan 0–1)'),
             JSON.stringify({ lost, lostRec, won, wonRec, usual, pal: rec('pal'), fan: rec('fan') }));
         G.setStreamerUser(prevStreamer);
         __drain();

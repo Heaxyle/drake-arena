@@ -3,11 +3,12 @@
 //      (twice from one player), a ranked fight with the betting window on, a duel with it off, an element change at
 //      level 5. The log holds exactly those events, in order (after the page load's own), and each says what the game did: both fighters' level,
 //      XP, element and title before the fight; the winner, KO / time-out / draw and the turns as the arena showed them;
-//      the XP each got as the saves changed, with the underdog and Gold parts; each one's HP left and max HP at the end,
+//      the XP each got as the saves changed, with the underdog, cut and Gold parts; each one's HP left and max HP at the end,
 //      as their arena card showed it; the betting window's opening and the fight's start in order. Nothing of it shows on
 //      the page
 //  1b  The endings the seeded fights don't reach, through finishBattle: a time-out (both standing) and a draw, with the HP
-//      each ended on
+//      each ended on; a ranked win over a lower level (a Gold L10 beats an L6): the cut as its own field, and
+//      xp = base + underdog - cut + gold, what the save gained
 //  1c  A tournament through chat: opened (size, who), every !учасник and !вийти with how many are signed up after it,
 //      closed (it filled up; and by !турнір старт, with a qualifier), each game with both players' HP left and max HP at
 //      level 20 as the cards showed it, the podium; a cancel during sign-up and one mid-game (where it stood). In the
@@ -147,13 +148,14 @@ async function run() {
             `its result as the arena showed it: winner @${ranked.winner}, ${f1 && f1.result}, ${ranked.turns} turns`, JSON.stringify({ log: f1 && { winner: f1.winner, result: f1.result, turns: f1.turns }, arena: ranked }));
         const other = n => n === 'alice' ? 'bobgold' : 'alice';
         const underdog = n => n === ranked.winner ? Math.min(40, 5 * Math.max(0, lvl[other(n)] - lvl[n])) : 0;
+        const cut = n => n === ranked.winner ? Math.min(30, 5 * Math.max(0, lvl[n] - lvl[other(n)])) : 0;
         const xpOk = ['alice', 'bobgold'].every(n => {
             const g = rp[n] && rp[n].got;
             const gained = postRanked[n].xp - preRanked[n].xp;
-            return g && g.xp === gained && g.xp === g.base + g.underdog + g.gold && g.base === (n === ranked.winner ? 40 : 10)
-                && g.underdog === underdog(n) && (n === 'bobgold' ? g.gold > 0 : g.gold === 0);
+            return g && g.xp === gained && g.xp === g.base + g.underdog - g.cut + g.gold && g.base === (n === ranked.winner ? 40 : 10)
+                && g.underdog === underdog(n) && g.cut === cut(n) && (n === 'bobgold' ? g.gold > 0 : g.gold === 0);
         });
-        check(xpOk && underdog(ranked.winner) > 0, `the XP each got, as the saves changed, split into base, underdog and Gold (${['alice', 'bobgold'].map(n => `@${n} ${JSON.stringify(rp[n] && rp[n].got)}`).join(', ')})`,
+        check(xpOk && underdog(ranked.winner) > 0, `the XP each got, as the saves changed, split into base, underdog, cut and Gold (${['alice', 'bobgold'].map(n => `@${n} ${JSON.stringify(rp[n] && rp[n].got)}`).join(', ')})`,
             JSON.stringify({ alice: rp.alice && rp.alice.got, bob: rp.bobgold && rp.bobgold.got, gained: { alice: postRanked.alice.xp - preRanked.alice.xp, bobgold: postRanked.bobgold.xp - preRanked.bobgold.xp } }));
         check(f1 && f1.players.every(p => rankedCards[p.name] === `${p.hpLeft}/${p.maxHp}`) && f1.players.some(p => p.hpLeft === 0),
             `each player's HP left and max HP at the end, as their card showed it: ${f1 && f1.players.map(p => `@${p.name} ${p.hpLeft}/${p.maxHp}`).join(', ')}`,
@@ -242,6 +244,29 @@ async function run() {
             && JSON.stringify(hpEnd(to)) === JSON.stringify({ alice: 120, carol: 80 }) && JSON.stringify(hpEnd(dr)) === JSON.stringify({ alice: 90, carol: 90 })
             && dr.players.every(p => p.got && p.got.xp === 10 && p.got.base === 10 && p.got.xp === ends[1][p.name].xp - ends[0][p.name].xp),
             'a time-out (both standing after 30 turns: the one with more HP wins; 120 and 80 HP left) and a draw (10 XP each; 90 and 90)', JSON.stringify(endEv.map(x => ({ result: x.result, winner: x.winner, turns: x.turns, got: x.players.map(p => p.got) }))));
+        // A ranked win over a lower level: the cut is logged as its own field (a positive number, 0 for the loser), and the
+        // parts add up to what each save gained: a Gold L10 beats an L6 (40 - 20, then Gold on the 20)
+        await chat(e.page, 'bobgold', '!дрейк золотий');
+        const cutRun = await e.page.evaluate(() => {
+            const xpFor = n => { let x = 0; for (let i = 1; i < n; i++) x += getRequiredXP(i); return x; };
+            const db = getDragonDB(); db.bobgold.xp = xpFor(10); db.bobgold.level = 10; db.carol.xp = xpFor(6); db.carol.level = 6; saveDragonDB(db);
+            const before = getDragonDB(), b = getDragonStrict('bobgold'), c = getDragonStrict('carol');
+            isBattleRunning = true;
+            playFightStart('bobgold', 'carol', true, {});
+            finishBattle(b, c, 50, 0, true);
+            endResultHold();
+            const after = getDragonDB();
+            return { gained: { bobgold: after.bobgold.xp - before.bobgold.xp, carol: after.carol.xp - before.carol.xp }, pct: ELEMENT_BASE.goldXp + getTierMultiplier(10).goldXpBonus };
+        });
+        const cutEv = (await events(e.page)).filter(x => x.type === 'fight')[2];
+        const cg = cutEv ? Object.fromEntries(cutEv.players.map(p => [p.name, p.got])) : {};
+        const adds = g => !!g && g.xp === g.base + g.underdog - g.cut + g.gold;
+        check(cutEv && cutEv.kind === 'ranked' && cutEv.winner === 'bobgold' && cutEv.players.map(p => p.level).join() === '10,6'
+            && cg.bobgold && cg.bobgold.base === 40 && cg.bobgold.underdog === 0 && cg.bobgold.cut === 20 && cg.bobgold.gold === Math.round(20 * (1 + cutRun.pct / 100)) - 20
+            && cg.bobgold.xp === cutRun.gained.bobgold && adds(cg.bobgold)
+            && cg.carol && cg.carol.base === 10 && cg.carol.underdog === 0 && cg.carol.cut === 0 && cg.carol.gold === 0 && cg.carol.xp === 10 && cg.carol.xp === cutRun.gained.carol && adds(cg.carol),
+            `a ranked win over a lower level (a Gold L10 beats an L6): the cut logged as its own field, and xp = base + underdog - cut + gold is what each save gained (@bobgold ${JSON.stringify(cg.bobgold)}, @carol ${JSON.stringify(cg.carol)})`,
+            JSON.stringify({ event: cutEv && cutEv.players, gained: cutRun.gained, pct: cutRun.pct }));
         check(!e.errors.length, 'no page errors', JSON.stringify(e.errors));
         await e.context.close();
 

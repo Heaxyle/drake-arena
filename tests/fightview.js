@@ -8,7 +8,8 @@
 //     an accepted duel waits until it ends; the owner's or a moderator's !старт ends it early (anyone else's is ignored),
 //     and further !старт are ignored for 5 s; the result tags: «Нокаут» after a KO, «Поразка» after a time-out, «Нічия»
 //   - Ranked play, through the chat simulator: the queue's longest wait fights first, against the closest level (a tie to
-//     whoever waited longer), in the order the "Далі в черзі" strip shows; an underdog's bonus XP on the result card;
+//     whoever waited longer), in the order the "Далі в черзі" strip shows; an underdog's bonus XP on the result card, and
+//     a favourite's cut (the floor's -30, and its longest text, a Gold winner's two digits on each side), nothing cut off;
 //     the Top by wins (then fewer losses, then level); a ranked fight against the streamer's White Dragon: no win or
 //     loss for either side, +10 XP for the viewer, and its result card says so
 //   - Every turn of several real fights: one card per attack in the attacker's column, the highlight on the attacker,
@@ -1344,7 +1345,7 @@ async function popAtStep2(page, turn) {
             await context.close();
         }
 
-        // ===== 11. Ranked play: queue order, underdog XP, the Top =====
+        // ===== 11. Ranked play: queue order, XP from the level gap, the Top =====
         console.log('\nRanked play');
         if (run(11)) for (const lang of ['uk', 'en']) {
             const tag = `[${lang}, ranked]`;
@@ -1383,7 +1384,7 @@ async function popAtStep2(page, turn) {
             await finish(); await hold();   // the qe–qf fight and its result screen are over
 
             // Underdog XP: L6 beats L10 in a ranked fight (the underdog can't lose: huge max HP for its element)
-            const rigged = async (win, wType, wLvl, lose, lType, lLvl) => {
+            const rigged = async (win, wType, wLvl, lose, lType, lLvl, shot = null) => {
                 await sim(win, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][wType]}`); await sim(lose, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][lType]}`);
                 await page.evaluate(([w, wl, l, ll, wt]) => { const db = getDragonDB(); const xpFor = n => { let x = 0; for (let i = 1; i < n; i++) x += getRequiredXP(i); return x; };
                     db[w].xp = xpFor(wl); db[w].level = wl; db[l].xp = xpFor(ll); db[l].level = ll; saveDragonDB(db);
@@ -1399,6 +1400,7 @@ async function popAtStep2(page, turn) {
                         names: [...document.querySelectorAll('#log-feed .log-result .lr-name')].map(n => n.textContent.replace('@', '')),
                         note: (document.querySelector('#log-feed .log-result .lr-note') || {}).textContent || null };
                 }, [win, lose]);
+                if (shot) await page.locator('#log-feed .log-result').screenshot({ path: path.join(SHOTS, shot) });
                 await page.evaluate(() => { window.getMaxHP = window.__maxHP; });
                 await hold();
                 const cellOf = n => out.cells[out.names.indexOf(n)];
@@ -1414,9 +1416,17 @@ async function popAtStep2(page, turn) {
             const g = Math.round(80 * (1 + pct / 100));
             check(u2.gained[0] === g && u2.win === cmd(lang, `+${g} XP (+40 за сильнішого суперника)`, `+${g} XP (+40 for a stronger opponent)`) && !u2.cut.length,
                 `${tag} a Gold L5 underdog beats L15: "${u2.win}" (+40 cap, Gold's +${pct}% on the whole 80), not cut off`, JSON.stringify(u2));
-            // A favourite winning gets no bonus
+            // A favourite gets 5 less per level, never below 10: L15 beats L5 → +10, and the card shows the cut before Gold and
+            // after the floor (-30, not -50)
             const u3 = await rigged('champ', 'black', 15, 'goldie', 'gold', 5);
-            check(u3.gained[0] === 40 && u3.win === '+40 XP', `${tag} a higher-level winner gets the usual "+40 XP", no bonus`, JSON.stringify(u3));
+            check(u3.gained[0] === 10 && u3.win === cmd(lang, '+10 XP (-30 за слабшого суперника)', '+10 XP (-30 for a weaker opponent)') && !u3.cut.length,
+                `${tag} an L15 favourite beats L5: "${u3.win}" (40 less 50 stops at the floor of 10, so the cut shows -30), not cut off`, JSON.stringify(u3));
+            // The cut's longest text, two digits on each side: a Gold L12 beats L10 (40 - 10, then Gold on the 30)
+            const u4 = await rigged('goldking', 'gold', 12, 'rival', 'blue', 10, `fightview-cut-result-${lang}.png`);
+            const pct12 = await page.evaluate(() => ELEMENT_BASE.goldXp + getTierMultiplier(12).goldXpBonus);
+            const g4 = Math.round(30 * (1 + pct12 / 100));
+            check(u4.gained.join() === `${g4},10` && u4.win === cmd(lang, `+${g4} XP (-10 за слабшого суперника)`, `+${g4} XP (-10 for a weaker opponent)`) && u4.lose === '+10 XP' && !u4.cut.length && u4.note === null,
+                `${tag} a Gold L12 beats L10: "${u4.win}" (Gold's +${pct12}% on 40 - 10), the loser "${u4.lose}", nothing cut off`, JSON.stringify(u4));
 
             // The Top: more wins first, then fewer losses, then the higher level
             const top = await page.evaluate(() => {
