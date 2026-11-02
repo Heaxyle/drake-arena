@@ -187,8 +187,8 @@
         /* The White Drake's scales (Луска Дракона): a steel segment at the VS end of the HP row, 4 px from the HP bar and 12 px
            from the HP number, with the HP bar's top, height and dark edge; the HP bar is 66 px shorter there, its outer end
            and the HP number where every card has them. Hits take the segment first, then HP: it empties from the VS side like
-           HP, its number (what's left) centred over the fill; broken (0) it turns red until Перекування or Удар ковадла fill
-           it back. Only on the White Drake's card while it shows a fight (.has-scales, cardScales) */
+           HP, its number (what's left) centred over the fill; broken (0) it turns red until the White Drake's own buff or
+           ultimate fills it back. Only on the White Drake's card while it shows a fight (.has-scales, cardScales) */
         .scale-seg { display: none; position: relative; flex: 0 0 62px; height: 20px; margin-left: -8px; align-items: center; justify-content: center; background: #1b2238; box-shadow: 0 0 0 2px var(--edge); overflow: hidden; }
         .fighter-card.has-scales .scale-seg { display: flex; }
         .scale-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(#cdd7e7, #9eacc6 50%, #75849f); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.38), inset 0 -2px 0 rgba(0, 0, 0, 0.28); transition: transform 0.3s ease; }
@@ -6770,7 +6770,7 @@ const ICONS_V2 = {
             return { now: max, max };
         }
         // The steel segment at the VS end of the HP row (.has-scales): its fill (what's left of the starting size) and number;
-        // red at 0, until Перекування or Удар ковадла fill it back
+        // red at 0, until the White Drake's own buff or ultimate fills it back
         function renderScaleSeg(prefix, sc) {
             const card = document.getElementById(`card-${prefix}`), fill = document.getElementById(`scales-${prefix}`), num = document.getElementById(`scale-text-${prefix}`);
             if (card && card.classList) card.classList.toggle('has-scales', !!sc);
