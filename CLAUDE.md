@@ -37,12 +37,13 @@ The root `index.html` only redirects to `showcase/index.html` (for GitHub Pages)
 
 ## Testing
 Tests are picked by what a change touches. CI runs the full set on every pull request and every push to `main`, so local runs cover only the affected areas. What to run locally:
-- Every change: `npm run test:banned-words`. Any change to `showcase/index.html`: also `npm run test:ui showcase`.
+- Every change: `npm run test:banned-words`.
 - Then the rows the change touches; for several areas, run every row they hit (`test:…` and `balance:…` are `npm run …`):
 
 | Change touches | Run |
 |---|---|
-| Docs, comments, README, review page | nothing more |
+| Any change to `showcase/index.html`, a comment too | the three quick checks, `test:banned-words`, `test:effects` and `test:ultimates` (about 11 s together), and `test:ui showcase` |
+| Docs, README, review page, comments outside `showcase/index.html` | nothing more |
 | Text on screen (replies, labels, names) | `test:layout`; `test:ui showcase` for chat replies |
 | Icons and art (`design/icons`, the V2 block, sprites) | `test:icons`, `test:layout`, `test:fightview` |
 | Layout and CSS | `test:layout`, `test:fightview`; `test:controls` for the demo controls |
