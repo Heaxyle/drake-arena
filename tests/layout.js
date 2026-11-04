@@ -13,6 +13,9 @@
 //   - the White Drake's scales, on both cards: a 62×20 steel segment at the VS end of the HP row, 4 px from the HP bar
 //     (66 px shorter; its outer end and the HP number where a viewer card has them) and 12 px from the HP number, its
 //     number centred inside; full, part-gone, broken and rebuilt (the sheet: layout-white-drake-scales.png)
+//   - the Top's titles, both languages: rows of every rarity a viewer can roll, the longest title of each, one with its own
+//     icon: each title and badge in its rarity's colour, the badge in its frame, the emblem and the level as ever, every
+//     row fitting (fitText, 9 px at the least) (layout-top-titles-<lang>.png)
 // Screenshots go to tests/screenshots/ (layout-*.png).
 //
 // Usage: npm run test:layout   (or node tests/layout.js)
@@ -468,6 +471,56 @@ function iconTally() {
         x2crisp: drawn(by('2'), 'pixelated'), x13smooth: drawn([...by('1'), ...by('3')], 'auto'), smooth: drawn(icons, 'auto'),
     };
 }
+// The Top's titles. In the page: seven rows at a two-digit level, the longest title of each rarity a viewer can roll (a Legendary
+// and a Meme title with their own icons instead), then what each row shows
+function fillTop() {
+    const lang = currentLang, T = id => TITLES_DB.find(x => x.id === id);
+    const longest = r => TITLES_DB.filter(x => x.rarity === r).sort((a, b) => b.name[lang].length - a.name[lang].length)[0];
+    const titles = [longest('common'), longest('uncommon'), longest('rare'), longest('epic'), T(176), longest('mythic'), T(194)];
+    let xp = 0; for (let l = 1; l < 19; l++) xp += getRequiredXP(l);
+    const db = getDragonDB();
+    titles.forEach((title, i) => {
+        const name = `top_${i}`;
+        db[name] = { name, color: '#8ab4f8', drakeObj: VIEWER_DRAKE_TYPES[i % VIEWER_DRAKE_TYPES.length], title, xp: xp + 1234, level: 19 };
+        playerLeaderboardStats[name] = { wins: 999 - i, losses: 888 };
+    });
+    saveDragonDB(db);
+    renderLeaderboard();
+    return titles.map(x => x.id);
+}
+function topRows(ids) {
+    const T = id => TITLES_DB.find(x => x.id === id), rgb = hex => `rgb(${[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`;
+    return ids.map((id, i) => {
+        const title = T(id), row = document.querySelector(`#leaderboard-list .lb-row[data-key="top_${i}"]`), sub = row && row.querySelector('.lb-sub'), span = sub && sub.querySelector('.lb-title');
+        if (!span) return { id, problem: 'no .lb-title in its row' };
+        const badge = span.querySelector('.px-badge'), frame = badge && badge.querySelector('.px-frame'), glyph = badge && badge.querySelector('.px-glyph');
+        const box = sub.getBoundingClientRect(), end = span.getBoundingClientRect(), rowBox = row.getBoundingClientRect(), first = sub.querySelector('img.px-icon');
+        return { id, rarity: title.rarity, want: rgb(RARITIES[title.rarity].color), colour: getComputedStyle(span).color, badgeColour: badge && getComputedStyle(badge).color,
+            frame: badge && badge.dataset.frame, frameIcon: frame && frame.dataset.icon, glyph: glyph && glyph.dataset.icon, wantGlyph: titleGlyph(title), own: titleOwnIcon(title),
+            name: __vt(span), wantName: `[${titleGlyph(title)}] ${title.name[currentLang]}`, level: __vt(sub).includes(`${currentLang === 'uk' ? 'Рівень' : 'Level'} 19`),
+            emblem: first && first.dataset.icon, wantEmblem: EMBLEMS[getDragonDB()[`top_${i}`].drakeObj.type],
+            font: parseFloat(getComputedStyle(sub).fontSize), fits: end.right <= box.right + 0.5 && box.right <= rowBox.right + 0.5, inside: end.bottom <= rowBox.bottom + 0.5 && end.top >= rowBox.top - 0.5 };
+    });
+}
+async function topTitles(browser, lang) {
+    const { page, context, errors } = await open(browser, { lang });
+    const ids = await page.evaluate(fillTop);
+    await settle(page);
+    const rows = await page.evaluate(topRows, ids);
+    const bad = rows.filter(r => r.problem || r.colour !== r.want || r.badgeColour !== r.want || r.frame !== r.rarity || r.frameIcon !== `frame-${r.rarity}` || r.glyph !== r.wantGlyph
+        || r.name !== r.wantName || !r.level || r.emblem !== r.wantEmblem || r.font < 9 || !r.fits || !r.inside);
+    const rarities = new Set(rows.map(r => r.rarity));
+    check(rows.length === 7 && !bad.length && rarities.size === 7 && rows.filter(r => r.own).length >= 2,
+        `[${lang}] the Top: each title and badge in its rarity's colour, the badge in its frame, the emblem and the level as ever, every row fitting (${[...rarities].join(', ')}; ${rows.filter(r => r.own).map(r => r.own).join(', ')} their own icons; smallest text ${Math.min(...rows.map(r => r.font))} px)`,
+        JSON.stringify(bad.slice(0, 3)));
+    const problems = await page.evaluate(layoutProblems);
+    check(!problems.length, `[${lang}] the Top's rows break nothing else on the overlay`, problems.slice(0, 4).join(' | '));
+    await iconCheck(page, `layout-top-titles-${lang}`);
+    await page.locator('#top-panel').screenshot({ path: path.join(SHOTS, `layout-top-titles-${lang}.png`) });
+    if (errors.length) fail(`page errors in the Top: ${errors.slice(0, 3).join(' | ')}`);
+    await context.close();
+}
+
 async function iconLoopsAndStills(browser) {
     {
         const { page, context, errors } = await open(browser, { lang: 'uk' });   // opened under prefers-reduced-motion
@@ -517,6 +570,9 @@ async function iconLoopsAndStills(browser) {
 
         console.log('\nThe V2 icons: loops, stills, the display rule');
         await iconLoopsAndStills(browser);
+
+        console.log("\nThe Top's titles");
+        for (const lang of ['uk', 'en']) await topTitles(browser, lang);
 
         console.log('\nStartup: nothing from the network but Twitch chat');
         await startupNetwork(browser);

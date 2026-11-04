@@ -84,28 +84,30 @@ Batch 4: «ГОТОВО» shows the drake's own ultimate icon (style.md).
 ## 3. Log notes (fight view, `FV_TEXT` and `fvCardHtml`)
 
 All in log line 2 chips (12 px, compact = the icon, `fvIcon` takes the first word), except where noted. The glyphs that replace
-them (batch 2) are in style.md, "The second batch"; Quantum Dodge, which shows the block note today, gets one of its own.
+them (batch 2) are in style.md, "The second batch"; Quantum Dodge, which shows the block note today, gets one of its own. A
+note a title's ability fires shows that title's own icon, with the ability's words, for the fighter holding it (section 5;
+`fvNoteGlyph`); the pair title keeps the note's glyph.
 
 | Note | Emoji | Meaning | Where else that emoji shows |
 |---|---|---|---|
 | crit | 💥 | the hit is a crit (`.lc-critchip`, line 1, 12 px) | `!стата` crit chance; title 93 |
-| block | 🚫 | Black's ultra-block or Quantum Dodge stopped the hit | — |
-| immune | 🐉 | debuff immunity (Absolute Drake / the Dragon) | White Dragon emblem, titles 92/98, `noRecord`, «drake created» |
+| block | 🚫 | Black's ultra-block or Quantum Dodge stopped the hit (Quantum Dodge's note: title 99; title 179 shows its own icon, `lagGhost`) | — |
+| immune | 🐉 | debuff immunity (Absolute Drake / the Dragon; title 178 shows its own icon, `zenLotus`) | White Dragon emblem, titles 92/98, `noRecord`, «drake created» |
 | sovereign | 👑 | the White Dragon's passive dissolves the attack | wrath, title 999, title 86, streamer card |
 | wrath | 👑 | the White Dragon's «aether wrath» | sovereign (same emoji, a different event) |
-| pierce | ⚡ | armour-piercing (sneaky attacks, Superbrain) | chaos, titles 82/100/169 |
-| chaos | ⚡ | Chaos Creator's explosion (keeps its word when compact) | pierce |
+| pierce | ⚡ | armour-piercing (every sneaky attack, so it keeps its spear for everyone, title 97's holder too) | chaos, titles 82/100/169 |
+| chaos | ⚡ | Chaos Creator's explosion (keeps its word when compact; title 180 shows its own icon, `chaosFirework`) | pierce |
 | unblockable | (none, a word) | Firestorm / Divine Might can't be blocked | with Divine: «🌟 не блокується» |
 | reflect | 🟦 | Blue's reflect, «🟦 відбиває -n» | Blue drake emblem |
 | fortune | 🟨 | Gold's Fortune: leaves 1 HP | Gold drake emblem |
-| thorns | 🌵 | thorns damage back | title 183 |
-| lifesteal | 🧛 | title lifesteal heal | vampire attack type, title 185 |
+| thorns | 🌵 | thorns damage back (title 184 shows its own icon, `grumpyHedgehog`) | title 183 |
+| lifesteal | 🧛 | title lifesteal heal (title 186; title 185 shows its own icon, `energyVampire`) | vampire attack type, title 185 |
 | vampire heal | 🩸 | a vampire attack's heal, «🩸 +19» | — |
-| execute | ⚰️ | Executioner's bonus | title 187 |
-| coin | 🪙 | Heads or Tails, «🪙 ×1.5» | Jackpot reel, title 189 |
-| sleep | 😴 | Fell Asleep: the attack did nothing | titles 49, 191 |
-| guardian | 👼 | Guardian Angel's heal | title 96 |
-| cat | 🐈 | the cat walked on the keyboard | title 193 |
+| execute | ⚰️ | Executioner's bonus (title 188 shows its own icon, `lowHpSkull`) | title 187 |
+| coin | 🪙 | Heads or Tails, «🪙 ×1.5» (title 190 shows its own icon, `schrodPotato`) | Jackpot reel, title 189 |
+| sleep | 😴 | Fell Asleep: the attack did nothing (title 192 shows its own icon, `berserkSloth`) | titles 49, 191 |
+| guardian | 👼 | Guardian Angel's heal (title 176 shows its own icon, `modShield`) | title 96 |
+| cat | 🐈 | the cat walked on the keyboard (title 194 shows its own icon, `spaghettiCode`, and says «баг» / "bug") | title 193 |
 | mirror | 💠 | Ice Mirror absorbed part of the hit, «💠 30 → 20» | the ultimate |
 | sudden death | 💀 | «💀 ×1.6» on every hit from turn 16; the banner | KO, Jackpot skull, losses in `!стата` |
 | KO cell | 💀 | «💀 @x вибуває» (`.lc-cell.ko`, 14 px) | as above |
@@ -119,7 +121,7 @@ them (batch 2) are in style.md, "The second batch"; Quantum Dodge, which shows t
 | draw | 🤝 | result title, plate | friendly duel |
 | level up | ⬆️ | result card | — |
 | new turns | ↓ | the scroll pill (a character, not an emoji) | — |
-| opening buff | 🌅 | (hidden `addLog` only; the banner uses the title's own icon) | title 181 |
+| opening buff | 🌅 | (hidden `addLog` only; the banner uses the title's badge: title 182's own icon, `firstCoffee`) | title 181 |
 
 ## 4. Attack types (`ATTACK_ICONS`) and weights
 
@@ -137,11 +139,11 @@ The weights (light, heavy, sneaky) have no emoji today. Sneaky shows as the pier
 
 ## 5. Titles (`TITLES_DB`)
 
-The title icon shows in the fighter card's badge (13 px), the Top's sub-line (12 px), the streamer card (12 px), `!стата` and
+The title icon shows in the fighter card's badge (13 px), the Top's sub-line (12 px, in its rarity frame and colour), the streamer card (12 px), `!стата` and
 roulette info cards (13–14 px), the opening-buff banner (13 px). Roulette results add a line by rarity: 🌟 legendary,
 🔥 mythic, 🤪 meme, in the hidden text record only (`addLog`); on screen the roll card glows instead. The rarity is shown by colour today (`RARITIES[r].color`, the `.rarity-tag`).
 
-195 titles: 80 common, 30 uncommon, 40 rare, 20 epic, 10 legendary, 8 mythic, 6 meme, 1 divine (999, the White Dragon's).
+196 titles: 80 common, 30 uncommon, 40 rare, 20 epic, 10 legendary, 8 mythic, 6 meme, 2 divine (998, the White Drake's; 999, the White Dragon's).
 Common to epic are stat titles, legendary to divine have a mechanic (`MECH`).
 
 Emoji shared by more than one title today: 📦 1, 144 · 🛋️ 3, 39, 47 · 🥱 6, 21, 143 · 🛜 9, 85 · 🐱 10, 57 · 🖱️ 14, 66, 72, 73 ·
@@ -150,10 +152,12 @@ Emoji shared by more than one title today: 📦 1, 144 · 🛋️ 3, 39, 47 · �
 🥔 136, 190 · ⌨️ 63, 105 · 🎲 91, 115 · 🃏 61, 68 · 🏆 67, 94 · 👻 69, 179 · 🛡️ 76, 151, 176 · ⚡ 82, 100, 169 · 👑 86, 999 · 🐉 92, 98.
 Several of these pair titles with different bonuses (☕ 20 is HP, 95 HP, 182 the opening buff), so today the emoji tells nothing.
 
-"Proposed icon" follows style.md: every title shows what it gives in its rarity frame: its mechanic (legendary, mythic, meme:
-the same glyph as the mechanic's log note), otherwise its biggest stat bonus. Only the divine title (and, later, the White
-Drake's «Біла сталь») has an icon of its own. The "main bonus" is the stat with the biggest share of the title's value; crit
-and crit power count as one (crit).
+"Proposed icon" follows style.md: every title shows what it gives in its rarity frame: its own icon if it has one, else its
+mechanic (legendary, mythic, meme: the same glyph as the mechanic's log note), otherwise its biggest stat bonus. Legendary,
+Mythic and Meme titles get icons of their own, one per title, never shared; 12 have theirs so far (one of each pair; the rows
+say "own icon: <id>" and what it shows), and until a title has one its badge is its ability's glyph. «Біла сталь» has its
+own too; the Sovereign keeps its crown, its ability's glyph. `design/icons/test.js` reads these rows. The "main bonus" is
+the stat with the biggest share of the title's value; crit and crit power count as one (crit).
 
 | id | rarity | now | name (uk / en) | gives | proposed icon |
 |---|---|---|---|---|---|
@@ -328,30 +332,31 @@ and crit power count as one (crit).
 | 174 | epic | 🦖 | Динозавр чату / Chat Dinosaur | buff power +40%, effect chance +12% | bonus: buff power |
 | 175 | epic | 🦇 | Нічний вампір стріму / Stream Night Vampire | crit +12%, crit power +0.28 | bonus: crit |
 | 96 | legendary | 👼 | Ангел-охоронець стрімера / Streamer Guardian Angel | guardian_shield + HP +12 | mechanic: guardian (heal at low HP) |
-| 97 | legendary | 🧠 | Надмозок всесвіту / Universal Superbrain | armor_piercer + crit power +0.5 | mechanic: pierce |
+| 97 | legendary | 🧠 | Надмозок всесвіту / Universal Superbrain | armor_piercer + crit power +0.5 | own icon: bigBrain (a violet brain with a little galaxy in it; stars twinkle, a moon orbits) |
 | 98 | legendary | 🐉 | Абсолютний Дрейк / Absolute Drake | debuff_immunity + HP +15 | mechanic: immune |
 | 99 | legendary | 🌀 | Володар матриці / Matrix Lord | quantum_dodge + HP +16 | mechanic: dodge |
 | 100 | legendary | ⚡ | Творець хаосу / Chaos Creator | chaotic_charge + effect chance +15% | mechanic: chaos |
-| 176 | legendary | 🛡️ | Незламний модератор / Unbreakable Moderator | guardian_shield + HP +12 | mechanic: guardian (heal at low HP) |
+| 176 | legendary | 🛡️ | Незламний модератор / Unbreakable Moderator | guardian_shield + HP +12 | own icon: modShield (a shield with the moderator's sword across it; a glint runs down the blade) |
 | 177 | legendary | 📜 | Той, хто прочитав патчноут / Read the Patch Notes | armor_piercer + crit power +0.5 | mechanic: pierce |
-| 178 | legendary | 🧘 | Дзен при 1 HP / Zen at 1 HP | debuff_immunity + HP +15 | mechanic: immune |
-| 179 | legendary | 👻 | Привид лагу / Lag Ghost | quantum_dodge + HP +16 | mechanic: dodge |
-| 180 | legendary | 🎆 | Феєрверк хаосу / Chaos Fireworks | chaotic_charge + effect chance +15% | mechanic: chaos |
+| 178 | legendary | 🧘 | Дзен при 1 HP / Zen at 1 HP | debuff_immunity + HP +15 | own icon: zenLotus (a lotus, one tiny heart floating above it, bobbing) |
+| 179 | legendary | 👻 | Привид лагу / Lag Ghost | quantum_dodge + HP +16 | own icon: lagGhost (a pixel ghost that stutters like lag, a ping meter beside it) |
+| 180 | legendary | 🎆 | Феєрверк хаосу / Chaos Fireworks | chaotic_charge + effect chance +15% | own icon: chaosFirework (a rocket climbs and bursts into sparks that fade) |
 | 181 | mythic | 🌅 | Прокинувся в ударі / Woke Up Swinging | opening_buff + HP +20, effect chance +10%, HP/level +1.1 | mechanic: opening buff |
-| 182 | mythic | ☕ | Перша кава дня / First Coffee of the Day | opening_buff + HP +20, effect chance +10%, HP/level +1.1 | mechanic: opening buff |
+| 182 | mythic | ☕ | Перша кава дня / First Coffee of the Day | opening_buff + HP +20, effect chance +10%, HP/level +1.1 | own icon: firstCoffee (a mug of coffee, steam curling; once a loop a lightning bolt jumps out) |
 | 183 | mythic | 🌵 | Кактус з характером / Cactus With Attitude | thorns + HP +15, HP/level +1.1 | mechanic: thorns |
-| 184 | mythic | 🦔 | Їжак-ображака / Grumpy Hedgehog | thorns + HP +15, HP/level +1.1 | mechanic: thorns |
-| 185 | mythic | 🧛 | Енергетичний вампір / Energy Vampire | lifesteal + HP +15, crit +8%, HP/level +1.1 | mechanic: lifesteal |
+| 184 | mythic | 🦔 | Їжак-ображака / Grumpy Hedgehog | thorns + HP +15, HP/level +1.1 | own icon: grumpyHedgehog (a hedgehog with an apple on its spines; it huffs, the spines bristle, the apple hops) |
+| 185 | mythic | 🧛 | Енергетичний вампір / Energy Vampire | lifesteal + HP +15, crit +8%, HP/level +1.1 | own icon: energyVampire (a battery with a bite out of it, its charge draining bar by bar) |
 | 186 | mythic | 🍷 | Граф Дракула чату / Count Dracula of Chat | lifesteal + HP +15, crit +8%, HP/level +1.1 | mechanic: lifesteal |
 | 187 | mythic | ⚰️ | Добивач на 1 HP / 1 HP Finisher | executioner + crit +12%, HP +20, HP/level +1.1 | mechanic: execute |
-| 188 | mythic | 🪓 | Кат лоу-хп / Low-HP Executioner | executioner + crit +12%, HP +20, HP/level +1.1 | mechanic: execute |
+| 188 | mythic | 🪓 | Кат лоу-хп / Low-HP Executioner | executioner + crit +12%, HP +20, HP/level +1.1 | own icon: lowHpSkull (a skull over an almost empty HP bar, the last sliver blinking) |
 | 189 | meme | 🪙 | Герб чи число / Heads or Tails | coin_flip + HP +20 | mechanic: coin flip |
-| 190 | meme | 🥔 | Картопля Шредінгера / Schrödinger's Potato | coin_flip + HP +20 | mechanic: coin flip |
+| 190 | meme | 🥔 | Картопля Шредінгера / Schrödinger's Potato | coin_flip + HP +20 | own icon: schrodPotato (a box whose lid flips open: once a potato, once a «?») |
 | 191 | meme | 😴 | Заснув на стрімі / Fell Asleep on Stream | sleepy + HP +5 | mechanic: sleep |
-| 192 | meme | 🦥 | Лінивець-берсерк / Berserk Sloth | sleepy + HP +5 | mechanic: sleep |
+| 192 | meme | 🦥 | Лінивець-берсерк / Berserk Sloth | sleepy + HP +5 | own icon: berserkSloth (a sloth in a red headband dozing, then snapping awake, furious) |
 | 193 | meme | 🐈 | Кіт пройшовся по клавіатурі / Cat Walked on the Keyboard | cat_keyboard + HP +18 | mechanic: cat |
-| 194 | meme | 🍝 | Код-спагеті / Spaghetti Code | cat_keyboard + HP +18 | mechanic: cat |
-| 999 | divine | 👑 | Владика Етеру / Sovereign of the Aether | streamer_god | own icon (the Sovereign of the Aether) |
+| 194 | meme | 🍝 | Код-спагеті / Spaghetti Code | cat_keyboard + HP +18 | own icon: spaghettiCode (spaghetti on a plate in a terminal window; steam rises, the «>_» prompt blinks) |
+| 998 | divine | 👑 | Біла сталь / White Steel | defence +12%, HP +10 | own icon: whiteSteel (an upright sword in white steel, a green gem in the guard) |
+| 999 | divine | 👑 | Владика Етеру / Sovereign of the Aether | streamer_god | mechanic: sovereign (its crown) |
 
 ## 6. Rarities (`RARITIES`)
 

@@ -815,6 +815,150 @@
   "still": "icons/note/whiteSteel.png",
   "anim": "icons/note/whiteSteel-anim.png"
  },
+ "modShield": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Незламний модератор",
+   "en": "Unbreakable Moderator"
+  },
+  "still": "icons/note/modShield.png",
+  "anim": "icons/note/modShield-anim.png"
+ },
+ "bigBrain": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Надмозок всесвіту",
+   "en": "Universal Superbrain"
+  },
+  "still": "icons/note/bigBrain.png",
+  "anim": "icons/note/bigBrain-anim.png"
+ },
+ "zenLotus": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 120,
+  "name": {
+   "uk": "Дзен при 1 HP",
+   "en": "Zen at 1 HP"
+  },
+  "still": "icons/note/zenLotus.png",
+  "anim": "icons/note/zenLotus-anim.png"
+ },
+ "lagGhost": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Привид лагу",
+   "en": "Lag Ghost"
+  },
+  "still": "icons/note/lagGhost.png",
+  "anim": "icons/note/lagGhost-anim.png"
+ },
+ "chaosFirework": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Феєрверк хаосу",
+   "en": "Chaos Fireworks"
+  },
+  "still": "icons/note/chaosFirework.png",
+  "anim": "icons/note/chaosFirework-anim.png"
+ },
+ "firstCoffee": {
+  "kind": "note",
+  "size": 40,
+  "frames": 24,
+  "ms": 90,
+  "name": {
+   "uk": "Перша кава дня",
+   "en": "First Coffee of the Day"
+  },
+  "still": "icons/note/firstCoffee.png",
+  "anim": "icons/note/firstCoffee-anim.png"
+ },
+ "grumpyHedgehog": {
+  "kind": "note",
+  "size": 40,
+  "frames": 16,
+  "ms": 100,
+  "name": {
+   "uk": "Їжак-ображака",
+   "en": "Grumpy Hedgehog"
+  },
+  "still": "icons/note/grumpyHedgehog.png",
+  "anim": "icons/note/grumpyHedgehog-anim.png"
+ },
+ "energyVampire": {
+  "kind": "note",
+  "size": 40,
+  "frames": 16,
+  "ms": 110,
+  "name": {
+   "uk": "Енергетичний вампір",
+   "en": "Energy Vampire"
+  },
+  "still": "icons/note/energyVampire.png",
+  "anim": "icons/note/energyVampire-anim.png"
+ },
+ "lowHpSkull": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Кат лоу-хп",
+   "en": "Low-HP Executioner"
+  },
+  "still": "icons/note/lowHpSkull.png",
+  "anim": "icons/note/lowHpSkull-anim.png"
+ },
+ "schrodPotato": {
+  "kind": "note",
+  "size": 40,
+  "frames": 24,
+  "ms": 100,
+  "name": {
+   "uk": "Картопля Шредінгера",
+   "en": "Schrödinger's Potato"
+  },
+  "still": "icons/note/schrodPotato.png",
+  "anim": "icons/note/schrodPotato-anim.png"
+ },
+ "berserkSloth": {
+  "kind": "note",
+  "size": 40,
+  "frames": 24,
+  "ms": 100,
+  "name": {
+   "uk": "Лінивець-берсерк",
+   "en": "Berserk Sloth"
+  },
+  "still": "icons/note/berserkSloth.png",
+  "anim": "icons/note/berserkSloth-anim.png"
+ },
+ "spaghettiCode": {
+  "kind": "note",
+  "size": 40,
+  "frames": 16,
+  "ms": 100,
+  "name": {
+   "uk": "Код-спагеті",
+   "en": "Spaghetti Code"
+  },
+  "still": "icons/note/spaghettiCode.png",
+  "anim": "icons/note/spaghettiCode-anim.png"
+ },
  "ranked": {
   "kind": "ui",
   "size": 40,

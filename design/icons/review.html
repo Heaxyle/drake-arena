@@ -350,9 +350,13 @@
     <section>
         <h2>8 · TITLE BADGES</h2>
         <div class="titles" id="titles"></div>
-        <div class="note">Each mechanic is shared by two titles of the same rarity. Today the two show different emoji; here both show the mechanic's note glyph in the
-            rarity frame (legendary solid gold, mythic solid red with gold corners and a gem, meme dotted), and the log note (last column) is the same glyph, bare.
-            ×2 on the fighter card's badge (24 px: the badge grows from ~21 to 26 px). In the Top the frame is left out: the bare glyph at ×1 (10 px).</div>
+        <div class="note">Each mechanic is on two titles of the same rarity. Twelve titles have an icon of their own, one per title, never shared: it's their badge in the
+            rarity frame (legendary solid gold, mythic solid red with gold corners and a gem, meme dotted) and the icon on the note their ability fires. The other title of
+            each pair shows the mechanic's note glyph, and its log note (last column) is the same glyph, bare. ×2 on the fighter card's badge (24 px: the badge grows from
+            ~21 to 26 px). In the Top the title is in its rarity's colour, its badge in the frame at ×1 (12 px).</div>
+        <div style="height: 14px"></div>
+        <div class="titles" id="titles-own" style="grid-template-columns: 300px 60px 60px 80px 240px 240px"></div>
+        <div class="note">The twelve titles' own icons: each one's still and loop at 1:1, its badge at ×2, then the note its ability fires for this title's holder (the title's icon, the ability's words) and for the pair title's (the ability's glyph). «Надмозок всесвіту» has no note of its own: «крізь броню» marks every sneaky attack, so it keeps its spear for everyone, this title's holder too. «Перша кава дня» has no note either: the opening banner shows its badge. «Код-спагеті» says «баг» instead of «кіт».</div>
         <div style="height: 14px"></div>
         <div class="titles" id="titles-bonus" style="grid-template-columns: 150px 330px 330px 330px 330px"></div>
         <div class="note">Every rarity's frame, in order: common to epic carry the bonus glyphs (crit's is the crit note), divine its own crown.</div>
@@ -370,7 +374,7 @@
             <div><div class="col-h">NOW · EMOJI</div><div class="inplace" id="b3-old"></div></div>
             <div><div class="col-h">NEW · PIXEL ICONS</div><div class="inplace" id="b3-new"></div></div>
         </div>
-        <div class="note">The arena plate (15 px), the log banners, Jackpot's reels, the result card, the Top (medals ×2 next to the name, the title's bare glyph ×1), the
+        <div class="note">The arena plate (15 px), the log banners, Jackpot's reels, the result card, the Top (medals ×2 next to the name, the title in its rarity's colour with its framed badge ×1), the
             podium (medals ×3), the !стата card (×1) and the Hall of Fame (×2). 1st place is one icon everywhere: the gold medal. Chat replies (⚠️ ℹ️ 🛑 ❌ ✅ 👋 ⌛ 🤡 …)
             are left without an icon: the card's tone says ok, warning or note.</div>
     </section>
@@ -691,13 +695,24 @@
         ];
         const col = r => D.RARITY_COLORS[r];
         const old = (r, t) => `<span class="tbadge" style="color:${col(r)}">${t[1]} ${t[2]}</span>`;
-        const neu = (r, id, t) => `<span class="tbadge px" style="color:${col(r)}">${badge(id, r, 2)}${t[2]}</span>`;
+        const ownOf = t => D.TITLE_ICON_IDS.find(k => D.ICONS[k].title === t[0]);   // a title's own icon, if it has one
+        const neu = (r, id, t) => `<span class="tbadge px" style="color:${col(r)}">${badge(ownOf(t) || id, r, 2)}${t[2]}</span>`;
         let h = '<span class="th">MECHANIC</span><span class="th">NOW · TITLE A</span><span class="th">NOW · TITLE B</span><span class="th">NEW · TITLE A</span><span class="th">NEW · TITLE B</span><span class="th">NOTE</span>';
         T.forEach(([r, id, a, b]) => {
             h += `<div class="f-h">${D.ICONS[id].name.en} · <span style="color:${col(r)}">${r}</span></div>${old(r, a)}${old(r, b)}${neu(r, id, a)}${neu(r, id, b)}<span>${img(id, 2)}</span>`;
         });
-        h += `<div class="f-h">In the Top (×1, bare)</div><span class="lbsub">Рівень 14 · 🌵 Кактус з характером</span><span></span><span class="lbsub">Рівень 14 · ${img('thorns', 1)} Кактус з характером</span><span></span><span></span>`;
+        h += `<div class="f-h">In the Top (×1, in its frame)</div><span class="lbsub">Рівень 14 · 🌵 Кактус з характером</span><span></span><span class="lbsub">Рівень 14 · <span style="color:${col('mythic')}">${badge('thorns', 'mythic', 1)} Кактус з характером</span></span><span></span><span></span>`;
         $('titles').innerHTML = h;
+        // The twelve own icons: the still and the loop 1:1, the badge ×2, the note for this title's holder and for the pair title's
+        const WORDS = { guardian: 'ангел-охоронець +31', immune: 'імунітет', dodge: 'ухил', chaos: 'хаос', thorns: 'шипи -6', lifesteal: 'титул +9', execute: 'добивання', coin: '×1.5', sleep: 'проспав хід', cat: 'кіт' };
+        const chip = (icon, words) => `<span class="lk px note">${img(icon, 2)}${words}</span>`;
+        let o = '<span class="th">TITLE</span><span class="th">STILL</span><span class="th">LOOP</span><span class="th">BADGE</span><span class="th">ITS NOTE</span><span class="th">THE PAIR\'S NOTE</span>';
+        T.forEach(([r, id, a, b]) => [a, b].filter(ownOf).forEach(t => {
+            const own = ownOf(t), pair = t === a ? b : a, words = WORDS[id];
+            o += `<div class="f-h">${t[0]} · <span style="color:${col(r)}">${t[2]}</span></div><span>${v2Img(own, 4, 'px-icon', '', 'still')}</span><span>${v2Img(own, 4, 'px-icon', '', 'anim')}</span><span>${badge(own, r, 2)}</span>`
+                + (words ? `<span>${chip(own, own === 'spaghettiCode' ? 'баг' : words)}</span><span>${chip(id, words)}</span>` : `<span>${id === 'pierce' ? chip('pierce', 'крізь броню') : 'its banner shows the badge'}</span><span>${id === 'pierce' ? chip('pierce', 'крізь броню') : ''}</span>`);
+        }));
+        $('titles-own').innerHTML = o;
     }
 
     // 8b · Every rarity's frame: common to epic with the bonus glyphs, legendary to meme with a mechanic, divine its crown
@@ -746,11 +761,12 @@
         parts.push(`<div class="ip-h">JACKPOT'S REELS</div><div class="ip-row ip-log">${reels}</div>`);
         parts.push(`<div class="ip-h">RESULT CARD</div><div class="mresult"><div class="mr-t">${I('victory')} НОКАУТ · ${who('nightowl_ua', BLUE)} перемагає за 14 ходів</div>
             <div class="mr-r">${I('levelup')} Новий рівень · ${who('nightowl_ua', BLUE)} досягає 15-го рівня</div><div class="mr-r">${I('xp')} +52 досвід · ${I('xp')} +18 за сильнішого суперника</div></div>`);
+        const topTitle = (id, rarity, name) => `<span style="color:${D.RARITY_COLORS[rarity]}">${badge(id, rarity, 1)} ${name}</span>`;   // the Top: the rarity's colour, the badge in its frame
         const lb = (rank, name, c, medal, lvl, title, rec) => `<div class="mlb"><span class="mlb-r">${rank}</span><div class="mlb-id"><span class="mlb-n" style="color:${c}">@${name}${medal ? ` ${medal}` : ''}</span><span class="lbsub">Рівень ${lvl} · ${title}</span></div><span class="mlb-w">${rec}</span></div>`;
         parts.push(`<div class="ip-h">THE TOP</div><div class="mlbs">
-            ${lb(1, 'nightowl_ua', BLUE, px ? img('medalGold') : '🏆', 18, px ? `${img('immune', 1)} Абсолютний Дрейк` : '🐉 Абсолютний Дрейк', '24 – 6')}
-            ${lb(2, 'arcane_kit', '#b197fc', px ? img('medalSilver') : '🥈', 16, px ? `${img('thorns', 1)} Кактус з характером` : '🌵 Кактус з характером', '19 – 8')}
-            ${lb(3, 'goldfinch', '#ffd43b', px ? img('medalBronze') : '🥉', 15, px ? `${img('crit', 1)} Володар донатів` : '💸 Володар донатів', '17 – 9')}</div>`);
+            ${lb(1, 'nightowl_ua', BLUE, px ? img('medalGold') : '🏆', 18, px ? topTitle('immune', 'legendary', 'Абсолютний Дрейк') : '🐉 Абсолютний Дрейк', '24 – 6')}
+            ${lb(2, 'arcane_kit', '#b197fc', px ? img('medalSilver') : '🥈', 16, px ? topTitle('thorns', 'mythic', 'Кактус з характером') : '🌵 Кактус з характером', '19 – 8')}
+            ${lb(3, 'goldfinch', '#ffd43b', px ? img('medalBronze') : '🥉', 15, px ? topTitle('crit', 'rare', 'Володар донатів') : '💸 Володар донатів', '17 – 9')}</div>`);
         parts.push(`<div class="ip-h">PODIUM</div><div class="ip-row mpod">${[2, 1, 3].map(n => `<div class="mpd">${px ? img(['medalGold', 'medalSilver', 'medalBronze'][n - 1], 3) : `<span style="font-size:24px">${['🥇', '🥈', '🥉'][n - 1]}</span>`}<span class="mpd-n">${n}</span></div>`).join('')}</div>`);
         parts.push(`<div class="ip-h">!СТАТА</div><div class="minfo"><div class="mi-h">${I('stats', 1)} @nightowl_ua ${I('medalGold', 1)}</div>
             <div class="mi-r">${I('hp', 1)} 184 HP · ${I('crit', 1)} 21% (x1.6) · ${I('defence', 1)} 14% · 24 / 6</div><div class="mi-r">${I('medalGold', 1)}×1 ${I('medalSilver', 1)}×0 ${I('medalBronze', 1)}×2 · ${I('ticket', 1)} Безкоштовні прокрути титулу: 1</div></div>`);

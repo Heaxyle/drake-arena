@@ -401,6 +401,15 @@ const MUTATIONS = [
         "if (b.mechanic) { const id =", "if (false) { const id ="],
     ['the page\'s icon block edited by hand', "the page's copy of icons.js no longer matches design/icons/icons.js",
         '    const SIZES = { buff: 10, debuff: 10, ultimate: 12,', '    const SIZES = { buff: 10, debuff: 10, ultimate: 11,'],
+    // The titles' own icons (design/icons/test.js)
+    ['the own-icon lookup gone', 'no title finds its own icon: every badge is its ability\'s glyph or its bonus\'s, «Біла сталь»\'s too',
+        'const titleOwnIcon = title => (title && title.id !== undefined && Object.keys(DrakeIcons.ICONS).find(k => DrakeIcons.ICONS[k].title === title.id)) || null;', 'const titleOwnIcon = title => null;'],
+    ['an own-icon title\'s note on the ability\'s glyph', 'the note a title with its own icon fires shows the ability\'s glyph, not the title\'s icon',
+        'return own && ability && ability === titleMechanic(who) ? own : key;', 'return key;'],
+    ['194\'s words back to «кіт»', 'Код-спагеті\'s note says «кіт» / "cat" like the pair title\'s, not «баг» / "bug"',
+        "const FV_TITLE_WORDS = { 194: { cat: 'bug' } };", 'const FV_TITLE_WORDS = {};'],
+    ['the Top\'s bare glyph back', 'a Top row shows the bare glyph again, not the badge in its rarity frame',
+        '${titleIcon(d.title, 1, true)} ${d.title.name[currentLang]}', '${titleIcon(d.title, 1, false)} ${d.title.name[currentLang]}'],
     // Ranked win XP from the level gap (caught by rules.js)
     ['no floor under a win', 'beating a much lower level can give less than a loss (L18 beating L1: 40 − 85, not 10)',
         'return Math.min(WIN_XP - WIN_XP_MIN, UNDERDOG_XP_PER_LEVEL * Math.max(0, winnerLevel - loserLevel));', 'return UNDERDOG_XP_PER_LEVEL * Math.max(0, winnerLevel - loserLevel);'],

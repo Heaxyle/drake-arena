@@ -36,6 +36,11 @@
 //   - Icons that don't change keep their elements (a new <img> restarts its image's loop): marked at turn 1, the cards',
 //     the plate's, the fight type's, the title plate's, the Top's, the queue's, the log's and the chat cards' icons are the
 //     same elements three turns later; a new chip and another title's badge are new elements, the rest stay
+//   - The notes a title fires, on painted cards in both languages: for each note, the holder of an own-icon title gets that
+//     icon, in the full chip and the compact one, with the ability's words, and the pair title's holder the ability's glyph,
+//     with either title on the other fighter; 194's card says «баг» / "bug"; a sneaky attack by 97's holder keeps the spear;
+//     the White Dragon's immunity keeps the immune glyph; the opening banner for 182 shows firstCoffee; a crowded card shows
+//     every item, no two alike; two real fights, the own-icon titles and then their pairs
 //   - Review screenshots: tests/screenshots/fightview-cards.png (log cards of every kind, both languages) and
 //     tests/screenshots/fightview-turn.png (countdowns, the turn steps, an ultimate, the result, both languages)
 //
@@ -53,7 +58,7 @@ const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
 const TURN = 4500, HIT = 600;
-// FV_ONLY=2,4 runs only those sections (0–12, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
+// FV_ONLY=2,4 runs only those sections (0–14, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
 const ONLY = (process.env.FV_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
 
@@ -73,7 +78,7 @@ async function open(browser, { lang = 'uk', betting = false, width = 1920, heigh
     await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
     await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));
     await page.addInitScript(pageInit, SEED);
-    await page.addInitScript({ content: [busiestRecs, cardShowsAll].map(f => `window.${f.name} = ${f};`).join('\n') });   // page-side helpers (below)
+    await page.addInitScript({ content: [busiestRecs, cardShowsAll, titleNoteCases].map(f => `window.${f.name} = ${f};`).join('\n') });   // page-side helpers (below)
     if (betting) await page.addInitScript(() => localStorage.setItem('drake_arena_showcase_betting', '1'));
     await page.goto(`${PAGE}?lang=${lang}`);
     await page.evaluate(() => document.fonts.ready);
@@ -224,6 +229,65 @@ function cardShowsAll(el, rec, side, lang) {
     return { out, got, lines: fvLineCount(l2), compact, wrap };
 }
 
+// The notes a title fires, painted (page side). Each case: a note, its ability's own-icon title and pair, whose title fires it
+// and the turn that shows it. Each title is drawn on the side that fires with the other on the far side, so a note reading
+// the wrong fighter's title shows it. Read as the card shows it: the chip in full, then squeezed by fvFitLine (a note in a
+// lower-priority group takes its compact form; what the attack did never does, so its data-ci says what that form would be)
+function titleNoteCases() {
+    const T = id => TITLES_DB.find(x => x.id === id);
+    const mk = (name, id, type = 'red') => ({ name, color: '#ff7f50', drakeObj: DRAKE_TYPES.find(d => d.type === type), title: T(id) });
+    const hit = more => Object.assign({ type: 'physical', sub: 'light', dmg: 20, crit: false, block: false, shadow: false, miss: false, pierce: false, sd: 0 }, more);
+    const box = document.createElement('div');
+    box.className = 'log-panel frame-sm';
+    box.style.cssText = 'position:absolute;left:0;top:0;width:920px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;padding:14px 22px 18px;z-index:99;background:#15171e';
+    document.body.appendChild(box);
+    const rec = (atk, def, extra) => Object.assign({ turn: 1, atk, def, side: 'left', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: hit(), frozen: false }, extra);
+    const paint = r => { const item = { type: 'row', cells: { left: { k: 'card', rec: r }, right: { k: 'empty' } } }; item.el = document.createElement('div'); box.appendChild(item.el); fvPaint(item); return item.el; };
+    const chipOf = (el, icons) => [...el.querySelectorAll('.lc-l2 .lk.note')].find(k => { const i = k.querySelector('img.px-icon'); return i && icons.includes(i.dataset.icon); }) || null;
+    const read = (r, icons) => {
+        const el = paint(r), l = el.querySelector('.lc-l2'), chip = chipOf(el, icons);
+        if (!chip) return { full: __vt(l), icon: null };
+        const full = __vt(chip), ci = chip.dataset.ci || null, group = !!chip.closest('.lg');
+        l.style.width = '24px';
+        fvFitLine(l);
+        const now = chipOf(el, icons);
+        return { full, ci, group, compact: now ? __vt(now) : '', isCompact: !!now && now.classList.contains('compact'), icon: now && now.querySelector('img.px-icon').dataset.icon };
+    };
+    const NOTES = [
+        ['guardian', 176, 96, 'atk', () => ({ notes: { guardian: 12 } })],
+        ['immune', 178, 98, 'def', f => ({ casts: [{ owner: f, id: 'burn', result: 'immune' }] })],   // the cast's owner
+        ['immune', 178, 98, 'atk', f => ({ casts: [{ owner: f, id: 'poison', result: 'immune' }] })],   // the cat's debuff landing on its own attacker
+        ['immune', 178, 98, 'def', () => ({ ult: { id: 'theft', immune: true } })],   // an ultimate can't take the defender's buffs
+        ['dodge', 179, 99, 'def', () => ({ notes: { dodge: true }, attack: hit({ dmg: 0, block: true }) })],
+        ['chaos', 180, 100, 'atk', () => ({ notes: { chaos: true } })],
+        ['thorns', 184, 183, 'def', () => ({ notes: { thorns: 6 } })],
+        ['lifesteal', 185, 186, 'atk', () => ({ notes: { lifesteal: 9 } })],
+        ['execute', 188, 187, 'atk', () => ({ notes: { execute: true } })],
+        ['coin', 190, 189, 'atk', () => ({ notes: { coin: 1.5 } })],
+        ['sleep', 192, 191, 'atk', () => ({ notes: { sleep: true } })],
+        ['cat', 194, 193, 'atk', () => ({ notes: { cat: true } })],
+    ];
+    const cases = NOTES.map(([note, ownId, pairId, side, turn]) => {
+        const icon = titleGlyph(T(ownId));
+        const draw = (firing, other) => { const a = mk('atk', side === 'atk' ? firing : other), d = mk('def', side === 'atk' ? other : firing, 'blue'); return rec(a, d, turn(side === 'atk' ? a : d)); };
+        return { note, ownId, pairId, side, icon, words: note === 'coin' ? null : __fvv(ownId === 194 ? 'bug' : note).replace(/^\[\w+\] /, ''), pairWords: note === 'coin' ? null : __fvv(note).replace(/^\[\w+\] /, ''),
+            own: read(draw(ownId, pairId), [icon, note]), pair: read(draw(pairId, ownId), [icon, note]) };
+    });
+    const foe = mk('def', 96, 'blue'), dragon = mk('dragon', 999, 'white');
+    const sneaky = read(rec(mk('atk', 97), foe, { attack: hit({ sub: 'sneaky', pierce: true }) }), ['pierce', 'bigBrain']);
+    const immune = read(rec(foe, dragon, { casts: [{ owner: dragon, id: 'burn', result: 'immune' }] }), ['immune', 'sovereign']);
+    const banner = id => { const item = { type: 'banner', kind: 'opening', data: { f: mk('atk', id), id: 'rage' } }; item.el = document.createElement('div'); box.appendChild(item.el); fvPaint(item);
+        const b = item.el.querySelector('.px-badge'); return { glyph: b && b.querySelector('.px-glyph').dataset.icon, frame: b && b.dataset.frame, text: __vt(item.el) }; };
+    // A crowded card with own-icon titles on both sides: every item shown, no two alike
+    const A = mk('atk', 180), B = mk('def', 184, 'blue'), busy = busiestRecs(A, B), left = busy.left(25), right = busy.right(26);
+    const row = { type: 'row', cells: { left: { k: 'card', rec: left }, right: { k: 'card', rec: right } } };
+    row.el = document.createElement('div'); box.appendChild(row.el); fvPaint(row);
+    const shown = side => cardShowsAll(row.el.querySelector(`.lc.${side}`), side === 'left' ? left : right, side, currentLang);
+    const crowded = { left: shown('left'), right: shown('right') };
+    const out = { cases, sneaky, sneakyWords: __fvv('pierce'), immune, immuneWords: __fvv('immune'), coffee: banner(182), sunrise: banner(181), crowded };
+    box.remove();
+    return out;
+}
 
 // Animations in the arena that are still running, and how long until the last one ends (ms)
 function animationTail() {
@@ -1636,6 +1700,55 @@ async function popAtStep2(page, turn) {
             check(chat.own && gap(chat.f1, chat.loop) <= 1 && gap(chat.f1, chat.fresh) >= 2,
                 `Burn on a chat card keeps its loop when a new chat card shows Burn: frame ${chat.f0} → ${chat.f1} (its loop: ${chat.loop}), the new card's icon at ${chat.fresh}, ${chat.since} ms after it appeared; each its own copy`,
                 JSON.stringify(chat));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // ===== 14. The notes a title fires =====
+        // When an own-icon title's ability fires, its note shows the title's icon with the ability's words; everyone else, the
+        // pair title's holder too, shows the ability's glyph. On painted cards (titleNoteCases), then through two real fights:
+        // the record the fight fills is what reaches the cards, the own-icon titles first and then their pairs
+        console.log('\nThe notes a title fires');
+        if (run(14)) for (const lang of ['uk', 'en']) {
+            const { page, context, errors } = await open(browser, { lang });
+            const r = await page.evaluate(() => titleNoteCases());
+            const icon = s => (/^\[(\w+)\]/.exec(s || '') || [])[1];
+            const bad = [];
+            for (const c of r.cases) {
+                const where = `${c.note} (${c.side}'s title)`;
+                if (c.icon === c.note) bad.push(`${where}: title ${c.ownId} has no own icon`);
+                for (const [who, side, want, words] of [['own', c.own, c.icon, c.words], ['pair', c.pair, c.note, c.pairWords]]) {
+                    if (icon(side.full) !== want) bad.push(`${where}: ${who} title's chip is «${side.full}», not ${want}`);
+                    if (words && !side.full.includes(words)) bad.push(`${where}: ${who} title's chip «${side.full}» doesn't say «${words}»`);
+                    if (c.note === 'coin') continue;   // compact already: a glyph and a number
+                    if (side.ci !== want) bad.push(`${where}: ${who} title's compact form is ${side.ci}, not ${want}`);
+                    if (side.group && !(side.isCompact && icon(side.compact) === want && !(words && side.compact.replace(/^\[\w+\]/, '').includes(words)))) bad.push(`${where}: ${who} title's compact chip is «${side.compact}», not ${want} with no words`);
+                }
+            }
+            check(!bad.length, `[${lang}] each note: the own-icon title's holder gets that icon, full and compact, with the ability's words, the pair title's holder the ability's glyph (${r.cases.length} cases, either title on the far side): «${r.cases.find(c => c.note === 'thorns').own.full}» / «${r.cases.find(c => c.note === 'thorns').pair.full}»`, bad.slice(0, 6).join(' | '));
+            const cat = r.cases.find(c => c.note === 'cat'), bugWord = lang === 'uk' ? 'баг' : 'bug', catWord = lang === 'uk' ? 'кіт' : 'cat';
+            check(cat.own.full === `[spaghettiCode] ${bugWord}` && cat.pair.full === `[cat] ${catWord}`, `[${lang}] 194's card says «${cat.own.full}», the pair title's «${cat.pair.full}»`, JSON.stringify({ own: cat.own, pair: cat.pair }));
+            check(r.sneaky.full === r.sneakyWords && r.sneaky.ci === 'pierce', `[${lang}] a sneaky attack by 97's holder keeps the spear: «${r.sneaky.full}»`, JSON.stringify(r.sneaky));
+            check(r.immune.full === r.immuneWords && r.immune.ci === 'immune', `[${lang}] the White Dragon's immunity keeps the immune glyph: «${r.immune.full}»`, JSON.stringify(r.immune));
+            check(r.coffee.glyph === 'firstCoffee' && r.coffee.frame === 'mythic' && r.sunrise.glyph === 'opening', `[${lang}] the opening banner for 182 shows firstCoffee, the pair title's the ability's glyph: «${r.coffee.text}»`, JSON.stringify({ coffee: r.coffee, sunrise: r.sunrise }));
+            const crowded = [...r.crowded.left.out, ...r.crowded.right.out];
+            check(!crowded.length && r.crowded.left.got.some(g => g.startsWith('[chaosFirework]')) && r.crowded.left.got.some(g => g.startsWith('[grumpyHedgehog]')),
+                `[${lang}] a crowded card with own-icon titles shows every item, no two alike: ${r.crowded.left.got.filter(g => /chaosFirework|grumpyHedgehog/.test(g)).join(', ')} (${r.crowded.left.compact} compact)`, JSON.stringify({ crowded, got: r.crowded.left.got }));
+            // Two real fights: the attacker's coin flip and the defender's thorns fire on every damaging hit
+            await register(page, lang, [['kotyk_ua', 'red'], ['jade', 'green']]);
+            const fought = {};
+            for (const [label, thorns, coin] of [['own', 184, 190], ['pair', 183, 189]]) {
+                await page.evaluate(([thorns, coin]) => { const db = getDragonDB(), T = id => TITLES_DB.find(x => x.id === id); db.kotyk_ua.title = T(thorns); db.jade.title = T(coin); saveDragonDB(db); }, [thorns, coin]);
+                await page.clock.runFor(60000);   // past the last fight's result screen
+                for (const u of ['kotyk_ua', 'jade']) await say(page, u, cmd(lang, '!черга', '!queue'));
+                for (let i = 0; i < 240 && !(await page.evaluate(() => isBattleRunning)); i++) await page.clock.runFor(250);
+                for (let i = 0; i < 40 && await page.evaluate(() => isBattleRunning); i++) await page.clock.runFor(TURN);
+                await page.clock.runFor(HIT + 400);
+                fought[label] = await page.evaluate(() => [...new Set([...document.querySelectorAll('#log-list .lc-l2 img.px-icon')].map(i => i.dataset.icon))]);
+            }
+            check(fought.own.includes('grumpyHedgehog') && fought.own.includes('schrodPotato') && !fought.own.includes('thorns') && !fought.own.includes('coin')
+                && fought.pair.includes('thorns') && fought.pair.includes('coin') && !fought.pair.includes('grumpyHedgehog') && !fought.pair.includes('schrodPotato'),
+                `[${lang}] real fights: 184's thorns and 190's coin flip show their own icons, 183's and 189's the abilities' glyphs`, JSON.stringify(fought));
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }

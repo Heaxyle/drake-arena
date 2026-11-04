@@ -1056,6 +1056,163 @@
             '.ooossooo.',
             '....pp....',
         ],
+        // ----- The titles' own icons: a title's badge, and the note its ability fires (the ICONS records say whose) -----
+        // Незламний модератор (title 176): a shield with the moderator's sword across it; a glint runs down the blade
+        modShield: [
+            '.oooooooo.',
+            'ohhhvvmmmo',
+            'ohhmvwmmdo',
+            'ohmmvwmmdo',
+            'ommmvwmmdo',
+            'omyyyyyydo',
+            '.ommpqmdo.',
+            '.ommpqmdo.',
+            '..odpqdo..',
+            '...oooo...',
+        ],
+        // Надмозок всесвіту (title 97): a violet brain with a little galaxy in it; stars twinkle, a moon orbits
+        bigBrain: [
+            '..........',
+            '..oooooo..',
+            '.ohhwhhmo.',
+            'ohhmhmhmmo',
+            'ohmpmdmvdo',
+            'omhmdmmmdo',
+            'omdmmmdmdo',
+            'ommdmpmddo',
+            '.oddmddddo',
+            '..oooooo..',
+        ],
+        // Дзен при 1 HP (title 178): a lotus, one tiny heart floating above it, bobbing
+        zenLotus: [
+            '...p..p...',
+            '...pppp...',
+            '....pp....',
+            '....oo....',
+            '.o.ohmo.o.',
+            'oh.ohmo.do',
+            'ohmohmomdo',
+            'ohmmmmmmdo',
+            '.oddddddo.',
+            '..oooooo..',
+        ],
+        // Привид лагу (title 179): a pixel ghost that stutters like lag, a ping meter beside it
+        lagGhost: [
+            '.ooooo....',
+            'ohhwmdo...',
+            'ohhmmdo...',
+            'ohkmkdo...',
+            'ohmmmdo..p',
+            'ommmmdo..p',
+            'ommmmdo.pp',
+            'ommmmdo.pp',
+            'omdmdmoppp',
+            'o.o.o.oqqq',
+        ],
+        // Феєрверк хаосу (title 180): a rocket climbs and bursts into sparks that fade
+        chaosFirework: [
+            'y...p...y.',
+            '.h..v..h..',
+            '..myvym...',
+            'pvyvwvyvp.',
+            '..myvym...',
+            '.h..v..h..',
+            'y...p...y.',
+            '....o.....',
+            '....d.....',
+            '....o.....',
+        ],
+        // Перша кава дня (title 182): a mug of coffee, steam curling; once a loop a lightning bolt jumps out
+        firstCoffee: [
+            '..v..v....',
+            '...v..v...',
+            '..v..v....',
+            'oooooooo..',
+            'opppppqo..',
+            'ohmmmmdoo.',
+            'ohyyyydo.o',
+            'ohmmmmdoo.',
+            '.ohmmdo...',
+            '..oooo....',
+        ],
+        // Їжак-ображака (title 184): a hedgehog with an apple on its spines; it huffs, the spines bristle, the apple hops
+        grumpyHedgehog: [
+            '..k.......',
+            '.ppq......',
+            '.pqqd.d...',
+            'dmdmdmdo..',
+            'mdmdmdwwo.',
+            'dmdmdwkwwo',
+            'mdmdwwwwwk',
+            'odmdwwwwo.',
+            '.oooooooo.',
+            '..o....o..',
+        ],
+        // Енергетичний вампір (title 185): a battery with a bite out of it, its charge draining bar by bar
+        energyVampire: [
+            '..........',
+            '..........',
+            'ooooo..oo.',
+            'ohhho.ohdo',
+            'opppqkkkoo',
+            'opppqkkkoo',
+            'opppqkkkoo',
+            'odddddddo.',
+            'ooooooooo.',
+            '..........',
+        ],
+        // Кат лоу-хп (title 188): a skull over an almost empty HP bar, the last sliver blinking
+        lowHpSkull: [
+            '..oooooo..',
+            '.ohhwhhmo.',
+            'ohhmmmmmdo',
+            'ohppmmppdo',
+            'ohmmkkmmdo',
+            '.ovdvdvdo.',
+            '..oooooo..',
+            'oooooooooo',
+            'opkkkkkkko',
+            'oooooooooo',
+        ],
+        // Картопля Шредінгера (title 190): a box whose lid flips open: once a potato, once a «?»
+        schrodPotato: [
+            '...pqp....',
+            '..pqpqp...',
+            'oho.pp.oho',
+            'ohhooooodo',
+            'ohmmmmmmdo',
+            'ohmddmmmdo',
+            'ohmmmmmmdo',
+            'ohmmmmmmdo',
+            'oddddddddo',
+            'oooooooooo',
+        ],
+        // Лінивець-берсерк (title 192): a sloth in a red headband dozing, then snapping awake, furious
+        berserkSloth: [
+            '..oooooo..',
+            '.ohhhhhmo.',
+            'ppppppppqp',
+            'ohwwwwwwdo',
+            'ohkwwwwkdo',
+            'ohwwkkwwdo',
+            'ohmwwwwmdo',
+            '.ohmmmmdo.',
+            '..oooooo..',
+            '..........',
+        ],
+        // Код-спагеті (title 194): spaghetti on a plate in a terminal window; steam rises, the «>_» prompt blinks
+        spaghettiCode: [
+            'oooooooooo',
+            'omvmymmmmo',
+            'owwkkkkkko',
+            'okkkpppkko',
+            'okkppqppko',
+            'okpqppqpko',
+            'okvvvvvvko',
+            'okkvvvvkko',
+            'okkkkkkkko',
+            'oooooooooo',
+        ],
         // ----- Emblems: the drakes’ heads, each from its sprite, facing left like the sprites, on its colour tile (10×10) -----
         // Red: the cream horn upright from the skull, its tip curving back; the crest behind it, its flame tips orange
         emRed: [
@@ -1267,7 +1424,21 @@
         reforge:     { kind: 'buff',     element: 'steel', name: { uk: 'Перекування', en: 'Reforging' },            emoji: '⚒️', was: '#dfeaf0', ...STEEL },
         magnet:      { kind: 'debuff',   element: 'steel', name: { uk: 'Магніт', en: 'Magnet' },                    emoji: '🔗', was: '#9fe0c4', ...STEEL },
         anvil:       { kind: 'ultimate', element: 'steel', name: { uk: 'Удар ковадла', en: 'Anvil Strike' },         emoji: '🔨', was: '#e4eef2', ...STEEL },
-        whiteSteel:  { kind: 'note',     element: 'steel', name: { uk: 'Біла сталь', en: 'White Steel' },           emoji: '👑', ...STEEL },
+        whiteSteel:  { kind: 'note',     element: 'steel', name: { uk: 'Біла сталь', en: 'White Steel' },           emoji: '👑', title: 998, ...STEEL },
+        // ----- The titles' own icons (bare, 10×10). title: the title (TITLES_DB id) this icon belongs to, its badge everywhere
+        // and the icon on the notes its ability fires, with the ability's words; the title's names are the icon's -----
+        modShield:     { kind: 'note', color: '#3fae6a', accent: '#8a5a2a', name: { uk: "Незламний модератор", en: "Unbreakable Moderator" }, emoji: '🛡️', title: 176 },
+        bigBrain:      { kind: 'note', color: '#9b6bff', accent: '#ffd23f', name: { uk: "Надмозок всесвіту", en: "Universal Superbrain" }, emoji: '🧠', title: 97 },
+        zenLotus:      { kind: 'note', color: '#ff7ab0', accent: '#ff4757', name: { uk: "Дзен при 1 HP", en: "Zen at 1 HP" }, emoji: '🧘', title: 178 },
+        lagGhost:      { kind: 'note', color: '#b6aee6', accent: '#3ddc84', name: { uk: "Привид лагу", en: "Lag Ghost" }, emoji: '👻', title: 179 },
+        chaosFirework: { kind: 'note', color: '#ff9a2e', accent: '#b47aff', name: { uk: "Феєрверк хаосу", en: "Chaos Fireworks" }, emoji: '🎆', title: 180 },
+        firstCoffee:   { kind: 'note', color: '#e6dcc8', accent: '#6a3a1a', name: { uk: "Перша кава дня", en: "First Coffee of the Day" }, emoji: '☕', title: 182 },
+        grumpyHedgehog:{ kind: 'note', color: '#8a5a30', accent: '#cc2a34', name: { uk: "Їжак-ображака", en: "Grumpy Hedgehog" }, emoji: '🦔', title: 184 },
+        energyVampire: { kind: 'note', color: '#a8b0c0', accent: '#46d160', name: { uk: "Енергетичний вампір", en: "Energy Vampire" }, emoji: '🧛', title: 185 },
+        lowHpSkull:    { kind: 'note', color: '#e8e4d6', accent: '#ff4757', name: { uk: "Кат лоу-хп", en: "Low-HP Executioner" }, emoji: '🪓', title: 188 },
+        schrodPotato:  { kind: 'note', color: '#b8884a', accent: '#e0b070', name: { uk: "Картопля Шредінгера", en: "Schrödinger's Potato" }, emoji: '🥔', title: 190 },
+        berserkSloth:  { kind: 'note', color: '#a07a56', accent: '#ff4757', name: { uk: "Лінивець-берсерк", en: "Berserk Sloth" }, emoji: '🦥', title: 192 },
+        spaghettiCode: { kind: 'note', color: '#3a4a6a', accent: '#ebb63c', name: { uk: "Код-спагеті", en: "Spaghetti Code" }, emoji: '🍝', title: 194 },
         // ----- Emblems: the drakes' heads (in names, the queue, the intro banner, info cards, the plate; m the tile, s its fill,
         // h / n the head, k the eye, p / q the drake's own mark) -----
         emRed:       { kind: 'emblem', element: 'red', name: { uk: 'Червоний Дрейк', en: 'Red Drake' }, emoji: '🟥', pal: { p: '#f3e2bd', q: '#ffb030', s: '#2a0a0d', h: '#ff7a82', n: '#c92f3a', k: '#ffd23f', w: '#ffd0d3', c: '#8f1c32' } },
@@ -1282,7 +1453,8 @@
     Object.values(ICONS).forEach(ic => { if (ic.element) ic.color = ELEMENT_COLORS[ic.element]; });
     const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison'];
     const ULTIMATE_ICON_IDS = ['firestorm', 'mirror', 'theft', 'jackpot', 'detonation', 'bloom'];
-    const NOTE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'note' && ICONS[id].element !== 'steel');
+    const NOTE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'note' && ICONS[id].element !== 'steel' && !ICONS[id].title);
+    const TITLE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].title && ICONS[id].element !== 'steel');   // «Біла сталь»'s is with the White Drake's kit
     const ATTACK_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'attack');
     const BATCH4_ICON_IDS = ['attacking', 'roulette'];
     const STEEL_ICON_IDS = ['scales', 'bounce', 'cracked', 'reforge', 'magnet', 'anvil', 'whiteSteel', 'emSteel'];
@@ -1309,12 +1481,13 @@
         };
     }
 
-    // ----- Title badges: the mechanic's (or bonus's) 10×10 glyph in a 12×12 rarity frame -----
-    // The frame is 1 pixel, so the glyph inside is the very same one as the log note: badge and note are one icon. Rarity shows
+    // ----- Title badges: the title's 10×10 glyph (its own icon, its mechanic's or its bonus's) in a 12×12 rarity frame -----
+    // The frame is 1 pixel, so the glyph inside is the very same one as the note its ability fires: for each fighter, badge and
+    // note match. Rarity shows
     // in the frame's pattern as well as its colour (colour-blind viewers), richer up the ladder: common plain with cut corners,
     // uncommon light corner studs, rare light studs mid-side, epic notched corners lit top-left, legendary a solid edge lit
     // top-left, mythic (the richest) a solid red edge with gold corners and a white gem on top; meme a dotted edge in pink and
-    // yellow (confetti); divine white star points at the corners. In the Top (×1, 12 px) the frame is left out: the bare glyph.
+    // yellow (confetti); divine white star points at the corners.
     // Letters: A light, B colour, C dark, E the plaque inside, W white, Y gold.
     const RARITY_COLORS = { common: '#a0a0a0', uncommon: '#2ecc71', rare: '#3498db', epic: '#b36bff', legendary: '#f1c40f', mythic: '#ff4757', meme: '#ff66cc', divine: '#9fe3ff' };
     const TITLE_FRAMES = {
@@ -1513,5 +1686,5 @@
     // The CSS for a chip of this element and kind (the element's text colour goes with it)
     const chipStyle = (element, kind) => `border-style: solid; border-width: 1px ${CHIP.cap}px; border-image: url(${chipURL(element, kind)}) 1 ${CHIP.cap} fill / 1px ${CHIP.cap}px stretch; color: ${mix(ELEMENT_COLORS[element], '#ffffff', 0.35)};`;
 
-    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, EMBLEM_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleURL, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
+    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, TITLE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, EMBLEM_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleURL, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
 })(typeof window !== 'undefined' ? window : globalThis);
