@@ -350,13 +350,16 @@
     <section>
         <h2>8 · TITLE BADGES</h2>
         <div class="titles" id="titles"></div>
-        <div class="note">Each mechanic is on two titles of the same rarity. Twelve titles have an icon of their own, one per title, never shared: it's their badge in the
+        <div class="note">Each mechanic is on two titles of the same rarity. Twelve of these titles have an icon of their own, one per title, never shared: it's their badge in the
             rarity frame (legendary solid gold, mythic solid red with gold corners and a gem, meme dotted) and the icon on the note their ability fires. The other title of
             each pair shows the mechanic's note glyph, and its log note (last column) is the same glyph, bare. ×2 on the fighter card's badge (24 px: the badge grows from
             ~21 to 26 px). In the Top the title is in its rarity's colour, its badge in the frame at ×1 (12 px).</div>
         <div style="height: 14px"></div>
         <div class="titles" id="titles-own" style="grid-template-columns: 300px 60px 60px 80px 240px 240px"></div>
         <div class="note">The twelve titles' own icons: each one's still and loop at 1:1, its badge at ×2, then the note its ability fires for this title's holder (the title's icon, the ability's words) and for the pair title's (the ability's glyph). «Надмозок всесвіту» has no note of its own: «крізь броню» marks every sneaky attack, so it keeps its spear for everyone, this title's holder too. «Перша кава дня» has no note either: the opening banner shows its badge. «Код-спагеті» says «баг» instead of «кіт».</div>
+        <div style="height: 14px"></div>
+        <div class="titles" id="titles-own-legendary" style="grid-template-columns: 300px 60px 60px 80px 240px"></div>
+        <div class="note">The 40 Legendary titles 205–244, one icon each: the still and loop at 1:1, the badge at ×2, then the note its ability fires for this title's holder (the title's icon, the ability's words; compact, the icon and the number). «Відкривачка» and «Свердло» have no note of their own, like «Надмозок всесвіту»: the spear marks every sneaky attack. The Mythic and Meme titles 245–294 show a stand-in until theirs come.</div>
         <div style="height: 14px"></div>
         <div class="titles" id="titles-bonus" style="grid-template-columns: 150px 330px 330px 330px 330px"></div>
         <div class="note">Every rarity's frame, in order: common to epic carry the bonus glyphs (crit's is the crit note), divine its own crown.</div>
@@ -713,6 +716,19 @@
                 + (words ? `<span>${chip(own, own === 'spaghettiCode' ? 'баг' : words)}</span><span>${chip(id, words)}</span>` : `<span>${id === 'pierce' ? chip('pierce', 'крізь броню') : 'its banner shows the badge'}</span><span>${id === 'pierce' ? chip('pierce', 'крізь броню') : ''}</span>`);
         }));
         $('titles-own').innerHTML = o;
+        // The Legendary titles 205–244: three to an ability (205–234), two to an ability with a glyph (235–244); its note's words
+        const ABILITY = [[205, 'комбо'], [208, 'перша кров'], [211, 'залізна шкура'], [214, 'останній рубіж'], [217, 'контратака -9'], [220, 'з’їдає'],
+            [223, 'підзарядка ×1.5'], [226, 'інерція +12%'], [229, 'очищення'], [232, 'довгий баф ×2'], [235, WORDS.guardian], [237, null], [239, WORDS.immune],
+            [241, WORDS.dodge], [243, WORDS.chaos]];
+        const wordsOf = id => ABILITY.filter(([from]) => from <= id).pop()[1];
+        let l = '<span class="th">TITLE</span><span class="th">STILL</span><span class="th">LOOP</span><span class="th">BADGE</span><span class="th">ITS NOTE</span>';
+        for (let id = 205; id <= 244; id++) {
+            const own = D.TITLE_ICON_IDS.find(k => D.ICONS[k].title === id), words = wordsOf(id);
+            if (!own) { l += `<div class="f-h">${id} · no own icon</div><span></span><span></span><span></span><span></span>`; continue; }
+            l += `<div class="f-h">${id} · <span style="color:${col('legendary')}">${D.ICONS[own].name.uk}</span></div><span>${v2Img(own, 4, 'px-icon', '', 'still')}</span><span>${v2Img(own, 4, 'px-icon', '', 'anim')}</span><span>${badge(own, 'legendary', 2)}</span>`
+                + `<span>${words ? chip(own, words) : chip('pierce', 'крізь броню')}</span>`;
+        }
+        $('titles-own-legendary').innerHTML = l;
     }
 
     // 8b · Every rarity's frame: common to epic with the bonus glyphs, legendary to meme with a mechanic, divine its crown

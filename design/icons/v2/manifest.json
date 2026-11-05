@@ -959,6 +959,486 @@
   "still": "icons/note/spaghettiCode.png",
   "anim": "icons/note/spaghettiCode-anim.png"
  },
+ "matchThree": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Три в ряд",
+   "en": "Three in a Row"
+  },
+  "still": "icons/note/matchThree.png",
+  "anim": "icons/note/matchThree-anim.png"
+ },
+ "metronome": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Ритм-машина",
+   "en": "Rhythm Machine"
+  },
+  "still": "icons/note/metronome.png",
+  "anim": "icons/note/metronome-anim.png"
+ },
+ "thirdHit": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Третій удар — мій",
+   "en": "The Third Hit Is Mine"
+  },
+  "still": "icons/note/thirdHit.png",
+  "anim": "icons/note/thirdHit-anim.png"
+ },
+ "quickFinger": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Швидкий палець",
+   "en": "Quick Finger"
+  },
+  "still": "icons/note/quickFinger.png",
+  "anim": "icons/note/quickFinger-anim.png"
+ },
+ "trafficLight": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 160,
+  "name": {
+   "uk": "Перший у черзі",
+   "en": "First in Line"
+  },
+  "still": "icons/note/trafficLight.png",
+  "anim": "icons/note/trafficLight-anim.png"
+ },
+ "earlyBird": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Рання пташка",
+   "en": "Early Bird"
+  },
+  "still": "icons/note/earlyBird.png",
+  "anim": "icons/note/earlyBird-anim.png"
+ },
+ "ironPlate": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Залізна шкура",
+   "en": "Iron Hide"
+  },
+  "still": "icons/note/ironPlate.png",
+  "anim": "icons/note/ironPlate-anim.png"
+ },
+ "cinderBlock": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Бетонний дрейк",
+   "en": "Concrete Drake"
+  },
+  "still": "icons/note/cinderBlock.png",
+  "anim": "icons/note/cinderBlock-anim.png"
+ },
+ "chatTank": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Танк чату",
+   "en": "Chat Tank"
+  },
+  "still": "icons/note/chatTank.png",
+  "anim": "icons/note/chatTank-anim.png"
+ },
+ "bastion": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Останній бастіон",
+   "en": "Last Bastion"
+  },
+  "still": "icons/note/bastion.png",
+  "anim": "icons/note/bastion-anim.png"
+ },
+ "candleStub": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Ще не кінець",
+   "en": "It's Not Over Yet"
+  },
+  "still": "icons/note/candleStub.png",
+  "anim": "icons/note/candleStub-anim.png"
+ },
+ "uppercut": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Камбек року",
+   "en": "Comeback of the Year"
+  },
+  "still": "icons/note/uppercut.png",
+  "anim": "icons/note/uppercut-anim.png"
+ },
+ "racket": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Відповідь не забариться",
+   "en": "Reply Incoming"
+  },
+  "still": "icons/note/racket.png",
+  "anim": "icons/note/racket-anim.png"
+ },
+ "blindfold": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Відбиваю, не дивлячись",
+   "en": "Parry Without Looking"
+  },
+  "still": "icons/note/blindfold.png",
+  "anim": "icons/note/blindfold-anim.png"
+ },
+ "fencingFoil": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Фехтувальник",
+   "en": "The Fencer"
+  },
+  "still": "icons/note/fencingFoil.png",
+  "anim": "icons/note/fencingFoil-anim.png"
+ },
+ "buffEater": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Пожирач бафів",
+   "en": "Buff Eater"
+  },
+  "still": "icons/note/buffEater.png",
+  "anim": "icons/note/buffEater-anim.png"
+ },
+ "bonusSack": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Збирач чужих бонусів",
+   "en": "Bonus Collector"
+  },
+  "still": "icons/note/bonusSack.png",
+  "anim": "icons/note/bonusSack-anim.png"
+ },
+ "taxPurse": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Податківець",
+   "en": "Tax Collector"
+  },
+  "still": "icons/note/taxPurse.png",
+  "anim": "icons/note/taxPurse-anim.png"
+ },
+ "chargeCrystal": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Заряджений на повну",
+   "en": "Fully Charged"
+  },
+  "still": "icons/note/chargeCrystal.png",
+  "anim": "icons/note/chargeCrystal-anim.png"
+ },
+ "turbine": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 70,
+  "name": {
+   "uk": "Турборежим",
+   "en": "Turbo Mode"
+  },
+  "still": "icons/note/turbine.png",
+  "anim": "icons/note/turbine-anim.png"
+ },
+ "drawnBow": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Завжди напоготові",
+   "en": "Always Ready"
+  },
+  "still": "icons/note/drawnBow.png",
+  "anim": "icons/note/drawnBow-anim.png"
+ },
+ "snowball": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Снігова куля",
+   "en": "Snowball"
+  },
+  "still": "icons/note/snowball.png",
+  "anim": "icons/note/snowball-anim.png"
+ },
+ "speedometer": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Розгін до сотні",
+   "en": "Zero to a Hundred"
+  },
+  "still": "icons/note/speedometer.png",
+  "anim": "icons/note/speedometer-anim.png"
+ },
+ "boulder": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Невпинний",
+   "en": "Unstoppable"
+  },
+  "still": "icons/note/boulder.png",
+  "anim": "icons/note/boulder-anim.png"
+ },
+ "cleanSignal": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Чистий сигнал",
+   "en": "Clean Signal"
+  },
+  "still": "icons/note/cleanSignal.png",
+  "anim": "icons/note/cleanSignal-anim.png"
+ },
+ "antidote": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Антидот",
+   "en": "Antidote"
+  },
+  "still": "icons/note/antidote.png",
+  "anim": "icons/note/antidote-anim.png"
+ },
+ "soapBar": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Вічно свіжий",
+   "en": "Ever Fresh"
+  },
+  "still": "icons/note/soapBar.png",
+  "anim": "icons/note/soapBar-anim.png"
+ },
+ "vinylRecord": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Довгограйний",
+   "en": "Long-Playing"
+  },
+  "still": "icons/note/vinylRecord.png",
+  "anim": "icons/note/vinylRecord-anim.png"
+ },
+ "gears": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Вічний двигун",
+   "en": "Perpetual Motion"
+  },
+  "still": "icons/note/gears.png",
+  "anim": "icons/note/gears-anim.png"
+ },
+ "starStack": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Бонус на бонус",
+   "en": "Bonus on Bonus"
+  },
+  "still": "icons/note/starStack.png",
+  "anim": "icons/note/starStack-anim.png"
+ },
+ "windsock": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Друге дихання",
+   "en": "Second Wind"
+  },
+  "still": "icons/note/windsock.png",
+  "anim": "icons/note/windsock-anim.png"
+ },
+ "pocketKit": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Аптечка в кишені",
+   "en": "Pocket First Aid"
+  },
+  "still": "icons/note/pocketKit.png",
+  "anim": "icons/note/pocketKit-anim.png"
+ },
+ "canOpener": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Відкривачка",
+   "en": "Can Opener"
+  },
+  "still": "icons/note/canOpener.png",
+  "anim": "icons/note/canOpener-anim.png"
+ },
+ "drillBit": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 80,
+  "name": {
+   "uk": "Свердло",
+   "en": "The Drill"
+  },
+  "still": "icons/note/drillBit.png",
+  "anim": "icons/note/drillBit-anim.png"
+ },
+ "teflonPan": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 110,
+  "name": {
+   "uk": "Тефлоновий",
+   "en": "Teflon"
+  },
+  "still": "icons/note/teflonPan.png",
+  "anim": "icons/note/teflonPan-anim.png"
+ },
+ "gasMask": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 120,
+  "name": {
+   "uk": "Імунітет до токсичності",
+   "en": "Immune to Toxicity"
+  },
+  "still": "icons/note/gasMask.png",
+  "anim": "icons/note/gasMask-anim.png"
+ },
+ "sneakerDash": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Невловимий",
+   "en": "Elusive"
+  },
+  "still": "icons/note/sneakerDash.png",
+  "anim": "icons/note/sneakerDash-anim.png"
+ },
+ "mirage": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 120,
+  "name": {
+   "uk": "Міраж",
+   "en": "Mirage"
+  },
+  "still": "icons/note/mirage.png",
+  "anim": "icons/note/mirage-anim.png"
+ },
+ "pinball": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Генератор рандому",
+   "en": "Random Generator"
+  },
+  "still": "icons/note/pinball.png",
+  "anim": "icons/note/pinball-anim.png"
+ },
+ "bugLegs": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Баг на ніжках",
+   "en": "Bug on Legs"
+  },
+  "still": "icons/note/bugLegs.png",
+  "anim": "icons/note/bugLegs-anim.png"
+ },
  "ranked": {
   "kind": "ui",
   "size": 40,

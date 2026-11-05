@@ -25,9 +25,10 @@
 //    gets the title's own icon, in the full chip and the compact one, with the ability's words (194: «баг» / "bug"); the pair
 //    title's holder gets the ability's glyph, whatever the other fighter holds. A sneaky attack keeps the spear, 97's holder's
 //    too; the White Dragon's immunity keeps the immune glyph; the opening banner shows the title's badge. The notes of the
-//    abilities of titles 205–294 show the badge of the title that fired them, with the ability's words: a stand-in keeps
-//    its words when compact, an own icon (lent to the title here) shows the icon and the number, with no code change; two
-//    stand-ins on a card stay apart; «404», «…», «:(» and «AFK» on line 1; the accusative after a verb.
+//    abilities of titles 205–294 show the badge of the title that fired them, with the ability's words: the Legendary
+//    titles' own icons (205–244) show the icon and the number when compact; a stand-in (245–294) keeps its words, and an
+//    own icon lent to its title shows the icon and the number, with no code change; two stand-ins on a card stay apart;
+//    «404», «…», «:(» and «AFK» on line 1; the accusative after a verb.
 // 10. The Top: each row's title in its rarity's colour, its badge in its rarity frame (the browser tests check that rows fit).
 const fs = require('fs');
 const path = require('path');
@@ -267,6 +268,15 @@ const GI = G.DI.ICONS;
         ['coin', 190, 189, 'atk', () => ({ notes: { coin: 1.5 } })],
         ['sleep', 192, 191, 'atk', () => ({ notes: { sleep: true } })],
         ['cat', 194, 193, 'atk', () => ({ notes: { cat: true } })],
+        // The Legendary titles that reuse an ability with a glyph: each has its own icon now, and its pair is the older title
+        ['guardian', 235, 96, 'atk', () => ({ notes: { guardian: 12 } })],
+        ['guardian', 236, 96, 'atk', () => ({ notes: { guardian: 12 } })],
+        ['immune', 239, 98, 'def', fired => ({ casts: [{ owner: fired, id: 'burn', result: 'immune' }] })],
+        ['immune', 240, 98, 'def', fired => ({ casts: [{ owner: fired, id: 'burn', result: 'immune' }] })],
+        ['dodge', 241, 99, 'def', () => ({ notes: { dodge: true }, attack: hit({ dmg: 0, block: true }) })],
+        ['dodge', 242, 99, 'def', () => ({ notes: { dodge: true }, attack: hit({ dmg: 0, block: true }) })],
+        ['chaos', 243, 100, 'atk', () => ({ notes: { chaos: true } })],
+        ['chaos', 244, 100, 'atk', () => ({ notes: { chaos: true } })],
     ];
     const bad = [];
     for (const lang of ['uk', 'en']) {
@@ -303,8 +313,9 @@ const GI = G.DI.ICONS;
     check(!bad.length, 'the notes a title fires: its own icon for its holder, full and compact, with the ability\'s words (194: «баг» / "bug"); the ability\'s glyph for the pair title\'s; the spear and the White Dragon\'s immunity as they are', bad.slice(0, 6).join(' | '));
 
     // The notes of the abilities of titles 205–294. They have no glyph of their own: each shows the badge of the title that
-    // fired it. Until that's the title's own icon it's a stand-in, one of a few shared glyphs, so the compact form keeps the
-    // words; with its own icon (one lent to the title here) it's the icon and the number, like any note, with no code change
+    // fired it. The Legendary titles (205–244) have their own icons: the icon and the number when compact, like any note.
+    // The rest show a stand-in until theirs comes, one of a few shared glyphs, so the compact form keeps the words; with an
+    // own icon (one lent to the title here) it's the icon and the number, with no code change
     const ABILITY_NOTES = [
         // the note's words, a title of its ability, whose title fires it, the turn that shows it, what follows the words
         ['combo', 205, 'atk', () => ({ notes: { combo: true } }), ''],
@@ -345,6 +356,13 @@ const GI = G.DI.ICONS;
         for (const [key, id, side, turn, after] of ABILITY_NOTES) {
             const words = G.FV_TEXT[lang][key], where = `${lang} ${key} (${side})`, glyph = G.titleGlyph(T(id));
             const draw = () => { const f = fighter('f', id), o = fighter('o', 96, 'blue'); return side === 'atk' ? card(f, o, turn(f)) : card(o, f, turn(f)); };
+            if (id <= 244) {   // a Legendary title: its own icon, on the card and compact
+                if (!GI[glyph] || GI[glyph].title !== id) { bad2.push(`${where}: title ${id} has no own icon (its badge is ${glyph})`); continue; }
+                const mine = draw();
+                if (!said(mine, `${words}${after}`) || !shows(mine, glyph)) bad2.push(`${where}: the card doesn't show title ${id}'s own icon ${glyph} and «${words}${after}»`);
+                if (!ct(mine, glyph).includes(after.trim())) bad2.push(`${where}: compact, title ${id}'s note isn't its own icon and «${after.trim()}»: ${JSON.stringify(ct(mine, glyph))}`);
+                continue;
+            }
             if (!['hp', 'crit'].includes(glyph)) bad2.push(`${where}: title ${id}'s stand-in is ${glyph}, not its main bonus's`);
             const stand = draw();
             if (!said(stand, `${words}${after}`) || !shows(stand, glyph)) bad2.push(`${where}: the card doesn't show ${glyph} and «${words}${after}»`);
@@ -356,10 +374,9 @@ const GI = G.DI.ICONS;
             if (!ct(own, LENT).includes(after.trim())) bad2.push(`${where}: with its own icon the compact form isn't the icon and «${after.trim()}»: ${JSON.stringify(ct(own, LENT))}`);
         }
         // Two stand-ins on one card: the same heart, so only the words keep them apart, compact too
-        const both = card(fighter('a', 208), fighter('d', 211, 'blue'), { notes: { firstBlood: true, ironHide: true } }), hearts = ct(both, 'hp');
+        const twin = fighter('a', 249), phoenix = fighter('d', 245, 'blue');
+        const both = card(twin, phoenix, { notes: { twin: 14, phoenix: { f: phoenix, hp: 1 } } }), hearts = ct(both, 'hp');
         if (hearts.length !== 2 || hearts[0] === hearts[1]) bad2.push(`${lang}: two stand-in notes on a card look alike: ${JSON.stringify(hearts)}`);
-        // The crit «!» as a stand-in never stands alone: Комбо's compact chip says what it is
-        if (!ct(card(fighter('a', 205), fighter('d', 96, 'blue'), { notes: { combo: true } }), 'crit').includes(G.FV_TEXT[lang].combo)) bad2.push(`${lang}: Комбо's compact chip is a bare «!»`);
         // What the Meme abilities show instead of the number; a name after a verb in the accusative
         const a = fighter('a', 96), d = fighter('d', 275, 'blue'), line1 = html => (html.match(/<div class="lc-l1">(.*?)<\/div>/s) || [])[1] || '';
         const vanished = line1(card(a, d, { attack: hit({ dmg: 0, vanish: true }), notes: { notFound: d } }));
@@ -378,7 +395,7 @@ const GI = G.DI.ICONS;
         const banner = G.fvBannerHtml({ kind: 'meterStart', data: { f: fighter('a', 223) } });
         if (!banner.includes('2/5') || !shows(banner, G.titleGlyph(T(223)))) bad2.push(`${lang}: Підзарядка's banner doesn't show its badge and 2/5: ${banner.slice(0, 120)}`);
     }
-    check(!bad2.length, `the notes of titles 205–294 (${ABILITY_NOTES.length} cases, both languages): the badge's glyph with the ability's words; a stand-in's compact form keeps them, an own icon's doesn't; two stand-ins on a card stay apart; «404», «…», «:(», «AFK» on line 1; the accusative after a verb`, bad2.slice(0, 6).join(' | '));
+    check(!bad2.length, `the notes of titles 205–294 (${ABILITY_NOTES.length} cases, both languages): the badge's glyph with the ability's words; the Legendary titles' own icons and a lent one compact to the icon and the number, a stand-in keeps its words; two stand-ins on a card stay apart; «404», «…», «:(», «AFK» on line 1; the accusative after a verb`, bad2.slice(0, 6).join(' | '));
 }
 
 // ---- 10. The Top: each title in its rarity's colour, its badge in its frame

@@ -41,8 +41,9 @@
 //     with either title on the other fighter; 194's card says «баг» / "bug"; a sneaky attack by 97's holder keeps the spear;
 //     the White Dragon's immunity keeps the immune glyph; the opening banner for 182 shows firstCoffee; a crowded card shows
 //     every item, no two alike; two real fights, the own-icon titles and then their pairs
-//   - The notes of the abilities of titles 205–294, on painted cards in both languages: the title's badge glyph (a stand-in)
-//     with the ability's words, in the full chip and the compact one; crowded cards of stand-ins, no two alike
+//   - The notes of the abilities of titles 205–294, on painted cards in both languages: the title's badge glyph with the
+//     ability's words; compact, a Legendary title's own icon (205–244) and the number, a stand-in (245–294) its words too;
+//     crowded cards of stand-ins, no two alike
 //   - The Meme abilities in real fights with fixed dice, both languages: «404» on the card and the pop; Синій екран's «:(» on
 //     the log card and the fighter card (a blue flash, a calm «:(» under prefers-reduced-motion), the turn lost, gone the
 //     next turn; AFK's grey card with «AFK» until its next turn and the ×3 return; Лаг's «…» and the stuck hit landing a turn
@@ -273,6 +274,15 @@ function titleNoteCases() {
         ['coin', 190, 189, 'atk', () => ({ notes: { coin: 1.5 } })],
         ['sleep', 192, 191, 'atk', () => ({ notes: { sleep: true } })],
         ['cat', 194, 193, 'atk', () => ({ notes: { cat: true } })],
+        // The Legendary titles that reuse an ability with a glyph: each has its own icon now, and its pair is the older title
+        ['guardian', 235, 96, 'atk', () => ({ notes: { guardian: 12 } })],
+        ['guardian', 236, 96, 'atk', () => ({ notes: { guardian: 12 } })],
+        ['immune', 239, 98, 'def', f => ({ casts: [{ owner: f, id: 'burn', result: 'immune' }] })],
+        ['immune', 240, 98, 'def', f => ({ casts: [{ owner: f, id: 'burn', result: 'immune' }] })],
+        ['dodge', 241, 99, 'def', () => ({ notes: { dodge: true }, attack: hit({ dmg: 0, block: true }) })],
+        ['dodge', 242, 99, 'def', () => ({ notes: { dodge: true }, attack: hit({ dmg: 0, block: true }) })],
+        ['chaos', 243, 100, 'atk', () => ({ notes: { chaos: true } })],
+        ['chaos', 244, 100, 'atk', () => ({ notes: { chaos: true } })],
     ];
     const cases = NOTES.map(([note, ownId, pairId, side, turn]) => {
         const icon = titleGlyph(T(ownId));
@@ -340,20 +350,22 @@ function abilityNoteCases() {
     ];
     const cases = NOTES.map(([key, id, side, turn, after]) => {
         const f = mk('f', id), o = mk('o', 96, 'blue'), el = paint(side === 'atk' ? rec(f, o, turn(f)) : rec(o, f, turn(f)));
-        const l = el.querySelector('.lc-l2'), words = fvT(key), chipOf = () => [...el.querySelectorAll('.lc-l2 .lk.note')].find(k => __vt(k).includes(words)) || null;
+        // A Legendary title (205–244) has its own icon: compact, its chip is the icon and the number, so it's found by its icon
+        const glyph = titleGlyph(f.title), own = !!titleOwnIcon(f.title), l = el.querySelector('.lc-l2'), words = fvT(key);
+        const chipOf = () => [...el.querySelectorAll('.lc-l2 .lk.note')].find(k => { const i = k.querySelector('img.px-icon'); return i && i.dataset.icon === glyph && (own || __vt(k).includes(words)); }) || null;
         const chip = chipOf(), full = chip ? __vt(chip) : __vt(l), group = !!(chip && chip.closest('.lg'));
         l.style.width = '24px';
         fvFitLine(l);
-        const now = chipOf();
-        return { key, side, want: `[${titleGlyph(f.title)}] ${words}${after}`, full, group, compact: now ? __vt(now) : '', isCompact: !!now && now.classList.contains('compact') };
+        const now = chipOf(), want = `[${glyph}] ${words}${after}`;
+        return { key, side, own, want, wantCompact: own ? `[${glyph}] ${after.trim()}`.trim() : want, full, group, compact: now ? __vt(now) : '', isCompact: !!now && now.classList.contains('compact') };
     });
-    // Crowded cards of stand-ins, a Перша кров attacker on an Залізна шкура holder and a Лаг attacker on a Контратака holder:
-    // every item shown, no two alike, though every note wears the same heart
-    const A = mk('atk', 208), B = mk('def', 211, 'blue'), C = mk('lag', 287), D = mk('counter', 217, 'blue');
-    const left = rec(A, B, { turn: 25, attack: hit({ type: 'vampire', sub: 'sneaky', dmg: 87, crit: true, pierce: true, sd: 2.8 }), notes: { firstBlood: true, unblock: 'first_blood', ironHide: true, vamp: 43, reflect: 13 },
+    // Crowded cards of stand-ins, a Дзеркальний двійник attacker on a Феніксове перо holder and a Лаг attacker on a Карма
+    // holder: every item shown, no two alike, though every note wears the same heart
+    const A = mk('atk', 249), B = mk('def', 245, 'blue'), C = mk('lag', 287), D = mk('karma', 264, 'blue');
+    const left = rec(A, B, { turn: 25, attack: hit({ type: 'vampire', sub: 'sneaky', dmg: 87, crit: true, pierce: true, sd: 2.8 }), notes: { twin: 31, phoenix: { f: B, hp: 1 }, vamp: 43, reflect: 13 },
         ticks: [{ id: 'burn', v: -12 }, { id: 'regen', v: 19 }], used: ['rage', 'mark'], casts: [{ owner: B, id: 'frost', result: 'replaced', extra: 'weakness' }, { owner: B, id: 'poison', result: 'applied' }] });
-    const right = rec(C, D, { turn: 26, side: 'right', attack: hit({ dmg: 64, crit: true, sd: 3.1 }), notes: { lagLand: 120, counter: 38, scales: 12, thorns: 6 },
-        ticks: [{ id: 'burn', v: -9 }], used: ['blessing', 'shield'], casts: [{ owner: D, id: 'mark', result: 'applied' }, { owner: C, id: 'rage', result: 'refreshed' }] });
+    const right = rec(C, D, { turn: 26, side: 'right', attack: hit({ dmg: 64, crit: true, sd: 3.1 }), notes: { lagLand: 120, scales: 12, thorns: 6 },
+        ticks: [{ id: 'burn', v: -9 }], used: ['blessing', 'shield'], casts: [{ owner: D, id: 'mark', result: 'returned' }, { owner: C, id: 'rage', result: 'refreshed' }] });
     const row = { type: 'row', cells: { left: { k: 'card', rec: left }, right: { k: 'card', rec: right } } };
     row.el = document.createElement('div'); box.appendChild(row.el); fvPaint(row);
     const shown = side => cardShowsAll(row.el.querySelector(`.lc.${side}`), side === 'left' ? left : right, side, currentLang);
@@ -1826,17 +1838,18 @@ async function popAtStep2(page, turn) {
             await context.close();
         }
 
-        // The notes of the abilities of titles 205–294 have no glyph of their own: the badge of the title that fired them, here
-        // the stand-in. On painted cards, in full and compact, in both languages (design/icons/test.js has the own-icon case)
+        // The notes of the abilities of titles 205–294 have no glyph of their own: the badge of the title that fired them, its
+        // own icon for the Legendary titles (205–244), else the stand-in. On painted cards, in full and compact, in both
+        // languages (design/icons/test.js also lends an own icon to a stand-in's title)
         console.log('\nThe notes of the new abilities');
         if (run(15)) for (const lang of ['uk', 'en']) {
             const { page, context, errors } = await open(browser, { lang });
             const r = await page.evaluate(() => abilityNoteCases());
             const bad = r.cases.flatMap(c => [
                 ...(c.full === c.want ? [] : [`${c.key} (${c.side}): the chip reads «${c.full}», not «${c.want}»`]),
-                ...(!c.group || (c.isCompact && c.compact === c.want) ? [] : [`${c.key} (${c.side}): compact it reads «${c.compact}», not «${c.want}»`]),
+                ...(!c.group || (c.isCompact && c.compact === c.wantCompact) ? [] : [`${c.key} (${c.side}): compact it reads «${c.compact}», not «${c.wantCompact}»`]),
             ]);
-            check(!bad.length, `[${lang}] each new note on a card: the title's badge glyph and the ability's words, and a stand-in keeps its words when compact (${r.cases.length} notes, ${r.cases.filter(c => c.group).length} of them compacted)`, bad.slice(0, 5).join(' | '));
+            check(!bad.length, `[${lang}] each new note on a card: the title's badge glyph and the ability's words; compact, a Legendary title's own icon and the number, a stand-in its words too (${r.cases.length} notes, ${r.cases.filter(c => c.own).length} on own icons, ${r.cases.filter(c => c.group).length} compacted)`, bad.slice(0, 5).join(' | '));
             const crowded = [...r.crowded.left.out, ...r.crowded.right.out];
             check(!crowded.length && r.crowded.left.compact + r.crowded.right.compact > 0, `[${lang}] crowded cards of stand-ins show every item, no two alike, though the notes wear the same heart (${r.crowded.left.compact} + ${r.crowded.right.compact} compact)`, crowded.slice(0, 5).join(' | '));
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
