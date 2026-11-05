@@ -179,11 +179,16 @@ shrunk to 360p, a phone viewer (a third: a 20 px icon becomes ~7 px).
 
 - Every title shows what it gives, in its rarity frame: its own icon if it has one, otherwise its mechanic, otherwise its main
   bonus. Main bonuses in use: HP (HP and HP per level), crit (crit chance and crit power), defence, effect chance, buff power.
-- Mechanics: legendary (guardian, pierce, immune, dodge, chaos), mythic (opening buff, thorns, lifesteal, execute), meme (coin
-  flip, sleep, cat), each on two titles of the same rarity.
+- Mechanics with a glyph: legendary (guardian, pierce, immune, dodge, chaos), mythic (opening buff, thorns, lifesteal, execute),
+  meme (coin flip, sleep, cat), each on two or more titles of the same rarity.
 - **Legendary, Mythic and Meme titles get their own icons, one per title, never shared.** Until a title has one, its badge is
   its ability's glyph, the same drawing as that ability's log note. 12 have theirs so far, one of each pair (`icons.js`:
   a note record with `title: <id>`; inventory.md, section 5); the other title of the pair keeps the ability's glyph.
+- **Stand-ins.** Titles 205–294 have no art yet. The ones that reuse an ability with a glyph (235–244, 289, 290) show that
+  glyph, the rest their main bonus's, the HP heart or the crit «!»; inventory.md marks these rows "(stand-in)". The notes their
+  abilities fire show the same glyph (`fvNoteGlyph`), so when a title gets its own icon the badge and the notes take it with
+  no code change: a later batch is art and data only. A stand-in is shared, so a note on one keeps its word in its compact
+  form (`fvAbilityNote`): two chips on one card must never look alike, and a bare «!» would read as a crit.
 - **A title's own icon is its badge everywhere, and the icon on the notes its ability fires**, full and compact, with the
   ability's words (194: «баг» / "bug", its own: `FV_TITLE_WORDS`). The fighter whose title fired the note decides
   (`fvNoteGlyph`). «крізь броню» marks every sneaky attack, so no title fires it: it keeps its spear for everyone, 97's holder
