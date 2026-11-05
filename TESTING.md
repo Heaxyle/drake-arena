@@ -685,6 +685,8 @@ A run's rate for a matchup misses its true value by about 50/√N points (one st
 
 Without the counters' slack, three of these five runs would have failed (seed 12345: level 20 vs gold 47.8%; seed 34567: level 20 vs gold 47.3%; seed 45678: level 20 vs green 60.2%).
 
+The table predates titles 195–294 and Meme at 0.5%. With them seed 12345 gives 53.7 / 53.9 / 54.1 / 52.9, L20 Gold 47.9%, L20 Green 59.6%, L10 Purple 58.4%, L10 Gold 50.1%, L1 Black 57.8%: passed, and each within about one standard error of its row above.
+
 ### Per-effect report
 
 `matrix` and `elements` end with a table of what each buff/debuff did, averaged over every fight they played. The numbers come from the real fight code: it reports to a hook (`effectTally`, `null` in the game and set by the harness) each time an effect lands, deals extra damage, prevents damage or heals.
