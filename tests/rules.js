@@ -32,6 +32,10 @@
 //      «Картопля Шредінгера»); English stays Heads / Tails
 //   22 the renamed titles (Ukrainian names of 11, English of 3) and Ice Mirror's wording, pinned; a save and a saved
 //      tournament holding an old title name take the new one on load
+//   24 the 100 new titles: ids, rarities, bonuses and card lines; the odds and !шанси; each of the 24 abilities with fixed
+//      dice, from what it is meant to do (its numbers, once-a-fight limits, thresholds and caps); that each one tells the
+//      fight view when it fires; and what they meet: the White Dragon, the White Drake's scales, debuff immunity, Магніт,
+//      sudden death and the time-out
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
@@ -87,6 +91,8 @@ eval(gameScript(FILE) + `
     wrapFighterCard: f => { const orig = updateFighterCard; updateFighterCard = (side, d, fx) => { f(side, d); return orig(side, d, fx); }; },
     // The new titles (section 24)
     RARITIES, describeTitleBonus, getRandomTitle: () => getRandomTitle(),
+    // What the fight tells the view: f(key, value) for every note, ultimate detail and cast's result (Node has no fight view)
+    wrapFv: f => { const n = fvNote, u = fvUltInfo, c = fvCast; fvNote = (k, v = true) => { f(k, v); return n(k, v); }; fvUltInfo = i => { Object.keys(i).forEach(k => f(k, i[k])); return u(i); }; fvCast = (o, id, r, x) => { f('cast:' + r, id); return c(o, id, r, x); }; },
     // Every cast as it's made, recasts too (null to stop): the arguments
     wrapApplyEffect: f => { if (!globalThis.__castSpy) { const orig = applyEffect; applyEffect = (...a) => { if (globalThis.__castSpy.f) globalThis.__castSpy.f(a); return orig(...a); }; globalThis.__castSpy = {}; } globalThis.__castSpy.f = f; },
 };`);
@@ -1264,6 +1270,9 @@ for (const lang of ['en', 'uk']) {
     // sub-type, damage, crit, ultra-block, `after` (the abilities that roll on a landed hit), the cast. Missing rolls are 0.99
     const dice = (o = {}) => [...(o.before || []), o.attack ?? 0.5, o.sub ?? 0.5, o.dmg ?? 0.5, o.crit ?? 0.99, o.block ?? 0.99, ...(o.after || []), o.cast ?? 0.99];
     const rounds = (n, o) => Array.from({ length: n }, () => dice(o));
+    // What the fight told the view during the current turn
+    let heard = {};
+    G.wrapFv((k, v) => { heard[k] = v; });
     // Plays scripted turns of the real fight: A (fighter 1) attacks on odd turns. setup(fx, a, b) runs once the fight is set
     // up; at[i](fx, a, b) just before turn i + 1. hp: everyone's max HP, for fights that must last
     function scripted({ A = {}, B = {}, setup = null, turns = [], at = {}, hp = null }) {
@@ -1287,9 +1296,10 @@ for (const lang of ['en', 'uk']) {
                 if (at[i]) at[i](fx, a, b);
                 queue = [...turns[i]];
                 const from = logs.length;
+                heard = {};
                 tick();
                 const text = logs.slice(from).join('\n'), dm = text.match(/Damage: (\d+)/);
-                out.push({ text, dmg: dm ? Number(dm[1]) : null, hpA: hpOn('hp-text-p1'), hpB: hpOn('hp-text-p2'), leftover: queue.length, fx: JSON.parse(JSON.stringify(fx)) });
+                out.push({ text, dmg: dm ? Number(dm[1]) : null, hpA: hpOn('hp-text-p1'), hpB: hpOn('hp-text-p2'), notes: heard, fx: JSON.parse(JSON.stringify(fx)) });
             }
             return { turns: out, fx, ended: finishes.length > done };
         };
@@ -1522,8 +1532,9 @@ for (const lang of ['en', 'uk']) {
         check(aim(line).hpA === line, `24. Перемотка: nothing at ${line} (20%)`, String(aim(line).hpA));
         const first = scripted({ A: drake('plain', t), setup: fx => hurt(fx, 'A', max, line - 1), turns: [dice()] }).turns[0];
         check(first.hpA === line - 1, '24. Перемотка: on its first turn there is no previous turn to go back to', String(first.hpA));
-        const twice = scripted({ A: drake('plain', t), turns: rounds(5), at: { 2: fx => hurt(fx, 'A', max, 10, max - hitB), 4: fx => hurt(fx, 'A', max, 10, max - hitB) } }).turns;
-        check(twice[2].hpA === max && twice[4].hpA === 10, '24. Перемотка: once a fight', JSON.stringify([twice[2].hpA, twice[4].hpA]));
+        // Below 20% again on turn 7, with a healthy turn 5 to go back to: it stays down
+        const twice = scripted({ A: drake('plain', t), turns: rounds(7), at: { 2: fx => hurt(fx, 'A', max, 10, max - hitB), 6: fx => hurt(fx, 'A', max, 10, max - 2 * hitB) } }).turns;
+        check(twice[2].hpA === max && twice[6].hpA === 10, '24. Перемотка: once a fight', JSON.stringify([twice[2].hpA, twice[6].hpA]));
     }
     {   // Загартування: +1% damage for every 3% of HP it has lost
         const t = T(260), max = G.getMaxHP(20, 'plain', t);
@@ -1651,6 +1662,53 @@ for (const lang of ['en', 'uk']) {
         check(first.dmg > 0 && !/Ctrl/.test(first.text), '24. Копіпаст: nothing to copy before the opponent has hit', first.text);
         const blockedLast = scripted({ A: drake('plain', t), setup: strong('B', 3), turns: [dice(), dice(), dice({ after: [0.99] }), dice({ block: 0.05 }), dice({ after: [0.09] })], hp: 5000 }).turns;
         check(blockedLast[4].dmg === theirs, "24. Копіпаст: a blocked hit doesn't count, it copies the last one that did damage", JSON.stringify([blockedLast[4].dmg, theirs]));
+    }
+
+    // ---- Nothing only in the hidden record: each ability tells the view when it fires (tests/fightview.js and the icon test draw it)
+    {
+        const told = [];
+        const says = (name, ok, got) => { if (!ok) told.push(`${name}: ${JSON.stringify(got)}`); };
+        const at = (id, who, turns, setup, hp) => scripted({ [who]: drake('plain', T(id)), turns, setup, hp }).turns;
+        const hurtA = (id, to) => fx => { const m = G.getMaxHP(20, 'plain', T(id)); hurt(fx, 'A', m, Math.round(m * to)); };
+        says('Комбо', at(205, 'A', rounds(5))[4].notes.combo === true, at(205, 'A', rounds(5))[4].notes);
+        says('Перша кров', at(208, 'A', rounds(1))[0].notes.firstBlood === true, at(208, 'A', rounds(1))[0].notes);
+        const unblocked = scripted({ A: drake('plain', T(208)), turns: [dice({ block: 0.05 })] }).turns[0].notes;
+        says('Перша кров past a block', unblocked.unblock === 'first_blood', unblocked);
+        says('Залізна шкура', at(211, 'B', rounds(1))[0].notes.ironHide === true, at(211, 'B', rounds(1))[0].notes);
+        const low = at(214, 'A', rounds(1), hurtA(214, 0.2))[0];
+        says('Останній рубіж', low.notes.lastStand === true, low.notes);
+        const back = at(217, 'B', [dice({ after: [0.1] })])[0];
+        says('Контратака', back.notes.counter === Math.round(back.dmg * 0.6), { n: back.notes, dmg: back.dmg });
+        const m220 = G.getMaxHP(20, 'plain', T(220)), ate = at(220, 'A', [dice({ after: [0.1, 0] })], fx => { hurt(fx, 'A', m220, 100); put(fx, 'B', 'shield'); })[0];
+        says('Пожирач бафів', ate.notes.eaten && ate.notes.eaten.id === 'shield' && ate.notes.eaten.healed === Math.round(m220 * 0.15), ate.notes);
+        const ult = id => scripted({ A: drake('red', T(id)), setup: fx => { fx.A.meter = 5; }, turns: [dice()] }).turns[0].notes;
+        says('Підзарядка', ult(223).boost === 1.5, ult(223));
+        says('Перевантаження', Math.abs(ult(268).boost - 1.6) < 1e-9, ult(268));
+        says('Інерція', at(226, 'A', rounds(3))[2].notes.momentum === 4, at(226, 'A', rounds(3))[2].notes);
+        says('Очищення', (at(229, 'A', rounds(1), fx => put(fx, 'A', 'burn'))[0].notes.cleanse || []).join() === 'burn', at(229, 'A', rounds(1), fx => put(fx, 'A', 'burn'))[0].notes);
+        says('Відродження', (scripted({ B: drake('plain', T(245)), setup: strong('A', 2000), turns: rounds(1) }).turns[0].notes.phoenix || {}).hp === 1, 'no note');
+        const twin = scripted({ A: drake('plain', T(249)), turns: [dice({ after: [0.1] })] }).turns[0];
+        says('Двійник', twin.notes.twin === Math.round(twin.dmg * 0.7), { n: twin.notes, dmg: twin.dmg });
+        const storm = scripted({ A: drake('plain', T(253)), turns: [...rounds(8), dice({ block: 0.05 })], hp: 1e6 }).turns[8].notes;
+        says('Око бурі', storm.storm === 1.5 && storm.unblock === 'storm_eye', storm);
+        const m257 = G.getMaxHP(20, 'plain', T(257)), hitB = m257 - at(257, 'A', rounds(2))[1].hpA;
+        const rolled257 = scripted({ A: drake('plain', T(257)), turns: rounds(3), at: { 2: fx => hurt(fx, 'A', m257, 10, m257 - hitB) } }).turns[2].notes;
+        says('Перемотка', rolled257.rewind && rolled257.rewind.from === 10 && rolled257.rewind.to === m257, rolled257);
+        says('Загартування', at(260, 'A', rounds(1), hurtA(260, 0.7))[0].notes.tempered === 10, at(260, 'A', rounds(1), hurtA(260, 0.7))[0].notes);
+        heard = {};
+        scripted({ B: drake('plain', T(264)), setup: (fx, a, b) => { heard = {}; rolled([0.1], () => G.applyEffect(a, b, 'burn', 20, fx)); says('Повернення', heard['cast:returned'] === 'burn' && heard['cast:applied'] === 'burn', heard); } });
+        const sentence = scripted({ A: drake('plain', T(271)), turns: [dice({ after: [0.1] }), dice(), dice(), dice(), dice(), dice(), dice()] }).turns;
+        says('Вирок', sentence[0].notes.sentenced === true && sentence[6].notes.sentenceDone === 2, [sentence[0].notes, sentence[6].notes]);
+        const gone = scripted({ B: drake('plain', T(275)), turns: [dice({ after: [0.01] })] }).turns[0].notes;
+        says('404', gone.notFound && gone.notFound.name === 'B', gone.notFound);
+        says('Чат вирішує', scripted({ A: drake('red', T(281)), turns: [dice({ cast: 0 })] }).turns[0].notes.chat === true, 'no note');
+        const afk = [dice({ before: [0] }), dice(), [], dice(), dice()], away = scripted({ A: drake('plain', T(284)), turns: afk }).turns[4].notes;
+        says('AFK', away.afkBack === 3, away);
+        const lag = scripted({ A: drake('plain', T(287)), turns: [dice({ after: [0.01] }), dice(), dice({ after: [0.99] })] }).turns;
+        says('Лаг', lag[0].notes.lagHang === true && lag[2].notes.lagLand > 0, [lag[0].notes, lag[2].notes]);
+        const copied = scripted({ A: drake('plain', T(292)), turns: [dice(), dice(), dice({ after: [0.01] })] }).turns;
+        says('Копіпаст', copied[2].notes.copy === copied[1].dmg, [copied[2].notes, copied[1].dmg]);
+        check(!told.length, '24. nothing only in the hidden record: every ability that changes a fight tells the view (Синій екран and AFK: tests/fightview.js)', told.slice(0, 5).join(' | '));
     }
 
     // ---- What they meet

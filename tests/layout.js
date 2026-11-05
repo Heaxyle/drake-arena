@@ -13,6 +13,8 @@
 //   - the White Drake's scales, on both cards: a 62×20 steel segment at the VS end of the HP row, 4 px from the HP bar
 //     (66 px shorter; its outer end and the HP number where a viewer card has them) and 12 px from the HP number, its
 //     number centred inside; full, part-gone, broken and rebuilt (the sheet: layout-white-drake-scales.png)
+//   - Синій екран and AFK, both languages, on the worst-case cards: every block of both fighter cards keeps its place and
+//     height, and their layers stay inside the card (layout-meme-states-<lang>.png)
 //   - the Top's titles, both languages: rows of every rarity a viewer can roll, the longest title of each, one with its own
 //     icon: each title and badge in its rarity's colour, the badge in its frame, the emblem and the level as ever, every
 //     row fitting (fitText, 9 px at the least) (layout-top-titles-<lang>.png)
@@ -370,6 +372,27 @@ async function layoutChecks(browser, lang) {
     check(!problems.length, `${tag} worst case fits at 1920×1080: name "${worst.longName}", title "${worst.longTitle}", "${worst.longDrake}", 4 longest chips, full СИЛА + Ice Mirror, 7 leaderboard rows, a stats card`,
         problems.slice(0, 6).join(' | '));
     await iconCheck(page, `layout-worst-${lang}`);
+    // Синій екран and AFK are layers over the card: no block may move, in either state, on either card
+    const memeStates = await page.evaluate(() => {
+        const boxes = c => [c, ...[...c.children].filter(x => !x.classList.contains('fx-layer'))].map(x => { const b = x.getBoundingClientRect(); return `${x.id || x.className}:${b.left}:${b.top}:${b.width}:${b.height}`; }).join(' ');
+        const out = [];
+        for (const p of ['p1', 'p2']) {
+            const c = document.getElementById(`card-${p}`), before = boxes(c), card = c.getBoundingClientRect();
+            for (const [state, layer] of [['crash', '.fx-crash'], ['afk', '.fx-afk']]) {
+                c.classList.add(state);
+                const L = c.querySelector(layer), l = L.getBoundingClientRect();
+                if (boxes(c) !== before) out.push(`${p} ${state}: a block moved`);
+                if (l.left < card.left - 0.5 || l.top < card.top - 0.5 || l.right > card.right + 0.5 || l.bottom > card.bottom + 0.5) out.push(`${p} ${state}: its layer leaves the card`);
+                if (getComputedStyle(L).display === 'none' || !L.textContent) out.push(`${p} ${state}: its layer shows nothing`);
+                c.classList.remove(state);
+            }
+        }
+        return out;
+    });
+    check(!memeStates.length, `${tag} Синій екран and AFK: every block of both worst-case fighter cards keeps its place and height`, memeStates.slice(0, 4).join(' | '));
+    await page.evaluate(() => { document.getElementById('card-p1').classList.add('crash'); document.getElementById('card-p2').classList.add('afk'); });
+    await page.screenshot({ path: path.join(SHOTS, `layout-meme-states-${lang}.png`) });
+    await page.evaluate(() => { document.getElementById('card-p1').classList.remove('crash'); document.getElementById('card-p2').classList.remove('afk'); });
     if (lang === 'uk') { const missed = await overlaySelfTest(page); check(!missed.length, "the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon, an icon over its words, an icon with another icon's art, one sharing another icon's copy, an icon smoothed or pixelated against the display rule and a badge glyph a pixel off", `not reported: ${missed.join(', ')}`); }
     await page.screenshot({ path: path.join(SHOTS, `layout-worst-${lang}.png`) });
     const pops = await page.evaluate(popPositions);

@@ -41,6 +41,13 @@
 //     with either title on the other fighter; 194's card says «баг» / "bug"; a sneaky attack by 97's holder keeps the spear;
 //     the White Dragon's immunity keeps the immune glyph; the opening banner for 182 shows firstCoffee; a crowded card shows
 //     every item, no two alike; two real fights, the own-icon titles and then their pairs
+//   - The notes of the abilities of titles 205–294, on painted cards in both languages: the title's badge glyph (a stand-in)
+//     with the ability's words, in the full chip and the compact one; crowded cards of stand-ins, no two alike
+//   - The Meme abilities in real fights with fixed dice, both languages: «404» on the card and the pop; Синій екран's «:(» on
+//     the log card and the fighter card (a blue flash, a calm «:(» under prefers-reduced-motion), the turn lost, gone the
+//     next turn; AFK's grey card with «AFK» until its next turn and the ×3 return; Лаг's «…» and the stuck hit landing a turn
+//     late, one that knocks out too (the target is the one out); Підзарядка's banner and 2/5 on the card. No block of a
+//     fighter card moves. Screenshots: tests/screenshots/fightview-meme-*.png
 //   - Review screenshots: tests/screenshots/fightview-cards.png (log cards of every kind, both languages) and
 //     tests/screenshots/fightview-turn.png (countdowns, the turn steps, an ultimate, the result, both languages)
 //
@@ -58,7 +65,7 @@ const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
 const TURN = 4500, HIT = 600;
-// FV_ONLY=2,4 runs only those sections (0–14, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
+// FV_ONLY=2,4 runs only those sections (0–16, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
 const ONLY = (process.env.FV_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
 
@@ -78,7 +85,7 @@ async function open(browser, { lang = 'uk', betting = false, width = 1920, heigh
     await page.clock.install({ time: new Date('2026-01-01T11:59:59') });
     await page.clock.pauseAt(new Date('2026-01-01T12:00:00'));
     await page.addInitScript(pageInit, SEED);
-    await page.addInitScript({ content: [busiestRecs, cardShowsAll, titleNoteCases].map(f => `window.${f.name} = ${f};`).join('\n') });   // page-side helpers (below)
+    await page.addInitScript({ content: [busiestRecs, cardShowsAll, titleNoteCases, abilityNoteCases].map(f => `window.${f.name} = ${f};`).join('\n') });   // page-side helpers (below)
     if (betting) await page.addInitScript(() => localStorage.setItem('drake_arena_showcase_betting', '1'));
     await page.goto(`${PAGE}?lang=${lang}`);
     await page.evaluate(() => document.fonts.ready);
@@ -287,6 +294,72 @@ function titleNoteCases() {
     const out = { cases, sneaky, sneakyWords: __fvv('pierce'), immune, immuneWords: __fvv('immune'), coffee: banner(182), sunrise: banner(181), crowded };
     box.remove();
     return out;
+}
+
+// The notes of the abilities of titles 205–294, painted (page side). Each case: a note, a title of its ability, whose title
+// fires it, the turn that shows it, what follows the words. Read as the card shows it: the chip in full, then squeezed by
+// fvFitLine (a note in a lower-priority group takes its compact form; what the attack did never does)
+function abilityNoteCases() {
+    const T = id => TITLES_DB.find(x => x.id === id);
+    const mk = (name, id, type = 'red') => ({ name, color: '#ff7f50', drakeObj: DRAKE_TYPES.find(d => d.type === type), title: T(id) });
+    const hit = more => Object.assign({ type: 'physical', sub: 'light', dmg: 20, crit: false, block: false, shadow: false, miss: false, pierce: false, sd: 0 }, more);
+    const box = document.createElement('div');
+    box.className = 'log-panel frame-sm';
+    box.style.cssText = 'position:absolute;left:0;top:0;width:920px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;padding:14px 22px 18px;z-index:99;background:#15171e';
+    document.body.appendChild(box);
+    const rec = (atk, def, extra) => Object.assign({ turn: 1, atk, def, side: 'left', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: hit(), frozen: false }, extra);
+    const paint = r => { const item = { type: 'row', cells: { left: { k: 'card', rec: r }, right: { k: 'empty' } } }; item.el = document.createElement('div'); box.appendChild(item.el); fvPaint(item); return item.el; };
+    const NOTES = [
+        ['combo', 205, 'atk', () => ({ notes: { combo: true } }), ''],
+        ['firstBlood', 208, 'atk', () => ({ notes: { firstBlood: true } }), ''],
+        ['ironHide', 211, 'def', () => ({ notes: { ironHide: true } }), ''],
+        ['lastStand', 214, 'atk', () => ({ notes: { lastStand: true } }), ''],
+        ['counter', 217, 'def', () => ({ notes: { counter: 9 } }), ' -9'],
+        ['eats', 220, 'atk', () => ({ notes: { eaten: { id: 'divine', healed: 12 } } }), ''],
+        ['meterRush', 223, 'atk', () => ({ ult: { id: 'firestorm', boost: 1.5 } }), ' ×1.5'],
+        ['momentum', 226, 'atk', () => ({ notes: { momentum: 12 } }), ' +12%'],
+        ['cleanse', 229, 'atk', () => ({ notes: { cleanse: ['mark'] } }), ''],
+        ['longBuffs', 232, 'atk', f => ({ casts: [{ owner: f, id: 'shield', result: 'applied' }] }), ' ×2'],
+        ['phoenix', 245, 'def', f => ({ notes: { phoenix: { f, hp: 1 } } }), ' · 1 HP'],
+        ['twin', 249, 'atk', () => ({ notes: { twin: 14 } }), ' -14'],
+        ['storm', 253, 'atk', () => ({ notes: { storm: 1.5 } }), ' ×1.5'],
+        ['rewind', 257, 'atk', () => ({ notes: { rewind: { from: 40, to: 180 } } }), ' 40 → 180'],
+        ['tempered', 260, 'atk', () => ({ notes: { tempered: 15 } }), ' +15%'],
+        ['returned', 264, 'def', f => ({ casts: [{ owner: f, id: 'mark', result: 'returned' }] }), ''],
+        ['overcharge', 268, 'atk', () => ({ ult: { id: 'firestorm', boost: 1.6 } }), ' ×1.6'],
+        ['sentenced', 271, 'atk', () => ({ notes: { sentenced: true } }), ''],
+        ['sentenceDone', 271, 'atk', () => ({ notes: { sentenceDone: 2 } }), ' ×2'],
+        ['notFound', 275, 'def', f => ({ notes: { notFound: f }, attack: hit({ dmg: 0, vanish: true }) }), ''],
+        ['crashed', 278, 'def', f => ({ crash: f, attack: null }), ''],
+        ['chat', 281, 'atk', () => ({ notes: { chat: true } }), ''],
+        ['away', 284, 'atk', () => ({ away: true, attack: null }), ''],
+        ['afkBack', 284, 'atk', () => ({ notes: { afkBack: 3 } }), ' ×3'],
+        ['lagHang', 287, 'atk', () => ({ notes: { lagHang: true }, attack: hit({ dmg: 0, stuck: true }) }), ''],
+        ['lagLand', 287, 'atk', () => ({ notes: { lagLand: 50 } }), ' -50'],
+        ['copy', 292, 'atk', () => ({ notes: { copy: 31 } }), ' -31'],
+    ];
+    const cases = NOTES.map(([key, id, side, turn, after]) => {
+        const f = mk('f', id), o = mk('o', 96, 'blue'), el = paint(side === 'atk' ? rec(f, o, turn(f)) : rec(o, f, turn(f)));
+        const l = el.querySelector('.lc-l2'), words = fvT(key), chipOf = () => [...el.querySelectorAll('.lc-l2 .lk.note')].find(k => __vt(k).includes(words)) || null;
+        const chip = chipOf(), full = chip ? __vt(chip) : __vt(l), group = !!(chip && chip.closest('.lg'));
+        l.style.width = '24px';
+        fvFitLine(l);
+        const now = chipOf();
+        return { key, side, want: `[${titleGlyph(f.title)}] ${words}${after}`, full, group, compact: now ? __vt(now) : '', isCompact: !!now && now.classList.contains('compact') };
+    });
+    // Crowded cards of stand-ins, a Перша кров attacker on an Залізна шкура holder and a Лаг attacker on a Контратака holder:
+    // every item shown, no two alike, though every note wears the same heart
+    const A = mk('atk', 208), B = mk('def', 211, 'blue'), C = mk('lag', 287), D = mk('counter', 217, 'blue');
+    const left = rec(A, B, { turn: 25, attack: hit({ type: 'vampire', sub: 'sneaky', dmg: 87, crit: true, pierce: true, sd: 2.8 }), notes: { firstBlood: true, unblock: 'first_blood', ironHide: true, vamp: 43, reflect: 13 },
+        ticks: [{ id: 'burn', v: -12 }, { id: 'regen', v: 19 }], used: ['rage', 'mark'], casts: [{ owner: B, id: 'frost', result: 'replaced', extra: 'weakness' }, { owner: B, id: 'poison', result: 'applied' }] });
+    const right = rec(C, D, { turn: 26, side: 'right', attack: hit({ dmg: 64, crit: true, sd: 3.1 }), notes: { lagLand: 120, counter: 38, scales: 12, thorns: 6 },
+        ticks: [{ id: 'burn', v: -9 }], used: ['blessing', 'shield'], casts: [{ owner: D, id: 'mark', result: 'applied' }, { owner: C, id: 'rage', result: 'refreshed' }] });
+    const row = { type: 'row', cells: { left: { k: 'card', rec: left }, right: { k: 'card', rec: right } } };
+    row.el = document.createElement('div'); box.appendChild(row.el); fvPaint(row);
+    const shown = side => cardShowsAll(row.el.querySelector(`.lc.${side}`), side === 'left' ? left : right, side, currentLang);
+    const crowded = { left: shown('left'), right: shown('right') };
+    box.remove();
+    return { cases, crowded };
 }
 
 // Animations in the arena that are still running, and how long until the last one ends (ms)
@@ -1749,6 +1822,141 @@ async function popAtStep2(page, turn) {
             check(fought.own.includes('grumpyHedgehog') && fought.own.includes('schrodPotato') && !fought.own.includes('thorns') && !fought.own.includes('coin')
                 && fought.pair.includes('thorns') && fought.pair.includes('coin') && !fought.pair.includes('grumpyHedgehog') && !fought.pair.includes('schrodPotato'),
                 `[${lang}] real fights: 184's thorns and 190's coin flip show their own icons, 183's and 189's the abilities' glyphs`, JSON.stringify(fought));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // The notes of the abilities of titles 205–294 have no glyph of their own: the badge of the title that fired them, here
+        // the stand-in. On painted cards, in full and compact, in both languages (design/icons/test.js has the own-icon case)
+        console.log('\nThe notes of the new abilities');
+        if (run(15)) for (const lang of ['uk', 'en']) {
+            const { page, context, errors } = await open(browser, { lang });
+            const r = await page.evaluate(() => abilityNoteCases());
+            const bad = r.cases.flatMap(c => [
+                ...(c.full === c.want ? [] : [`${c.key} (${c.side}): the chip reads «${c.full}», not «${c.want}»`]),
+                ...(!c.group || (c.isCompact && c.compact === c.want) ? [] : [`${c.key} (${c.side}): compact it reads «${c.compact}», not «${c.want}»`]),
+            ]);
+            check(!bad.length, `[${lang}] each new note on a card: the title's badge glyph and the ability's words, and a stand-in keeps its words when compact (${r.cases.length} notes, ${r.cases.filter(c => c.group).length} of them compacted)`, bad.slice(0, 5).join(' | '));
+            const crowded = [...r.crowded.left.out, ...r.crowded.right.out];
+            check(!crowded.length && r.crowded.left.compact + r.crowded.right.compact > 0, `[${lang}] crowded cards of stand-ins show every item, no two alike, though the notes wear the same heart (${r.crowded.left.compact} + ${r.crowded.right.compact} compact)`, crowded.slice(0, 5).join(' | '));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // The Meme abilities as the stream sees them, in real fights with fixed dice (window.__dice, then 0.99: no crit, no block,
+        // no cast). Rolls in the fight's order: `before` (Синій екран, AFK's draw), the attack's five, `after`, the cast
+        console.log('\nThe Meme abilities, as the stream sees them');
+        const ROLLS = (o = {}) => [...(o.before || []), 0.5, 0.5, 0.5, 0.99, o.block ?? 0.99, ...(o.after || []), 0.99];
+        const memePage = async (lang, motion) => {
+            const { page, context, errors } = await open(browser, { lang, motion });
+            await page.evaluate(() => { const real = Math.random; window.__dice = null; Math.random = () => window.__dice ? (window.__dice.length ? window.__dice.shift() : 0.99) : real(); });
+            await register(page, lang, [['kotyk_ua', 'red'], ['jade', 'green']]);
+            // A fight between the two with these titles: the last one played out first, then the coin flip keeps kotyk_ua first
+            const fight = async (a, b) => {
+                await page.evaluate(() => { window.__dice = null; });
+                for (let i = 0; i < 40 && await page.evaluate(() => isBattleRunning); i++) await page.clock.runFor(TURN);
+                await page.evaluate(([a, b]) => { const db = getDragonDB(), T = id => TITLES_DB.find(x => x.id === id); db.kotyk_ua.title = T(a); db.jade.title = T(b); saveDragonDB(db); }, [a, b]);
+                await page.clock.runFor(60000);   // past the last fight's result screen
+                await page.evaluate(() => { window.__dice = [0.9]; });
+                for (const u of ['kotyk_ua', 'jade']) await say(page, u, cmd(lang, '!черга', '!queue'));
+                for (let i = 0; i < 240 && !(await page.evaluate(() => isBattleRunning)); i++) await page.clock.runFor(250);
+            };
+            // Turn n with these rolls, read just after its step 2. Not settled: a settled arena has no flash left to read
+            const turn = async (n, rolls) => {
+                await page.evaluate(q => { window.__dice = q; }, rolls);
+                await toFightTime(page, n * TURN + 1);
+                await page.clock.runFor(HIT + 100);
+                const s = await page.evaluate(arenaNow);
+                return { s, card: s.cards.find(c => c.turn === n) || {} };
+            };
+            const hp = p => page.evaluate(p => Number(document.getElementById(`hp-text-${p}`).innerText.split('/')[0]), p);
+            // A fighter card's looks, and every block's place (a fixed height means they never move)
+            const looks = p => page.evaluate(p => {
+                const c = document.getElementById(`card-${p}`), crash = c.querySelector('.fx-crash'), afk = c.querySelector('.fx-afk'), cs = e => getComputedStyle(e);
+                return { crash: c.classList.contains('crash'), afk: c.classList.contains('afk'), crashText: crash.textContent, crashOpacity: +cs(crash).opacity, crashAnims: crash.getAnimations().length,
+                         crashBack: cs(crash).backgroundColor, afkText: afk.textContent, afkOpacity: +cs(afk).opacity, sprite: cs(c.querySelector('.drake-sprite')).filter,
+                         boxes: [...c.children].filter(x => !x.classList.contains('fx-layer')).map(x => { const b = x.getBoundingClientRect(); return `${x.className}:${Math.round(b.top)}:${Math.round(b.height)}`; }).join(' ') };
+            }, p);
+            return { page, context, errors, fight, turn, hp, looks };
+        };
+        if (run(16)) for (const lang of ['uk', 'en']) {
+            const { page, context, errors, fight, turn, hp, looks } = await memePage(lang, false);
+            const W = await page.evaluate(() => FV_TEXT[currentLang]);
+            // 404: the number on the card and the pop say «404»; nothing is lost
+            await fight(275, 1);
+            const full2 = await hp('p2');
+            const v = await turn(1, ROLLS({ after: [0.01] }));
+            check(v.card.num === '404' && v.s.p2.pops.includes('404') && await hp('p2') === full2 && v.card.l2.includes(`[hp] ${W.notFound}`),
+                `[${lang}] 404: «404» on the card and the pop, instead of the number, and the title's note «${W.notFound}»`, JSON.stringify({ card: v.card, pops: v.s.p2.pops }));
+            // Синій екран: the card's «:(», the lost turn, the fighter card; under reduced motion nothing flashes
+            await fight(278, 1);
+            const calm = await looks('p1');
+            const crashed = await turn(1, [0.01]);
+            const b = await looks('p1');
+            check(crashed.card.move === ':(' && crashed.card.num === '' && crashed.card.l2 === `[hp] ${W.crashed} ${W.turnLost}` && !crashed.s.cells.some(c => c.kind === 'ko'),
+                `[${lang}] Синій екран: the log card says «:(», «${W.crashed} ${W.turnLost}», with no number, and nobody is knocked out`, JSON.stringify({ card: crashed.card, cells: crashed.s.cells }));
+            check(b.crash && b.crashText === ':(' && b.crashOpacity === 1 && b.crashAnims === 0 && b.crashBack === 'rgba(0, 0, 0, 0)' && b.boxes === calm.boxes,
+                `[${lang}] Синій екран under prefers-reduced-motion: a calm «:(» on the fighter card, nothing flashing, no block moved`, JSON.stringify(b));
+            await page.screenshot({ path: `tests/screenshots/fightview-meme-crash-${lang}.png` });
+            await turn(2, ROLLS());
+            check(!(await looks('p1')).crash, `[${lang}] Синій екран: the next turn takes it off the card`, JSON.stringify(await looks('p1')));
+            // AFK: its turn 2 (the third of the fight); grey with «AFK» until its next turn, then ×3
+            await fight(284, 1);
+            const hit1 = (await turn(1, ROLLS({ before: [0] }))).card.num;
+            await turn(2, ROLLS());
+            const calm2 = await looks('p1');
+            const gone = await turn(3, []);
+            const g = await looks('p1');
+            check(gone.card.move === 'AFK' && gone.card.l2 === `[hp] ${W.away} ${W.turnSkipped}` && gone.card.num === '' && !gone.s.cells.some(c => c.kind === 'ko'),
+                `[${lang}] AFK: the log card says «AFK», «${W.away} ${W.turnSkipped}», with no number`, JSON.stringify(gone.card));
+            check(g.afk && g.afkText === 'AFK' && g.afkOpacity === 1 && /grayscale/.test(g.sprite) && g.boxes === calm2.boxes, `[${lang}] AFK: the fighter card greys out with «AFK», no block moved`, JSON.stringify(g));
+            await page.screenshot({ path: `tests/screenshots/fightview-meme-afk-${lang}.png` });
+            await turn(4, ROLLS());
+            check((await looks('p1')).afk, `[${lang}] AFK: still away through the opponent's turn`, JSON.stringify(await looks('p1')));
+            const back = await turn(5, ROLLS());
+            const num = s => Math.abs(Number(s));
+            check(!(await looks('p1')).afk && back.card.l2.includes(`[hp] ${W.afkBack} ×3`) && Math.abs(num(back.card.num) - 3 * num(hit1)) <= 2,
+                `[${lang}] AFK: back on its next turn, «${W.afkBack} ×3», and the hit shows it (${hit1} then ${back.card.num})`, JSON.stringify(back.card));
+            // Лаг: the number waits, the stuck hit lands a turn late, on the target
+            await fight(287, 1);
+            const before = await hp('p2');
+            const stuck = await turn(1, ROLLS({ after: [0.01] }));
+            check(stuck.card.num === '…' && stuck.s.p2.pops.includes('…') && await hp('p2') === before && stuck.card.l2.includes(`[hp] ${W.lagHang}`),
+                `[${lang}] Лаг: «…» instead of the number, «${W.lagHang}», and the target's HP stays`, JSON.stringify(stuck.card));
+            await turn(2, ROLLS());
+            const landed = await turn(3, ROLLS());
+            const late = Number((landed.card.l2.match(new RegExp(`${W.lagLand} -(\\d+)`)) || [])[1]), lost = before - await hp('p2');
+            check(late > 0 && lost === late + num(landed.card.num) && landed.s.p2.pops.includes(`-${late}`),
+                `[${lang}] Лаг: a turn late «${W.lagLand} -${late}» on the card and on the target, then its normal hit (${landed.card.num})`, JSON.stringify({ card: landed.card, lost, pops: landed.s.p2.pops }));
+            // A stuck hit that knocks the target out: the target is out, not the one whose turn it was
+            await fight(287, 1);
+            await turn(1, ROLLS({ after: [0.01] }));
+            await page.evaluate(() => { battleFx.jade.debuff.push({ id: 'burn', left: 1, power: 18.5 }); });
+            await turn(2, ROLLS({ block: 0.01 }));
+            const ko = await turn(3, []);
+            await page.clock.runFor(HIT);
+            const end = await page.evaluate(arenaNow);
+            const koCell = end.cells.find(c => c.kind === 'ko');
+            check(ko.card.move === W.lagLand && /^-\d+$/.test(ko.card.num) && koCell && koCell.text.includes('@jade') && !end.cells.some(c => c.kind === 'ko' && c.text.includes('@kotyk_ua')),
+                `[${lang}] Лаг: a stuck hit that knocks out shows as a card, and the target is the one knocked out`, JSON.stringify({ card: ko.card, cells: end.cells }));
+            // Підзарядка: the banner and the meter on the card
+            await fight(223, 1);
+            const start = await page.evaluate(() => ({ banners: [...document.querySelectorAll('#log-feed .log-banner')].map(__vt), pips: document.querySelectorAll('#card-p1 .pm-pip.on').length, foe: document.querySelectorAll('#card-p2 .pm-pip.on').length }));
+            check(start.banners.some(x => x.includes('2/5') && x.includes('@kotyk_ua')) && start.pips === 2 && start.foe === 0,
+                `[${lang}] Підзарядка: the fight's banner says 2/5, and the card's meter shows it`, JSON.stringify(start));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+        // With motion allowed the fighter card does flash blue
+        if (run(16)) {
+            const { page, context, errors, fight, turn, looks } = await memePage('uk', true);
+            await fight(278, 1);
+            await turn(1, [0.01]);
+            const f = await looks('p1');
+            check(f.crash && f.crashAnims === 1 && f.crashBack !== 'rgba(0, 0, 0, 0)', 'Синій екран with motion allowed: the fighter card flashes blue', JSON.stringify(f));
+            // The flash is over in 1.4 s of real time: the screenshot holds it at its height
+            await page.evaluate(() => { const x = document.querySelector('#card-p1 .fx-crash').getAnimations()[0]; x.pause(); x.currentTime = 500; });
+            await page.screenshot({ path: 'tests/screenshots/fightview-meme-crash-motion.png' });
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
