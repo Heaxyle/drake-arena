@@ -5,7 +5,8 @@
 // Each mutation is one small code change that a real bug could make. For each, a copy of the game (plus its README,
 // which effects.js also reads) goes into a temp folder, effects.js runs against it, and the mutation counts as caught
 // only if effects.js exits non-zero. An unchanged copy runs first and must pass, so a broken test setup can't look like
-// "everything caught". Exits non-zero if any mutation slips through.
+// "everything caught". Exits non-zero if any mutation slips through. Before all that, the counts in README.md and
+// TESTING.md must be the list's length: a new mutation means a new number in both.
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
@@ -17,6 +18,8 @@ const FILE = fi === -1 ? 'showcase/index.html' : args[fi + 1];
 // Line endings normalised to \n, so the multi-line patterns below match on Windows (CRLF checkout) and in CI (LF)
 const src = fs.readFileSync(FILE, 'utf8').replace(/\r\n/g, '\n');
 const readme = fs.readFileSync(path.join(path.dirname(FILE), 'README.md'), 'utf8');
+// Where the docs give the list's length, one place each
+const COUNTS = [['README.md', /(\d+) deliberate bugs/], ['TESTING.md', /(\d+) specific ways/]];
 
 // [name, what the bug is, code to find, what to put instead]
 const MUTATIONS = [
@@ -445,6 +448,17 @@ async function pool(jobs, size) {
 
 (async () => {
     let missed = 0;
+    // First, so a stale count fails in a second and not after the whole run. No number found fails too: a reworded sentence
+    // must not switch this off.
+    const stale = COUNTS.flatMap(([file, pattern]) => {
+        const said = fs.readFileSync(path.join(__dirname, '..', file), 'utf8').match(pattern);
+        return said && Number(said[1]) === MUTATIONS.length ? [] : [`${file} ${said ? `says "${said[0]}"` : `has no ${pattern}`}`];
+    });
+    if (stale.length) {
+        console.log(`✗ the list has ${MUTATIONS.length} mutations, but ${stale.join(' and ')}: update the count`);
+        process.exit(1);
+    }
+    console.log(`✓ ${COUNTS.map(([file]) => file).join(' and ')} give the list's length`);
     const control = await runTests(src);
     const bad = control.filter(r => r.code !== 0);
     if (bad.length) {
