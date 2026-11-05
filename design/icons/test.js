@@ -18,8 +18,14 @@
 //    record shows them); for each text drawn on the overlay its list names an icon (or none) for every emoji, in both languages.
 // 7. Colour = element: every effect's and ultimate's colour is its element's (ELEMENT_COLORS), and the icons' names for them
 //    are EFFECTS' / CLASS_ULTIMATES' own names.
-// 8. Each title's badge shows what the inventory (inventory.md, section 5) decided: its mechanic, else its main bonus;
-//    «Біла сталь» its sword.
+// 8. Each title's badge shows what the inventory (inventory.md, section 5) decided: its own icon (a row's "own icon: <id>"), else
+//    its mechanic, else its main bonus. A title's own icon (an ICONS record with `title`) names a title that exists, at most
+//    one per title; no other title's badge shows it; it's kind note and carries the title's names in both languages.
+// 9. The notes a title's ability fires, on real cards (fvCardHtml) in both languages: the fighter whose title fired the note
+//    gets the title's own icon, in the full chip and the compact one, with the ability's words (194: «баг» / "bug"); the pair
+//    title's holder gets the ability's glyph, whatever the other fighter holds. A sneaky attack keeps the spear, 97's holder's
+//    too; the White Dragon's immunity keeps the immune glyph; the opening banner shows the title's badge.
+// 10. The Top: each row's title in its rarity's colour, its badge in its rarity frame (the browser tests check that rows fit).
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..', '..');
@@ -65,8 +71,8 @@ console.warn = () => {};
 console.error = (...a) => errors.push(a.join(' '));
 eval(gameScript(FILE) + `
 ;globalThis.__game = { DI: DrakeIcons, EFFECTS, CLASS_ULTIMATES, ULTIMATE_IDS, DRAKE_TYPES, TITLES_DB, FV_TEXT, FV_ICONS, TOURNEY_TEXT, TOURNEY_ICONS,
-    SHOW_TEXT, SHOW_ICONS, METER, EMBLEMS, MEDAL_ICONS, REEL_ICONS, EMOJI_RE, RARITIES, titleGlyph, ultimateFor, WHITE_DRAKE_TITLE_ID,
-    setLang: l => { currentLang = l; } };`);
+    SHOW_TEXT, SHOW_ICONS, METER, EMBLEMS, MEDAL_ICONS, REEL_ICONS, EMOJI_RE, RARITIES, titleGlyph, ultimateFor, fvCardHtml, fvBannerHtml, renderLeaderboard,
+    getDragonDB, saveDragonDB, setLang: l => { currentLang = l; } };`);
 console.warn = _warn;
 console.error = _err;
 const G = globalThis.__game;
@@ -157,7 +163,7 @@ const GI = G.DI.ICONS;
     const asked = new Map();   // id → where
     const ask = (id, where) => { if (!asked.has(id)) asked.set(id, where); };
     const script = gameScript(FILE);
-    for (const m of script.matchAll(/(?:pxIcon|fvNum)\('(\w+)'/g)) ask(m[1], 'pxIcon in the page');
+    for (const m of script.matchAll(/(?:pxIcon|fvNum|fvNoteGlyph|fvTitleNote)\('(\w+)'/g)) ask(m[1], 'pxIcon in the page');
     for (const m of script.matchAll(/\{ i: '(\w+)'/g)) ask(m[1], 'a compact chip');
     Object.keys(G.EFFECTS).forEach(id => ask(id, 'an effect'));
     G.ULTIMATE_IDS.forEach(id => ask(id, 'an ultimate'));
@@ -205,18 +211,114 @@ const GI = G.DI.ICONS;
     check(!bad.length, "every effect's and ultimate's colour is its element's, and its icon carries its own names", bad.join(' | '));
 }
 
-// ---- 8. Title badges as the inventory decided
+// ---- 8. Title badges as the inventory decided; the titles' own icons
 {
     const inv = fs.readFileSync(path.join(__dirname, 'inventory.md'), 'utf8');
     const WORD = { 'HP': 'hp', 'crit': 'crit', 'defence': 'defence', 'effect chance': 'effect', 'buff power': 'buffpower', 'guardian': 'guardian', 'pierce': 'pierce',
         'immune': 'immune', 'dodge': 'dodge', 'chaos': 'chaos', 'opening buff': 'opening', 'thorns': 'thorns', 'lifesteal': 'lifesteal', 'execute': 'execute',
-        'coin flip': 'coin', 'sleep': 'sleep', 'cat': 'cat' };
+        'coin flip': 'coin', 'sleep': 'sleep', 'cat': 'cat', 'sovereign': 'sovereign' };
     const want = {};
     for (const m of inv.matchAll(/^\| (\d+) \| \w+ \| [^|]+ \| [^|]+ \| [^|]+ \| (?:bonus|mechanic): ([a-zA-Z ]+?)(?: \(.*\))? \|$/gm)) want[m[1]] = WORD[m[2]];
-    for (const m of inv.matchAll(/^\| (\d+) \| divine \| [^|]+ \| [^|]+ \| [^|]+ \| own icon/gm)) want[m[1]] = 'sovereign';
-    want[G.WHITE_DRAKE_TITLE_ID] = 'whiteSteel';
+    const ownRows = [...inv.matchAll(/^\| (\d+) \| \w+ \| [^|]+ \| [^|]+ \| [^|]+ \| own icon: (\w+) \(.+\) \|$/gm)];
+    for (const m of ownRows) want[m[1]] = m[2];
     const bad = G.TITLES_DB.filter(t => want[t.id] !== G.titleGlyph(t)).map(t => `${t.id}: ${G.titleGlyph(t)}, the inventory says ${want[t.id]}`);
-    check(!bad.length && Object.keys(want).length === G.TITLES_DB.length, `all ${G.TITLES_DB.length} titles' badges show what the inventory decided (mechanic, else main bonus)`, bad.slice(0, 6).join(' | ') || `${Object.keys(want).length} of ${G.TITLES_DB.length} titles found in inventory.md`);
+    check(!bad.length && Object.keys(want).length === G.TITLES_DB.length, `all ${G.TITLES_DB.length} titles' badges show what the inventory decided (${ownRows.length} own icons, else mechanic, else main bonus)`, bad.slice(0, 6).join(' | ') || `${Object.keys(want).length} of ${G.TITLES_DB.length} titles found in inventory.md`);
+    // A title's own icon belongs to that title alone, and says so: its kind and its names, as effects carry theirs
+    const own = Object.keys(GI).filter(id => GI[id].title !== undefined), badOwn = [], holder = new Map();
+    for (const id of own) {
+        const title = G.TITLES_DB.find(x => x.id === GI[id].title);
+        if (!title) { badOwn.push(`${id}: its title ${GI[id].title} doesn't exist`); continue; }
+        if (holder.has(title.id)) badOwn.push(`title ${title.id} has two own icons: ${holder.get(title.id)} and ${id}`);
+        holder.set(title.id, id);
+        if (GI[id].kind !== 'note') badOwn.push(`${id}: kind ${GI[id].kind}, not note`);
+        if (GI[id].name.uk !== title.name.uk || GI[id].name.en !== title.name.en) badOwn.push(`${id}: the icon is «${GI[id].name.uk}» / "${GI[id].name.en}", title ${title.id} is «${title.name.uk}» / "${title.name.en}"`);
+        const others = G.TITLES_DB.filter(x => x.id !== title.id && G.titleGlyph(x) === id).map(x => x.id);
+        if (others.length) badOwn.push(`${id} is title ${title.id}'s, and the badge of ${others.join(', ')} too`);
+        // By id: a saved drake carries a copy of its title (an old name, say)
+        if (G.titleGlyph({ ...title, name: { uk: '?', en: '?' } }) !== id) badOwn.push(`a saved copy of title ${title.id} doesn't find ${id}`);
+    }
+    if (G.titleGlyph({ rarity: 'common', bonus: { type: 'stats', stats: { hp: 1 } } }) !== 'hp') badOwn.push('a title copy with no id takes some icon, not its bonus');
+    check(!badOwn.length && own.length === ownRows.length, `${own.length} titles' own icons: each its title's alone, kind note, with its names in both languages`, badOwn.slice(0, 6).join(' | ') || `${own.length} ICONS records with a title, ${ownRows.length} "own icon" rows in inventory.md`);
+}
+
+// ---- 9. The notes a title fires, on the cards
+{
+    const T = id => G.TITLES_DB.find(x => x.id === id);
+    const fighter = (name, id, type = 'red') => ({ name, color: '#8ab4f8', drakeObj: G.DRAKE_TYPES.find(d => d.type === type), title: T(id) });
+    const hit = more => ({ type: 'physical', sub: 'light', dmg: 20, crit: false, block: false, shadow: false, miss: false, pierce: false, sd: 0, ...more });
+    const card = (atk, def, extra) => G.fvCardHtml({ turn: 1, atk, def, side: 'left', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: hit(), frozen: false, ...extra }, 'left');
+    const shows = (html, icon) => html.includes(`data-icon="${icon}"`);
+    const chips = (html, icon) => html.includes(`data-ci="${icon}"`);
+    const said = (html, words) => html.includes(`> ${words}`);   // the words right after the icon (not its alt text)
+    // The note, its ability's own-icon title and pair, whose title fires it, and the turn that shows it (fired: that fighter)
+    const NOTES = [
+        ['guardian', 176, 96, 'atk', () => ({ notes: { guardian: 12 } })],
+        ['immune', 178, 98, 'def', fired => ({ casts: [{ owner: fired, id: 'burn', result: 'immune' }] })],   // the cast's owner
+        ['immune', 178, 98, 'atk', fired => ({ casts: [{ owner: fired, id: 'poison', result: 'immune' }] })],   // the cat's debuff on its own attacker
+        ['immune', 178, 98, 'def', () => ({ ult: { id: 'theft', immune: true } })],   // an ultimate can't take the defender's buffs
+        ['dodge', 179, 99, 'def', () => ({ notes: { dodge: true }, attack: hit({ dmg: 0, block: true }) })],
+        ['chaos', 180, 100, 'atk', () => ({ notes: { chaos: true } })],
+        ['thorns', 184, 183, 'def', () => ({ notes: { thorns: 6 } })],
+        ['lifesteal', 185, 186, 'atk', () => ({ notes: { lifesteal: 9 } })],
+        ['execute', 188, 187, 'atk', () => ({ notes: { execute: true } })],
+        ['coin', 190, 189, 'atk', () => ({ notes: { coin: 1.5 } })],
+        ['sleep', 192, 191, 'atk', () => ({ notes: { sleep: true } })],
+        ['cat', 194, 193, 'atk', () => ({ notes: { cat: true } })],
+    ];
+    const bad = [];
+    for (const lang of ['uk', 'en']) {
+        G.setLang(lang);
+        for (const [note, ownId, pairId, side, turn] of NOTES) {
+            const icon = G.titleGlyph(T(ownId)), compact = note !== 'coin';   // the coin's chip is compact already: a glyph and a number
+            // Each title on the side that fires, the other on the other side, so the wrong fighter's title shows
+            const draw = (firing, other) => { const a = fighter('a', side === 'atk' ? firing : other), d = fighter('d', side === 'atk' ? other : firing, 'blue'); return card(a, d, turn(side === 'atk' ? a : d)); };
+            const mine = draw(ownId, pairId), theirs = draw(pairId, ownId), where = `${lang} ${note}`;
+            if (icon === note) bad.push(`${where}: title ${ownId} has no own icon`);
+            if (!shows(mine, icon) || shows(mine, note)) bad.push(`${where}: title ${ownId}'s holder fires it, its card doesn't show ${icon}`);
+            if (compact && !chips(mine, icon)) bad.push(`${where}: title ${ownId}'s compact chip isn't ${icon}`);
+            if (!shows(theirs, note) || shows(theirs, icon)) bad.push(`${where}: title ${pairId}'s holder fires it, its card doesn't show ${note}`);
+            if (compact && !chips(theirs, note)) bad.push(`${where}: title ${pairId}'s compact chip isn't ${note}`);
+            // The ability's words stay, whichever icon they go with; 194 has words of its own
+            if (compact && note !== 'cat') {
+                const words = G.FV_TEXT[lang][note].replace(G.EMOJI_RE, '').trim();
+                if (!said(mine, words) || !said(theirs, words)) bad.push(`${where}: the card doesn't say «${words}»`);
+            }
+        }
+        const cat = fighter('a', 193), bug = fighter('a', 194), foe = fighter('d', 96, 'blue');
+        const catWord = lang === 'uk' ? 'кіт' : 'cat', bugWord = lang === 'uk' ? 'баг' : 'bug';
+        if (!said(card(bug, foe, { notes: { cat: true } }), bugWord) || said(card(bug, foe, { notes: { cat: true } }), catWord)) bad.push(`${lang}: title 194's note doesn't say «${bugWord}»`);
+        if (!said(card(cat, foe, { notes: { cat: true } }), catWord)) bad.push(`${lang}: title 193's note doesn't say «${catWord}»`);
+        const sneaky = card(fighter('a', 97), foe, { attack: hit({ sub: 'sneaky', pierce: true }) });
+        if (!shows(sneaky, 'pierce') || shows(sneaky, 'bigBrain')) bad.push(`${lang}: a sneaky attack by title 97's holder doesn't keep the spear`);
+        // Only its ability's notes: another ability's note keeps its glyph, whatever title the fighter holds
+        const notMine = card(fighter('a', 185), foe, { notes: { chaos: true } });
+        if (!shows(notMine, 'chaos') || shows(notMine, 'energyVampire')) bad.push(`${lang}: title 185's holder shows its own icon on another ability's note`);
+        const dragon = fighter('w', 999, 'white'), dragonCard = card(foe, dragon, { casts: [{ owner: dragon, id: 'burn', result: 'immune' }] });
+        if (!shows(dragonCard, 'immune')) bad.push(`${lang}: the White Dragon's immunity doesn't keep the immune glyph`);
+        for (const id of [182, 181]) if (!shows(G.fvBannerHtml({ kind: 'opening', data: { f: fighter('a', id), id: 'rage' } }), G.titleGlyph(T(id)))) bad.push(`${lang}: the opening banner for title ${id} doesn't show its badge`);
+    }
+    check(!bad.length, 'the notes a title fires: its own icon for its holder, full and compact, with the ability\'s words (194: «баг» / "bug"); the ability\'s glyph for the pair title\'s; the spear and the White Dragon\'s immunity as they are', bad.slice(0, 6).join(' | '));
+}
+
+// ---- 10. The Top: each title in its rarity's colour, its badge in its frame
+{
+    const db = G.getDragonDB(), red = G.DRAKE_TYPES.find(d => d.type === 'red');
+    const rows = [['ann', 1], ['bob', 171], ['cid', 176], ['dee', 183], ['eve', 194]];   // common, epic, a legendary with its own icon, a mythic, a meme
+    rows.forEach(([name, id]) => { db[name] = { name, color: '#8ab4f8', drakeObj: red, title: G.TITLES_DB.find(x => x.id === id), xp: 0, level: 1 }; });
+    G.saveDragonDB(db);
+    G.setLang('uk');
+    G.renderLeaderboard();
+    const html = document.getElementById('leaderboard-list').innerHTML, bad = [], rarities = new Set();
+    for (const [name, id] of rows) {
+        const title = G.TITLES_DB.find(x => x.id === id), glyph = G.titleGlyph(title), row = (html.match(new RegExp(`data-key="${name}".*?</li>`, 's')) || [''])[0];
+        rarities.add(title.rarity);
+        const span = row.match(/<span class="lb-title" style="color:(#[0-9a-f]+)">(.*?)<\/span>\s*<\/span>/s) || [];
+        if (span[1] !== G.RARITIES[title.rarity].color) bad.push(`@${name}: title in ${span[1]}, its rarity's colour is ${G.RARITIES[title.rarity].color}`);
+        if (!(span[2] || '').includes(`class="px-badge" data-frame="${title.rarity}"`)) bad.push(`@${name}: no ${title.rarity} frame on its badge`);
+        if (!(span[2] || '').includes(`px-glyph" data-icon="${glyph}"`)) bad.push(`@${name}: its badge isn't ${glyph}`);
+        if (!(span[2] || '').includes(title.name.uk)) bad.push(`@${name}: «${title.name.uk}» isn't in its rarity's colour`);
+    }
+    check(!bad.length && rarities.size === rows.length, `the Top: each title in its rarity's colour, its badge in its frame (${[...rarities].join(', ')})`, bad.slice(0, 6).join(' | '));
 }
 
 if (failed) { console.log(`${failed} icon check${failed === 1 ? '' : 's'} failed`); process.exit(1); }

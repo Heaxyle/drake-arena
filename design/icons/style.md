@@ -36,9 +36,9 @@ player guide still draw from them. Change a V2 image in `v2/`, never in the page
   the streamer card; an `<img>` moved within the page keeps its loop), and only an icon that changes is a new element. No glow
   is baked in: the fire glow, the chips and the meter pips stay CSS.
 - **A title badge** is two loops, each running on its own: its rarity's frame (`frame-<rarity>-anim.png`, 48×48 art for a
-  12×12 glyph) with the title's glyph (its mechanic's note, else its main bonus) on top, one glyph pixel in: 4 art pixels, so
-  s CSS px at ×s. The badge is 12 × s CSS px, as before; in the Top (×1) it stays the bare glyph. In the page it's a
-  `.px-badge` box holding the two images, and `fitText` scales it back as one icon.
+  12×12 glyph) with the title's glyph (its own icon, else its mechanic's note, else its main bonus) on top, one glyph pixel in:
+  4 art pixels, so s CSS px at ×s. The badge is 12 × s CSS px, as before, in the Top (×1) too. In the page it's a `.px-badge`
+  box holding the two images, and `fitText` scales it back as one icon.
 - **What V2 draws** where it isn't the glyph the batch tables below describe: Shadow Theft a shadow vortex, three grey smoke
   arms round a dark eye, drawing small green buff arrows in; Ultra-block a barrier dome, a hit splashing off it; Unblockable
   a shield shattered into shards round a red impact flash; Effect chance a lilac coin, a green buff arrow on one face and an
@@ -76,7 +76,7 @@ Press Start 2P is an 8×8 font shown at 2× (16 px). The icons use the same pixe
 |---|---|---|---|---|
 | effect (buff / debuff) | 10×10 | 20 px | 10 px | 30 px |
 | log note, attack type (bare glyph) | 10×10 | 20 px | 10 px | 30 px |
-| title (rarity frame) | 12×12: a 1-pixel frame around the note's 10×10 glyph | 24 px | the bare glyph, 10 px (no frame) | 36 px |
+| title (rarity frame) | 12×12: a 1-pixel frame around the note's 10×10 glyph | 24 px | 12 px | 36 px |
 | ultimate | 12×12 | 24 px | 12 px | 36 px |
 | medal (1st, 2nd, 3rd) | 12×12: a round 10 px disc under a ribbon | 24 px | 12 px | 36 px (the podium) |
 | the title roulette (a wheel) | 11×11: an odd grid, so the wheel has a centre pixel | 22 px | 11 px | 33 px |
@@ -84,10 +84,10 @@ Press Start 2P is an 8×8 font shown at 2× (16 px). The icons use the same pixe
 
 Why these sizes, from the inventory: the rows that hold icons in the fight are 20–22 px (log lines 20 px, chips 21 px), so a
 10-pixel glyph at 2× fills a chip. Notes were planned at 8×8, but an 8×8 glyph with its outline leaves 6×6 inside, and pass 2
-showed that 6×6 glyphs read as blobs: every small icon has 10×10. A title badge is the note's glyph plus a 1-pixel frame, so the
-badge and the note are literally one drawing; the title badge on the fighter card grows from ~21 to 26 px to hold it (24 px +
+showed that 6×6 glyphs read as blobs: every small icon has 10×10. A title badge is the note's glyph plus a 1-pixel frame, so for
+each fighter the badge and the note are one drawing; the title badge on the fighter card grows from ~21 to 26 px to hold it (24 px +
 its border, in the 108 px top row). The side column's text is 12–14 px in rows of 15–18 px, so it takes ×1, like the drake
-sprites in the Top (there a title shows its bare glyph: a 12 px frame is noise). The podium medals are 24 px today.
+sprites in the Top. The podium medals are 24 px today.
 
 What changes in the layout when this goes in (all within the fixed heights):
 - Fighter card chips: 22 px tall instead of 21, with a 2 px gap between the rows instead of 4. The block stays 46 px.
@@ -114,8 +114,8 @@ What changes in the layout when this goes in (all within the fixed heights):
   the frame's pattern, for colour-blind viewers, richer up the ladder: common plain with cut corners, uncommon light corner
   studs, rare light studs mid-side, epic notched corners lit top-left, legendary a solid gold edge lit top-left, mythic (the
   richest) a solid red edge with gold corners and a white gem on top; meme the odd one out, a dotted edge in pink and yellow
-  (confetti); divine white star points at the corners. **In the Top (×1) the frame is left out**: at 12 px its pattern is
-  noise, so the Top shows the bare 10 px glyph.
+  (confetti); divine white star points at the corners. **The Top shows it too**, at ×1: each row's title in its rarity's
+  colour (`RARITIES[rarity].color`), its badge in the frame, after the emblem and the level.
 - **Drake emblems:** each drake's element symbol on a 10×10 tile in its colour (40×40 art), lit from the top left like every
   icon, so never mirrored (the title plate's six all face the same way). The tile keeps them apart from the bare effect
   glyphs. They replace 🟥🟦⬛🟨🟪🟩🐉🤍 in names and banners. See "The emblems" below.
@@ -165,8 +165,9 @@ shrunk to 360p, a phone viewer (a third: a 20 px icon becomes ~7 px).
 ## One meaning per icon
 
 - An icon means one thing, the same in every place: the card chip, the log chip, the compact chip, the banner, the info card.
-- A mechanic's title badge and its log note are one icon: the legendary title Absolute Drake's badge is the immune glyph in the
-  legendary frame, and the immune note in the log is the same glyph, bare.
+- A title's badge and the log note its ability fires match, for each fighter: the legendary title Absolute Drake's badge is
+  the immune glyph in the legendary frame, and its holder's immune note in the log is the same glyph, bare; «Дзен при 1 HP» has
+  its own icon, and its holder's badge and note both show that.
 - One meaning never gets two icons: today 1st place is both 🏆 and 🥇, block is 🚫 and 🛡️, reflect is 🟦 and 🔵 (inventory.md).
 - **1st place is the gold medal**, one icon in the badge (the Top, the fighter card's name, `!стата`), on the podium and in the
   Hall of Fame; the silver and bronze medals are the same medal in their metals, so the three read as a set. The trophy means
@@ -176,14 +177,21 @@ shrunk to 360p, a phone viewer (a third: a 20 px icon becomes ~7 px).
 
 ## Titles
 
-- Every title shows what it gives, in its rarity frame: its mechanic, otherwise its main bonus. Main bonuses in use: HP (HP
-  and HP per level), crit (crit chance and crit power), defence, effect chance, buff power.
+- Every title shows what it gives, in its rarity frame: its own icon if it has one, otherwise its mechanic, otherwise its main
+  bonus. Main bonuses in use: HP (HP and HP per level), crit (crit chance and crit power), defence, effect chance, buff power.
 - Mechanics: legendary (guardian, pierce, immune, dodge, chaos), mythic (opening buff, thorns, lifesteal, execute), meme (coin
-  flip, sleep, cat). Each is shared by two titles of the same rarity, and the badge is the same glyph as the mechanic's log
-  note, so the two titles visibly do the same thing and the note in the log matches the badge.
-- In all: 5 bonus glyphs and 12 mechanic glyphs (the mechanic glyphs are also the log notes), in 7 frames.
-- Icons of their own: only the divine title 999 «Владика Етеру» and, with the White Drake, «Біла сталь» (998).
-- The joke stays in the name. Two titles with the same bonus show the same icon; the name tells them apart. Title 163
+  flip, sleep, cat), each on two titles of the same rarity.
+- **Legendary, Mythic and Meme titles get their own icons, one per title, never shared.** Until a title has one, its badge is
+  its ability's glyph, the same drawing as that ability's log note. 12 have theirs so far, one of each pair (`icons.js`:
+  a note record with `title: <id>`; inventory.md, section 5); the other title of the pair keeps the ability's glyph.
+- **A title's own icon is its badge everywhere, and the icon on the notes its ability fires**, full and compact, with the
+  ability's words (194: «баг» / "bug", its own: `FV_TITLE_WORDS`). The fighter whose title fired the note decides
+  (`fvNoteGlyph`). «крізь броню» marks every sneaky attack, so no title fires it: it keeps its spear for everyone, 97's holder
+  too. The opening buff has no note: its banner shows the title's badge.
+- «Біла сталь» (998) follows the same rule: its sword is its own icon. The Sovereign (999) keeps its crown, its ability's glyph;
+  its immunity note keeps the immune glyph.
+- In all: 5 bonus glyphs, 12 mechanic glyphs (also the log notes), the crown and 13 own icons, in 8 frames.
+- The joke stays in the name. Two stat titles with the same bonus show the same icon; the name tells them apart. Title 163
   «Магніт для критів» is a crit title, so a crit glyph in a rare frame, not a magnet.
 
 The batch tables below describe the icons.js glyphs; the overlay draws V2 (see "V2: the animated set").
@@ -214,27 +222,27 @@ The batch tables below describe the icons.js glyphs; the overlay draws V2 (see "
 ## The second batch (log notes, title mechanics, attack types)
 
 Colour = what the note belongs to (an element's note takes the element's colour); `mechanic` in `ICONS` names the title
-mechanic a note is the badge of.
+mechanic a note is the badge of, for the title of the pair without an icon of its own ("Titles").
 
 | Note | Today | Glyph | Colour | Title badge of |
 |---|---|---|---|---|
 | Crit | 💥 | a bold «!» with impact ticks | crit yellow #ffd23f | |
 | Ultra-block (Black) | 🚫 | a brick wall | Black #9b9ba8 | |
-| Quantum Dodge | 🚫 (the same as ultra-block today) | three chevrons dashing right, fading behind | teal | legendary: Володар матриці, Привид лагу |
+| Quantum Dodge | 🚫 (the same as ultra-block today) | three chevrons dashing right, fading behind | teal | legendary: Володар матриці |
 | Miss (Jackpot) | the word | an arrow flying over an empty target, a clear gap between them, motion lines behind | grey | |
 | Unblockable | the word | the brick wall crossed out in red | brick | |
-| Immune | 🐉 | a bubble with a glint | the Dragon's white-blue | legendary: Абсолютний Дрейк, Дзен при 1 HP |
-| Armour-piercing | ⚡ | a spear tip through a cracked armour plate | steel | legendary: Надмозок всесвіту, Той, хто прочитав патчноут |
-| Chaos | ⚡ | a lightning bolt | magenta | legendary: Творець хаосу, Феєрверк хаосу |
-| Guardian heal | 👼 | an angel: a halo, a head between two wings, a robe | light gold | legendary: Ангел-охоронець стрімера, Незламний модератор |
-| Opening buff | 🌅 | a sunrise | dawn orange | mythic: Прокинувся в ударі, Перша кава дня |
-| Thorns | 🌵 | a cactus, spines out | green | mythic: Кактус з характером, Їжак-ображака |
-| Title lifesteal | 🧛 | a goblet of blood | silver, red | mythic: Енергетичний вампір, Граф Дракула чату |
-| Execute | ⚰️ | an axe: a steel blade on a wooden handle | steel, wood | mythic: Добивач на 1 HP, Кат лоу-хп |
-| Heads or tails | 🪙 | a coin with its star | gold | meme: Герб чи число, Картопля Шредінгера |
-| Slept through it | 😴 | «Zz» | blue-grey | meme: Заснув на стрімі, Лінивець-берсерк |
-| The cat | 🐈 | a cat's head | orange, yellow eyes | meme: Кіт пройшовся по клавіатурі, Код-спагеті |
-| The attack dissolves (the White Dragon) | 👑 | its crown | divine #9fe3ff | divine 999 (its own icon: this crown, in its own frame) |
+| Immune | 🐉 | a bubble with a glint | the Dragon's white-blue | legendary: Абсолютний Дрейк |
+| Armour-piercing | ⚡ | a spear tip through a cracked armour plate | steel | legendary: Той, хто прочитав патчноут |
+| Chaos | ⚡ | a lightning bolt | magenta | legendary: Творець хаосу |
+| Guardian heal | 👼 | an angel: a halo, a head between two wings, a robe | light gold | legendary: Ангел-охоронець стрімера |
+| Opening buff | 🌅 | a sunrise | dawn orange | mythic: Прокинувся в ударі |
+| Thorns | 🌵 | a cactus, spines out | green | mythic: Кактус з характером |
+| Title lifesteal | 🧛 | a goblet of blood | silver, red | mythic: Граф Дракула чату |
+| Execute | ⚰️ | an axe: a steel blade on a wooden handle | steel, wood | mythic: Добивач на 1 HP |
+| Heads or tails | 🪙 | a coin with its star | gold | meme: Герб чи число |
+| Slept through it | 😴 | «Zz» | blue-grey | meme: Заснув на стрімі |
+| The cat | 🐈 | a cat's head | orange, yellow eyes | meme: Кіт пройшовся по клавіатурі |
+| The attack dissolves (the White Dragon) | 👑 | its crown | divine #9fe3ff | divine 999 (its ability's glyph: this crown, in its own frame) |
 | Aether wrath (the White Dragon) | 👑 | the Dragon's eye | divine #9fe3ff | |
 | Reflect (Blue) | 🟦 | a U-turn arrow | Blue | |
 | Fortune (Gold, 1 HP) | 🟨 | a heart nearly empty, a sliver left | Gold | |
