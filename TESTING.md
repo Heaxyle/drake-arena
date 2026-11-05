@@ -171,7 +171,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 194 specific ways and checks that `effects.js`, `ultimates.js`, `rules.js` or `design/icons/test.js` fails on each one (all four run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". Before that, the count in the root `README.md` must be the list's length, or the run stops there: a new mutation means a new number in that line. 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, the underdog bonus, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, 116–132 the renamed titles, the wording for the attacker (Ice Mirror, Thorns) and the saved tournament's title refresh, 133–135 the Top's last tie-break and the fights against the White Dragon, 136–168 the streamer's White Drake, 169–179 effect names after a verb or a preposition and the damage line, 180–186 the icon set, and 187–190 a ranked win's XP from the level gap (the floor, the cut, who pays it, Gold after it):
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 194 specific ways and checks that `effects.js`, `ultimates.js`, `rules.js` or `design/icons/test.js` fails on each one (all four run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". Before that, the count in this paragraph and the one in the root `README.md` must be the list's length, or the run stops there: a new mutation means a new number in both. 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, the underdog bonus, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, 116–132 the renamed titles, the wording for the attacker (Ice Mirror, Thorns) and the saved tournament's title refresh, 133–135 the Top's last tie-break and the fights against the White Dragon, 136–168 the streamer's White Drake, 169–179 effect names after a verb or a preposition and the damage line, 180–186 the icon set, and 187–190 a ranked win's XP from the level gap (the floor, the cut, who pays it, Gold after it):
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -370,10 +370,10 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 193 | The cut comes off the loser's 10 instead of the winner's 40 | `rules.js` 16, 17b, 20 (11 checks) | the underdog XP check's `L12 beats L10 → +30` gets 40, and its loser 0 |
 | 194 | Gold before the cut: Gold multiplies the whole 40 and the cut comes off after it, instead of Gold on the reduced amount | `rules.js` 16 (2 checks: only the Gold one) | `a Gold winner over a lower level (L10 beats L6) gets Gold's +65% on the reduced 20: +46 XP` (want 33) |
 
-Output of the last run (the "by" lines say which test file caught it and how many checks failed):
+Output of the last run (the "by" lines say which test file caught it and how many checks failed; N is the count above):
 
 ```
-✓ the root README.md's count: 194 deliberate bugs, the list's length
+✓ README.md and TESTING.md give the list's length
 ✓ unchanged game: effects.js and ultimates.js and rules.js and ../design/icons/test.js pass
 ✓ caught: hits counted on the attacker
 ✓ caught: effect id in the log
@@ -477,7 +477,7 @@ Output of the last run (the "by" lines say which test file caught it and how man
 ✓ caught: no cut for a weaker opponent
 ✓ caught: the loser pays the cut
 ✓ caught: Gold before the cut
-All 194 mutations caught.
+All N mutations caught.
 ```
 
 If a mutation's code is no longer in the game (after a refactor), the script says so and fails, so the list can't go stale without anyone noticing.
@@ -881,7 +881,7 @@ npm run test:banned-words              # no banned Ukrainian word in any tracked
 npm run test:effects                   # just the effect rules (~1 s)
 npm run test:ultimates                 # just the meter and ultimates (~3 s)
 npm run test:rules                     # the game rules: whole HP, chat commands, no rest, duels, turn 30, draws (~5 s)
-npm run test:mutations                 # break the game 194 ways, check effects.js / ultimates.js / rules.js / design/icons/test.js catch each
+npm run test:mutations                 # break the game on purpose, check effects.js / ultimates.js / rules.js / design/icons/test.js catch each
 npm run balance:check                  # BEFORE MERGING A BALANCE CHANGE: L1/10/20 matrix + tiers, 3 seeds (~2.5 min)
 npm run test:balance-gate              # CI balance gate: every matchup within 40–60% (~45 s)
 npm run test:white-drake-gate          # CI gate: the White Drake against each viewer element, levels 1/5/10/20, with and without titles (~5 min on 8 cores)
