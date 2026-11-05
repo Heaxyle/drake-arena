@@ -34,6 +34,7 @@ Tests are picked by what a change touches. CI runs the full set on every pull re
 - The full set runs locally only when the change touches shared code (the fight loop, saves and their migration, the embed markers, the test harness: `game_env`, `page_hooks`, `sim_harness`, `settle`), when it isn't clear which areas it touches, or when asked for.
 - Never merge a PR before CI is green.
 - Every report lists the tests that were run and why the others weren't needed.
+- The READMEs' image: when a change alters on purpose something `showcase/screenshot.png` shows (the cards, the log, the Top, the chat cards, the plate, the demo controls), run `npm run screenshot:readme` and commit the new image. The scene is fixed, so if only the drakes differ (their idle bob), nothing changed: put the old image back.
 
 ## Pipeline
 
@@ -170,7 +171,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 194 specific ways and checks that `effects.js`, `ultimates.js`, `rules.js` or `design/icons/test.js` fails on each one (all four run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, the underdog bonus, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, 116–132 the renamed titles, the wording for the attacker (Ice Mirror, Thorns) and the saved tournament's title refresh, 133–135 the Top's last tie-break and the fights against the White Dragon, 136–168 the streamer's White Drake, 169–179 effect names after a verb or a preposition and the damage line, 180–186 the icon set, and 187–190 a ranked win's XP from the level gap (the floor, the cut, who pays it, Gold after it):
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 194 specific ways and checks that `effects.js`, `ultimates.js`, `rules.js` or `design/icons/test.js` fails on each one (all four run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". Before that, the count in the root `README.md` must be the list's length, or the run stops there: a new mutation means a new number in that line. 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, the underdog bonus, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, 116–132 the renamed titles, the wording for the attacker (Ice Mirror, Thorns) and the saved tournament's title refresh, 133–135 the Top's last tie-break and the fights against the White Dragon, 136–168 the streamer's White Drake, 169–179 effect names after a verb or a preposition and the damage line, 180–186 the icon set, and 187–190 a ranked win's XP from the level gap (the floor, the cut, who pays it, Gold after it):
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -372,6 +373,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 Output of the last run (the "by" lines say which test file caught it and how many checks failed):
 
 ```
+✓ the root README.md's count: 194 deliberate bugs, the list's length
 ✓ unchanged game: effects.js and ultimates.js and rules.js and ../design/icons/test.js pass
 ✓ caught: hits counted on the attacker
 ✓ caught: effect id in the log
@@ -892,6 +894,7 @@ npm run test:resume                    # reloads in the betting window, mid-figh
 npm run test:fightview                 # battle log, turns, ultimates, countdown, result, both languages (slow: plays dozens of fights)
 npm run test:tournament                # sign-up, a whole 8-player tournament, a reload mid-match, the qualifier, cancel, prizes, the show
 UI_FILE=main.html node tests/ui.js showcase   # same flow on another copy of the page: compare the fingerprint
+npm run screenshot:readme              # rewrite showcase/screenshot.png, the READMEs' image (when: What to run locally)
 
 node tests/balance.js matrix 300 20 --seed 42    # rerun with another seed
 node tests/balance.js bonuses 600                # every title bonus vs Common
