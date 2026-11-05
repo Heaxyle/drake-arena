@@ -7465,6 +7465,7 @@ const ICONS_V2 = {
                         hitThrough(defender, late);
                         fvNote('lagLand', late);
                         flashSpriteHit(defender === p1 ? 'p1' : 'p2');
+                        updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
                         addLog(`${tName(attacker)} ${tl(`удар долетів! ${tag(defender)} -${late} HP`, `the hit arrives! ${tag(defender)} -${late} HP`)}`);
                     }
                     if (titleMechanic(attacker) === 'time_rewind' && !tA.rewindUsed && hpOf(attacker) > 0 && hpOf(attacker) < attackerMaxHP * MECH.rewindAt
@@ -7475,10 +7476,10 @@ const ICONS_V2 = {
                             const from = hpOf(attacker);
                             setHP(attacker, Math.min(attackerMaxHP, back));
                             fvNote('rewind', { from, to: hpOf(attacker) });
+                            updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
                             addLog(`${tName(attacker)} ${tl(`${tag(attacker)} відкочує HP: ${from} → ${hpOf(attacker)}!`, `${tag(attacker)} rolls its HP back: ${from} → ${hpOf(attacker)}!`)}`);
                         }
                     }
-                    updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
 
                     let currAttackerLiveHP = hpOf(attacker);
                     if (titleMechanic(attacker) === 'guardian_shield' && !guardianUsed[attacker.name] && currAttackerLiveHP > 0 && currAttackerLiveHP < attackerMaxHP * 0.15) {
