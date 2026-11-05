@@ -6,7 +6,8 @@
 // which effects.js also reads) goes into a temp folder, effects.js runs against it, and the mutation counts as caught
 // only if effects.js exits non-zero. An unchanged copy runs first and must pass, so a broken test setup can't look like
 // "everything caught". Exits non-zero if any mutation slips through. Before all that, the counts in README.md and
-// TESTING.md must be the list's length: a new mutation means a new number in both.
+// TESTING.md must be the list's length and TESTING.md's table must number its rows 1 to that length: a new mutation means a
+// new number in both and a new row.
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
@@ -20,6 +21,16 @@ const src = fs.readFileSync(FILE, 'utf8').replace(/\r\n/g, '\n');
 const readme = fs.readFileSync(path.join(path.dirname(FILE), 'README.md'), 'utf8');
 // Where the docs give the list's length, one place each
 const COUNTS = [['README.md', /(\d+) deliberate bugs/], ['TESTING.md', /(\d+) specific ways/]];
+// TESTING.md's table of them: a row for each, numbered 1 to N, so a mutation with no row fails. What's wrong with it, or nothing
+function tableProblem(n) {
+    const text = fs.readFileSync(path.join(__dirname, '..', 'TESTING.md'), 'utf8').replace(/\r\n/g, '\n');
+    const from = text.indexOf('### Testing the tests: deliberate breakages');
+    if (from === -1) return 'has no "Testing the tests" section';
+    const rows = [...text.slice(from, text.indexOf('\n## ', from)).matchAll(/^\| (\d+) \|/gm)].map(m => Number(m[1]));
+    const wrong = rows.findIndex((row, i) => row !== i + 1);
+    if (wrong !== -1) return `numbers the table's row ${wrong + 1} ${rows[wrong]}`;
+    return rows.length === n ? null : `has ${rows.length} table rows`;
+}
 
 // [name, what the bug is, code to find, what to put instead]
 const MUTATIONS = [
@@ -457,9 +468,11 @@ const MUTATIONS = [
         'if (ult && ult.attacks) titleMult *= ultBoost(attacker);', 'if (false) titleMult *= ultBoost(attacker);'],
     ['Інерція has no cap', 'Інерція keeps growing past +35%',
         'const up = Math.min(MECH.momentumMax, MECH.momentumPerHit * tA.landed);', 'const up = MECH.momentumPerHit * tA.landed;'],
-    ['Очищення after the ticks', 'Очищення runs after the start-of-turn ticks, so Burn and Poison act first',
-        "if (titleMechanic(attacker) === 'cleanse' && atkFx.debuff.length) {\n                        const gone = atkFx.debuff; atkFx.debuff = [];", "if (false) {\n                        const gone = atkFx.debuff; atkFx.debuff = [];"],
-    ['Довгий баф on the wrong fighter', "a buff lasts twice as long on the holder's opponent too: the owner isn't checked",
+    ['Очищення after the ticks', 'Burn and Poison bite once before Очищення takes them off',
+        "const gone = atkFx.debuff; atkFx.debuff = [];", "const gone = atkFx.debuff; gone.forEach(x => { if (EFFECTS[x.id].lasts === 'turns') setHP(attacker, hpOf(attacker) - Math.max(1, Math.round(attackerMaxHP * fxNum(x, 'hp') / 100))); }); atkFx.debuff = [];"],
+    ['Очищення takes nothing off', 'Очищення does nothing',
+        "if (titleMechanic(attacker) === 'cleanse' && atkFx.debuff.length) {", "if (false) {"],
+    ['Довгий баф on the wrong fighter', "a buff its holder casts under Магніт lasts twice as long on the White Drake",
         "const extraLeft = e.kind === 'buff' && titleMechanic(owner) === 'long_buffs'", "const extraLeft = e.kind === 'buff' && titleMechanic(caster) === 'long_buffs'"],
     ['Довгий баф on debuffs', 'debuffs on the holder last twice as long as well',
         "const extraLeft = e.kind === 'buff' && titleMechanic(owner)", "const extraLeft = titleMechanic(owner)"],
@@ -526,7 +539,7 @@ const MUTATIONS = [
     ['Копіпаст copies a blocked hit', "a hit that did nothing counts as the opponent's last hit",
         'if (finalDmg > 0) tA.lastHit = finalDmg;', 'tA.lastHit = finalDmg;'],
     // The odds
-    ['Meme back to 0.2%', 'the Meme weight is back at 0.2 and Common at 45',
+    ['Meme back to 0.2%', 'the Meme weight is back at 0.2',
         "name: { uk: 'Мемний',      en: 'Meme' },      color: '#ff66cc', weight: 0.5 }", "name: { uk: 'Мемний',      en: 'Meme' },      color: '#ff66cc', weight: 0.2 }"],
     ['!шанси rounds', '!шанси rounds the odds to whole numbers',
         "(100 * r.weight / total).toFixed(1).replace('.0', '')", "(100 * r.weight / total).toFixed(0)"],
@@ -577,11 +590,13 @@ async function pool(jobs, size) {
         const said = fs.readFileSync(path.join(__dirname, '..', file), 'utf8').match(pattern);
         return said && Number(said[1]) === MUTATIONS.length ? [] : [`${file} ${said ? `says "${said[0]}"` : `has no ${pattern}`}`];
     });
+    const table = tableProblem(MUTATIONS.length);
+    if (table) stale.push(`TESTING.md ${table}`);
     if (stale.length) {
-        console.log(`✗ the list has ${MUTATIONS.length} mutations, but ${stale.join(' and ')}: update the count`);
+        console.log(`✗ the list has ${MUTATIONS.length} mutations, but ${stale.join(' and ')}: update the docs`);
         process.exit(1);
     }
-    console.log(`✓ ${COUNTS.map(([file]) => file).join(' and ')} give the list's length`);
+    console.log(`✓ ${COUNTS.map(([file]) => file).join(' and ')} give the list's length, and TESTING.md's table has a row for each`);
     const control = await runTests(src);
     const bad = control.filter(r => r.code !== 0);
     if (bad.length) {

@@ -11,7 +11,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 - **6 elements**, each with its own passive, scaling at levels 5 / 10 / 15 / 20
 - **White Drake 🤍:** the streamer's own drake, made of white metal: its scales take hits before its HP and make debuffs bounce off, with two effects and an ultimate of its own (see [below](#white-drake-streamer-only))
 - **White Dragon:** a bigger, unbeatable dragon, the streamer's other form: `!dragon` / `!дракон` switches between the two (see [below](#white-dragon-streamer-only))
-- **194 titles** in seven rarities, from Common stat boosts to Legendary, Mythic and Meme titles with unique abilities
+- **294 titles** in seven rarities, from Common stat boosts to Legendary, Mythic and Meme titles with unique abilities
 - **Chat-request window:** replies to viewers (`!stats` cards, title rolls, warnings) appear in their own panel, separate from the battle log
 - **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 12 buffs/debuffs (one of each per viewer element; the White Drake has a pair of its own), class ultimates on an Element Power meter, and a sudden-death phase
 - **Ranked queue** with level-based matchmaking, plus friendly duels that give no XP
@@ -192,7 +192,7 @@ Each element has one buff (cast on itself) and one debuff (cast on the opponent)
 - **Dispel never goes to waste:** if the target has no buffs to remove, a different effect is cast instead (picked the usual way; Chaotic charge picks another debuff). On an immune target it still counts as cast and the log shows it was ignored.
 - **Debuff immunity** (the Legendary ability, and the White Dragon) blocks every debuff, Dispel included.
 - **The White Drake's scales:** while they hold, every debuff bounces off it, Dispel included (counted as cast, like immunity). **Magnet** sends a buff the target casts to the White Drake, under the same 2-buff limit.
-- Title abilities draw from the same list: Opening buff picks one of the 6 buffs, Chaotic charge one of the 6 debuffs, Cat on the keyboard any of the 12 (never the White Drake's pair).
+- Title abilities draw from the same list: Opening buff picks one of the 6 buffs, Chaotic charge one of the 6 debuffs, Cat on the keyboard any of the 12 (never the White Drake's pair), Chat decides the effects of the two fighters' elements.
 
 All of this lives in one table, `EFFECTS` (with `EFFECT_CAST` for the cast split and slot limit); the fight code, fighter cards, battle log and balance sim all read from it. The numbers were tuned with the seeded balance matrix (see [TESTING.md](../TESTING.md)).
 
@@ -235,13 +235,13 @@ How ultimates fit with the rest:
 
 | Rarity | Drop chance | Titles | Bonus |
 |---|---|---|---|
-| Common | 45% | 80 | +9 HP, +10% crit or +7% defense |
+| Common | 44.7% | 80 | +9 HP, +10% crit or +7% defense |
 | Uncommon | 25% | 30 | +18 HP, +16% crit, +13% defense or +15% effect chance |
 | Rare | 15% | 40 | Two stats, e.g. +14% crit and +0.22 crit power |
-| Epic | 9% | 20 | Stronger pairs, e.g. +40% effect strength and +12% effect chance |
-| Legendary | 4.5% | 10 | A unique ability plus a small stat |
-| Mythic | 1.3% | 8 | A unique ability plus HP per level |
-| Meme | 0.2% | 6 | A chaotic ability |
+| Epic | 9% | 30 | Stronger pairs, e.g. +40% effect strength and +12% effect chance |
+| Legendary | 4.5% | 50 | A unique ability plus a small stat |
+| Mythic | 1.3% | 38 | A unique ability plus HP per level |
+| Meme | 0.5% | 26 | A chaotic ability |
 
 **Title abilities** (numbers in `MECH`):
 
@@ -252,13 +252,37 @@ How ultimates fit with the rest:
 | Legendary | Debuff immunity | Immune to debuffs (Dispel included) |
 | Legendary | Quantum dodge | +10% ultra-block |
 | Legendary | Chaotic charge | 15% chance to apply an extra debuff |
+| Legendary | Combo | Every 3rd own hit deals +50% damage |
+| Legendary | First blood | Its first 3 hits in a fight deal +25% and can't be blocked |
+| Legendary | Iron hide | The first 3 hits it takes deal 40% less |
+| Legendary | Last stand | Below 40% HP, +50% damage |
+| Legendary | Counter | When hit, 30% chance to hit back for 60% of the damage taken |
+| Legendary | Buff eater | 60% chance on a hit to eat one of the target's buffs and heal 15% of max HP |
+| Legendary | Meter rush | Starts the fight at 2/5 Element Power; its ultimate is 50% stronger: damage, Bloom's heal or Ice Mirror's absorbing |
+| Legendary | Momentum | Each own hit adds +4% damage for the rest of the fight, up to +35% |
+| Legendary | Cleanse | At the start of its turn takes all its debuffs off, before they can act |
+| Legendary | Long buffs | Its buffs last twice as long |
 | Mythic | Opening buff | Starts every fight with a random buff |
 | Mythic | Thorns | Returns 15% of damage taken to the attacker |
 | Mythic | Lifesteal | Heals 15% of damage dealt |
 | Mythic | Executioner | +50% damage to targets below 35% HP |
+| Mythic | Rebirth | Once a fight, survives a killing blow at 1 HP |
+| Mythic | Twin | 20% chance to strike twice; the second hit deals 70% |
+| Mythic | Eye of the storm | After every 4 hits it takes, its next hit deals ×1.5 and can't be blocked |
+| Mythic | Rewind | Once a fight, below 20% HP, its HP rolls back to where it was at the start of its previous turn |
+| Mythic | Tempered | +1% damage for every 3% of HP it has lost |
+| Mythic | Return | 60% of the debuffs cast on it go back to the caster; the rest land |
+| Mythic | Overcharge | Its ultimate is ×1.6, whatever it does, and after it the meter restarts at 2 |
+| Mythic | Verdict | 25% chance on a hit to sentence the target; its 3rd hit after that deals ×2 |
 | Meme | Coin flip | Every hit deals ×1.5 or ×0.6 |
 | Meme | Sleepy | 10% chance to sleep through a turn, otherwise +25% damage |
 | Meme | Cat on the keyboard | 25% chance of any of the 12 effects, cast by either fighter |
+| Meme | 404 | In its fights any hit, by either drake, has an 8% chance to vanish and show «404» |
+| Meme | Blue screen | Each turn, 5% chance that whoever is about to hit crashes: its card flashes blue with «:(» and the turn is lost |
+| Meme | Chat decides | The effects it casts come at random from both fighters' elements |
+| Meme | AFK | Once a fight, on one of its turns 2–5, it leaves (its card greys out); its next hit deals ×3 |
+| Meme | Lag | 10% chance its hit hangs; at the start of its next turn the stuck hit lands at ×1.8, then its normal hit |
+| Meme | Copy-paste | 10% chance to deal exactly what the opponent's last hit dealt |
 
 ## Play log
 
