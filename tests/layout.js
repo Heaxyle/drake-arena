@@ -13,6 +13,10 @@
 //   - the White Drake's scales, on both cards: a 62×20 steel segment at the VS end of the HP row, 4 px from the HP bar
 //     (66 px shorter; its outer end and the HP number where a viewer card has them) and 12 px from the HP number, its
 //     number centred inside; full, part-gone, broken and rebuilt (the sheet: layout-white-drake-scales.png)
+//   - Синій екран and AFK, both languages, on the worst-case cards: every block of both fighter cards keeps its place and
+//     height, and their layers stay inside the card (layout-meme-states-<lang>.png)
+//   - every title a viewer can roll, both languages, on its roll card and on !стата: every ability line whole, nothing cut off,
+//     the chat panel holding
 //   - the Top's titles, both languages: rows of every rarity a viewer can roll, the longest title of each, one with its own
 //     icon: each title and badge in its rarity's colour, the badge in its frame, the emblem and the level as ever, every
 //     row fitting (fitText, 9 px at the least) (layout-top-titles-<lang>.png)
@@ -370,6 +374,27 @@ async function layoutChecks(browser, lang) {
     check(!problems.length, `${tag} worst case fits at 1920×1080: name "${worst.longName}", title "${worst.longTitle}", "${worst.longDrake}", 4 longest chips, full СИЛА + Ice Mirror, 7 leaderboard rows, a stats card`,
         problems.slice(0, 6).join(' | '));
     await iconCheck(page, `layout-worst-${lang}`);
+    // Синій екран and AFK are layers over the card: no block may move, in either state, on either card
+    const memeStates = await page.evaluate(() => {
+        const boxes = c => [c, ...[...c.children].filter(x => !x.classList.contains('fx-layer'))].map(x => { const b = x.getBoundingClientRect(); return `${x.id || x.className}:${b.left}:${b.top}:${b.width}:${b.height}`; }).join(' ');
+        const out = [];
+        for (const p of ['p1', 'p2']) {
+            const c = document.getElementById(`card-${p}`), before = boxes(c), card = c.getBoundingClientRect();
+            for (const [state, layer] of [['crash', '.fx-crash'], ['afk', '.fx-afk']]) {
+                c.classList.add(state);
+                const L = c.querySelector(layer), l = L.getBoundingClientRect();
+                if (boxes(c) !== before) out.push(`${p} ${state}: a block moved`);
+                if (l.left < card.left - 0.5 || l.top < card.top - 0.5 || l.right > card.right + 0.5 || l.bottom > card.bottom + 0.5) out.push(`${p} ${state}: its layer leaves the card`);
+                if (getComputedStyle(L).display === 'none' || !L.textContent) out.push(`${p} ${state}: its layer shows nothing`);
+                c.classList.remove(state);
+            }
+        }
+        return out;
+    });
+    check(!memeStates.length, `${tag} Синій екран and AFK: every block of both worst-case fighter cards keeps its place and height`, memeStates.slice(0, 4).join(' | '));
+    await page.evaluate(() => { document.getElementById('card-p1').classList.add('crash'); document.getElementById('card-p2').classList.add('afk'); });
+    await page.screenshot({ path: path.join(SHOTS, `layout-meme-states-${lang}.png`) });
+    await page.evaluate(() => { document.getElementById('card-p1').classList.remove('crash'); document.getElementById('card-p2').classList.remove('afk'); });
     if (lang === 'uk') { const missed = await overlaySelfTest(page); check(!missed.length, "the overlay check reports a planted emoji, an icon at ×1.5, a squeezed icon, an icon over its words, an icon with another icon's art, one sharing another icon's copy, an icon smoothed or pixelated against the display rule and a badge glyph a pixel off", `not reported: ${missed.join(', ')}`); }
     await page.screenshot({ path: path.join(SHOTS, `layout-worst-${lang}.png`) });
     const pops = await page.evaluate(popPositions);
@@ -835,6 +860,35 @@ async function iconLoopsAndStills(browser) {
             }, lang);
             check(r.rows === 6 && ['odds', 'roll', 'stats'].every(k => r.kinds.includes(k)) && r.rollH <= 84 && r.longH <= 84 && r.longFits,
                 `[${lang}] with six drakes in the Top (${r.room} px of chat), the odds card, a legendary roll (${r.rollH} px; ${r.longH} px with a 25-letter name, nothing cut off) and !стата all stay on the chat panel`, JSON.stringify(r));
+            await context.close();
+        }
+
+        // Every title a viewer can roll, on its roll card and on !стата: the longest ability lines wrap, nothing is cut off, and the
+        // chat panel holds (addInfo drops the oldest card when a tall one needs the room)
+        console.log('\nEvery title on the chat cards');
+        for (const lang of ['uk', 'en']) {
+            const { page, context } = await open(browser, { lang });
+            const r = await page.evaluate(lang => {
+                const say = (u, m) => handleChatMessage('#test', { username: u, color: '#8ab4f8' }, m, false);
+                ['flame_rider', 'nightowl_ua', 'goldfinch', 'arcane_kit', 'leafy_ua', 'tidecaller'].forEach((n, i) => say(n, `!дрейк ${['червоний', 'чорний', 'золотий', 'фіолетовий', 'зелений', 'синій'][i]}`));
+                renderLeaderboard();
+                const feed = document.getElementById('info-feed'), bad = [];
+                const cut = c => [c, ...c.querySelectorAll('*')].some(e => e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflow !== 'visible');
+                let tallest = 0, longest = 0;
+                for (const t of TITLES_DB.filter(x => x.rarity !== 'divine')) {
+                    showTitleRoll('goldfinch', '#ffd166', t);
+                    const roll = feed.firstElementChild;
+                    const db = getDragonDB(); db.nightowl_ua.title = t; saveDragonDB(db);
+                    say('nightowl_ua', lang === 'uk' ? '!стата' : '!stats');
+                    const stat = feed.firstElementChild, line = describeTitleBonus(t);
+                    tallest = Math.max(tallest, roll.offsetHeight); longest = Math.max(longest, line.length);
+                    if (!roll.textContent.includes(line) || !stat.textContent.includes(line)) bad.push(`title ${t.id}: its line isn't on both cards`);
+                    if (cut(roll) || cut(stat)) bad.push(`title ${t.id}: a card is cut off`);
+                    if (feed.scrollHeight > feed.clientHeight + 1) bad.push(`title ${t.id}: the chat panel overflows`);
+                }
+                return { bad, tallest, longest, n: TITLES_DB.filter(x => x.rarity !== 'divine').length };
+            }, lang);
+            check(!r.bad.length && r.n === 294, `[${lang}] all ${r.n} titles on their roll card and !стата: every ability line whole (the longest ${r.longest} characters, the tallest roll card ${r.tallest} px), nothing cut off, the panel holds`, r.bad.slice(0, 5).join(' | '));
             await context.close();
         }
 

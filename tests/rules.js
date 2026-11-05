@@ -32,6 +32,10 @@
 //      «Картопля Шредінгера»); English stays Heads / Tails
 //   22 the renamed titles (Ukrainian names of 11, English of 3) and Ice Mirror's wording, pinned; a save and a saved
 //      tournament holding an old title name take the new one on load
+//   24 the 100 new titles: ids, rarities, bonuses and card lines; the odds and !шанси; each of the 24 abilities with fixed
+//      dice, from what it is meant to do (its numbers, once-a-fight limits, thresholds and caps); that each one tells the
+//      fight view when it fires; and what they meet: the White Dragon, the White Drake's scales, debuff immunity, Магніт,
+//      sudden death and the time-out
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
@@ -85,6 +89,12 @@ eval(gameScript(FILE) + `
     get battleFx() { return battleFx; },
     wrapUIHP: f => { const orig = updateUIHP; updateUIHP = (...a) => { f(...a); return orig(...a); }; },
     wrapFighterCard: f => { const orig = updateFighterCard; updateFighterCard = (side, d, fx) => { f(side, d); return orig(side, d, fx); }; },
+    // The new titles (section 24)
+    RARITIES, describeTitleBonus, getRandomTitle: () => getRandomTitle(),
+    // What the fight tells the view: f(key, value) for every note, ultimate detail and cast's result (Node has no fight view)
+    wrapFv: f => { const n = fvNote, u = fvUltInfo, c = fvCast; fvNote = (k, v = true) => { f(k, v); return n(k, v); }; fvUltInfo = i => { Object.keys(i).forEach(k => f(k, i[k])); return u(i); }; fvCast = (o, id, r, x) => { f('cast:' + r, id); return c(o, id, r, x); }; },
+    // Every cast as it's made, recasts too (null to stop): the arguments
+    wrapApplyEffect: f => { if (!globalThis.__castSpy) { const orig = applyEffect; applyEffect = (...a) => { if (globalThis.__castSpy.f) globalThis.__castSpy.f(a); return orig(...a); }; globalThis.__castSpy = {}; } globalThis.__castSpy.f = f; },
 };`);
 console.warn = _warn;
 const G = globalThis.__game;
@@ -1239,6 +1249,532 @@ for (const lang of ['en', 'uk']) {
         "23. !титул doesn't change the White Drake's «Біла сталь» (and a free spin stays unspent)", JSON.stringify({ title: me().title.id, spins: G.honours.spins, reply: lastInfo() }));
     G.honoursReset();
     G.setStreamerUser(prevStreamer);
+    fresh();
+}
+
+// 24. The 100 new titles (195–294) and their 24 abilities, from what each is meant to do: every number below is written out
+// here, not read from MECH, so a changed number fails. Fixed dice where an ability rolls; its limits, thresholds and caps.
+// Then what they meet: the White Dragon, the White Drake's scales, debuff immunity, Магніт, sudden death and the time-out.
+{
+    console.log('\n[24. the new titles and abilities]');
+    fresh();
+    const KEEP = Math.random;
+    const T = id => G.TITLES_DB.find(x => x.id === id);
+    const titleWith = mech => G.TITLES_DB.find(x => x.bonus && x.bonus.mechanic === mech);
+    const bare = t => ({ ...t, bonus: { type: 'stats', stats: { ...t.bonus.stats } } });   // the title's stats, without its ability
+    const drake = (type = 'plain', title = null, level = 20) => ({ color: '#fff', title, xp: xpFor(level),
+        drakeObj: DRAKE[type] || { name: { uk: 'Простий', en: 'Plain' }, type: 'plain' } });
+    const WD = () => drake(G.WHITE_DRAKE_TYPE, T(G.WHITE_DRAKE_TITLE_ID));
+    const DRAGON = () => drake(G.DRAGON_TYPE, T(G.DRAGON_TITLE_ID));
+    // One attack's rolls, in the order the fight makes them: `before` (Синій екран, AFK's draw, Jackpot's reels), attack type,
+    // sub-type, damage, crit, ultra-block, `after` (the abilities that roll on a landed hit), the cast. Missing rolls are 0.99
+    const dice = (o = {}) => [...(o.before || []), o.attack ?? 0.5, o.sub ?? 0.5, o.dmg ?? 0.5, o.crit ?? 0.99, o.block ?? 0.99, ...(o.after || []), o.cast ?? 0.99];
+    const rounds = (n, o) => Array.from({ length: n }, () => dice(o));
+    // What the fight told the view during the current turn
+    let heard = {};
+    G.wrapFv((k, v) => { heard[k] = v; });
+    // Plays scripted turns of the real fight: A (fighter 1) attacks on odd turns. setup(fx, a, b) runs once the fight is set
+    // up; at[i](fx, a, b) just before turn i + 1. hp: everyone's max HP, for fights that must last
+    function scripted({ A = {}, B = {}, setup = null, turns = [], at = {}, hp = null }) {
+        G.setLang('en');
+        const db = G.getDragonDB();
+        db.A = { ...drake(), ...A, name: 'A' }; db.B = { ...drake(), ...B, name: 'B' };
+        G.saveDragonDB(db);
+        let tick = null, queue = [0.9];   // 0.9: the coin flip keeps A first
+        const realInterval = global.setInterval, realRandom = Math.random;
+        global.setInterval = f => { tick = f; return { on: true }; };
+        Math.random = () => queue.length ? queue.shift() : 0.99;
+        const hpOn = id => Number(document.getElementById(id).innerText.split('/')[0]);   // the card shows "44/150"
+        const play = () => {
+            G.running = true;
+            G.runBattle('A', '#fff', 'B', '#fff', false);
+            global.setInterval = realInterval;
+            const fx = G.battleFx, a = G.getDragonDB().A, b = G.getDragonDB().B, done = finishes.length;
+            if (setup) setup(fx, a, b);
+            const out = [];
+            for (let i = 0; i < turns.length && finishes.length === done; i++) {
+                if (at[i]) at[i](fx, a, b);
+                queue = [...turns[i]];
+                const from = logs.length;
+                heard = {};
+                tick();
+                const text = logs.slice(from).join('\n'), dm = text.match(/Damage: (\d+)/);
+                out.push({ text, dmg: dm ? Number(dm[1]) : null, hpA: hpOn('hp-text-p1'), hpB: hpOn('hp-text-p2'), notes: heard, fx: JSON.parse(JSON.stringify(fx)) });
+            }
+            return { turns: out, fx, ended: finishes.length > done };
+        };
+        try { return hp ? G.withMaxHP(() => hp, play) : play(); }
+        finally { global.setInterval = realInterval; Math.random = realRandom; G.running = false; }
+    }
+    const of = (r, who) => r.turns.filter((t, i) => i % 2 === (who === 'A' ? 0 : 1));
+    const dmgs = (r, who = 'A') => of(r, who).map(t => t.dmg);
+    const near = (got, want) => got !== null && Math.abs(got - want) <= 1;   // both from the same float, rounded once each
+    // Rage at a big power: hits of a few hundred, so a +4% shows and rounding doesn't
+    const strong = (who, power = 25) => fx => { fx[who].buff.push({ id: 'rage', left: 999, power }); };
+    const put = (fx, who, id, left) => { const k = G.EFFECTS[id].kind; fx[who][k].push({ id, left: left ?? G.EFFECTS[id].count, power: 1 }); };
+    // A Burn that takes `who` from `now` to `to` HP at the start of its next turn, then ends: HP set exactly, with no extra rolls
+    const hurt = (fx, who, max, to, now = max) => { fx[who].debuff.push({ id: 'burn', left: 1, power: (now - to) / max * 100 / G.EFFECTS.burn.nums.hp }); };
+    // applyEffect with its own dice
+    const rolled = (rolls, f) => { const keep = Math.random, q = [...rolls]; Math.random = () => q.length ? q.shift() : 0.99; try { return f(); } finally { Math.random = keep; } };
+    const ids = (...r) => r.flatMap(x => Array.isArray(x) ? Array.from({ length: x[1] - x[0] + 1 }, (_, i) => x[0] + i) : [x]);
+
+    // ---- The titles, their bonuses, the card lines
+    const ABILITIES = [
+        ['combo', 'legendary', ids([205, 207]), { power: 0.3 }, 'Кожен 3-й власний удар +50% шкоди', '+0.3 сили криту'],
+        ['first_blood', 'legendary', ids([208, 210]), { hp: 8, hpPerLevel: 0.5 }, 'Перші 3 удари в бою +25% шкоди і не блокуються', '+8 HP, +0.5 HP/рів.'],
+        ['iron_hide', 'legendary', ids([211, 213]), { hp: 8, hpPerLevel: 0.6 }, 'Перші 3 отримані удари −40% шкоди', '+8 HP, +0.6 HP/рів.'],
+        ['last_stand', 'legendary', ids([214, 216]), { hp: 14 }, 'При <40% HP +50% шкоди', '+14 HP'],
+        ['counter', 'legendary', ids([217, 219]), { hp: 12 }, 'Отримавши удар, 30% шанс відповісти (60% шкоди)', '+12 HP'],
+        ['buff_eater', 'legendary', ids([220, 222]), { hp: 12 }, '60% шанс з’їсти баф цілі (+15% макс. HP)', '+12 HP'],
+        ['meter_rush', 'legendary', ids([223, 225]), { hp: 8, hpPerLevel: 0.6 }, 'Починає бій зі шкалою Сили 2/5, а ультимейт +50% (шкода, лікування чи поглинання)', '+8 HP, +0.6 HP/рів.'],
+        ['momentum', 'legendary', ids([226, 228]), { power: 0.3 }, 'Кожен власний удар +4% шкоди до кінця бою (до +35%)', '+0.3 сили криту'],
+        ['cleanse', 'legendary', ids([229, 231]), { hp: 14, hpPerLevel: 0.6 }, 'На початку ходу знімає з себе всі дебафи', '+14 HP, +0.6 HP/рів.'],
+        ['long_buffs', 'legendary', ids([232, 234]), { hp: 10, hpPerLevel: 0.6, effect: 10 }, 'Його бафи тривають удвічі довше', '+10 HP, +0.6 HP/рів., +10% шанс ефекту'],
+        ['phoenix', 'mythic', ids([245, 248]), { hp: 15, hpPerLevel: 1.1 }, 'Раз за бій переживає смертельний удар з 1 HP', '+15 HP, +1.1 HP/рів.'],
+        ['double_strike', 'mythic', ids([249, 252]), { hp: 15, crit: 8, hpPerLevel: 1.1 }, '20% шанс ударити двічі (другий удар — 70% шкоди)', '+15 HP, +1.1 HP/рів., +8% криту'],
+        ['storm_eye', 'mythic', ids([253, 256]), { hp: 20, hpPerLevel: 1.1 }, 'Після кожних 4 отриманих ударів наступний удар ×1.5 і не блокується', '+20 HP, +1.1 HP/рів.'],
+        ['time_rewind', 'mythic', ids([257, 259]), { hp: 15, hpPerLevel: 1.1 }, 'Раз за бій при <20% HP відкочує HP на хід назад', '+15 HP, +1.1 HP/рів.'],
+        ['tempered', 'mythic', ids([260, 263]), { hp: 20, hpPerLevel: 1.1 }, '+1% шкоди за кожні 3% втраченого HP', '+20 HP, +1.1 HP/рів.'],
+        ['return_debuff', 'mythic', ids([264, 267]), { hp: 15, hpPerLevel: 1.1 }, '60% дебафів, накладених на нього, повертаються тому, хто їх наклав', '+15 HP, +1.1 HP/рів.'],
+        ['overcharge', 'mythic', ids([268, 270]), { hp: 18, hpPerLevel: 1.1 }, 'Ультимейт ×1.6 (шкода, лікування чи поглинання); після нього шкала Сили починає з 2, а не з 0', '+18 HP, +1.1 HP/рів.'],
+        ['verdict', 'mythic', ids([271, 274]), { hp: 15, crit: 12, hpPerLevel: 1.1 }, '25% шанс винести цілі вирок: 3-й удар по ній після цього ×2', '+15 HP, +1.1 HP/рів., +12% криту'],
+        ['error_404', 'meme', ids([275, 277]), { hp: 18 }, 'Будь-чий удар: 8% шанс на 0 шкоди — «404»', '+18 HP'],
+        ['blue_screen', 'meme', ids([278, 280]), { hp: 18 }, 'Щоходу 5% шанс, що той, хто ходить, зависне й пропустить хід', '+18 HP'],
+        ['chat_decides', 'meme', ids([281, 283]), { hp: 18 }, 'Його ефекти — випадкові зі стихій обох бійців', '+18 HP'],
+        ['afk', 'meme', ids([284, 286]), { hp: 18 }, 'Раз за бій пропускає хід, зате наступний удар ×3', '+18 HP'],
+        ['lag', 'meme', ids([287, 288], 291), { hp: 18 }, '10% шанс, що удар долетить на хід пізніше, зате ×1.8', '+18 HP'],
+        ['copy_paste', 'meme', ids([292, 294]), { hp: 18 }, '10% шанс завдати стільки ж, скільки останній удар суперника', '+18 HP'],
+    ];
+    const REUSED = [['guardian_shield', ids([235, 236]), { hp: 12 }], ['armor_piercer', ids([237, 238]), { power: 0.5 }], ['debuff_immunity', ids([239, 240]), { hp: 15 }],
+        ['quantum_dodge', ids([241, 242]), { hp: 16 }], ['chaotic_charge', ids([243, 244]), { effect: 15 }], ['coin_flip', [289], { hp: 20 }], ['sleepy', [290], { hp: 5 }]];
+    const EPIC = [[[195, 202], { crit: 12, power: 0.28 }, '+12% криту, +0.28 сили криту'], [[196, 200, 203], { effect: 12, buffEff: 40 }, '+12% шанс ефекту, +40% сила ефектів'],
+        [[197, 199, 201], { hp: 44, hpPerLevel: 1.1 }, '+44 HP, +1.1 HP/рів.'], [[198, 204], { crit: 8, power: 0.4 }, '+8% криту, +0.4 сили криту']];
+    const same = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+    const numbers = s => (s.match(/\d+(?:\.\d+)?/g) || []).map(Number).sort((x, y) => x - y).join();
+    {
+        const count = r => G.TITLES_DB.filter(t => t.rarity === r).length;
+        check(count('common') === 80 && count('uncommon') === 30 && count('rare') === 40 && count('epic') === 30 && count('legendary') === 50 && count('mythic') === 38 && count('meme') === 26 && G.TITLES_DB.length === 296,
+            '24. 294 titles to roll: 80 Common, 30 Uncommon, 40 Rare, 30 Epic, 50 Legendary, 38 Mythic, 26 Meme, plus the two divine', JSON.stringify(['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'meme'].map(count)));
+        const rarityOf = id => id <= 204 ? 'epic' : id <= 244 ? 'legendary' : id <= 274 ? 'mythic' : 'meme';
+        const badIds = ids([195, 294]).filter(id => !T(id) || T(id).rarity !== rarityOf(id));
+        check(!badIds.length, '24. ids 195–294 in order: Epic 195–204, Legendary 205–244, Mythic 245–274, Meme 275–294', badIds.join());
+        const covered = [...ABILITIES.flatMap(a => a[2]), ...REUSED.flatMap(a => a[1]), ...EPIC.flatMap(a => a[0])].sort((a, b) => a - b);
+        check(covered.join() === ids([195, 294]).join(), "24. every new title is in this test's tables, once", covered.length + ' ids');
+        const bad = [];
+        G.setLang('uk');
+        for (const [mech, rarity, list, stats, line, bonus] of ABILITIES) for (const id of list) {
+            const t = T(id);
+            if (t.rarity !== rarity || t.bonus.type !== 'unique' || t.bonus.mechanic !== mech || !same(t.bonus.stats, stats)) bad.push(`${id}: ${JSON.stringify(t.bonus)}`);
+            if (G.describeTitleBonus(t) !== `${line}, ${bonus}`) bad.push(`${id}'s card says: ${G.describeTitleBonus(t)}`);
+        }
+        for (const [mech, list, stats] of REUSED) for (const id of list) if (T(id).bonus.mechanic !== mech || !same(T(id).bonus.stats, stats)) bad.push(`${id}: ${JSON.stringify(T(id).bonus)}`);
+        for (const [list, stats, bonus] of EPIC) for (const id of list) {
+            if (T(id).bonus.type !== 'stats' || !same(T(id).bonus.stats, stats)) bad.push(`${id}: ${JSON.stringify(T(id).bonus)}`);
+            if (G.describeTitleBonus(T(id)) !== bonus) bad.push(`${id}'s card says: ${G.describeTitleBonus(T(id))}`);
+        }
+        check(!bad.length, `24. each ability's titles carry its bonus, and its card line reads as decided (${ABILITIES.length} new abilities, ${REUSED.length} reused, 4 Epic bonuses)`, bad.slice(0, 4).join(' | '));
+        const noEn = [];
+        for (const [, , list, , line] of ABILITIES) {
+            const t = T(list[0]);
+            const justIt = { ...t, bonus: { type: 'unique', mechanic: t.bonus.mechanic, stats: {} } };   // its line alone, no stats after it
+            G.setLang('en'); const en = G.describeTitleBonus(justIt); G.setLang('uk');
+            if (en === line || numbers(en) !== numbers(line)) noEn.push(`${t.id}: ${en}`);
+        }
+        check(!noEn.length, "24. each ability's English card line carries the same numbers as its Ukrainian one", noEn.slice(0, 4).join(' | '));
+    }
+
+    // ---- The odds
+    {
+        const w = Object.fromEntries(Object.entries(G.RARITIES).map(([k, r]) => [k, r.weight]));
+        check(w.common === 44.7 && w.uncommon === 25 && w.rare === 15 && w.epic === 9 && w.legendary === 4.5 && w.mythic === 1.3 && w.meme === 0.5 && w.divine === 0,
+            '24. the odds: Meme 0.5%, taken from Common (44.7%); the other rarities as they were', JSON.stringify(w));
+        const rarity = r => rolled([r, 0.5], () => G.getRandomTitle()).rarity;
+        check(rarity(0.4469) === 'common' && rarity(0.4471) === 'uncommon' && rarity(0.9949) === 'mythic' && rarity(0.9951) === 'meme',
+            '24. the roll itself: Common up to 44.7, Meme from 99.5', [0.4469, 0.4471, 0.9949, 0.9951].map(rarity).join());
+        for (const [lang, cmd, common, meme] of [['uk', '!шанси', 'Звичайний 44.7%', 'Мемний 0.5%'], ['en', '!odds', 'Common 44.7%', 'Meme 0.5%']]) {
+            G.setLang(lang);
+            G.say('viewer1', cmd);
+            const card = lastInfo();
+            check(card.includes(common) && card.includes(meme) && !/\b45%|0\.2%/.test(card), `24. ${cmd} shows ${common} and ${meme}, not rounded`, card);
+        }
+    }
+
+    // ---- Legendary
+    {   // Комбо: every 3rd own hit deals +50%
+        const t = T(205), run = title => dmgs(scripted({ A: drake('plain', title), setup: strong('A'), turns: rounds(14), hp: 1e6 }));
+        const base = run(bare(t)), got = run(t);
+        check(got.every((d, i) => near(d, base[i] * ((i + 1) % 3 ? 1 : 1.5))), '24. Комбо: hits 3 and 6 deal +50%, the others as usual', JSON.stringify({ base, got }));
+    }
+    {   // Перша кров: its first 3 hits +25% and unblockable
+        const t = T(208), run = (title, o) => dmgs(scripted({ A: drake('plain', title), setup: strong('A'), turns: rounds(8, o), hp: 1e6 }));
+        const b = run(bare(t))[0], open = run(t), shut = run(t, { block: 0.05 });
+        check(open.slice(0, 3).every(d => near(d, b * 1.25)) && near(open[3], b), '24. Перша кров: its first 3 hits deal +25%, the 4th as usual', JSON.stringify({ b, open }));
+        check(shut.slice(0, 3).every(d => near(d, b * 1.25)) && shut[3] === 0, "24. Перша кров: those 3 hits can't be blocked, the 4th can", JSON.stringify(shut));
+    }
+    {   // Залізна шкура: the first 3 hits it takes deal 40% less
+        const t = T(211), run = (title, turns) => dmgs(scripted({ B: drake('plain', title), setup: strong('A'), turns: turns || rounds(8), hp: 1e6 }));
+        const b = run(bare(t))[0], got = run(t);
+        check(got.slice(0, 3).every(d => near(d, b * 0.6)) && near(got[3], b), '24. Залізна шкура: the first 3 hits taken deal 40% less, the 4th as usual', JSON.stringify({ b, got }));
+        const blocked = run(t, [dice({ block: 0.05 }), ...rounds(7)]);
+        check(blocked[0] === 0 && near(blocked[1], b * 0.6) && near(blocked[2], b * 0.6) && near(blocked[3], b), '24. Залізна шкура: a blocked hit counts as one of the 3, like every "hits taken" count', JSON.stringify(blocked));
+    }
+    {   // Останній рубіж: below 40% HP, +50%
+        const t = T(214), max = G.getMaxHP(20, 'plain', t), line = Math.ceil(max * 0.4);
+        const hit = (title, hp) => scripted({ A: drake('plain', title), setup: fx => { hurt(fx, 'A', max, hp); strong('A')(fx); }, turns: [dice()] }).turns[0].dmg;
+        const b = hit(bare(t), line - 1);
+        check(near(hit(t, line - 1), b * 1.5) && near(hit(t, line), b), `24. Останній рубіж: +50% at ${line - 1} of ${max} HP (below 40%), nothing at ${line}`, JSON.stringify([b, hit(t, line - 1), hit(t, line)]));
+    }
+    {   // Контратака: when hit, 30% to hit back for 60% of the damage
+        const t = T(217), run = (roll, o = {}) => scripted({ B: drake('plain', t), turns: [dice({ after: [roll], ...o })] }).turns[0], maxA = G.getMaxHP(20, 'plain', null);
+        const yes = run(0.29), no = run(0.3), blocked = run(0.1, { block: 0.05 });
+        check(maxA - yes.hpA === Math.round(yes.dmg * 0.6) && yes.hpA < maxA, `24. Контратака: a roll under 30% hits back for 60% of the ${yes.dmg} taken`, JSON.stringify({ maxA, hpA: yes.hpA }));
+        check(no.hpA === maxA && blocked.hpA === maxA, '24. Контратака: no hit back at 30% or after a blocked hit', JSON.stringify([no.hpA, blocked.hpA]));
+    }
+    {   // Пожирач бафів: 60% on a hit to eat one of the target's buffs and heal 15% max HP
+        const t = T(220), max = G.getMaxHP(20, 'plain', t);
+        const run = (roll, B = drake()) => scripted({ A: drake('plain', t), B, setup: fx => { hurt(fx, 'A', max, 100); put(fx, 'B', 'shield'); put(fx, 'B', 'rage'); }, turns: [dice({ after: [roll, 0] })] }).turns[0];
+        const yes = run(0.59), no = run(0.6), immune = run(0.1, drake('plain', titleWith('debuff_immunity')));
+        check(yes.fx.B.buff.map(x => x.id).join() === 'rage' && yes.hpA === 100 + Math.round(max * 0.15), `24. Пожирач бафів: a roll under 60% eats a buff and heals 15% of ${max}`, JSON.stringify({ hp: yes.hpA, buffs: yes.fx.B.buff }));
+        check(no.fx.B.buff.length === 2 && no.hpA === 100, '24. Пожирач бафів: nothing at 60%', JSON.stringify({ hp: no.hpA, buffs: no.fx.B.buff }));
+        check(immune.fx.B.buff.length === 2 && immune.hpA === 100, '24. Пожирач бафів: debuff immunity keeps the buffs, and no heal', JSON.stringify({ hp: immune.hpA, buffs: immune.fx.B.buff }));
+        const none = scripted({ A: drake('plain', t), setup: fx => hurt(fx, 'A', max, 100), turns: [dice({ after: [0.1, 0] })] }).turns[0];
+        check(none.hpA === 100, '24. Пожирач бафів: no buffs on the target, no heal', String(none.hpA));
+    }
+    // Підзарядка +50%, Перевантаження ×1.6: on every ultimate, an attack's damage, Bloom's heal and Ice Mirror's absorbing
+    const ultimateChecks = (name, t, mult) => {
+        const hit = (type, title, before) => scripted({ A: drake(type, title), setup: fx => { fx.A.meter = 5; strong('A')(fx); }, turns: [dice({ before })], hp: 1e6 }).turns[0];
+        const REELS = [0.1, 0.1, 0.1];   // Jackpot: three gems
+        for (const [type, before, label] of [['red', [], 'Вогняний шторм'], ['black', [], 'Крадіжка тіні'], ['purple', [], 'Арканна детонація'], ['gold', REELS, 'Джекпот']]) {
+            const b = hit(type, bare(t), before).dmg, got = hit(type, t, before).dmg;
+            check(near(got, b * mult), `24. ${name}: ${label} deals ×${mult}`, JSON.stringify({ b, got }));
+        }
+        const healed = title => { const m = G.getMaxHP(20, 'green', title), low = Math.round(m * 0.2);
+            return { m, got: scripted({ A: drake('green', title), setup: fx => { fx.A.meter = 5; hurt(fx, 'A', m, low); }, turns: [dice()] }).turns[0].hpA - low }; };
+        const hb = healed(bare(t)), hm = healed(t);
+        check(hb.got === Math.round(hb.m * 0.25) && hm.got === Math.round(hm.m * 0.25 * mult), `24. ${name}: Цвітіння heals 25% ×${mult} of max HP (without it, 25%)`, JSON.stringify({ hb, hm }));
+        const absorbed = title => { const r = scripted({ A: drake('blue', title), setup: fx => { fx.A.meter = 5; strong('B', 100)(fx); }, turns: [dice(), dice()], hp: 5000 }).turns[1];
+            const m = r.text.match(/(\d+) → (\d+), -\d+ back/); return m ? Number(m[1]) - Number(m[2]) : null; };
+        check(absorbed(bare(t)) === 500 && absorbed(t) === Math.round(500 * mult), `24. ${name}: Крижане дзеркало absorbs up to 10% ×${mult} of max HP (without it, 10%)`, JSON.stringify([absorbed(bare(t)), absorbed(t)]));
+    };
+    {
+        const t = T(223), start = (type, title) => scripted({ A: drake(type, title) }).fx.A.meter;
+        const elements = ['red', 'blue', 'black', 'gold', 'purple', 'green'];
+        check(elements.every(e => start(e, t) === 2) && elements.every(e => start(e, bare(t)) === 0), '24. Підзарядка: every element starts the fight at 2/5, without it at 0', elements.map(e => start(e, t)).join());
+        ultimateChecks('Підзарядка', t, 1.5);
+        const after = scripted({ A: drake('red', t), setup: fx => { fx.A.meter = 5; }, turns: [dice()] }).turns[0].fx.A.meter;
+        check(after === 0, '24. Підзарядка: after the ultimate the meter restarts at 0, as usual', String(after));
+    }
+    {   // Інерція: each own hit adds +4% for the rest of the fight, up to +35%
+        const t = T(226), run = title => dmgs(scripted({ A: drake('plain', title), setup: strong('A'), turns: rounds(24), hp: 1e6 }));
+        const base = run(bare(t)), got = run(t);
+        check(got.every((d, i) => near(d, base[i] * (1 + Math.min(0.35, 0.04 * i)))), '24. Інерція: hit n deals +4% for each hit before it, stopping at +35% (the 10th hit on)', JSON.stringify({ base: base[0], got }));
+    }
+    {   // Очищення: at the start of its turn, every debuff off, before they can act
+        const t = T(229), max = G.getMaxHP(20, 'plain', t);
+        const turn = (setup, turns = [dice()]) => scripted({ A: drake('plain', t), setup, turns }).turns;
+        for (const id of ['burn', 'poison']) {
+            const r = turn(fx => put(fx, 'A', id))[0];
+            check(r.hpA === max && !r.fx.A.debuff.length, `24. Очищення: ${G.EFFECTS[id].name.uk} comes off before it can act: no HP lost`, JSON.stringify({ hp: r.hpA, max, debuffs: r.fx.A.debuff.map(x => x.id) }));
+        }
+        const frost = turn(fx => put(fx, 'A', 'frost'))[0];
+        check(frost.dmg > 0 && !frost.fx.A.debuff.length, '24. Очищення: Мороз comes off before it can skip the attack', frost.text);
+        const b = scripted({ A: drake('plain', bare(t)), turns: [dice()] }).turns[0].dmg, weak = turn(fx => put(fx, 'A', 'weakness'))[0];
+        check(weak.dmg === b, '24. Очищення: Слабкість comes off before the hit', JSON.stringify([b, weak.dmg]));
+        const both = turn(fx => { put(fx, 'A', 'burn'); put(fx, 'A', 'weakness'); })[0];
+        check(!both.fx.A.debuff.length && both.hpA === max, '24. Очищення: all its debuffs go at once', JSON.stringify({ d: both.fx.A.debuff, hp: both.hpA, max }));
+        const kept = scripted({ A: drake('plain', bare(t)), setup: fx => put(fx, 'A', 'weakness'), turns: [dice()] }).turns[0];
+        check(kept.dmg < b, '24. (control) without the ability Слабкість stays and cuts the hit', JSON.stringify([b, kept.dmg]));
+    }
+    {   // Довгий баф: its buffs last twice as long
+        const t = T(232);
+        const lands = (title, id) => { let left = null; scripted({ A: drake('plain', title), setup: (fx, a, b) => { G.applyEffect(a, b, id, 20, fx); left = fx.A.buff.find(x => x.id === id).left; } }); return left; };
+        const buffs = ['rage', 'shield', 'shadow', 'blessing', 'divine', 'regen'];
+        check(buffs.every(id => lands(t, id) === G.EFFECTS[id].count * 2 && lands(bare(t), id) === G.EFFECTS[id].count), '24. Довгий баф: every buff it casts lasts twice its count (without it, its count)', buffs.map(id => `${id} ${lands(t, id)}`).join());
+        let refreshed = null;
+        scripted({ A: drake('plain', t), setup: (fx, a, b) => { G.applyEffect(a, b, 'shield', 20, fx); fx.A.buff[0].left = 1; G.applyEffect(a, b, 'shield', 20, fx); refreshed = fx.A.buff[0].left; } });
+        check(refreshed === 4, '24. Довгий баф: a refresh gives the doubled count too', String(refreshed));
+        let onIt = null;
+        scripted({ B: drake('plain', t), setup: (fx, a, b) => { G.applyEffect(a, b, 'burn', 20, fx); onIt = fx.B.debuff[0].left; } });
+        check(onIt === G.EFFECTS.burn.count, "24. Довгий баф: debuffs on it don't last any longer", String(onIt));
+        const might = title => dmgs(scripted({ A: drake('plain', title), setup: (fx, a, b) => { strong('A')(fx); G.applyEffect(a, b, 'divine', 20, fx); }, turns: rounds(6), hp: 1e6 }));
+        const once = might(bare(t)), twice = might(t), up = 1 + G.EFFECTS.divine.nums.dmg / 100, plainHit = once[1];
+        check(near(once[0], plainHit * up) && near(twice[0], plainHit * up) && near(twice[1], plainHit * up) && near(twice[2], plainHit), '24. Довгий баф: Божественна міць covers 2 attacks instead of 1, the 3rd as usual', JSON.stringify({ once, twice }));
+    }
+
+    // ---- Mythic
+    {   // Відродження: once a fight, survives a killing blow at 1 HP
+        const t = T(245), lethal = strong('A', 2000);
+        const r = scripted({ B: drake('plain', t), setup: lethal, turns: [dice(), dice({ block: 0.05 }), dice()] });   // the block: Rage this strong would make its hit back fatal
+        check(r.turns[0].hpB === 1 && r.turns.length === 3 && r.turns[2].hpB === 0 && r.ended, '24. Відродження: a killing blow leaves 1 HP, the next one kills', JSON.stringify(r.turns.map(x => x.hpB)));
+        const ctl = scripted({ B: drake('plain', bare(t)), setup: lethal, turns: rounds(1) });
+        check(ctl.turns[0].hpB === 0 && ctl.ended, '24. (control) without the ability the blow kills', String(ctl.turns[0].hpB));
+        const m = G.getMaxHP(20, 'plain', t), tick = scripted({ A: drake('plain', t), setup: fx => hurt(fx, 'A', m, -50), turns: [dice()] });
+        check(tick.turns[0].hpA === 1 && !tick.ended, '24. Відродження: a tick that would kill leaves 1 HP too', JSON.stringify({ hp: tick.turns[0].hpA, ended: tick.ended }));
+    }
+    {   // Двійник: 20% to strike twice, the second hit deals 70%
+        const t = T(249), run = (roll, o = {}) => scripted({ A: drake('plain', t), setup: strong('A', 4), turns: [dice({ after: [roll], ...o })], hp: 5000 }).turns[0];
+        const yes = run(0.19), no = run(0.2), blocked = run(0.1, { block: 0.05 });
+        check(5000 - yes.hpB === yes.dmg + Math.round(yes.dmg * 0.7), `24. Двійник: a roll under 20% strikes twice, the second hit 70% of ${yes.dmg}`, JSON.stringify({ lost: 5000 - yes.hpB, dmg: yes.dmg }));
+        check(5000 - no.hpB === no.dmg && blocked.hpB === 5000, '24. Двійник: no second hit at 20% or after a blocked first', JSON.stringify([no.hpB, blocked.hpB]));
+    }
+    {   // Око бурі: after every 4 hits it takes, its next hit deals ×1.5 and can't be blocked
+        const t = T(253), run = (title, o) => dmgs(scripted({ A: drake('plain', title), setup: strong('A'), turns: rounds(18, o), hp: 1e6 }));
+        const base = run(bare(t)), got = run(t), shut = run(t, { block: 0.05 });   // hit 9 is on turn 17: sudden death, in the base too
+        check(got.every((d, i) => near(d, base[i] * (i === 4 || i === 8 ? 1.5 : 1))), '24. Око бурі: its hit after each 4th hit taken deals ×1.5 (hits 5 and 9 here), every other as usual', JSON.stringify({ base, got }));
+        check(shut.every((d, i) => i === 4 || i === 8 ? near(d, base[i] * 1.5) : d === 0), "24. Око бурі: that hit can't be blocked, and blocked hits it takes count towards the 4", JSON.stringify(shut));
+    }
+    {   // Перемотка: once a fight, below 20% HP, its HP rolls back to where it was at the start of its previous turn
+        const t = T(257), max = G.getMaxHP(20, 'plain', t), line = Math.ceil(max * 0.2);
+        // Turn 1 is its own (HP full), turn 2 the opponent's, then at the start of turn 3 a Burn takes it to `to`
+        const hitB = max - scripted({ A: drake('plain', t), turns: rounds(2) }).turns[1].hpA;
+        const aim = to => scripted({ A: drake('plain', t), turns: rounds(3), at: { 2: fx => hurt(fx, 'A', max, to, max - hitB) } }).turns[2];
+        check(aim(line - 1).hpA === max, `24. Перемотка: at ${line - 1} of ${max} HP (below 20%) it rolls back to the ${max} it had at the start of its previous turn`, String(aim(line - 1).hpA));
+        check(aim(line).hpA === line, `24. Перемотка: nothing at ${line} (20%)`, String(aim(line).hpA));
+        const first = scripted({ A: drake('plain', t), setup: fx => hurt(fx, 'A', max, line - 1), turns: [dice()] }).turns[0];
+        check(first.hpA === line - 1, '24. Перемотка: on its first turn there is no previous turn to go back to', String(first.hpA));
+        // Below 20% again on turn 7, with a healthy turn 5 to go back to: it stays down
+        const twice = scripted({ A: drake('plain', t), turns: rounds(7), at: { 2: fx => hurt(fx, 'A', max, 10, max - hitB), 6: fx => hurt(fx, 'A', max, 10, max - 2 * hitB) } }).turns;
+        check(twice[2].hpA === max && twice[6].hpA === 10, '24. Перемотка: once a fight', JSON.stringify([twice[2].hpA, twice[6].hpA]));
+    }
+    {   // Загартування: +1% damage for every 3% of HP it has lost
+        const t = T(260), max = G.getMaxHP(20, 'plain', t);
+        const hit = (title, share) => scripted({ A: drake('plain', title), setup: fx => { if (share) hurt(fx, 'A', max, Math.round(max * (1 - share))); strong('A')(fx); }, turns: [dice()] }).turns[0].dmg;
+        const b = hit(bare(t), 0);
+        const ok = [[0, 1], [0.3, 1.1], [0.6, 1.2], [0.9, 1.3]].every(([share, m]) => Math.abs(hit(t, share) / (b * m) - 1) < 0.01);
+        check(ok, '24. Загартування: +10% at 30% of its HP lost, +20% at 60%, +30% at 90%, nothing at full HP', JSON.stringify([0, 0.3, 0.6, 0.9].map(s => hit(t, s) / b)));
+    }
+    {   // Повернення: 60% of the debuffs cast on it go back to the caster; the rest land
+        const t = T(264);
+        const cast = (roll, A = drake(), id = 'burn') => { let out = null;
+            scripted({ A, B: drake('plain', t), setup: (fx, a, b) => { const res = rolled([roll], () => G.applyEffect(a, b, id, 20, fx)); out = { res, a: fx.A.debuff.map(x => x.id), b: fx.B.debuff.map(x => x.id) }; } });
+            return out; };
+        const back = cast(0.59), land = cast(0.6);
+        check(back.a.join() === 'burn' && !back.b.length, '24. Повернення: a roll under 60% sends the debuff back to its caster', JSON.stringify(back));
+        check(!land.a.length && land.b.join() === 'burn', '24. Повернення: at 60% it lands', JSON.stringify(land));
+        const pingpong = cast(0.1, drake('plain', T(265)));
+        check(pingpong.a.join() === 'burn' && !pingpong.b.length, '24. Повернення: a debuff comes back once, never twice, even to another holder', JSON.stringify(pingpong));
+        const immune = cast(0.1, drake('plain', titleWith('debuff_immunity')));
+        check(immune.res === 'immune' && !immune.a.length && !immune.b.length, '24. Повернення: debuff immunity stops a debuff sent back at an immune caster', JSON.stringify(immune));
+        const dragon = cast(0.1, DRAGON());
+        check(dragon.res === 'immune' && !dragon.a.length && !dragon.b.length, "24. Повернення: the White Dragon's own immunity too", JSON.stringify(dragon));
+        let buff = null;
+        scripted({ B: drake('plain', t), setup: (fx, a, b) => { G.applyEffect(b, a, 'rage', 20, fx); buff = fx.B.buff.map(x => x.id).join(); } });
+        check(buff === 'rage', "24. Повернення: buffs aren't sent anywhere", String(buff));
+        // A Dispel sent back: a caster with buffs loses them; with none it does nothing, and no recast (no free cast for the holder)
+        let stripped = null;
+        scripted({ A: drake('purple'), B: drake('red', t), setup: (fx, a, b) => { put(fx, 'A', 'rage'); put(fx, 'B', 'shield'); const res = rolled([0.1], () => G.applyEffect(a, b, 'dispel', 20, fx)); stripped = { res, a: fx.A.buff.length, b: fx.B.buff.length }; } });
+        check(stripped.res === 'dispelled' && stripped.a === 0 && stripped.b === 1, "24. Повернення: a Dispel sent back takes the caster's buffs, not the holder's", JSON.stringify(stripped));
+        let nothing = null;
+        scripted({ A: drake('purple'), B: drake('red', t), setup: (fx, a, b) => { const res = rolled([0.1, 0.1, 0], () => G.applyEffect(a, b, 'dispel', 20, fx)); nothing = { res, fx: JSON.parse(JSON.stringify([fx.A.buff, fx.A.debuff, fx.B.buff, fx.B.debuff])) }; } });
+        check(nothing.res === 'returned' && nothing.fx.every(l => !l.length), '24. Повернення: a Dispel sent back to a caster with no buffs does nothing, and no recast', JSON.stringify(nothing));
+        let plainDispel = null;
+        scripted({ A: drake('purple'), B: drake('red', t), setup: (fx, a, b) => { const res = rolled([0.6, 0.1, 0], () => G.applyEffect(a, b, 'dispel', 20, fx)); plainDispel = res; } });
+        check(plainDispel !== 'returned' && plainDispel !== 'dispelled', '24. (control) a Dispel that lands on a holder with no buffs is recast, as on anyone', String(plainDispel));
+    }
+    {
+        const t = T(268);
+        ultimateChecks('Перевантаження', t, 1.6);
+        const m = title => scripted({ A: drake('red', title), setup: fx => { fx.A.meter = 5; }, turns: [dice()] }).turns[0].fx.A.meter;
+        check(m(t) === 2 && m(bare(t)) === 0, '24. Перевантаження: after the ultimate the meter restarts at 2, not 0', JSON.stringify([m(t), m(bare(t))]));
+        const blooms = scripted({ A: drake('green', t), setup: fx => { fx.A.meter = 5; }, turns: [dice()] }).turns[0].fx.A.meter;
+        check(blooms === 2, '24. Перевантаження: Цвітіння too', String(blooms));
+        const start = scripted({ A: drake('red', t) }).fx.A.meter;
+        check(start === 0, '24. Перевантаження: the fight itself starts at 0', String(start));
+    }
+    {   // Вирок: 25% on a hit to sentence the target; its 3rd hit after that deals ×2
+        const t = T(271), run = (title, rolls) => dmgs(scripted({ A: drake('plain', title), setup: strong('A'), turns: rolls.flatMap(r => [dice({ after: r === null ? [] : [r] }), dice()]), hp: 1e6 }));
+        const b = run(bare(t), [null])[0];
+        const got = run(t, [0.24, 0.99, 0.99, 0.99, 0.99]), not = run(t, [0.25, 0.99, 0.99, 0.99, 0.99]);
+        check(near(got[0], b) && near(got[1], b) && near(got[2], b) && near(got[3], b * 2) && near(got[4], b), '24. Вирок: a roll under 25% on hit 1 makes hit 4 deal ×2, and only hit 4', JSON.stringify({ b, got }));
+        check(not.every(d => near(d, b)), '24. Вирок: no sentence at 25%', JSON.stringify(not));
+    }
+
+    // ---- Meme
+    {   // 404: in its fights any hit, by either drake, has an 8% chance to vanish
+        const t = T(275), maxB = G.getMaxHP(20, 'plain', t);
+        const mine = roll => scripted({ B: drake('plain', t), turns: [dice({ after: [roll] })] }).turns[0];
+        const theirs = roll => scripted({ A: drake('plain', t), turns: [dice({ after: [roll] })] }).turns[0];
+        const yes = mine(0.07), no = mine(0.08), other = theirs(0.07);
+        check(yes.dmg === 0 && yes.hpB === maxB && /404/.test(yes.text), '24. 404: a roll under 8% and the hit deals nothing (the holder hit)', yes.text);
+        check(no.dmg > 0 && no.hpB === maxB - no.dmg, '24. 404: at 8% the hit lands', no.text);
+        check(other.dmg === 0 && /404/.test(other.text), "24. 404: the holder's own hit can vanish too", other.text);
+        const meter = scripted({ A: drake('red'), B: drake('plain', t), turns: [dice({ after: [0.07] })] }).turns[0].fx.A.meter;
+        check(meter === 0, "24. 404: a hit that vanished doesn't fill the meter", String(meter));
+    }
+    {   // Синій екран: each turn, 5% that whoever is about to hit crashes and loses the turn
+        const t = T(278);
+        const run = (who, roll) => scripted({ [who]: drake('plain', t), turns: [dice({ before: [roll] }), dice({ before: [roll] })] }).turns;
+        for (const who of ['A', 'B']) {
+            const lost = run(who, 0.04), kept = run(who, 0.05);
+            check(lost.every(x => x.dmg === null) && lost[1].hpA === G.getMaxHP(20, 'plain', who === 'A' ? t : null), `24. Синій екран (held by ${who}): a roll under 5% and the turn is lost, whoever's turn it is`, lost.map(x => x.text).join(' / '));
+            check(kept.every(x => x.dmg > 0), `24. Синій екран (held by ${who}): at 5% both hit`, kept.map(x => x.text).join(' / '));
+        }
+    }
+    {   // Чат вирішує: the effects it casts come at random from both fighters' elements
+        const t = T(281);
+        Math.random = mulberry32(2424);
+        const seen = [];
+        G.wrapApplyEffect((a, top) => { if (a[0].name === 'chat') seen.push(a[2]); });
+        G.setLang('en');
+        for (let i = 0; i < 60; i++) {
+            const d = G.getDragonDB(); d.chat = { ...drake('purple', t), name: 'chat' }; d.foe = { ...drake('red'), name: 'foe' }; G.saveDragonDB(d);
+            G.running = true; G.runBattle('chat', '#fff', 'foe', '#fff', false); __drain();
+        }
+        G.wrapApplyEffect(null);
+        Math.random = KEEP;
+        const outside = seen.filter(id => !['purple', 'red'].includes(G.EFFECTS[id].element));
+        check(seen.length > 100 && !outside.length, `24. Чат вирішує: all its ${seen.length} casts come from the two fighters' elements`, `${outside.length} from elsewhere: ${[...new Set(outside)].join()}`);
+        check(new Set(seen.map(id => G.EFFECTS[id].element)).size >= 2, "24. Чат вирішує: both fighters' elements come up", [...new Set(seen)].join());
+    }
+    {   // AFK: once a fight, on one of its turns 2–5, it leaves; next turn it's back and hits ×3
+        const t = T(284);
+        for (const [roll, own] of [[0, 2], [0.25, 3], [0.5, 4], [0.75, 5]]) {
+            const turns = rounds(16); turns[0] = dice({ before: [roll] });
+            const r = scripted({ A: drake('plain', t), setup: strong('A'), turns, hp: 1e6 }), hits = dmgs(r), b = hits[0];
+            const lostAt = hits.map((d, i) => d === null ? i + 1 : 0).filter(Boolean);
+            check(lostAt.join() === String(own) && near(hits[own], b * 3) && hits.slice(own + 1).every(d => near(d, b)), `24. AFK: drawn for its turn ${own}, it skips that turn, its next hit deals ×3, and it never leaves again`, JSON.stringify({ lostAt, hits }));
+        }
+        // The turn it drew lost to the opponent's Синій екран: still only turns 2–5
+        const turns = [];
+        for (let i = 1; i <= 16; i++) turns.push(i === 9 ? [0.01] : dice({ before: i === 1 ? [0.99, 0.75] : [0.99] }));
+        const r = scripted({ A: drake('plain', t), B: drake('plain', T(278)), turns, hp: 1e6 });
+        const away = of(r, 'A').map((x, i) => /AFK\)/.test(x.text) ? i + 1 : 0).filter(Boolean), late = dmgs(r).slice(5);
+        check(!away.length && late.every(d => near(d, dmgs(r)[0])), "24. AFK: its turn 5 lost to the opponent's Синій екран, it doesn't leave on turn 6 instead: no AFK and no ×3 in that fight", JSON.stringify({ away, late }));
+        // A lost turn inside the window moves it to the next turn
+        const moved = [];
+        for (let i = 1; i <= 8; i++) moved.push(i === 5 ? [0.01] : dice({ before: i === 1 ? [0.99, 0.25] : [0.99] }));
+        const m = scripted({ A: drake('plain', t), B: drake('plain', T(278)), turns: moved, hp: 1e6 });
+        const movedTo = of(m, 'A').map((x, i) => /AFK\)/.test(x.text) ? i + 1 : 0).filter(Boolean);
+        check(movedTo.join() === '4', "24. AFK: its turn 3 lost to Синій екран moves it to turn 4, still inside 2–5", 'left on its turn ' + movedTo.join());
+    }
+    {   // Лаг: 10% its hit hangs and nothing happens; at the start of its next turn it lands at ×1.8, then its normal hit
+        const t = T(287), run = roll => scripted({ A: drake('plain', t), setup: strong('A', 4), turns: [dice({ after: [roll] }), dice(), dice({ after: [0.99] })], hp: 5000 });
+        const r = run(0.09), no = run(0.1), would = no.turns[0].dmg;
+        check(r.turns[0].dmg === 0 && r.turns[0].hpB === 5000, '24. Лаг: a roll under 10% and the hit hangs: nothing happens', r.turns[0].text);
+        check(5000 - r.turns[2].hpB === Math.round(would * 1.8) + r.turns[2].dmg && r.turns[2].dmg > 0, `24. Лаг: at the start of its next turn the hit lands at ×1.8 (${Math.round(would * 1.8)}), then its normal hit`, JSON.stringify({ lost: 5000 - r.turns[2].hpB, dmg: r.turns[2].dmg, would }));
+        check(no.turns[0].dmg > 0 && 5000 - no.turns[0].hpB === would, '24. Лаг: at 10% the hit lands as usual', no.turns[0].text);
+    }
+    {   // Копіпаст: 10% it copies the opponent's last hit that did damage and deals exactly that
+        const t = T(292), run = roll => scripted({ A: drake('plain', t), setup: strong('B', 3), turns: [dice(), dice(), dice({ after: [roll] })], hp: 5000 }).turns;
+        const yes = run(0.09), no = run(0.1), theirs = yes[1].dmg;
+        check(yes[2].dmg === theirs && theirs !== no[2].dmg, `24. Копіпаст: a roll under 10% deals exactly the opponent's last hit (${theirs})`, JSON.stringify([yes[2].dmg, no[2].dmg, theirs]));
+        const first = scripted({ A: drake('plain', t), turns: [dice({ after: [0.01] })] }).turns[0];
+        check(first.dmg > 0 && !/Ctrl/.test(first.text), '24. Копіпаст: nothing to copy before the opponent has hit', first.text);
+        const blockedLast = scripted({ A: drake('plain', t), setup: strong('B', 3), turns: [dice(), dice(), dice({ after: [0.99] }), dice({ block: 0.05 }), dice({ after: [0.09] })], hp: 5000 }).turns;
+        check(blockedLast[4].dmg === theirs, "24. Копіпаст: a blocked hit doesn't count, it copies the last one that did damage", JSON.stringify([blockedLast[4].dmg, theirs]));
+    }
+
+    // ---- Nothing only in the hidden record: each ability tells the view when it fires (tests/fightview.js and the icon test draw it)
+    {
+        const told = [];
+        const says = (name, ok, got) => { if (!ok) told.push(`${name}: ${JSON.stringify(got)}`); };
+        const at = (id, who, turns, setup, hp) => scripted({ [who]: drake('plain', T(id)), turns, setup, hp }).turns;
+        const hurtA = (id, to) => fx => { const m = G.getMaxHP(20, 'plain', T(id)); hurt(fx, 'A', m, Math.round(m * to)); };
+        says('Комбо', at(205, 'A', rounds(5))[4].notes.combo === true, at(205, 'A', rounds(5))[4].notes);
+        says('Перша кров', at(208, 'A', rounds(1))[0].notes.firstBlood === true, at(208, 'A', rounds(1))[0].notes);
+        const unblocked = scripted({ A: drake('plain', T(208)), turns: [dice({ block: 0.05 })] }).turns[0].notes;
+        says('Перша кров past a block', unblocked.unblock === 'first_blood', unblocked);
+        says('Залізна шкура', at(211, 'B', rounds(1))[0].notes.ironHide === true, at(211, 'B', rounds(1))[0].notes);
+        const low = at(214, 'A', rounds(1), hurtA(214, 0.2))[0];
+        says('Останній рубіж', low.notes.lastStand === true, low.notes);
+        const back = at(217, 'B', [dice({ after: [0.1] })])[0];
+        says('Контратака', back.notes.counter === Math.round(back.dmg * 0.6), { n: back.notes, dmg: back.dmg });
+        const m220 = G.getMaxHP(20, 'plain', T(220)), ate = at(220, 'A', [dice({ after: [0.1, 0] })], fx => { hurt(fx, 'A', m220, 100); put(fx, 'B', 'shield'); })[0];
+        says('Пожирач бафів', ate.notes.eaten && ate.notes.eaten.id === 'shield' && ate.notes.eaten.healed === Math.round(m220 * 0.15), ate.notes);
+        const ult = id => scripted({ A: drake('red', T(id)), setup: fx => { fx.A.meter = 5; }, turns: [dice()] }).turns[0].notes;
+        says('Підзарядка', ult(223).boost === 1.5, ult(223));
+        says('Перевантаження', Math.abs(ult(268).boost - 1.6) < 1e-9, ult(268));
+        says('Інерція', at(226, 'A', rounds(3))[2].notes.momentum === 4, at(226, 'A', rounds(3))[2].notes);
+        says('Очищення', (at(229, 'A', rounds(1), fx => put(fx, 'A', 'burn'))[0].notes.cleanse || []).join() === 'burn', at(229, 'A', rounds(1), fx => put(fx, 'A', 'burn'))[0].notes);
+        says('Відродження', (scripted({ B: drake('plain', T(245)), setup: strong('A', 2000), turns: rounds(1) }).turns[0].notes.phoenix || {}).hp === 1, 'no note');
+        const twin = scripted({ A: drake('plain', T(249)), turns: [dice({ after: [0.1] })] }).turns[0];
+        says('Двійник', twin.notes.twin === Math.round(twin.dmg * 0.7), { n: twin.notes, dmg: twin.dmg });
+        const storm = scripted({ A: drake('plain', T(253)), turns: [...rounds(8), dice({ block: 0.05 })], hp: 1e6 }).turns[8].notes;
+        says('Око бурі', storm.storm === 1.5 && storm.unblock === 'storm_eye', storm);
+        const m257 = G.getMaxHP(20, 'plain', T(257)), hitB = m257 - at(257, 'A', rounds(2))[1].hpA;
+        const rolled257 = scripted({ A: drake('plain', T(257)), turns: rounds(3), at: { 2: fx => hurt(fx, 'A', m257, 10, m257 - hitB) } }).turns[2].notes;
+        says('Перемотка', rolled257.rewind && rolled257.rewind.from === 10 && rolled257.rewind.to === m257, rolled257);
+        says('Загартування', at(260, 'A', rounds(1), hurtA(260, 0.7))[0].notes.tempered === 10, at(260, 'A', rounds(1), hurtA(260, 0.7))[0].notes);
+        heard = {};
+        scripted({ B: drake('plain', T(264)), setup: (fx, a, b) => { heard = {}; rolled([0.1], () => G.applyEffect(a, b, 'burn', 20, fx)); says('Повернення', heard['cast:returned'] === 'burn' && heard['cast:applied'] === 'burn', heard); } });
+        const sentence = scripted({ A: drake('plain', T(271)), turns: [dice({ after: [0.1] }), dice(), dice(), dice(), dice(), dice(), dice()] }).turns;
+        says('Вирок', sentence[0].notes.sentenced === true && sentence[6].notes.sentenceDone === 2, [sentence[0].notes, sentence[6].notes]);
+        const gone = scripted({ B: drake('plain', T(275)), turns: [dice({ after: [0.01] })] }).turns[0].notes;
+        says('404', gone.notFound && gone.notFound.name === 'B', gone.notFound);
+        says('Чат вирішує', scripted({ A: drake('red', T(281)), turns: [dice({ cast: 0 })] }).turns[0].notes.chat === true, 'no note');
+        const afk = [dice({ before: [0] }), dice(), [], dice(), dice()], away = scripted({ A: drake('plain', T(284)), turns: afk }).turns[4].notes;
+        says('AFK', away.afkBack === 3, away);
+        const lag = scripted({ A: drake('plain', T(287)), turns: [dice({ after: [0.01] }), dice(), dice({ after: [0.99] })] }).turns;
+        says('Лаг', lag[0].notes.lagHang === true && lag[2].notes.lagLand > 0, [lag[0].notes, lag[2].notes]);
+        const copied = scripted({ A: drake('plain', T(292)), turns: [dice(), dice(), dice({ after: [0.01] })] }).turns;
+        says('Копіпаст', copied[2].notes.copy === copied[1].dmg, [copied[2].notes, copied[1].dmg]);
+        check(!told.length, '24. nothing only in the hidden record: every ability that changes a fight tells the view (Синій екран and AFK: tests/fightview.js)', told.slice(0, 5).join(' | '));
+    }
+
+    // ---- What they meet
+    {   // The White Dragon still wins every fight, against every ability
+        Math.random = mulberry32(2425);
+        const lost = [];
+        G.setLang('en');
+        for (const [mech, , list] of ABILITIES) for (const level of [1, 20]) for (let i = 0; i < 3; i++) {
+            const d = G.getDragonDB();
+            d.wdragon = { ...DRAGON(), name: 'wdragon', xp: 1000000 }; d.foe = { ...drake(['red', 'blue', 'black', 'gold', 'purple', 'green'][(i * 2 + level) % 6], T(list[i % list.length]), level), name: 'foe' };
+            G.saveDragonDB(d);
+            G.running = true;
+            const before = finishes.length;
+            G.runBattle('wdragon', '#fff', 'foe', '#fff', false);
+            __drain();
+            const f = finishes[before];
+            if (!f || !(f.wdragon > 0 && f.foe <= 0)) lost.push(`${mech}: ${JSON.stringify(f)}`);
+        }
+        Math.random = KEEP;
+        check(!lost.length, `24. the White Dragon wins every fight against all ${ABILITIES.length} abilities, by knockout`, lost.slice(0, 3).join(' | '));
+        const hit = id => scripted({ A: DRAGON(), B: drake('plain', T(id)), turns: [dice({ after: [0.01, 0.01, 0.01] })] });
+        const vanish = hit(275);
+        check(vanish.turns[0].hpB === 0 && vanish.ended, "24. the White Dragon's hit can't vanish (404)", String(vanish.turns[0].hpB));
+        const iron = hit(211);
+        check(iron.turns[0].hpB === 0, "24. Залізна шкура doesn't soften the White Dragon's hit", String(iron.turns[0].hpB));
+        const rise = scripted({ A: DRAGON(), B: drake('plain', T(245)), turns: rounds(3) });
+        check(rise.turns[0].hpB === 1 && rise.ended, "24. Відродження only delays the White Dragon's win (its hit leaves 1 HP, the fight still ends)", JSON.stringify(rise.turns.map(x => x.hpB)));
+        const onDragon = id => scripted({ A: drake('plain', T(id)), B: DRAGON(), setup: strong('A'), turns: [dice({ after: [0.01] })] }).turns[0];
+        check(onDragon(208).dmg === 0, "24. Перша кров's hits still dissolve on the White Dragon", onDragon(208).text);
+    }
+    {   // The White Drake's scales
+        const wd = WD();
+        const hitsWd = (id, roll, turns = 1) => scripted({ A: drake('plain', T(id)), B: wd, turns: [dice({ after: [roll] }), dice(), dice({ after: [0.99] })].slice(0, turns), hp: 5000 });
+        const start = scripted({ B: wd, hp: 5000 }).fx.B.scales.now, maxWd = 5000;
+        const twice = hitsWd(249, 0.1).turns[0];
+        check(twice.fx.B.scales.now === start - twice.dmg - Math.round(twice.dmg * 0.7) && twice.hpB === maxWd, "24. the scales: Двійник's second hit takes them first, like a hit", JSON.stringify({ start, now: twice.fx.B.scales.now, dmg: twice.dmg, hp: twice.hpB }));
+        const late = hitsWd(287, 0.05, 3).turns, plain = hitsWd(287, 0.5).turns[0].dmg;
+        check(late[2].fx.B.scales.now === start - Math.round(plain * 1.8) - late[2].dmg && late[2].hpB === maxWd, "24. the scales: Лаг's stuck hit takes them first too", JSON.stringify({ start, now: late[2].fx.B.scales.now, plain, dmg: late[2].dmg, hp: late[2].hpB }));
+        const vanish = scripted({ A: drake('plain', T(275)), B: wd, turns: [dice({ after: [0.01] })], hp: 5000 }).turns[0];
+        check(vanish.fx.B.scales.now === start, '24. the scales: a hit that vanished (404) leaves them whole', String(vanish.fx.B.scales.now));
+        const countered = scripted({ A: wd, B: drake('plain', T(217)), turns: [dice({ after: [0.1] })], hp: 5000 }).turns[0];
+        check(countered.fx.A.scales.now === start && maxWd - countered.hpA === Math.round(countered.dmg * 0.6), "24. the scales: Контратака goes past them, as Шипи do (it isn't a hit)", JSON.stringify({ sc: countered.fx.A.scales.now, hp: countered.hpA, dmg: countered.dmg }));
+        let bounced = null;
+        scripted({ A: wd, B: drake('plain', T(264)), setup: (fx, a, b) => { const res = rolled([0.1], () => G.applyEffect(a, b, 'burn', 20, fx)); bounced = { res, a: fx.A.debuff.length, b: fx.B.debuff.length }; } });
+        check(bounced.res === 'bounced' && !bounced.a && !bounced.b, '24. the scales: a debuff Повернення sends back bounces off them', JSON.stringify(bounced));
+    }
+    {   // Магніт
+        const wd = WD();
+        let pulled = null;
+        scripted({ A: drake('plain', T(232)), B: wd, setup: (fx, a, b) => { put(fx, 'A', 'magnet'); pulled = { res: G.applyEffect(a, b, 'shield', 20, fx), wd: fx.B.buff.map(x => [x.id, x.left]), mine: fx.A.buff.length }; } });
+        check(pulled.res === 'pulled' && pulled.wd[0][1] === G.EFFECTS.shield.count && !pulled.mine, "24. Магніт: a Довгий баф holder's buff pulled to the White Drake lasts its usual count", JSON.stringify(pulled));
+        const cleansed = scripted({ A: drake('plain', T(229)), B: wd, setup: fx => put(fx, 'A', 'magnet'), turns: [dice()] }).turns[0];
+        check(!cleansed.fx.A.debuff.length, '24. Магніт: Очищення takes it off before the attack it covers', JSON.stringify(cleansed.fx.A.debuff));
+        let back = null;
+        scripted({ A: wd, B: drake('plain', T(264)), setup: (fx, a, b) => { fx.A.scales.now = 0; rolled([0.1], () => G.applyEffect(a, b, 'magnet', 20, fx)); const res = G.applyEffect(a, b, 'reforge', 20, fx); back = { res, on: fx.A.debuff.map(x => x.id), a: fx.A.buff.map(x => x.id), b: fx.B.buff.map(x => x.id) }; } });
+        check(back.a.join() === 'reforge' && !back.b.length, '24. Магніт sent back at the White Drake: its own buff stays with it, it never goes to the viewer', JSON.stringify(back));
+    }
+    {   // Sudden death and the time-out
+        const sd = scripted({ A: drake('plain', T(292)), turns: [...rounds(16), dice({ after: [0.05] })], hp: 1e6 }).turns;
+        check(sd[16].dmg === sd[15].dmg && /Sudden Death/.test(sd[16].text), "24. sudden death: Копіпаст deals exactly the opponent's last hit, no multiplier on top", JSON.stringify([sd[16].dmg, sd[15].dmg]));
+        const lost = scripted({ A: drake('plain', T(278)), turns: [...rounds(29, { before: [0.99] }), [0.01], []], hp: 1e6 });
+        check(lost.ended && lost.turns.length === 31 && /Time out/.test(lost.turns[30].text) && !/\[Turn 31\]/.test(lost.turns.map(x => x.text).join('\n')), '24. the time-out: a turn 30 lost to Синій екран is still the last turn', JSON.stringify({ ended: lost.ended, n: lost.turns.length }));
+        const hung = scripted({ B: drake('plain', T(287)), turns: [...rounds(29), dice({ after: [0.01] }), []], hp: 1e6 });
+        check(hung.ended && hung.turns[29].dmg === 0 && hung.turns[30].hpA === hung.turns[29].hpA, '24. the time-out: a hit stuck on turn 30 (Лаг) never lands', JSON.stringify({ ended: hung.ended, hp: hung.turns.slice(29).map(x => x.hpA) }));
+    }
+    Math.random = KEEP;
     fresh();
 }
 

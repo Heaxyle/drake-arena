@@ -6,7 +6,8 @@
 // which effects.js also reads) goes into a temp folder, effects.js runs against it, and the mutation counts as caught
 // only if effects.js exits non-zero. An unchanged copy runs first and must pass, so a broken test setup can't look like
 // "everything caught". Exits non-zero if any mutation slips through. Before all that, the counts in README.md and
-// TESTING.md must be the list's length: a new mutation means a new number in both.
+// TESTING.md must be the list's length and TESTING.md's table must number its rows 1 to that length: a new mutation means a
+// new number in both and a new row.
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
@@ -20,6 +21,16 @@ const src = fs.readFileSync(FILE, 'utf8').replace(/\r\n/g, '\n');
 const readme = fs.readFileSync(path.join(path.dirname(FILE), 'README.md'), 'utf8');
 // Where the docs give the list's length, one place each
 const COUNTS = [['README.md', /(\d+) deliberate bugs/], ['TESTING.md', /(\d+) specific ways/]];
+// TESTING.md's table of them: a row for each, numbered 1 to N, so a mutation with no row fails. What's wrong with it, or nothing
+function tableProblem(n) {
+    const text = fs.readFileSync(path.join(__dirname, '..', 'TESTING.md'), 'utf8').replace(/\r\n/g, '\n');
+    const from = text.indexOf('### Testing the tests: deliberate breakages');
+    if (from === -1) return 'has no "Testing the tests" section';
+    const rows = [...text.slice(from, text.indexOf('\n## ', from)).matchAll(/^\| (\d+) \|/gm)].map(m => Number(m[1]));
+    const wrong = rows.findIndex((row, i) => row !== i + 1);
+    if (wrong !== -1) return `numbers the table's row ${wrong + 1} ${rows[wrong]}`;
+    return rows.length === n ? null : `has ${rows.length} table rows`;
+}
 
 // [name, what the bug is, code to find, what to put instead]
 const MUTATIONS = [
@@ -28,7 +39,7 @@ const MUTATIONS = [
     ['effect id in the log', 'the opening-buff line prints the internal id ("blessing") instead of the icon and name',
         'starts the fight with ${fxName(id)}', 'starts the fight with ${id}'],
     ["refresh doesn't reset", 'casting an active effect again leaves its count where it was',
-        'current.left = e.count;', 'current.left = current.left;'],
+        'current.left = e.count + extraLeft;', 'current.left = current.left;'],
     ['no debuff immunity', 'the immunity check is switched off',
         "if (e.kind === 'debuff' && isDebuffImmune(owner)) {", 'if (false) {'],
     ['Frost uses up other effects', "a frozen turn also counts down the frozen drake's other \"own attacks\" effects",
@@ -55,7 +66,7 @@ const MUTATIONS = [
     ['below-half bonus every time', 'the below-half bonus is given on every hit under half HP, not once per fight',
         'if (!st.halfDone && v < maxHPOf(f) / 2', 'if (v < maxHPOf(f) / 2'],
     ['meter not reset', 'the meter stays full after the ultimate',
-        "atkFx.meter = 0;\n                        tallyUltimate(ultId, 'fires');", "tallyUltimate(ultId, 'fires');"],
+        "atkFx.meter = titleMechanic(attacker) === 'overcharge' ? MECH.overchargeKeep : 0;   // Перевантаження keeps some\n                        tallyUltimate(ultId, 'fires');", "tallyUltimate(ultId, 'fires');"],
     ['ultimate fills the meter', 'the ultimate hit itself adds a meter point',
         'if (!ult && finalDmg > 0 && ultimateFor', 'if (finalDmg > 0 && ultimateFor'],
     ['Frost wipes the meter', 'a frozen turn empties a full meter instead of letting the ultimate wait',
@@ -64,7 +75,7 @@ const MUTATIONS = [
         'const ultimateFor = drakeType => drakeType === DRAGON_TYPE ? null :', "const ultimateFor = drakeType => drakeType === DRAGON_TYPE ? 'firestorm' :"],
     // Ultimates
     ['Firestorm can be blocked', 'Firestorm is ultra-blocked like a normal hit',
-        '(divine || (ult && ult.unblockable))', '(divine)'],
+        '(divine || (ult && ult.unblockable) || unblockableBy)', '(divine || unblockableBy)'],
     ['Firestorm without Burn', 'Firestorm no longer applies 🔥 Burn',
         'if (ult && ult.applies) applyEffect(attacker, defender, ult.applies, attackerProg.level, fx);', ''],
     ['Firestorm multiplier ignored', "Firestorm's damage multiplier from the table isn't applied",
@@ -72,7 +83,7 @@ const MUTATIONS = [
     ['Ice Mirror sends nothing back', 'Ice Mirror stops the hit but the attacker takes nothing',
         'if (back > 0) setHP(attacker, Math.max(0, hpOf(attacker) - back));', ''],
     ['Ice Mirror ignores its cap', 'Ice Mirror absorbs the whole hit instead of at most cap% of max HP',
-        'const absorbed = Math.min(would, Math.round(maxHPOf(defender) * m.cap / 100));', 'const absorbed = would;'],
+        'const absorbed = Math.min(would, Math.round(maxHPOf(defender) * m.cap / 100 * (defFx.mirrorMult || 1)));', 'const absorbed = would;'],
     ['Ice Mirror never runs out', "Ice Mirror's hits-left count doesn't go down",
         'defFx.mirror--;', ''],
     ['Shadow Theft ignores the buff limit', 'stolen buffs are added past the 2-buff limit',
@@ -94,7 +105,7 @@ const MUTATIONS = [
     ['Bloom keeps the debuffs', "Bloom doesn't remove its own debuffs",
         'const removed = atkFx.debuff;\n                            atkFx.debuff = [];', 'const removed = [];'],
     ['Bloom heals nothing', "Bloom's heal from the table isn't applied",
-        'before + Math.round(attackerMaxHP * ult.nums.heal / 100)', 'before'],
+        'before + Math.round(attackerMaxHP * ult.nums.heal / 100 * ultBoost(attacker))', 'before'],
     ['no 90% cap', 'effect reductions are capped at 100% instead of 90%',
         'const EFFECT_CAPS = { cut: 90, healCut: 90 };', 'const EFFECT_CAPS = { cut: 100, healCut: 100 };'],
     ['ultimate icon typed outside the table', "the text record's Ice Mirror line spells out 💠 instead of reading Ice Mirror's icon and name from CLASS_ULTIMATES (ultName)",
@@ -124,7 +135,7 @@ const MUTATIONS = [
     ['below-half bonus waits for room', 'the below-half bonus is kept until the meter has room for it',
         'if (!st.halfDone && v < maxHPOf(f) / 2 && ultimateFor(f.drakeObj.type)) {', 'if (!st.halfDone && st.meter < METER.max && v < maxHPOf(f) / 2 && ultimateFor(f.drakeObj.type)) {'],
     ['effect power stretches counts', 'a stronger caster makes the effect last longer',
-        'list.push({ id, left: e.count, power });', 'list.push({ id, left: Math.round(e.count * power), power });'],
+        'list.push({ id, left: e.count + extraLeft, power });', 'list.push({ id, left: Math.round(e.count * power) + extraLeft, power });'],
     // Review fixes and rule changes (caught by rules.js)
     ['fractional max HP', 'max HP keeps the decimals some titles give per level',
         'return Math.floor(hp);   // always whole', 'return hp;   // always whole'],
@@ -321,7 +332,7 @@ const MUTATIONS = [
     ['Перекування: rebuilds nothing', "an own damaging attack under Перекування doesn't rebuild the scales",
         'if (reforge && finalDmg > 0 && atkFx.scales) {', 'if (false) {'],
     ['Магніт: pulls nothing', "the target's new buffs stay with the target",
-        "const pulled = e.kind === 'buff' && !!getFx(fx[caster.name], 'magnet');", 'const pulled = false;'],
+        "const pulled = e.kind === 'buff' && !!getFx(fx[caster.name], 'magnet') && caster.drakeObj.type !== WHITE_DRAKE_TYPE;", 'const pulled = false;'],
     ['Магніт: no buff limit', 'a pulled buff goes on top of 2 buffs instead of replacing the one closest to ending',
         'if (list.length >= EFFECT_CAST.maxPerKind) {', 'if (!pulled && list.length >= EFFECT_CAST.maxPerKind) {'],
     ["the White Drake's pair in the shared pool", 'any drake can cast Перекування and Магніт',
@@ -422,6 +433,131 @@ const MUTATIONS = [
         'let winXP = addXP(winner.name, WIN_XP + bonus - cut);\n                let loseXP = addXP(looser.name, 10);', 'let winXP = addXP(winner.name, WIN_XP + bonus);\n                let loseXP = addXP(looser.name, 10 - cut);'],
     ['Gold before the cut', 'Gold multiplies the whole 40 and the cut comes off after it, instead of Gold on the reduced amount',
         'let winXP = addXP(winner.name, WIN_XP + bonus - cut);', 'let winXP = addXP(winner.name, WIN_XP + bonus); if (winXP) { const wdb = getDragonDB(); wdb[winner.name].xp -= cut; saveDragonDB(wdb); winXP -= cut; }'],
+    // The 100 new titles and their abilities (caught by rules.js; the note ones by design/icons/test.js)
+    ['Комбо on every 2nd hit', 'Комбо fires on every 2nd own hit, not every 3rd',
+        '"comboEvery": 3,', '"comboEvery": 2,'],
+    ['Комбо +40%', 'Комбо adds +40%, not +50%',
+        '"comboBonus": 0.5,', '"comboBonus": 0.4,'],
+    ['Перша кров on 4 hits', "Перша кров's bonus lasts 4 hits, not 3",
+        '"firstBloodHits": 3,', '"firstBloodHits": 4,'],
+    ['Перша кров can be blocked', "Перша кров's hits can be blocked",
+        "unblockableBy = 'first_blood'; logExtra", "logExtra"],
+    ['Залізна шкура on every hit', 'Залізна шкура cuts every hit it takes, not the first 3',
+        "if (titleMechanic(defender) === 'iron_hide' && tD.taken < MECH.ironHideHits) {", "if (titleMechanic(defender) === 'iron_hide') {"],
+    ['blocked hits don\'t count for Залізна шкура', 'a blocked hit no longer uses up one of the 3 (nor one of Око бурі\'s 4)',
+        '                    tD.taken++;\n', '                    if (!ultraBlock) tD.taken++;\n'],
+    ['Останній рубіж at 40% too', 'Останній рубіж fires at exactly 40% HP, not only below it',
+        "atkMech === 'last_stand' && hpOf(attacker) < attackerMaxHP * MECH.lastStandAt", "atkMech === 'last_stand' && hpOf(attacker) <= attackerMaxHP * MECH.lastStandAt + 1"],
+    ['Контратака always', 'Контратака hits back on every hit, not 30% of them',
+        "hpOf(defender) > 0 && Math.random() < MECH.counterChance", "hpOf(defender) > 0 && Math.random() < 1"],
+    ['Контратака for all of it', 'Контратака hits back for 100% of the damage, not 60%',
+        '"counterDmg": 0.6,', '"counterDmg": 1,'],
+    ['Контратака through the scales', 'Контратака goes through the White Drake\'s scales first, unlike Шипи',
+        "const back = Math.max(1, Math.round(finalDmg * MECH.counterDmg));\n                        setHP(attacker, Math.max(0, hpOf(attacker) - back));", "const back = Math.max(1, Math.round(finalDmg * MECH.counterDmg));\n                        hitThrough(attacker, back);"],
+    ['Пожирач бафів past immunity', 'debuff immunity no longer keeps the buffs from Пожирач бафів',
+        "atkMech === 'buff_eater' && defFx.buff.length && !isDebuffImmune(defender) && Math.random()", "atkMech === 'buff_eater' && defFx.buff.length && Math.random()"],
+    ['Пожирач бафів heals less', 'Пожирач бафів heals 10% max HP, not 15%',
+        '"buffEatHeal": 0.15,', '"buffEatHeal": 0.1,'],
+    ['Підзарядка starts at 0', 'Підзарядка no longer starts the fight at 2/5',
+        "if (titleMechanic(f) === 'meter_rush' && ultimateFor(f.drakeObj.type)) fx[f.name].meter = MECH.meterRushStart;", "if (titleMechanic(f) === 'meter_rush' && ultimateFor(f.drakeObj.type)) fx[f.name].meter = 0;"],
+    ['Підзарядка skips Bloom', "Цвітіння's heal isn't boosted",
+        'Math.round(attackerMaxHP * ult.nums.heal / 100 * ultBoost(attacker))', 'Math.round(attackerMaxHP * ult.nums.heal / 100)'],
+    ['Підзарядка skips Ice Mirror', "Крижане дзеркало's absorbing isn't boosted",
+        'atkFx.mirrorMult = ultBoost(attacker);', 'atkFx.mirrorMult = 1;'],
+    ['the boost skips attacking ultimates', "an attacking ultimate's damage isn't boosted",
+        'if (ult && ult.attacks) titleMult *= ultBoost(attacker);', 'if (false) titleMult *= ultBoost(attacker);'],
+    ['Інерція has no cap', 'Інерція keeps growing past +35%',
+        'const up = Math.min(MECH.momentumMax, MECH.momentumPerHit * tA.landed);', 'const up = MECH.momentumPerHit * tA.landed;'],
+    ['Очищення after the ticks', 'Burn and Poison bite once before Очищення takes them off',
+        "const gone = atkFx.debuff; atkFx.debuff = [];", "const gone = atkFx.debuff; gone.forEach(x => { if (EFFECTS[x.id].lasts === 'turns') setHP(attacker, hpOf(attacker) - Math.max(1, Math.round(attackerMaxHP * fxNum(x, 'hp') / 100))); }); atkFx.debuff = [];"],
+    ['Очищення takes nothing off', 'Очищення does nothing',
+        "if (titleMechanic(attacker) === 'cleanse' && atkFx.debuff.length) {", "if (false) {"],
+    ['Довгий баф on the wrong fighter', "a buff its holder casts under Магніт lasts twice as long on the White Drake",
+        "const extraLeft = e.kind === 'buff' && titleMechanic(owner) === 'long_buffs'", "const extraLeft = e.kind === 'buff' && titleMechanic(caster) === 'long_buffs'"],
+    ['Довгий баф on debuffs', 'debuffs on the holder last twice as long as well',
+        "const extraLeft = e.kind === 'buff' && titleMechanic(owner)", "const extraLeft = titleMechanic(owner)"],
+    ['Довгий баф forgets a refresh', 'refreshing a buff gives its plain count back',
+        'current.left = e.count + extraLeft;', 'current.left = e.count;'],
+    ['Відродження every time', 'Відродження survives every killing blow',
+        "tmS[f.name].phoenixUsed = true;\n", "tmS[f.name].phoenixUsed = false;\n"],
+    ['Двійник every time', 'Двійник strikes twice on every hit, not 20% of them',
+        "hpOf(defender) > 0 && Math.random() < MECH.doubleChance", "hpOf(defender) > 0 && Math.random() < 1"],
+    ['Двійник past the scales', "Двійник's second hit skips the White Drake's scales",
+        'hitThrough(defender, second);', 'setHP(defender, Math.max(0, hpOf(defender) - second));'],
+    ['Око бурі every 3 hits', 'Око бурі fires after 3 hits taken, not 4',
+        '"stormHits": 4,', '"stormHits": 3,'],
+    ['Око бурі can be blocked', "Око бурі's hit can be blocked",
+        "unblockableBy = 'storm_eye'; logExtra", "logExtra"],
+    ['Перемотка twice', 'Перемотка can roll back every time, not once a fight',
+        "tA.rewindUsed = true;\n", "tA.rewindUsed = false;\n"],
+    ['Перемотка from any HP', 'Перемотка fires at 30% HP, not only below 20%',
+        '"rewindAt": 0.2,', '"rewindAt": 0.3,'],
+    ['Загартування at half rate', 'Загартування gives +1% for every 6% lost, not every 3%',
+        '"temperedRate": 0.33,', '"temperedRate": 0.17,'],
+    ['Повернення every time', 'every debuff goes back, not 60% of them',
+        "titleMechanic(owner) === 'return_debuff' && !opts.returned && Math.random() < MECH.returnChance", "titleMechanic(owner) === 'return_debuff' && !opts.returned && Math.random() < 1"],
+    ['Повернення bounces twice', 'a debuff sent back can be sent back again',
+        '{ ...opts, returned: true }', '{ ...opts }'],
+    ['a returned Dispel recasts', 'a Dispel sent back to a caster with no buffs turns into a free cast for the holder',
+        "if (opts.returned) return 'returned';\n", ''],
+    ['Магніт on the White Drake pulls', "Магніт sent back at the White Drake sends its own buffs to the viewer",
+        "!!getFx(fx[caster.name], 'magnet') && caster.drakeObj.type !== WHITE_DRAKE_TYPE;", "!!getFx(fx[caster.name], 'magnet');"],
+    ['Перевантаження keeps nothing', 'after Перевантаження the meter restarts at 0, not 2',
+        "atkFx.meter = titleMechanic(attacker) === 'overcharge' ? MECH.overchargeKeep : 0;", 'atkFx.meter = 0;'],
+    ['Перевантаження ×1.5', "Перевантаження's ultimate is ×1.5, not ×1.6",
+        '"overchargeBonus": 0.6,', '"overchargeBonus": 0.5,'],
+    ['Вирок on the 2nd hit', "Вирок's ×2 lands on the 2nd hit after it, not the 3rd",
+        '"verdictHit": 3,', '"verdictHit": 2,'],
+    ['Вирок ×3', "Вирок's hit deals ×3, not ×2",
+        '"verdictMult": 2,', '"verdictMult": 3,'],
+    ['404 only for the holder', "404 only makes the holder's own hits vanish, not the opponent's",
+        "(titleMechanic(p1) === 'error_404' || titleMechanic(p2) === 'error_404')\n", "atkMech === 'error_404'\n"],
+    ['404 on the White Dragon', "the White Dragon's hit can vanish",
+        "if (finalDmg > 0 && attacker.drakeObj.type !== DRAGON_TYPE && (titleMechanic(p1) === 'error_404'", "if (finalDmg > 0 && (titleMechanic(p1) === 'error_404'"],
+    ['Синій екран only for the holder', "Синій екран only crashes the holder's own turns",
+        "if ((titleMechanic(p1) === 'blue_screen' || titleMechanic(p2) === 'blue_screen') && Math.random() < MECH.blueScreenChance) {", "if (titleMechanic(attacker) === 'blue_screen' && Math.random() < MECH.blueScreenChance) {"],
+    ['Синій екран 10%', 'Синій екран fires 10% of the time, not 5%',
+        '"blueScreenChance": 0.05,', '"blueScreenChance": 0.1,'],
+    ['Чат вирішує picks as usual', "Чат вирішує's casts come from the usual pick, not the two elements",
+        "if (atkMech === 'chat_decides') {\n", "if (false) {\n"],
+    ['Чат вирішує\'s recast leaves the pool', "a Dispel with nothing to take is recast from any element",
+        'attackerProg.level, fx, pool.length ? { pool } : {});', 'attackerProg.level, fx);'],
+    ['AFK past turn 5', "a lost turn can push AFK past its turn 5",
+        'if (tA.ownTurns > MECH.afkTo) tA.afkDone = true;\n                        else if (tA.ownTurns >= tA.afkTurn) {', 'if (tA.ownTurns >= tA.afkTurn) {'],
+    ['AFK never back', "AFK's next hit isn't ×3",
+        'tA.afkDone = true; tA.afkReady = true;', 'tA.afkDone = true;'],
+    ['AFK from turn 1', "AFK's first turn is its turn 1, not 2",
+        '"afkFrom": 2,', '"afkFrom": 1,'],
+    ['Лаг hit lost', 'the stuck hit never lands',
+        'hitThrough(defender, late);', ''],
+    ['Лаг ×1.5', 'the stuck hit lands at ×1.5, not ×1.8',
+        '"lagMult": 1.8,', '"lagMult": 1.5,'],
+    ['Лаг past the scales', "the stuck hit skips the White Drake's scales",
+        'hitThrough(defender, late);', 'setHP(defender, Math.max(0, hpOf(defender) - late));'],
+    ['Копіпаст with the multiplier', 'Копіпаст adds sudden death on top of the copied hit',
+        'finalDmg = tD.lastHit;\n', 'finalDmg = Math.round(tD.lastHit * suddenDeathMult);\n'],
+    ['Копіпаст copies a blocked hit', "a hit that did nothing counts as the opponent's last hit",
+        'if (finalDmg > 0) tA.lastHit = finalDmg;', 'tA.lastHit = finalDmg;'],
+    // The odds
+    ['Meme back to 0.2%', 'the Meme weight is back at 0.2',
+        "name: { uk: 'Мемний',      en: 'Meme' },      color: '#ff66cc', weight: 0.5 }", "name: { uk: 'Мемний',      en: 'Meme' },      color: '#ff66cc', weight: 0.2 }"],
+    ['!шанси rounds', '!шанси rounds the odds to whole numbers',
+        "(100 * r.weight / total).toFixed(1).replace('.0', '')", "(100 * r.weight / total).toFixed(0)"],
+    // The notes (a dropped note: rules.js; the card: design/icons/test.js)
+    ['a stand-in\'s compact chip loses its words', 'a note on a stand-in glyph shows the bare heart or «!» when compact',
+        "t: titleOwnIcon(who.title) ? after.trim() : `${words}${after}` }", "t: after.trim() }"],
+    ['a new note on the wrong glyph', "a new ability's note shows no title's badge: the note always shows the heart",
+        "if (!DrakeIcons.ICONS[key]) return titleGlyph(who.title);", "if (!DrakeIcons.ICONS[key]) return 'hp';"],
+    ['«404» shows a zero', "a vanished hit's card shows 0, not «404»",
+        "a.vanish ? '<span class=\"lc-num zero\">404</span>' : a.stuck", "a.stuck"],
+    ['Комбо only in the hidden record', "Комбо's hit doesn't tell the view",
+        "logExtra += tl('🥁 Комбо! ', '🥁 Combo! '); fvNote('combo'); }", "logExtra += tl('🥁 Комбо! ', '🥁 Combo! '); }"],
+    ['Контратака only in the hidden record', "Контратака's hit back doesn't tell the view",
+        "fvNote('counter', back);\n", ''],
+    ['Лаг\'s landing only in the hidden record', "the stuck hit landing doesn't tell the view",
+        "fvNote('lagLand', late);\n", ''],
+    ['the accusative lost after «з’їдає»', 'the eaten buff\'s chip stays in the nominative',
+        "fvAbilityNote('eats', rec.atk), fvAccChip(n.eaten.id)", "fvAbilityNote('eats', rec.atk), fvFxChip(n.eaten.id)"],
 ];
 
 // Runs the test files against one copy of the game; resolves with what each reported (design/icons/test.js: the icon set)
@@ -454,11 +590,13 @@ async function pool(jobs, size) {
         const said = fs.readFileSync(path.join(__dirname, '..', file), 'utf8').match(pattern);
         return said && Number(said[1]) === MUTATIONS.length ? [] : [`${file} ${said ? `says "${said[0]}"` : `has no ${pattern}`}`];
     });
+    const table = tableProblem(MUTATIONS.length);
+    if (table) stale.push(`TESTING.md ${table}`);
     if (stale.length) {
-        console.log(`✗ the list has ${MUTATIONS.length} mutations, but ${stale.join(' and ')}: update the count`);
+        console.log(`✗ the list has ${MUTATIONS.length} mutations, but ${stale.join(' and ')}: update the docs`);
         process.exit(1);
     }
-    console.log(`✓ ${COUNTS.map(([file]) => file).join(' and ')} give the list's length`);
+    console.log(`✓ ${COUNTS.map(([file]) => file).join(' and ')} give the list's length, and TESTING.md's table has a row for each`);
     const control = await runTests(src);
     const bad = control.filter(r => r.code !== 0);
     if (bad.length) {

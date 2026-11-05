@@ -225,6 +225,19 @@
         .fighter-card.hit .sprite-wrap { animation: recoil 0.4s ease-out; }
         #card-p1 { --recoil: -8px; }
         #card-p2 { --recoil: 8px; }
+        /* Синій екран and AFK: layers over the card, so no block moves. The blue flash is a calm «:(» under prefers-reduced-motion */
+        .fx-crash, .fx-afk { inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; font-family: var(--pixel); opacity: 0; }
+        .fx-crash { font-size: 64px; color: #fff; background: rgba(24, 80, 224, 0.85); }
+        .fx-afk { font-size: 36px; color: #d6d9ea; background: rgba(12, 13, 18, 0.5); text-shadow: 3px 3px 0 #0b0b10; }
+        .fighter-card.crash .fx-crash { animation: fxCrash 1.4s ease-out both; }
+        .fighter-card.afk { --hi: #6c6f80; --lo: #3a3c48; --deep: #08080b; }
+        .fighter-card.afk .fx-afk { opacity: 1; }
+        .fighter-card.afk .drake-sprite { filter: grayscale(1) brightness(0.55); }
+        .fighter-card.afk .sprite-bob { animation: none; }
+        @media (prefers-reduced-motion: reduce) {
+            .fighter-card.crash .fx-crash { animation: none; opacity: 1; background: none; color: #6fa3ff; text-shadow: 4px 4px 0 #0b1020; }
+        }
+        @keyframes fxCrash { 0% { opacity: 0; } 8% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
         @keyframes fxFlash { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
         @keyframes recoil { 0% { transform: translateX(0); } 30% { transform: translateX(var(--recoil)); } 100% { transform: translateX(0); } }
         .dmg-pop { right: 46px; top: 4px; z-index: 3; font-family: var(--pixel); font-size: 28px; color: #ff5d52; white-space: nowrap; opacity: 0;
@@ -306,6 +319,8 @@
         .lc.crit .lc-num { color: #ffd23f; }
         .lc-num.zero { color: #8ea3cc; }
         .lc-num.heal { color: #4dff7a; }
+        .lc-move.lc-crash { font-family: var(--pixel); font-size: 14px; color: #6fa3ff; }
+        .lc-move.lc-away { font-family: var(--pixel); font-size: 14px; color: #a9adc4; }
         .lc-arrow { font-size: 17px; font-weight: 700; }
         .lc-critchip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 20px; box-sizing: border-box; font-size: 12px; line-height: 20px; font-weight: 700; padding: 0 8px 0 2px; border-radius: 2px; color: #ffd23f; background: rgba(255, 200, 40, 0.16); text-transform: uppercase; }
         .lx { color: var(--dim); white-space: nowrap; }
@@ -783,6 +798,7 @@
         <div class="fighters-box">
             <div class="fighter-card" id="card-p1">
                 <span class="fx-layer fx-glow"></span><span class="fx-layer fx-glow-ult"></span><span class="fx-layer fx-flash"></span>
+                <span class="fx-layer fx-crash">:(</span><span class="fx-layer fx-afk">AFK</span>
                 <span class="fx-layer atk-tab frame-sm" id="tab-p1"></span>
                 <div class="fc-top">
                     <div class="fc-id">
@@ -808,6 +824,7 @@
 
             <div class="fighter-card" id="card-p2">
                 <span class="fx-layer fx-glow"></span><span class="fx-layer fx-glow-ult"></span><span class="fx-layer fx-flash"></span>
+                <span class="fx-layer fx-crash">:(</span><span class="fx-layer fx-afk">AFK</span>
                 <span class="fx-layer atk-tab frame-sm" id="tab-p2"></span>
                 <div class="fc-top">
                     <div class="fc-id">
@@ -1521,7 +1538,12 @@
                   cdLabel: 'Старт через', cdBets: 'Ставки відкрито — хто переможе?', cdStart: 'Бій починається!', cdFlip: '🎲 хто б’є першим, вирішить жереб на старті',
                   cdFirst: '🎲 першим б’є {a}', plateBets: '⏳ Ставки відкрито', plateStart: '⏳ Бій починається', levelUp: '⬆️ Новий рівень',
                   reaches: '{who} досягає {n}-го рівня', atkGain: '+{n} до атаки', tierGain: 'стихія сильнішає', meterBtn: '✦ {meter}: {side}',
-                  left: 'лівий', right: 'правий', noCast: '— випадково —', newTurns: '↓ нові ходи ({n})' },
+                  left: 'лівий', right: 'правий', noCast: '— випадково —', newTurns: '↓ нові ходи ({n})',
+                  combo: 'комбо', firstBlood: 'перша кров', ironHide: 'залізна шкура', lastStand: 'останній рубіж', counter: 'контратака', eats: 'з’їдає', momentum: 'інерція',
+                  cleanse: 'очищення', longBuffs: 'довгий баф', meterRush: 'підзарядка', phoenix: 'відродження', twin: 'двійник', storm: 'око бурі', rewind: 'перемотка', tempered: 'загартування',
+                  returned: 'повернення', sendsBack: 'відправляє', overcharge: 'перевантаження', sentenced: 'вирок', sentenceDone: 'вирок виконано', notFound: 'шкоду не знайдено',
+                  crashed: 'синій екран', turnLost: 'хід втрачено', chat: 'чат вирішує', away: 'відійшов', turnSkipped: 'хід пропущено', afkBack: 'повернувся', lagHang: 'удар завис', lagLand: 'удар долетів', copy: 'копіпаст',
+                  meterStart: '{title}: {who} починає бій зі шкалою Сили {n}/{max}' },
             en: { attacks: 'attacks', physical: 'physical', magical: 'magic', vampire: 'vampire', tab: '⚔ Attacks', attacking: 'attacks…', upNext: '⏳ up next:',
                   ko: 'is knocked out', start: 'start of turn', applies: 'applies', gets: 'gets', refreshes: 'refreshes', removes: 'removes',
                   takes: 'takes', lost: 'lost', lostMany: 'lost', immune: '🐉 immune', block: '🚫 block', dodge: '🌀 dodge', sovereign: '👑 the attack dissolves', pierce: '⚡ armour-piercing',
@@ -1536,7 +1558,12 @@
                   cdLabel: 'Starts in', cdBets: 'Bets are open — who will win?', cdStart: 'The fight is starting!', cdFlip: '🎲 a coin flip at the start decides who strikes first',
                   cdFirst: '🎲 {a} strikes first', plateBets: '⏳ Bets open', plateStart: '⏳ Fight starting', levelUp: '⬆️ Level up',
                   reaches: '{who} reaches level {n}', atkGain: '+{n} attack', tierGain: 'element passive grows', meterBtn: '✦ {meter}: {side}',
-                  left: 'left', right: 'right', noCast: '— random —', newTurns: '↓ new turns ({n})' },
+                  left: 'left', right: 'right', noCast: '— random —', newTurns: '↓ new turns ({n})',
+                  combo: 'combo', firstBlood: 'first blood', ironHide: 'iron hide', lastStand: 'last stand', counter: 'counter', eats: 'eats', momentum: 'momentum',
+                  cleanse: 'cleanse', longBuffs: 'long buff', meterRush: 'meter rush', phoenix: 'rebirth', twin: 'twin', storm: 'eye of the storm', rewind: 'rewind', tempered: 'tempered',
+                  returned: 'return', sendsBack: 'sends', overcharge: 'overcharge', sentenced: 'sentenced', sentenceDone: 'sentence carried out', notFound: 'damage not found',
+                  crashed: 'blue screen', turnLost: 'turn lost', chat: 'chat decides', away: 'away', turnSkipped: 'turn skipped', afkBack: 'back', lagHang: 'the hit hangs', lagLand: 'the hit lands', copy: 'copy-paste',
+                  meterStart: '{title}: {who} starts with the Element Power meter at {n}/{max}' },
         };
         const fvT = (key, vars = {}) => FV_TEXT[currentLang][key].replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '');
         // FV_TEXT keeps its emoji (several lines go to the hidden text record too); on the overlay each of a text's emoji, in
@@ -1617,8 +1644,11 @@
         const fvNoteChip = (key, after = '', cls = '', vars = {}, compact = null) => fvLk(`${fvH(key, vars)}${after}`, `note${cls ? ' ' + cls : ''}`, { i: fvIcon(key), t: compact === null ? after.trim() : compact });
         // A note a title's ability fired, for the fighter whose title fired it: the title's own icon if it has one and this is
         // its ability's note, else the note's glyph. The one place that decides; «крізь броню» marks every sneaky attack, so no
-        // title fires it, and the Sovereign's immunity isn't its ability's note: they keep their glyphs
+        // title fires it, and the Sovereign's immunity isn't its ability's note: they keep their glyphs. A note with no glyph of
+        // its own (the abilities of titles 205–294) takes the badge of the title that fired it: its own icon once it has one,
+        // the stand-in until then
         function fvNoteGlyph(key, who) {
+            if (!DrakeIcons.ICONS[key]) return titleGlyph(who.title);
             const own = who && titleOwnIcon(who.title), ability = DrakeIcons.ICONS[key].mechanic;
             return own && ability && ability === titleMechanic(who) ? own : key;
         }
@@ -1627,6 +1657,13 @@
             const glyph = fvNoteGlyph(key, who), words = (FV_TITLE_WORDS[who.title && who.title.id] || {})[key] || key;
             return fvLk(`${iconText(FV_TEXT[currentLang][words], [glyph], {}, 2, words)}${after}`, `note${cls ? ' ' + cls : ''}`, { i: glyph, t: after.trim() });
         }
+        // A note with no glyph of its own: the badge of the title that fired it (who), its words, then a number. A stand-in is
+        // one of a few shared glyphs (the HP heart, the crit «!»), so it could look like another chip on the card or read as
+        // something else: its compact form keeps the words. With the title's own icon it's the icon and the number, like any note
+        function fvAbilityNote(key, who, after = '', cls = '') {
+            const glyph = fvNoteGlyph(key, who), words = fvT(key);
+            return fvLk(`${pxIcon(glyph)} ${words}${after}`, `note${cls ? ' ' + cls : ''}`, { i: glyph, t: titleOwnIcon(who.title) ? after.trim() : `${words}${after}` });
+        }
         // A glyph and a number, no words (compact already)
         const fvNum = (icon, text, cls = '') => fvLk(`${pxIcon(icon)}<span class="lkt">${text}</span>`, `note${cls ? ' ' + cls : ''}`);
 
@@ -1634,12 +1671,20 @@
         function fvTurn(turn, attacker, defender) {
             if (!fv.on) return;
             fv.rec = { turn, atk: attacker, def: defender, side: turn % 2 ? 'left' : 'right', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: null, frozen: false };
+            fvCards((c, p) => { c.classList.remove('crash'); if (p === fvSide(attacker)) c.classList.remove('afk'); });
             if (!logFollowing) { logUnseen++; fvLogPill(); }
             const panel = fvEl('log-panel');
             if (panel) panel.classList.remove('counting');
         }
         function fvTick(id, v) { if (fv.rec) fv.rec.ticks.push({ id, v }); }
         function fvNote(key, value = true) { if (fv.rec) fv.rec.notes[key] = value; }
+        // What the scales took outside the attack itself (Двійник, Лаг), on top of what the attack gave them
+        function fvScales(n) { if (fv.rec) fv.rec.notes.scales = (fv.rec.notes.scales || 0) + n; }
+        // A hit outside the attack (Двійник's second, Лаг's stuck one): the attacker's numbers on the result card count it
+        function fvHit(dmg) {
+            const s = fv.rec && fv.stats[fv.rec.atk.name];
+            if (s) { s.dmg += dmg; s.max = Math.max(s.max, dmg); }
+        }
         function fvUsed(ids) { if (fv.rec) fv.rec.used = ids; }
         function fvUlt(id) { if (fv.rec) fv.rec.ult = { id }; }
         function fvUltInfo(info) { if (fv.rec && fv.rec.ult) Object.assign(fv.rec.ult, info); }
@@ -1835,6 +1880,7 @@
                 }
                 case 'start': return fvH('fightStart', { bets: fv.betting ? fvT('betsClosed') : '', a: fvWho(fv.p1) });
                 case 'opening': return fvH('opening', { title: titleHtml(d.f.title), who: fvWho(d.f), fx: fvFxChip(d.id) });
+                case 'meterStart': return fvH('meterStart', { title: titleHtml(d.f.title), who: fvWho(d.f), n: MECH.meterRushStart, max: METER.max });
                 case 'sd': return fvH('sdBanner', { n: SUDDEN_DEATH.from });
                 case 'steel': return fvH('steelIn');
                 case 'timeout': return fvH('timeout', { n: MAX_TURNS });
@@ -1866,17 +1912,23 @@
             if (u) cls.push('has-ult');
             if (fv.lit === rec) cls.push('lit');
             // Line 1: turn, move, (crit), damage and an arrow toward the target
+            const n = rec.notes;
             let move, num = '';
-            if (rec.frozen) move = `<span class="lc-move">${pxIcon('frost')} ${EFFECTS.frost.name[currentLang]}</span>`;
+            if (rec.crash) move = `<span class="lc-move lc-crash">:(</span>`;
+            else if (rec.away) move = `<span class="lc-move lc-away">AFK</span>`;
+            else if (rec.frozen) move = `<span class="lc-move">${pxIcon('frost')} ${EFFECTS.frost.name[currentLang]}</span>`;
             else if (u && !u.attacks) move = `<span class="lc-move" style="color:${u.color}">${ultNameHtml(rec.ult.id)}</span>`;
             else if (a) {
                 const name = u ? u.name[currentLang] : moveName(rec.atk.drakeObj.type, a.type, a.sub);
                 move = `<span class="lc-move t-${a.type}">${pxIcon(a.type)} ${u ? pxIcon(rec.ult.id) + ' ' : ''}${name}</span>`;   // an attacking ultimate: its icon by its name
-            } else move = `<span class="lc-move"></span>`;
-            if (a) num = `<span class="lc-num${a.dmg > 0 ? '' : ' zero'}">${a.dmg > 0 ? '-' + a.dmg : '0'}</span>`;
+            } else if (n.lagLand) move = `<span class="lc-move">${fvT('lagLand')}</span>`;   // it knocked the target out: no attack after it
+            else move = `<span class="lc-move"></span>`;
+            // «404» instead of the number when the hit vanished; a stuck hit has none yet
+            if (a) num = a.vanish ? '<span class="lc-num zero">404</span>' : a.stuck ? '<span class="lc-num zero">…</span>' : `<span class="lc-num${a.dmg > 0 ? '' : ' zero'}">${a.dmg > 0 ? '-' + a.dmg : '0'}</span>`;
             else if (rec.ult && rec.ult.healed !== undefined) num = `<span class="lc-num heal">+${rec.ult.healed}</span>`;
-            const arrowTo = `<span class="lc-arrow" style="color:${rec.def.color}">${side === 'left' ? '→' : '←'}</span>`;
-            const dmg = num ? `<span class="lc-dmg">${side === 'left' ? num + (a ? arrowTo : '') : (a ? arrowTo : '') + num}</span>` : '';
+            else if (n.lagLand) num = `<span class="lc-num">-${n.lagLand}</span>`;
+            const arrowTo = `<span class="lc-arrow" style="color:${rec.def.color}">${side === 'left' ? '→' : '←'}</span>`, aimed = a || n.lagLand;
+            const dmg = num ? `<span class="lc-dmg">${side === 'left' ? num + (aimed ? arrowTo : '') : (aimed ? arrowTo : '') + num}</span>` : '';
             const crit = a && a.crit ? `<span class="lc-critchip">${fvH('crit')}</span>` : '';
             const turnNo = `<span class="lc-turn">${rec.turn}</span>`;
             const l1 = side === 'left'
@@ -1894,8 +1946,12 @@
                 p.push(level ? `<span class="lg" data-p="${level}">${parts.join('')}</span>` : parts.join(''));
             };
             if (rec.frozen) g(0, fvLx(fvT('frozen')));
+            if (rec.crash) g(0, fvAbilityNote('crashed', rec.crash), fvLx(fvT('turnLost')));
+            if (rec.away) g(0, fvAbilityNote('away', rec.atk), fvLx(fvT('turnSkipped')));
+            if (n.cleanse) g(0, fvAbilityNote('cleanse', rec.atk), fvLx(fvT('removes')), ...n.cleanse.map(fvAccChip));
             if (u) {
                 const x = rec.ult;
+                if (x.boost) g(0, fvAbilityNote(titleMechanic(rec.atk) === 'overcharge' ? 'overcharge' : 'meterRush', rec.atk, ` ×${x.boost}`));
                 if (u.unblockable) g(4, fvLk(`${pxIcon('unblockable')}<span class="lkt">${fvT('unblockable')}</span>`, 'note', { i: 'unblockable' }));
                 if (x.reels) g(0, fvLk(x.reels.map(r => pxIcon(reelIcon(r))).join(''), 'reels'), x.miss ? fvLk(`${pxIcon('miss')}<span class="lkt">${fvT('miss')}</span>`, 'note hurt') : fvLk(`×${x.mult}`));
                 if (x.id === 'detonation') { g(0, fvLk(`×${x.mult}`)); if (x.removed && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvAccChip)); }
@@ -1907,12 +1963,12 @@
                 if (x.removed && x.id === 'bloom' && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvAccChip));
                 if (x.id === 'anvil') g(0, fvLk(`×${x.mult}`), x.reforged ? fvNum('scales', `+${x.reforged}`, 'heal') : '');
             }
-            const n = rec.notes;
             if (a && a.sd) g(3, fvNum('suddendeath', `×${Math.round(a.sd * 10) / 10}`, 'sd'));
             if (n.wrath) g(4, fvNoteChip('wrath'));
             if (n.sovereign) g(4, fvNoteChip('sovereign'));
             else if (a && a.block) g(4, a.shadow ? fvFxChip('shadow') : '', n.dodge ? fvTitleNote('dodge', rec.def) : fvNoteChip('block'));
             if (n.unblock && n.unblock === 'divine') g(4, fvLk(`${pxIcon('divine')}<span class="lkt">${fvT('unblockable')}</span>`, 'note', { i: 'divine' }));
+            else if (n.unblock && !(u && u.unblockable)) g(4, fvLk(`${pxIcon('unblockable')}<span class="lkt">${fvT('unblockable')}</span>`, 'note', { i: 'unblockable' }));   // Перша кров, Око бурі
             if (a && a.pierce) g(4, fvNoteChip('pierce'));
             if (n.execute) g(4, fvTitleNote('execute', rec.atk));
             if (n.coin) g(4, fvNum(fvNoteGlyph('coin', rec.atk), `×${n.coin}`));
@@ -1923,6 +1979,27 @@
             if (n.vamp) g(4, fvNum('vampheal', `+${n.vamp}`, 'heal'));
             if (n.lifesteal) g(4, fvTitleNote('lifesteal', rec.atk, ` +${n.lifesteal}`, 'heal'));
             if (n.thorns) g(4, fvTitleNote('thorns', rec.def, ` -${n.thorns}`, 'hurt'));
+            // The notes of the abilities of titles 205–294: the attacker's, then the defender's, then whoever's title it was
+            if (n.combo) g(4, fvAbilityNote('combo', rec.atk));
+            if (n.firstBlood) g(4, fvAbilityNote('firstBlood', rec.atk));
+            if (n.lastStand) g(4, fvAbilityNote('lastStand', rec.atk));
+            if (n.momentum) g(4, fvAbilityNote('momentum', rec.atk, ` +${n.momentum}%`));
+            if (n.tempered) g(4, fvAbilityNote('tempered', rec.atk, ` +${n.tempered}%`));
+            if (n.storm) g(4, fvAbilityNote('storm', rec.atk, ` ×${n.storm}`));
+            if (n.sentenceDone) g(4, fvAbilityNote('sentenceDone', rec.atk, ` ×${n.sentenceDone}`));
+            if (n.sentenced) g(4, fvAbilityNote('sentenced', rec.atk));
+            if (n.afkBack) g(4, fvAbilityNote('afkBack', rec.atk, ` ×${n.afkBack}`));
+            if (n.copy) g(4, fvAbilityNote('copy', rec.atk, ` -${n.copy}`));
+            if (n.lagHang) g(4, fvAbilityNote('lagHang', rec.atk));
+            if (n.lagLand) g(4, fvAbilityNote('lagLand', rec.atk, ` -${n.lagLand}`, 'hurt'));
+            if (n.twin) g(4, fvAbilityNote('twin', rec.atk, ` -${n.twin}`, 'hurt'));
+            if (n.chat) g(4, fvAbilityNote('chat', rec.atk));
+            if (n.ironHide) g(4, fvAbilityNote('ironHide', rec.def));
+            if (n.counter) g(4, fvAbilityNote('counter', rec.def, ` -${n.counter}`, 'hurt'));
+            if (n.notFound) g(4, fvAbilityNote('notFound', n.notFound));
+            if (n.phoenix) g(4, fvAbilityNote('phoenix', n.phoenix.f, ` · ${n.phoenix.hp} HP`));
+            if (n.rewind) g(4, fvAbilityNote('rewind', rec.atk, ` ${n.rewind.from} → ${n.rewind.to}`, 'heal'));
+            if (n.eaten) g(0, fvAbilityNote('eats', rec.atk), fvAccChip(n.eaten.id), n.eaten.healed > 0 ? fvLk(`+${n.eaten.healed}`, 'note heal') : '');
             // The White Drake's scales: what they took off this hit, and the moment they break (what the attack did: in full)
             if (n.scales) g(4, fvNoteChip('scales', ` -${n.scales}`));
             if (n.crack) g(0, fvLk(fvH('cracked'), 'note hurt'));
@@ -1938,13 +2015,16 @@
             casts.forEach(c => {
                 const kind = EFFECTS[c.id].kind;
                 const mine = (kind === 'buff' && c.owner === rec.atk) || (kind === 'debuff' && c.owner === rec.def);
-                if (c.result === 'immune') g(0, fvTitleNote('immune', c.owner), fvFxChip(c.id));
+                if (c.result === 'returned') g(0, fvAbilityNote('returned', c.owner), fvLx(fvT('sendsBack')), fvAccChip(c.id), fvLx(fvT('back')));
+                else if (c.result === 'immune') g(0, fvTitleNote('immune', c.owner), fvFxChip(c.id));
                 else if (c.result === 'bounced') g(0, fvFxChip(c.id), fvLk(fvH('bounced'), 'note'));
                 else if (c.result === 'pulled') g(0, fvFxChip(c.id), fvLx(fvT('pulled')), ...(c.extra ? [fvLx('·'), fvFxChip(c.extra), fvLx(fvT('lost'))] : []));
                 else if (c.result === 'dispelled') g(0, fvFxChip(c.id), fvLx(fvT('removes')), ...(c.extra || []).map(fvAccChip));
                 else if (c.result === 'refreshed') g(0, fvLx(fvT('refreshes')), fvAccChip(c.id));
                 else if (c.result === 'replaced') g(0, fvFxChip(c.id), fvLx('·'), fvFxChip(c.extra), fvLx(fvT('lost')));   // «Божественна міць · Благословіння зникає», each in its chip
                 else g(0, fvLx(mine ? (kind === 'buff' ? fvT('gets') : fvT('applies')) : `@${c.owner.name} ${fvT('gets')}`), fvAccChip(c.id));
+                // Довгий баф: the buff it just got lasts twice as long (the fighter card's chip shows the count)
+                if (kind === 'buff' && titleMechanic(c.owner) === 'long_buffs' && ['applied', 'refreshed', 'replaced'].includes(c.result)) g(4, fvAbilityNote('longBuffs', c.owner, ` ×${MECH.longBuffsMult}`));
             });
             const head = u ? `<div class="lc-ult" style="color:${u.color}">${METER.label[currentLang]} · ${u.name[currentLang]}</div>` : '';   // its words; its icon is on line 1 and in the pending cell
             return `<div class="${cls.join(' ')}"><span class="lc-glow"></span>${head}<div class="lc-l1">${l1}</div><div class="lc-l2">${p.join('')}</div></div>`;
@@ -1988,7 +2068,7 @@
             fv = { on: true, p1, p2, ranked, betting: !!opts.betting, items: [], stats: { [p1.name]: { dmg: 0, max: 0, crits: 0 }, [p2.name]: { dmg: 0, max: 0, crits: 0 } },
                    rec: null, hold: null, lit: null };
             fvFeedReset();
-            fvCards(c => c.classList.remove('attacking', 'ult-turn', 'hit'));
+            fvCards(c => c.classList.remove('attacking', 'ult-turn', 'hit', 'crash', 'afk'));
             fvHead();
             fvBanner('intro');
             fvBanner('start');
@@ -2148,6 +2228,8 @@
             if (rec.turn % 2) { const row = fvRow(fvSlot(rec.turn).round); if (row && row.cells.right.k === 'empty') { row.cells.right = { k: 'wait', f: rec.def }; fvPaint(row); } }
             rec.ticks.forEach((t, i) => fvPop(me, t.v < 0 ? String(t.v) : '+' + t.v, `small ${t.v < 0 ? '' : 'heal'}`, i));
             if (rec.notes.guardian) fvPop(me, '+' + rec.notes.guardian, 'small heal', rec.ticks.length);
+            if (rec.notes.rewind) fvPop(me, '+' + (rec.notes.rewind.to - rec.notes.rewind.from), 'small heal', rec.ticks.length);
+            if (rec.notes.lagLand) fvPop(fvSide(rec.def), '-' + rec.notes.lagLand, 'small', 0);
             fv.hold = [];
         }
         function fvTurnEnd() {
@@ -2159,7 +2241,7 @@
         // Step 2: the hit lands. The new card is lit in the attacker's colour, the held-back HP bars and cards update
         // (the target flashes and recoils), and the damage number pops on the target's card.
         function fvStep2(rec) {
-            if (!rec.attack && !rec.frozen && !rec.ult) {
+            if (!rec.attack && !rec.frozen && !rec.ult && !rec.crash && !rec.away && !rec.notes.lagLand) {
                 // Knocked out by start-of-turn effects before attacking: the card says so
                 fvSetCell(rec.turn, { k: 'ko', f: rec.atk, rec });
                 rec.koShown = true;
@@ -2171,13 +2253,18 @@
             }
             fvFlush();
             const a = rec.attack, n = rec.notes, me = fvSide(rec.atk), them = fvSide(rec.def);
-            if (a) fvPop(them, a.dmg > 0 ? '-' + a.dmg : '0', a.dmg > 0 ? (a.crit ? 'crit' : '') : 'zero', 0);
+            if (a) fvPop(them, a.vanish ? '404' : a.stuck ? '…' : a.dmg > 0 ? '-' + a.dmg : '0', a.dmg > 0 ? (a.crit ? 'crit' : '') : 'zero', 0);
+            if (n.twin) fvPop(them, '-' + n.twin, 'small', 0);
+            // Синій екран: its card flashes blue with «:(»; AFK: its card greys out until its next turn (fvTurn takes both off)
+            if (rec.crash || rec.away) fvCards((c, p) => { if (p === me) c.classList.add(rec.crash ? 'crash' : 'afk'); });
             const back = [];
             if (n.vamp) back.push(['+' + n.vamp, 'heal']);
             if (n.lifesteal) back.push(['+' + n.lifesteal, 'heal']);
             if (n.reflect) back.push(['-' + n.reflect, '']);
             if (n.mirror && n.mirror.back) back.push(['-' + n.mirror.back, '']);
             if (n.thorns) back.push(['-' + n.thorns, '']);
+            if (n.counter) back.push(['-' + n.counter, '']);
+            if (n.eaten && n.eaten.healed > 0) back.push(['+' + n.eaten.healed, 'heal']);
             if (rec.ult && rec.ult.healed) back.push(['+' + rec.ult.healed, 'heal']);
             back.forEach(([t, c], i) => fvPop(me, t, `small ${c}`, i));
         }
@@ -2199,7 +2286,7 @@
             fvFinishNow(info);
         }
         function fvFinishNow(d) {
-            fvCards((c, p) => c.classList.remove('attacking', 'ult-turn'));
+            fvCards((c, p) => c.classList.remove('attacking', 'ult-turn', 'crash', 'afk'));
             fv.items.filter(x => x.type === 'row').forEach(row => {
                 let changed = false;
                 ['left', 'right'].forEach(s => { if (row.cells[s].k === 'wait' || row.cells[s].k === 'pending') { row.cells[s] = { k: 'empty' }; changed = true; } });
@@ -4825,13 +4912,13 @@ const ICONS_V2 = {
         // ===== TITLES =====
         // Rarity sets the drop chance (weight, in %) and colour. Titles within a rarity drop evenly.
         const RARITIES = {
-            common:    { name: { uk: 'Звичайний',   en: 'Common' },    color: '#a0a0a0', weight: 45 },
+            common:    { name: { uk: 'Звичайний',   en: 'Common' },    color: '#a0a0a0', weight: 44.7 },
             uncommon:  { name: { uk: 'Незвичайний', en: 'Uncommon' },  color: '#2ecc71', weight: 25 },
             rare:      { name: { uk: 'Рідкісний',   en: 'Rare' },      color: '#3498db', weight: 15 },
             epic:      { name: { uk: 'Епічний',     en: 'Epic' },      color: '#b36bff', weight: 9 },
             legendary: { name: { uk: 'Легендарний', en: 'Legendary' }, color: '#f1c40f', weight: 4.5 },
             mythic:    { name: { uk: 'Міфічний',    en: 'Mythic' },    color: '#ff4757', weight: 1.3 },
-            meme:      { name: { uk: 'Мемний',      en: 'Meme' },      color: '#ff66cc', weight: 0.2 },
+            meme:      { name: { uk: 'Мемний',      en: 'Meme' },      color: '#ff66cc', weight: 0.5 },
             divine:    { name: { uk: 'Божественний', en: 'Divine' },   color: '#9fe3ff', weight: 0 }   // never rolled: the streamer's own titles (998, 999)
         };
 
@@ -5030,6 +5117,106 @@ const ICONS_V2 = {
             { id: 192, rarity: 'meme', icon: '🦥', name: { uk: "Лінивець-берсерк", en: "Berserk Sloth" }, bonus: { type: 'unique', mechanic: 'sleepy', stats: { hp: 5 } } },
             { id: 193, rarity: 'meme', icon: '🐈', name: { uk: "Кіт пройшовся по клавіатурі", en: "Cat Walked on the Keyboard" }, bonus: { type: 'unique', mechanic: 'cat_keyboard', stats: { hp: 18 } } },
             { id: 194, rarity: 'meme', icon: '🍝', name: { uk: "Код-спагеті", en: "Spaghetti Code" }, bonus: { type: 'unique', mechanic: 'cat_keyboard', stats: { hp: 18 } } },
+            { id: 195, rarity: 'epic', icon: '🦉', name: { uk: "Соколине око", en: "Eagle Eye" }, bonus: { type: 'stats', stats: {crit: 12, power: 0.28} } },
+            { id: 196, rarity: 'epic', icon: '🔮', name: { uk: "Шеф-кухар чату", en: "Chat Chef" }, bonus: { type: 'stats', stats: {buffEff: 40, effect: 12} } },
+            { id: 197, rarity: 'epic', icon: '🧸', name: { uk: "Кістяк гільдії", en: "Backbone of the Guild" }, bonus: { type: 'stats', stats: {hpPerLevel: 1.1, hp: 44} } },
+            { id: 198, rarity: 'epic', icon: '🗡️', name: { uk: "Крижаний спокій", en: "Ice-Cold Calm" }, bonus: { type: 'stats', stats: {power: 0.4, crit: 8} } },
+            { id: 199, rarity: 'epic', icon: '🧸', name: { uk: "Залізний глядач", en: "Iron Viewer" }, bonus: { type: 'stats', stats: {hpPerLevel: 1.1, hp: 44} } },
+            { id: 200, rarity: 'epic', icon: '🔮', name: { uk: "Алхімік емоцій", en: "Emotion Alchemist" }, bonus: { type: 'stats', stats: {buffEff: 40, effect: 12} } },
+            { id: 201, rarity: 'epic', icon: '🧸', name: { uk: "Двожильний", en: "Workhorse" }, bonus: { type: 'stats', stats: {hpPerLevel: 1.1, hp: 44} } },
+            { id: 202, rarity: 'epic', icon: '🦉', name: { uk: "Ідеальний таймінг", en: "Perfect Timing" }, bonus: { type: 'stats', stats: {crit: 12, power: 0.28} } },
+            { id: 203, rarity: 'epic', icon: '🔮', name: { uk: "Чарівник клавіатури", en: "Keyboard Wizard" }, bonus: { type: 'stats', stats: {buffEff: 40, effect: 12} } },
+            { id: 204, rarity: 'epic', icon: '🗡️', name: { uk: "Влучне слово", en: "Well-Aimed Word" }, bonus: { type: 'stats', stats: {power: 0.4, crit: 8} } },
+            { id: 205, rarity: 'legendary', icon: '🥁', name: { uk: "Три в ряд", en: "Three in a Row" }, bonus: { type: 'unique', mechanic: 'combo', stats: {power: 0.3} } },
+            { id: 206, rarity: 'legendary', icon: '🥁', name: { uk: "Ритм-машина", en: "Rhythm Machine" }, bonus: { type: 'unique', mechanic: 'combo', stats: {power: 0.3} } },
+            { id: 207, rarity: 'legendary', icon: '🥁', name: { uk: "Третій удар — мій", en: "The Third Hit Is Mine" }, bonus: { type: 'unique', mechanic: 'combo', stats: {power: 0.3} } },
+            { id: 208, rarity: 'legendary', icon: '🐦', name: { uk: "Швидкий палець", en: "Quick Finger" }, bonus: { type: 'unique', mechanic: 'first_blood', stats: {hp: 8, hpPerLevel: 0.5} } },
+            { id: 209, rarity: 'legendary', icon: '🐦', name: { uk: "Перший у черзі", en: "First in Line" }, bonus: { type: 'unique', mechanic: 'first_blood', stats: {hp: 8, hpPerLevel: 0.5} } },
+            { id: 210, rarity: 'legendary', icon: '🐦', name: { uk: "Рання пташка", en: "Early Bird" }, bonus: { type: 'unique', mechanic: 'first_blood', stats: {hp: 8, hpPerLevel: 0.5} } },
+            { id: 211, rarity: 'legendary', icon: '🧱', name: { uk: "Залізна шкура", en: "Iron Hide" }, bonus: { type: 'unique', mechanic: 'iron_hide', stats: {hp: 8, hpPerLevel: 0.6} } },
+            { id: 212, rarity: 'legendary', icon: '🧱', name: { uk: "Бетонний дрейк", en: "Concrete Drake" }, bonus: { type: 'unique', mechanic: 'iron_hide', stats: {hp: 8, hpPerLevel: 0.6} } },
+            { id: 213, rarity: 'legendary', icon: '🧱', name: { uk: "Танк чату", en: "Chat Tank" }, bonus: { type: 'unique', mechanic: 'iron_hide', stats: {hp: 8, hpPerLevel: 0.6} } },
+            { id: 214, rarity: 'legendary', icon: '🏰', name: { uk: "Останній бастіон", en: "Last Bastion" }, bonus: { type: 'unique', mechanic: 'last_stand', stats: {hp: 14} } },
+            { id: 215, rarity: 'legendary', icon: '🏰', name: { uk: "Ще не кінець", en: "It's Not Over Yet" }, bonus: { type: 'unique', mechanic: 'last_stand', stats: {hp: 14} } },
+            { id: 216, rarity: 'legendary', icon: '🏰', name: { uk: "Камбек року", en: "Comeback of the Year" }, bonus: { type: 'unique', mechanic: 'last_stand', stats: {hp: 14} } },
+            { id: 217, rarity: 'legendary', icon: '🤺', name: { uk: "Відповідь не забариться", en: "Reply Incoming" }, bonus: { type: 'unique', mechanic: 'counter', stats: {hp: 12} } },
+            { id: 218, rarity: 'legendary', icon: '🤺', name: { uk: "Відбиваю, не дивлячись", en: "Parry Without Looking" }, bonus: { type: 'unique', mechanic: 'counter', stats: {hp: 12} } },
+            { id: 219, rarity: 'legendary', icon: '🤺', name: { uk: "Фехтувальник", en: "The Fencer" }, bonus: { type: 'unique', mechanic: 'counter', stats: {hp: 12} } },
+            { id: 220, rarity: 'legendary', icon: '😋', name: { uk: "Пожирач бафів", en: "Buff Eater" }, bonus: { type: 'unique', mechanic: 'buff_eater', stats: {hp: 12} } },
+            { id: 221, rarity: 'legendary', icon: '😋', name: { uk: "Збирач чужих бонусів", en: "Bonus Collector" }, bonus: { type: 'unique', mechanic: 'buff_eater', stats: {hp: 12} } },
+            { id: 222, rarity: 'legendary', icon: '😋', name: { uk: "Податківець", en: "Tax Collector" }, bonus: { type: 'unique', mechanic: 'buff_eater', stats: {hp: 12} } },
+            { id: 223, rarity: 'legendary', icon: '🏹', name: { uk: "Заряджений на повну", en: "Fully Charged" }, bonus: { type: 'unique', mechanic: 'meter_rush', stats: {hp: 8, hpPerLevel: 0.6} } },
+            { id: 224, rarity: 'legendary', icon: '🏹', name: { uk: "Турборежим", en: "Turbo Mode" }, bonus: { type: 'unique', mechanic: 'meter_rush', stats: {hp: 8, hpPerLevel: 0.6} } },
+            { id: 225, rarity: 'legendary', icon: '🏹', name: { uk: "Завжди напоготові", en: "Always Ready" }, bonus: { type: 'unique', mechanic: 'meter_rush', stats: {hp: 8, hpPerLevel: 0.6} } },
+            { id: 226, rarity: 'legendary', icon: '⛄', name: { uk: "Снігова куля", en: "Snowball" }, bonus: { type: 'unique', mechanic: 'momentum', stats: {power: 0.3} } },
+            { id: 227, rarity: 'legendary', icon: '⛄', name: { uk: "Розгін до сотні", en: "Zero to a Hundred" }, bonus: { type: 'unique', mechanic: 'momentum', stats: {power: 0.3} } },
+            { id: 228, rarity: 'legendary', icon: '⛄', name: { uk: "Невпинний", en: "Unstoppable" }, bonus: { type: 'unique', mechanic: 'momentum', stats: {power: 0.3} } },
+            { id: 229, rarity: 'legendary', icon: '🧪', name: { uk: "Чистий сигнал", en: "Clean Signal" }, bonus: { type: 'unique', mechanic: 'cleanse', stats: {hp: 14, hpPerLevel: 0.6} } },
+            { id: 230, rarity: 'legendary', icon: '🧪', name: { uk: "Антидот", en: "Antidote" }, bonus: { type: 'unique', mechanic: 'cleanse', stats: {hp: 14, hpPerLevel: 0.6} } },
+            { id: 231, rarity: 'legendary', icon: '🧪', name: { uk: "Вічно свіжий", en: "Ever Fresh" }, bonus: { type: 'unique', mechanic: 'cleanse', stats: {hp: 14, hpPerLevel: 0.6} } },
+            { id: 232, rarity: 'legendary', icon: '💿', name: { uk: "Довгограйний", en: "Long-Playing" }, bonus: { type: 'unique', mechanic: 'long_buffs', stats: {hp: 10, hpPerLevel: 0.6, effect: 10} } },
+            { id: 233, rarity: 'legendary', icon: '💿', name: { uk: "Вічний двигун", en: "Perpetual Motion" }, bonus: { type: 'unique', mechanic: 'long_buffs', stats: {hp: 10, hpPerLevel: 0.6, effect: 10} } },
+            { id: 234, rarity: 'legendary', icon: '💿', name: { uk: "Бонус на бонус", en: "Bonus on Bonus" }, bonus: { type: 'unique', mechanic: 'long_buffs', stats: {hp: 10, hpPerLevel: 0.6, effect: 10} } },
+            { id: 235, rarity: 'legendary', icon: '🩹', name: { uk: "Друге дихання", en: "Second Wind" }, bonus: { type: 'unique', mechanic: 'guardian_shield', stats: {hp: 12} } },
+            { id: 236, rarity: 'legendary', icon: '🩹', name: { uk: "Аптечка в кишені", en: "Pocket First Aid" }, bonus: { type: 'unique', mechanic: 'guardian_shield', stats: {hp: 12} } },
+            { id: 237, rarity: 'legendary', icon: '🔩', name: { uk: "Відкривачка", en: "Can Opener" }, bonus: { type: 'unique', mechanic: 'armor_piercer', stats: {power: 0.5} } },
+            { id: 238, rarity: 'legendary', icon: '🔩', name: { uk: "Свердло", en: "The Drill" }, bonus: { type: 'unique', mechanic: 'armor_piercer', stats: {power: 0.5} } },
+            { id: 239, rarity: 'legendary', icon: '😷', name: { uk: "Тефлоновий", en: "Teflon" }, bonus: { type: 'unique', mechanic: 'debuff_immunity', stats: {hp: 15} } },
+            { id: 240, rarity: 'legendary', icon: '😷', name: { uk: "Імунітет до токсичності", en: "Immune to Toxicity" }, bonus: { type: 'unique', mechanic: 'debuff_immunity', stats: {hp: 15} } },
+            { id: 241, rarity: 'legendary', icon: '🌫️', name: { uk: "Невловимий", en: "Elusive" }, bonus: { type: 'unique', mechanic: 'quantum_dodge', stats: {hp: 16} } },
+            { id: 242, rarity: 'legendary', icon: '🌫️', name: { uk: "Міраж", en: "Mirage" }, bonus: { type: 'unique', mechanic: 'quantum_dodge', stats: {hp: 16} } },
+            { id: 243, rarity: 'legendary', icon: '🎱', name: { uk: "Генератор рандому", en: "Random Generator" }, bonus: { type: 'unique', mechanic: 'chaotic_charge', stats: {effect: 15} } },
+            { id: 244, rarity: 'legendary', icon: '🎱', name: { uk: "Баг на ніжках", en: "Bug on Legs" }, bonus: { type: 'unique', mechanic: 'chaotic_charge', stats: {effect: 15} } },
+            { id: 245, rarity: 'mythic', icon: '🪶', name: { uk: "Феніксове перо", en: "Phoenix Feather" }, bonus: { type: 'unique', mechanic: 'phoenix', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 246, rarity: 'mythic', icon: '🪶', name: { uk: "Не сьогодні", en: "Not Today" }, bonus: { type: 'unique', mechanic: 'phoenix', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 247, rarity: 'mythic', icon: '🪶', name: { uk: "Дев’ять життів", en: "Nine Lives" }, bonus: { type: 'unique', mechanic: 'phoenix', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 248, rarity: 'mythic', icon: '🪶', name: { uk: "Сейв на 1 HP", en: "Saved at 1 HP" }, bonus: { type: 'unique', mechanic: 'phoenix', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 249, rarity: 'mythic', icon: '👯', name: { uk: "Дзеркальний двійник", en: "Mirror Twin" }, bonus: { type: 'unique', mechanic: 'double_strike', stats: {hp: 15, crit: 8, hpPerLevel: 1.1} } },
+            { id: 250, rarity: 'mythic', icon: '👯', name: { uk: "Подвійний клік", en: "Double Click" }, bonus: { type: 'unique', mechanic: 'double_strike', stats: {hp: 15, crit: 8, hpPerLevel: 1.1} } },
+            { id: 251, rarity: 'mythic', icon: '👯', name: { uk: "Ехо удару", en: "Echo Strike" }, bonus: { type: 'unique', mechanic: 'double_strike', stats: {hp: 15, crit: 8, hpPerLevel: 1.1} } },
+            { id: 252, rarity: 'mythic', icon: '👯', name: { uk: "На біс", en: "Encore" }, bonus: { type: 'unique', mechanic: 'double_strike', stats: {hp: 15, crit: 8, hpPerLevel: 1.1} } },
+            { id: 253, rarity: 'mythic', icon: '⛈️', name: { uk: "Око бурі", en: "Eye of the Storm" }, bonus: { type: 'unique', mechanic: 'storm_eye', stats: {hp: 20, hpPerLevel: 1.1} } },
+            { id: 254, rarity: 'mythic', icon: '⛈️', name: { uk: "Тиха вода", en: "Still Waters" }, bonus: { type: 'unique', mechanic: 'storm_eye', stats: {hp: 20, hpPerLevel: 1.1} } },
+            { id: 255, rarity: 'mythic', icon: '⛈️', name: { uk: "Терпець урвався", en: "Patience Snapped" }, bonus: { type: 'unique', mechanic: 'storm_eye', stats: {hp: 20, hpPerLevel: 1.1} } },
+            { id: 256, rarity: 'mythic', icon: '⛈️', name: { uk: "Стиснута пружина", en: "Coiled Spring" }, bonus: { type: 'unique', mechanic: 'storm_eye', stats: {hp: 20, hpPerLevel: 1.1} } },
+            { id: 257, rarity: 'mythic', icon: '⏪', name: { uk: "Відкат", en: "Rollback" }, bonus: { type: 'unique', mechanic: 'time_rewind', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 258, rarity: 'mythic', icon: '⏪', name: { uk: "Годинник навспак", en: "Clock Running Backwards" }, bonus: { type: 'unique', mechanic: 'time_rewind', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 259, rarity: 'mythic', icon: '⏪', name: { uk: "День бабака", en: "Groundhog Day" }, bonus: { type: 'unique', mechanic: 'time_rewind', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 260, rarity: 'mythic', icon: '😤', name: { uk: "Злість — моє паливо", en: "Anger Is My Fuel" }, bonus: { type: 'unique', mechanic: 'tempered', stats: {hp: 20, hpPerLevel: 1.1} } },
+            { id: 261, rarity: 'mythic', icon: '😤', name: { uk: "Поранений звір", en: "Wounded Beast" }, bonus: { type: 'unique', mechanic: 'tempered', stats: {hp: 20, hpPerLevel: 1.1} } },
+            { id: 262, rarity: 'mythic', icon: '😤', name: { uk: "Що гірше, то краще", en: "The Worse, the Better" }, bonus: { type: 'unique', mechanic: 'tempered', stats: {hp: 20, hpPerLevel: 1.1} } },
+            { id: 263, rarity: 'mythic', icon: '😤', name: { uk: "Злий як оса", en: "Mad as a Hornet" }, bonus: { type: 'unique', mechanic: 'tempered', stats: {hp: 20, hpPerLevel: 1.1} } },
+            { id: 264, rarity: 'mythic', icon: '🪃', name: { uk: "Карма", en: "Karma" }, bonus: { type: 'unique', mechanic: 'return_debuff', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 265, rarity: 'mythic', icon: '🪃', name: { uk: "Повернути відправнику", en: "Return to Sender" }, bonus: { type: 'unique', mechanic: 'return_debuff', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 266, rarity: 'mythic', icon: '🪃', name: { uk: "Бумеранг", en: "Boomerang" }, bonus: { type: 'unique', mechanic: 'return_debuff', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 267, rarity: 'mythic', icon: '🪃', name: { uk: "М’ячик-стрибунець", en: "Bouncy Ball" }, bonus: { type: 'unique', mechanic: 'return_debuff', stats: {hp: 15, hpPerLevel: 1.1} } },
+            { id: 268, rarity: 'mythic', icon: '🔌', name: { uk: "Перевантаження", en: "Overload" }, bonus: { type: 'unique', mechanic: 'overcharge', stats: {hp: 18, hpPerLevel: 1.1} } },
+            { id: 269, rarity: 'mythic', icon: '🔌', name: { uk: "Червона кнопка", en: "The Big Red Button" }, bonus: { type: 'unique', mechanic: 'overcharge', stats: {hp: 18, hpPerLevel: 1.1} } },
+            { id: 270, rarity: 'mythic', icon: '🔌', name: { uk: "Повна шкала", en: "Full Gauge" }, bonus: { type: 'unique', mechanic: 'overcharge', stats: {hp: 18, hpPerLevel: 1.1} } },
+            { id: 271, rarity: 'mythic', icon: '⚖️', name: { uk: "Вирок", en: "The Verdict" }, bonus: { type: 'unique', mechanic: 'verdict', stats: {hp: 15, crit: 12, hpPerLevel: 1.1} } },
+            { id: 272, rarity: 'mythic', icon: '⚖️', name: { uk: "Чорний список", en: "Blacklist" }, bonus: { type: 'unique', mechanic: 'verdict', stats: {hp: 15, crit: 12, hpPerLevel: 1.1} } },
+            { id: 273, rarity: 'mythic', icon: '⚖️', name: { uk: "Мисливець за головами", en: "Bounty Hunter" }, bonus: { type: 'unique', mechanic: 'verdict', stats: {hp: 15, crit: 12, hpPerLevel: 1.1} } },
+            { id: 274, rarity: 'mythic', icon: '⚖️', name: { uk: "Злопам’ятний", en: "Grudge Keeper" }, bonus: { type: 'unique', mechanic: 'verdict', stats: {hp: 15, crit: 12, hpPerLevel: 1.1} } },
+            { id: 275, rarity: 'meme', icon: '🔎', name: { uk: "404: шкоду не знайдено", en: "404: Damage Not Found" }, bonus: { type: 'unique', mechanic: 'error_404', stats: {hp: 18} } },
+            { id: 276, rarity: 'meme', icon: '🔎', name: { uk: "Сторінка не відповідає", en: "Page Not Responding" }, bonus: { type: 'unique', mechanic: 'error_404', stats: {hp: 18} } },
+            { id: 277, rarity: 'meme', icon: '🔎', name: { uk: "Промах на піксель", en: "Missed by a Pixel" }, bonus: { type: 'unique', mechanic: 'error_404', stats: {hp: 18} } },
+            { id: 278, rarity: 'meme', icon: '🖥️', name: { uk: "Синій екран", en: "Blue Screen" }, bonus: { type: 'unique', mechanic: 'blue_screen', stats: {hp: 18} } },
+            { id: 279, rarity: 'meme', icon: '🖥️', name: { uk: "Вимкни й увімкни", en: "Turn It Off and On Again" }, bonus: { type: 'unique', mechanic: 'blue_screen', stats: {hp: 18} } },
+            { id: 280, rarity: 'meme', icon: '🖥️', name: { uk: "Не вимикайте комп’ютер", en: "Don't Turn Off Your Computer" }, bonus: { type: 'unique', mechanic: 'blue_screen', stats: {hp: 18} } },
+            { id: 281, rarity: 'meme', icon: '💬', name: { uk: "Чат вирішує", en: "Chat Decides" }, bonus: { type: 'unique', mechanic: 'chat_decides', stats: {hp: 18} } },
+            { id: 282, rarity: 'meme', icon: '💬', name: { uk: "Демократія чату", en: "Chat Democracy" }, bonus: { type: 'unique', mechanic: 'chat_decides', stats: {hp: 18} } },
+            { id: 283, rarity: 'meme', icon: '💬', name: { uk: "Голосування в чаті", en: "Chat Poll" }, bonus: { type: 'unique', mechanic: 'chat_decides', stats: {hp: 18} } },
+            { id: 284, rarity: 'meme', icon: '🪑', name: { uk: "AFK-режим", en: "AFK Mode" }, bonus: { type: 'unique', mechanic: 'afk', stats: {hp: 18} } },
+            { id: 285, rarity: 'meme', icon: '🪑', name: { uk: "Пішов по чай", en: "Went for Tea" }, bonus: { type: 'unique', mechanic: 'afk', stats: {hp: 18} } },
+            { id: 286, rarity: 'meme', icon: '🪑', name: { uk: "Мікрохвильовка дзенькнула", en: "The Microwave Dinged" }, bonus: { type: 'unique', mechanic: 'afk', stats: {hp: 18} } },
+            { id: 287, rarity: 'meme', icon: '🐌', name: { uk: "Пінг 999", en: "Ping 999" }, bonus: { type: 'unique', mechanic: 'lag', stats: {hp: 18} } },
+            { id: 288, rarity: 'meme', icon: '🐌', name: { uk: "Затримка трансляції", en: "Stream Delay" }, bonus: { type: 'unique', mechanic: 'lag', stats: {hp: 18} } },
+            { id: 289, rarity: 'meme', icon: '🃏', name: { uk: "Пан або пропав", en: "All or Nothing" }, bonus: { type: 'unique', mechanic: 'coin_flip', stats: {hp: 20} } },
+            { id: 290, rarity: 'meme', icon: '🌋', name: { uk: "Сплячий вулкан", en: "Sleeping Volcano" }, bonus: { type: 'unique', mechanic: 'sleepy', stats: {hp: 5} } },
+            { id: 291, rarity: 'meme', icon: '🐌', name: { uk: "Супутниковий інтернет", en: "Satellite Internet" }, bonus: { type: 'unique', mechanic: 'lag', stats: {hp: 18} } },
+            { id: 292, rarity: 'meme', icon: '📋', name: { uk: "Ctrl+C, Ctrl+V", en: "Copy, Paste" }, bonus: { type: 'unique', mechanic: 'copy_paste', stats: {hp: 18} } },
+            { id: 293, rarity: 'meme', icon: '📋', name: { uk: "Плагіатор", en: "Plagiarist" }, bonus: { type: 'unique', mechanic: 'copy_paste', stats: {hp: 18} } },
+            { id: 294, rarity: 'meme', icon: '📋', name: { uk: "Ксерокс", en: "Photocopier" }, bonus: { type: 'unique', mechanic: 'copy_paste', stats: {hp: 18} } },
             { id: 998, rarity: 'divine', icon: '👑', name: { uk: "Біла сталь", en: "White Steel" }, bonus: { type: 'stats', stats: { def: 12, hp: 10 } } },   // the White Drake's, fixed (about a Rare's worth)
             { id: 999, rarity: 'divine', icon: '👑', name: { uk: "Владика Етеру", en: "Sovereign of the Aether" }, bonus: { type: 'unique', mechanic: 'streamer_god' } }
         ].map(t => ({ ...t, rarityName: RARITIES[t.rarity].name, color: RARITIES[t.rarity].color }));
@@ -5038,7 +5225,7 @@ const ICONS_V2 = {
         TITLES_DB.forEach(t => { if (t.rarity !== 'divine') (TITLES_BY_RARITY[t.rarity] = TITLES_BY_RARITY[t.rarity] || []).push(t); });
 
         // Title ability numbers (tuned with the balance simulator)
-        const MECH = {"armorPierce": 0.7, "guardianHeal": 0.25, "dodgeBonus": 10, "chaosChance": 15, "executeBonus": 0.5, "executeThreshold": 0.35, "coinHigh": 1.5, "coinLow": 0.6, "sleepChance": 0.1, "sleepBonus": 0.25, "thorns": 0.15, "lifesteal": 0.15, "catChance": 0.25};
+        const MECH = {"armorPierce": 0.7, "guardianHeal": 0.25, "dodgeBonus": 10, "chaosChance": 15, "executeBonus": 0.5, "executeThreshold": 0.35, "coinHigh": 1.5, "coinLow": 0.6, "sleepChance": 0.1, "sleepBonus": 0.25, "thorns": 0.15, "lifesteal": 0.15, "catChance": 0.25, "comboEvery": 3, "comboBonus": 0.5, "firstBloodHits": 3, "firstBloodBonus": 0.25, "ironHideHits": 3, "ironHideCut": 0.4, "lastStandAt": 0.4, "lastStandBonus": 0.5, "counterChance": 0.3, "counterDmg": 0.6, "buffEatChance": 0.6, "buffEatHeal": 0.15, "meterRushStart": 2, "meterRushUltBonus": 0.5, "momentumPerHit": 0.04, "momentumMax": 0.35, "longBuffsMult": 2, "phoenixHeal": 0, "doubleChance": 0.2, "doubleDmg": 0.7, "stormHits": 4, "stormMult": 1.5, "rewindAt": 0.2, "rewindTurns": 1, "temperedRate": 0.33, "returnChance": 0.6, "overchargeBonus": 0.6, "overchargeKeep": 2, "verdictChance": 0.25, "verdictHit": 3, "verdictMult": 2, "e404Chance": 0.08, "blueScreenChance": 0.05, "afkMult": 3, "afkFrom": 2, "afkTo": 5, "lagChance": 0.1, "lagMult": 1.8, "copyChance": 0.1};
 
         // All numeric title bonuses in one format (also reads the old bonus types from older saves)
         function titleStats(title) {
@@ -5076,6 +5263,30 @@ const ICONS_V2 = {
                 coin_flip: `Кожен удар: ×${MECH.coinLow} або ×${MECH.coinHigh}`,
                 sleepy: `${pctOf(MECH.sleepChance)}% шанс проспати хід, інакше +${pctOf(MECH.sleepBonus)}% шкоди`,
                 cat_keyboard: `${pctOf(MECH.catChance)}% шанс на випадковий ефект — будь-кому`,
+                combo: `Кожен ${MECH.comboEvery}-й власний удар +${pctOf(MECH.comboBonus)}% шкоди`,
+                first_blood: `Перші ${MECH.firstBloodHits} удари в бою +${pctOf(MECH.firstBloodBonus)}% шкоди і не блокуються`,
+                iron_hide: `Перші ${MECH.ironHideHits} отримані удари −${pctOf(MECH.ironHideCut)}% шкоди`,
+                last_stand: `При <${pctOf(MECH.lastStandAt)}% HP +${pctOf(MECH.lastStandBonus)}% шкоди`,
+                counter: `Отримавши удар, ${pctOf(MECH.counterChance)}% шанс відповісти (${pctOf(MECH.counterDmg)}% шкоди)`,
+                buff_eater: `${pctOf(MECH.buffEatChance)}% шанс з’їсти баф цілі (+${pctOf(MECH.buffEatHeal)}% макс. HP)`,
+                meter_rush: `Починає бій зі шкалою Сили ${MECH.meterRushStart}/5, а ультимейт +${pctOf(MECH.meterRushUltBonus)}% (шкода, лікування чи поглинання)` /* 5 = METER.max, defined further down */,
+                momentum: `Кожен власний удар +${pctOf(MECH.momentumPerHit)}% шкоди до кінця бою (до +${pctOf(MECH.momentumMax)}%)`,
+                cleanse: 'На початку ходу знімає з себе всі дебафи',
+                long_buffs: 'Його бафи тривають удвічі довше',
+                phoenix: 'Раз за бій переживає смертельний удар з 1 HP',
+                double_strike: `${pctOf(MECH.doubleChance)}% шанс ударити двічі (другий удар — ${pctOf(MECH.doubleDmg)}% шкоди)`,
+                storm_eye: `Після кожних ${MECH.stormHits} отриманих ударів наступний удар ×${MECH.stormMult} і не блокується`,
+                time_rewind: `Раз за бій при <${pctOf(MECH.rewindAt)}% HP відкочує HP на хід назад`,
+                tempered: `+1% шкоди за кожні ${Math.round(1 / MECH.temperedRate)}% втраченого HP`,
+                return_debuff: `${pctOf(MECH.returnChance)}% дебафів, накладених на нього, повертаються тому, хто їх наклав`,
+                overcharge: `Ультимейт ×${1 + MECH.overchargeBonus} (шкода, лікування чи поглинання); після нього шкала Сили починає з ${MECH.overchargeKeep}, а не з 0`,
+                verdict: `${pctOf(MECH.verdictChance)}% шанс винести цілі вирок: ${MECH.verdictHit}-й удар по ній після цього ×${MECH.verdictMult}`,
+                error_404: `Будь-чий удар: ${pctOf(MECH.e404Chance)}% шанс на 0 шкоди — «404»`,
+                blue_screen: `Щоходу ${pctOf(MECH.blueScreenChance)}% шанс, що той, хто ходить, зависне й пропустить хід`,
+                chat_decides: 'Його ефекти — випадкові зі стихій обох бійців',
+                afk: `Раз за бій пропускає хід, зате наступний удар ×${MECH.afkMult}`,
+                lag: `${pctOf(MECH.lagChance)}% шанс, що удар долетить на хід пізніше, зате ×${MECH.lagMult}`,
+                copy_paste: `${pctOf(MECH.copyChance)}% шанс завдати стільки ж, скільки останній удар суперника`,
                 streamer_god: 'Всемогутність: кожен удар смертельний, атаки та дебафи не діють'
             },
             en: {
@@ -5091,6 +5302,30 @@ const ICONS_V2 = {
                 coin_flip: `Every hit: ×${MECH.coinLow} or ×${MECH.coinHigh}`,
                 sleepy: `${pctOf(MECH.sleepChance)}% chance to sleep through a turn, otherwise +${pctOf(MECH.sleepBonus)}% damage`,
                 cat_keyboard: `${pctOf(MECH.catChance)}% chance of a random effect — on anyone`,
+                combo: `Every ${MECH.comboEvery}rd own hit deals +${pctOf(MECH.comboBonus)}% damage`,
+                first_blood: `Its first ${MECH.firstBloodHits} hits in a fight deal +${pctOf(MECH.firstBloodBonus)}% and can't be blocked`,
+                iron_hide: `The first ${MECH.ironHideHits} hits it takes deal −${pctOf(MECH.ironHideCut)}% damage`,
+                last_stand: `Below ${pctOf(MECH.lastStandAt)}% HP, +${pctOf(MECH.lastStandBonus)}% damage`,
+                counter: `When hit, ${pctOf(MECH.counterChance)}% chance to hit back (${pctOf(MECH.counterDmg)}% of the damage)`,
+                buff_eater: `${pctOf(MECH.buffEatChance)}% chance to eat one of the target\'s buffs (+${pctOf(MECH.buffEatHeal)}% max HP)`,
+                meter_rush: `Starts the fight with the Element Power meter at ${MECH.meterRushStart}/5; its ultimate is +${pctOf(MECH.meterRushUltBonus)}% stronger (damage, healing or absorbing)`,
+                momentum: `Each own hit adds +${pctOf(MECH.momentumPerHit)}% damage for the rest of the fight (up to +${pctOf(MECH.momentumMax)}%)`,
+                cleanse: 'At the start of its turn, removes all its debuffs',
+                long_buffs: 'Its buffs last twice as long',
+                phoenix: 'Once per fight, survives a killing blow at 1 HP',
+                double_strike: `${pctOf(MECH.doubleChance)}% chance to strike twice (the second hit deals ${pctOf(MECH.doubleDmg)}%)`,
+                storm_eye: `After every ${MECH.stormHits} hits it takes, its next hit deals ×${MECH.stormMult} and can\'t be blocked`,
+                time_rewind: `Once per fight below ${pctOf(MECH.rewindAt)}% HP, its HP rolls back one turn`,
+                tempered: `+1% damage for every ${Math.round(1 / MECH.temperedRate)}% of HP lost`,
+                return_debuff: `${pctOf(MECH.returnChance)}% of the debuffs cast on it go back to the caster`,
+                overcharge: `Its ultimate is ×${1 + MECH.overchargeBonus} (damage, healing or absorbing); after it the meter starts at ${MECH.overchargeKeep}, not 0`,
+                verdict: `${pctOf(MECH.verdictChance)}% chance to sentence the target: its ${MECH.verdictHit}rd hit after that deals ×${MECH.verdictMult}`,
+                error_404: `Any hit, by either drake: ${pctOf(MECH.e404Chance)}% chance to deal 0 — «404»`,
+                blue_screen: `Each turn, ${pctOf(MECH.blueScreenChance)}% chance that whoever is about to hit freezes and loses the turn`,
+                chat_decides: 'Its effects come at random from both fighters\' elements',
+                afk: `Once per fight it skips a turn; its next hit deals ×${MECH.afkMult}`,
+                lag: `${pctOf(MECH.lagChance)}% chance its hit lands a turn late, at ×${MECH.lagMult}`,
+                copy_paste: `${pctOf(MECH.copyChance)}% chance to deal what the opponent\'s last hit dealt`,
                 streamer_god: 'Omnipotence: every hit is lethal, attacks and debuffs do nothing'
             }
         };
@@ -7063,8 +7298,20 @@ const ICONS_V2 = {
             let p2MaxHP = p2HP;
             playFightMax(p1MaxHP, p2MaxHP);
             const hpOf = f => f === p1 ? p1HP : p2HP;
+            // The new title abilities' own state for this fight
+            const newTitleState = () => ({ attacks: 0, landed: 0, taken: 0, phoenixUsed: false, rewindUsed: false, hist: [],
+                                           ownTurns: 0, afkTurn: 0, afkDone: false, afkReady: false, lag: 0, verdict: 0, storm: 0, stormReady: false, lastHit: null });
+            const tmS = { [p1.name]: newTitleState(), [p2.name]: newTitleState() };
             // Every HP change goes through here. Element Power: +1, once per fight, the first time HP drops below half
             const setHP = (f, v) => {
+                // Відродження: once per fight a blow that would kill it leaves 1 HP (plus phoenixHeal of max HP, 0 today)
+                if (v <= 0 && titleMechanic(f) === 'phoenix' && !tmS[f.name].phoenixUsed) {
+                    tmS[f.name].phoenixUsed = true;
+                    v = Math.min(maxHPOf(f), 1 + Math.round(healAmount(f, maxHPOf(f) * MECH.phoenixHeal)));
+                    addLog(currentLang === 'uk' ? `<span style="color: #ff4757; font-weight: bold;">🪶 ${f.title.name.uk}:</span> ${tag(f)} відроджується з ${v} HP!`
+                                                : `<span style="color: #ff4757; font-weight: bold;">🪶 ${f.title.name.en}:</span> ${tag(f)} rises again with ${v} HP!`);
+                    fvNote('phoenix', { f, hp: v });
+                }
                 if (f === p1) p1HP = v; else p2HP = v;
                 const st = fx[f.name];
                 if (!st.halfDone && v < maxHPOf(f) / 2 && ultimateFor(f.drakeObj.type)) { st.halfDone = true; st.meter = Math.min(METER.max, st.meter + 1); }
@@ -7079,6 +7326,19 @@ const ICONS_V2 = {
             [p1, p2].forEach(f => { if (f.drakeObj.type === WHITE_DRAKE_TYPE) { const sc = scalesOf(levelOf(f), maxHPOf(f)); fx[f.name].scales = { now: sc, max: sc }; } });
             fvBegin(p1, p2, isRanked, opts);
             let guardianUsed = { [p1.name]: false, [p2.name]: false };
+            // Підзарядка: the fight starts with some Element Power already in the meter
+            [p1, p2].forEach(f => { if (titleMechanic(f) === 'meter_rush' && ultimateFor(f.drakeObj.type)) fx[f.name].meter = MECH.meterRushStart; });
+            const tl = (uk, en) => currentLang === 'uk' ? uk : en;
+            const tName = f => `<span style="color: ${RARITIES[f.title.rarity].color}; font-weight: bold;">${f.title.icon} ${f.title.name[currentLang]}:</span>`;
+            // Перевантаження and Підзарядка: how much stronger its ultimate is (an attack's damage, Bloom's heal, Ice Mirror's absorbing)
+            const ultBoost = f => 1 + (titleMechanic(f) === 'overcharge' ? MECH.overchargeBonus : titleMechanic(f) === 'meter_rush' ? MECH.meterRushUltBonus : 0);
+            // Damage outside the hit itself (Двійник, Лаг): the White Drake's scales take it first, like a hit
+            const hitThrough = (f, amount) => {
+                const sc = fx[f.name].scales, toSc = sc ? Math.min(sc.now, amount) : 0;
+                if (toSc > 0) { sc.now -= toSc; fvScales(toSc); if (sc.now <= 0) fvNote('crack'); }
+                setHP(f, Math.max(0, hpOf(f) - (amount - toSc)));
+                fvHit(amount);
+            };
             // Damage dealt per attack so far (the balance sim estimates what Frost prevented from it)
             let dealt = { [p1.name]: { sum: 0, n: 0 }, [p2.name]: { sum: 0, n: 0 } };
 
@@ -7120,6 +7380,7 @@ const ICONS_V2 = {
                         ? `<span style="color: #ff4757; font-weight: bold;">🌅 ${f.title.name.uk}:</span> ${tag(f)} починає бій з бафом ${fxName(id)} (${effectLeftText(id, EFFECTS[id].count)})!`
                         : `<span style="color: #ff4757; font-weight: bold;">🌅 ${f.title.name.en}:</span> ${tag(f)} starts the fight with ${fxName(id)} (${effectLeftText(id, EFFECTS[id].count)})!`);
                 }
+                if (titleMechanic(f) === 'meter_rush' && ultimateFor(f.drakeObj.type)) fvBanner('meterStart', { f });
             });
             renderCards();
 
@@ -7142,6 +7403,7 @@ const ICONS_V2 = {
                     let attacker = turn % 2 !== 0 ? p1 : p2;
                     let defender = turn % 2 !== 0 ? p2 : p1;
                     const atkFx = fx[attacker.name], defFx = fx[defender.name];
+                    const tA = tmS[attacker.name], tD = tmS[defender.name];
                     fvTurn(turn, attacker, defender);
                     let attackerMaxHP = maxHPOf(attacker);
 
@@ -7159,6 +7421,13 @@ const ICONS_V2 = {
 
                     let attackerTier = getTierMultiplier(attackerProg.level);
                     let logExtra = "";
+
+                    // Очищення: every debuff off before any of them can act, the start-of-turn ticks included
+                    if (titleMechanic(attacker) === 'cleanse' && atkFx.debuff.length) {
+                        const gone = atkFx.debuff; atkFx.debuff = [];
+                        fvNote('cleanse', gone.map(x => x.id));
+                        addLog(`${tName(attacker)} ${tl(`${tag(attacker)} знімає з себе ${gone.map(x => fxAcc(x.id)).join(', ')}!`, `${tag(attacker)} removes ${gone.map(x => fxName(x.id)).join(', ')}!`)}`);
+                    }
 
                     // Start of the attacker's turn: effects that last turns act (debuffs first), then count down
                     [...atkFx.debuff, ...atkFx.buff].forEach(inst => {
@@ -7188,6 +7457,30 @@ const ICONS_V2 = {
                     countDownEffects(atkFx, 'turns');
                     updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
 
+                    // New title abilities at the start of the attacker's turn
+                    tA.ownTurns++;
+                    tA.hist.push(hpOf(attacker));
+                    if (tA.lag > 0 && hpOf(attacker) > 0) {   // Лаг: the hit that hung lands now
+                        const late = tA.lag; tA.lag = 0;
+                        hitThrough(defender, late);
+                        fvNote('lagLand', late);
+                        flashSpriteHit(defender === p1 ? 'p1' : 'p2');
+                        updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
+                        addLog(`${tName(attacker)} ${tl(`удар долетів! ${tag(defender)} -${late} HP`, `the hit arrives! ${tag(defender)} -${late} HP`)}`);
+                    }
+                    if (titleMechanic(attacker) === 'time_rewind' && !tA.rewindUsed && hpOf(attacker) > 0 && hpOf(attacker) < attackerMaxHP * MECH.rewindAt
+                        && tA.hist.length > MECH.rewindTurns) {   // Перемотка: HP back to where it was rewindTurns own turns ago (not healing)
+                        const back = tA.hist[tA.hist.length - 1 - MECH.rewindTurns];
+                        if (back > hpOf(attacker)) {
+                            tA.rewindUsed = true;
+                            const from = hpOf(attacker);
+                            setHP(attacker, Math.min(attackerMaxHP, back));
+                            fvNote('rewind', { from, to: hpOf(attacker) });
+                            updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
+                            addLog(`${tName(attacker)} ${tl(`${tag(attacker)} відкочує HP: ${from} → ${hpOf(attacker)}!`, `${tag(attacker)} rolls its HP back: ${from} → ${hpOf(attacker)}!`)}`);
+                        }
+                    }
+
                     let currAttackerLiveHP = hpOf(attacker);
                     if (titleMechanic(attacker) === 'guardian_shield' && !guardianUsed[attacker.name] && currAttackerLiveHP > 0 && currAttackerLiveHP < attackerMaxHP * 0.15) {
                         guardianUsed[attacker.name] = true;
@@ -7211,6 +7504,31 @@ const ICONS_V2 = {
                         return;
                     }
 
+                    // Синій екран (either fighter's title): the one whose turn it is freezes and loses it
+                    if ((titleMechanic(p1) === 'blue_screen' || titleMechanic(p2) === 'blue_screen') && Math.random() < MECH.blueScreenChance) {
+                        const holder = titleMechanic(p1) === 'blue_screen' ? p1 : p2;
+                        addLog(`[${tl('Хід', 'Turn')} ${turn}] ${tName(holder)} ${tl(`${tag(attacker)} зависає — хід пропадає!`, `${tag(attacker)} freezes — the turn is lost!`)}`);
+                        renderCards();
+                        if (fv.rec) fv.rec.crash = holder;
+                        fvTurnEnd();
+                        turn++;
+                        return;
+                    }
+                    // AFK: once per fight, on one of its turns afkFrom–afkTo, it just leaves; its next hit deals afkMult. The turn it
+                    // drew lost to Синій екран moves it to the next one, but never past afkTo: then there's no AFK in this fight
+                    if (titleMechanic(attacker) === 'afk' && !tA.afkDone) {
+                        if (!tA.afkTurn) tA.afkTurn = MECH.afkFrom + Math.floor(Math.random() * (MECH.afkTo - MECH.afkFrom + 1));
+                        if (tA.ownTurns > MECH.afkTo) tA.afkDone = true;
+                        else if (tA.ownTurns >= tA.afkTurn) {
+                            tA.afkDone = true; tA.afkReady = true;
+                            addLog(`[${tl('Хід', 'Turn')} ${turn}] ${tName(attacker)} ${tl(`${tag(attacker)} відійшов (AFK)`, `${tag(attacker)} is away (AFK)`)}`);
+                            renderCards();
+                            if (fv.rec) fv.rec.away = true;
+                            fvTurnEnd();
+                            turn++;
+                            return;
+                        }
+                    }
                     // Frost: the attacker skips this attack (only Frost itself counts down; no hit is taken)
                     const frost = getFx(atkFx, 'frost');
                     if (frost) {
@@ -7234,22 +7552,24 @@ const ICONS_V2 = {
                     const ult = ultId ? CLASS_ULTIMATES[ultId] : null;
                     let ultTag = '', ultText = '';
                     if (ult) {
-                        atkFx.meter = 0;
+                        atkFx.meter = titleMechanic(attacker) === 'overcharge' ? MECH.overchargeKeep : 0;   // Перевантаження keeps some
                         tallyUltimate(ultId, 'fires');
                         ultTag = `<span style="color: ${ult.color}; font-weight: bold;">${ultLabel(ultId)}</span>`;
                         fvUlt(ultId);
+                        if (ultBoost(attacker) > 1) fvUltInfo({ boost: ultBoost(attacker) });
                     }
                     // Ice Mirror and Bloom replace the attack: no attack is made, so no "own attacks" or "hits taken" counts go down
                     if (ult && !ult.attacks) {
                         if (ultId === 'mirror') {
                             atkFx.mirror = ult.nums.hits;
+                            atkFx.mirrorMult = ultBoost(attacker);   // Перевантаження, Підзарядка: it absorbs more
                             ultText = describeUltimate(ultId);
                             fvUltInfo({ hits: atkFx.mirror });
                         } else {   // Bloom: own debuffs off first (so Poison doesn't cut the heal), then the heal
                             const removed = atkFx.debuff;
                             atkFx.debuff = [];
                             const before = hpOf(attacker);
-                            setHP(attacker, Math.min(attackerMaxHP, before + Math.round(attackerMaxHP * ult.nums.heal / 100)));
+                            setHP(attacker, Math.min(attackerMaxHP, before + Math.round(attackerMaxHP * ult.nums.heal / 100 * ultBoost(attacker))));
                             const healed = hpOf(attacker) - before;
                             tallyUltimate(ultId, 'healed', healed);
                             fvUltInfo({ healed, removed: removed.map(x => x.id) });
@@ -7379,6 +7699,21 @@ const ICONS_V2 = {
                         else baseDmg *= 1 + MECH.sleepBonus;
                     }
 
+                    // New title abilities that change this hit's damage
+                    tA.attacks++;
+                    let titleMult = 1, unblockableBy = null;
+                    if (atkMech === 'combo' && tA.attacks % MECH.comboEvery === 0) { titleMult *= 1 + MECH.comboBonus; logExtra += tl('🥁 Комбо! ', '🥁 Combo! '); fvNote('combo'); }
+                    if (atkMech === 'last_stand' && hpOf(attacker) < attackerMaxHP * MECH.lastStandAt) { titleMult *= 1 + MECH.lastStandBonus; logExtra += tl('🏰 Останній рубіж! ', '🏰 Last stand! '); fvNote('lastStand'); }
+                    if (atkMech === 'momentum' && tA.landed) { const up = Math.min(MECH.momentumMax, MECH.momentumPerHit * tA.landed); titleMult *= 1 + up; fvNote('momentum', pctOf(up)); }
+                    if (atkMech === 'tempered') { const up = MECH.temperedRate * Math.max(0, 1 - hpOf(attacker) / attackerMaxHP); titleMult *= 1 + up; if (pctOf(up)) fvNote('tempered', pctOf(up)); }
+                    if (ult && ult.attacks) titleMult *= ultBoost(attacker);   // Перевантаження, Підзарядка
+                    if (atkMech === 'storm_eye' && tA.stormReady) { tA.stormReady = false; titleMult *= MECH.stormMult; unblockableBy = 'storm_eye'; logExtra += tl('⛈️ Око бурі! ', '⛈️ Eye of the storm! '); fvNote('storm', MECH.stormMult); }
+                    if (atkMech === 'verdict' && tA.verdict > 0 && --tA.verdict === 0) { titleMult *= MECH.verdictMult; logExtra += tl('⚖️ Вирок виконано! ', '⚖️ The sentence is carried out! '); fvNote('sentenceDone', MECH.verdictMult); }
+                    if (atkMech === 'afk' && tA.afkReady) { tA.afkReady = false; titleMult *= MECH.afkMult; logExtra += tl('🪑 Повернувся! ', '🪑 Back! '); fvNote('afkBack', MECH.afkMult); }
+                    const firstBlood = atkMech === 'first_blood' && tA.attacks <= MECH.firstBloodHits;   // its first hits: stronger, and they can't be blocked
+                    if (firstBlood) { titleMult *= 1 + MECH.firstBloodBonus; unblockableBy = 'first_blood'; logExtra += tl('🐦 Перша кров! ', '🐦 First blood! '); fvNote('firstBlood'); }
+                    baseDmg *= titleMult;
+
                     if (attacker.drakeObj.type === DRAGON_TYPE) {
                         baseDmg = 999999;
                         logExtra += `<span style="color: #9fe3ff; font-weight: bold;">${currentLang === 'uk' ? '[КАРА ВЛАДИКИ ЕТЕРУ!]' : '[WRATH OF THE AETHER SOVEREIGN!]'}</span> `;
@@ -7420,10 +7755,10 @@ const ICONS_V2 = {
                     } else if (attacker.drakeObj.type === DRAGON_TYPE) {
                         ultraBlock = false;
                         blockText = currentLang === 'uk' ? `👑 Абсолютне пробиття! ` : `👑 Absolute breach! `;
-                    } else if (ultraBlock && (divine || (ult && ult.unblockable))) {
+                    } else if (ultraBlock && (divine || (ult && ult.unblockable) || unblockableBy)) {
                         ultraBlock = false; divineBreak = !!divine;
-                        fvNote('unblock', divine ? 'divine' : ultId);
-                        const by = divine ? fxName('divine') : ultName(ultId);
+                        fvNote('unblock', divine ? 'divine' : (ult && ult.unblockable) ? ultId : unblockableBy);
+                        const by = divine ? fxName('divine') : (ult && ult.unblockable) ? ultName(ultId) : `${attacker.title.icon} ${attacker.title.name[currentLang]}`;
                         blockText = currentLang === 'uk' ? `${by}: блок неможливий! ` : `${by}: can't be blocked! `;
                     } else if (ultraBlock && blockedByShadow) {
                         blockText = `${fxName('shadow')}: `;
@@ -7450,12 +7785,36 @@ const ICONS_V2 = {
                             hitDmg *= Math.max(0.35, 1.0 - (activeDef / 100));
                         }
                         if (shield) hitDmg *= 1 - fxNum(shield, 'cut') / 100;
+                        if (titleMechanic(defender) === 'iron_hide' && tD.taken < MECH.ironHideHits) { hitDmg *= 1 - MECH.ironHideCut; logExtra += tl('🧱 Залізна шкура! ', '🧱 Iron hide! '); fvNote('ironHide'); }
                     }
+                    // Every attack taken counts (blocked or not), like the effects that last "hits"
+                    tD.taken++;
+                    if (titleMechanic(defender) === 'storm_eye' && ++tD.storm >= MECH.stormHits) { tD.storm = 0; tD.stormReady = true; }
 
                     let finalDmg = 0;
                     if (ultraBlock) blockText += currentLang === 'uk' ? `🛡️ Ультраблок (0 шкоди)!` : `🛡️ Ultra Block (0 damage)!`;
                     else if (!ultMiss) finalDmg = hitDmg;
                     finalDmg = Math.round(finalDmg);
+                    // Копіпаст: this hit deals what the opponent's last hit dealt
+                    if (atkMech === 'copy_paste' && !ultraBlock && !ultMiss && tD.lastHit !== null && Math.random() < MECH.copyChance) {
+                        finalDmg = tD.lastHit;
+                        logExtra += `📋 Ctrl+C, Ctrl+V: ${finalDmg}! `;
+                        fvNote('copy', finalDmg);
+                    }
+                    // 404 (either fighter's title): any hit may vanish
+                    let vanished = false, stuck = false;
+                    if (finalDmg > 0 && attacker.drakeObj.type !== DRAGON_TYPE && (titleMechanic(p1) === 'error_404' || titleMechanic(p2) === 'error_404')
+                        && Math.random() < MECH.e404Chance) {
+                        finalDmg = 0; vanished = true;
+                        logExtra += tl('🔎 404: шкоду не знайдено! ', '🔎 404: damage not found! ');
+                        fvNote('notFound', titleMechanic(p1) === 'error_404' ? p1 : p2);
+                    }
+                    // Лаг: the hit hangs and lands at the start of its next turn, stronger
+                    if (atkMech === 'lag' && finalDmg > 0 && !tA.lag && Math.random() < MECH.lagChance) {
+                        tA.lag = Math.round(finalDmg * MECH.lagMult); finalDmg = 0; stuck = true;
+                        logExtra += tl('🐌 Лаг... удар завис! ', '🐌 Lag... the hit hangs! ');
+                        fvNote('lagHang');
+                    }
 
                     // What each effect did to this hit, for the balance sim's per-effect report
                     if (effectTally) {
@@ -7488,7 +7847,7 @@ const ICONS_V2 = {
                     let mirrorText = '';
                     if (defFx.mirror > 0 && attacker.drakeObj.type !== DRAGON_TYPE) {
                         const m = CLASS_ULTIMATES.mirror.nums, would = finalDmg;
-                        const absorbed = Math.min(would, Math.round(maxHPOf(defender) * m.cap / 100));
+                        const absorbed = Math.min(would, Math.round(maxHPOf(defender) * m.cap / 100 * (defFx.mirrorMult || 1)));
                         const back = Math.round(absorbed * m.back / 100);
                         defFx.mirror--;
                         finalDmg = would - absorbed;
@@ -7536,7 +7895,7 @@ const ICONS_V2 = {
                     }
 
                     fvAttack({ type: attackType, sub: subType, dmg: finalDmg, crit: isCrit, block: ultraBlock, shadow: blockedByShadow, miss: ultMiss,
-                               pierce: subType === 'sneaky' && !ultraBlock && attacker.drakeObj.type !== DRAGON_TYPE, sd: turn >= SUDDEN_DEATH.from ? suddenDeathMult : 0 });
+                               pierce: subType === 'sneaky' && !ultraBlock && attacker.drakeObj.type !== DRAGON_TYPE, sd: turn >= SUDDEN_DEATH.from ? suddenDeathMult : 0, vanish: vanished, stuck });
                     if (finalDmg > 0) flashSpriteHit(defender === p1 ? 'p1' : 'p2');
                     // Луска Дракона: the White Drake's scales take the hit first; only what gets through comes off its HP
                     const toScales = defFx.scales && !fortunePast ? Math.min(defFx.scales.now, finalDmg) : 0;
@@ -7551,6 +7910,15 @@ const ICONS_V2 = {
                     }
                     setHP(defender, Math.max(0, hpOf(defender) - (finalDmg - toScales)));
                     dealt[attacker.name].sum += finalDmg; dealt[attacker.name].n++;
+                    if (finalDmg > 0) tA.lastHit = finalDmg;   // Копіпаст copies the opponent's last hit that did damage
+                    if (finalDmg > 0) tA.landed++;
+                    // Двійник: a second hit, weaker
+                    if (atkMech === 'double_strike' && finalDmg > 0 && hpOf(defender) > 0 && Math.random() < MECH.doubleChance) {
+                        const second = Math.max(1, Math.round(finalDmg * MECH.doubleDmg));
+                        hitThrough(defender, second);
+                        fvNote('twin', second);
+                        logExtra += tl(`👯 Двійник: ще -${second}! `, `👯 Twin: another -${second}! `);
+                    }
                     // Element Power: +1 for an own attack that dealt damage (the ultimate doesn't count)
                     if (!ult && finalDmg > 0 && ultimateFor(attacker.drakeObj.type)) atkFx.meter = Math.min(METER.max, atkFx.meter + 1);
                     if (ult) tallyUltimate(ultId, 'dmg', finalDmg);
@@ -7594,6 +7962,27 @@ const ICONS_V2 = {
                         fvNote('thorns', thorn);
                         logExtra += currentLang === 'uk' ? `🌵 Шипи: -${thorn} HP нападникові! ` : `🌵 Thorns: -${thorn} HP to the attacker! `;
                     }
+                    // Контратака: the defender hits back for part of the damage it took (like Thorns, past armour and scales)
+                    if (finalDmg > 0 && titleMechanic(defender) === 'counter' && attacker.drakeObj.type !== DRAGON_TYPE && hpOf(defender) > 0 && Math.random() < MECH.counterChance) {
+                        const back = Math.max(1, Math.round(finalDmg * MECH.counterDmg));
+                        setHP(attacker, Math.max(0, hpOf(attacker) - back));
+                        fvNote('counter', back);
+                        logExtra += tl(`🤺 Контратака: -${back} HP нападникові! `, `🤺 Counter: -${back} HP to the attacker! `);
+                    }
+                    // Пожирач бафів: eats one of the target's buffs and heals (debuff immunity keeps the buffs, as with Shadow Theft)
+                    if (finalDmg > 0 && atkMech === 'buff_eater' && defFx.buff.length && !isDebuffImmune(defender) && Math.random() < MECH.buffEatChance) {
+                        const eaten = defFx.buff.splice(Math.floor(Math.random() * defFx.buff.length), 1)[0];
+                        const before = hpOf(attacker);
+                        setHP(attacker, Math.min(maxHPOf(attacker), before + Math.round(healAmount(attacker, maxHPOf(attacker) * MECH.buffEatHeal))));
+                        fvNote('eaten', { id: eaten.id, healed: hpOf(attacker) - before });
+                        logExtra += tl(`😋 з’їдає ${fxAcc(eaten.id)} (+${hpOf(attacker) - before} HP)! `, `😋 eats ${fxName(eaten.id)} (+${hpOf(attacker) - before} HP)! `);
+                    }
+                    // Вирок: a sentence on the target; its verdictHit-th hit after this one deals verdictMult
+                    if (atkMech === 'verdict' && finalDmg > 0 && tA.verdict === 0 && Math.random() < MECH.verdictChance) {
+                        tA.verdict = MECH.verdictHit;
+                        logExtra += tl('⚖️ Вирок! ', '⚖️ Sentenced! ');
+                        fvNote('sentenced');
+                    }
                     if (finalDmg > 0 && titleMechanic(attacker) === 'lifesteal') {
                         const steal = Math.max(1, Math.round(healAmount(attacker, finalDmg * MECH.lifesteal)));
                         const hpBeforeSteal = hpOf(attacker);
@@ -7625,7 +8014,13 @@ const ICONS_V2 = {
                     if (ult && ult.applies) applyEffect(attacker, defender, ult.applies, attackerProg.level, fx);
 
                     let castChance = getCastChance(attacker.drakeObj.type, attacker.title, attackerProg.level);
-                    if (Math.random() * 100 < castChance && finalDmg > 0) applyEffect(attacker, defender, pickEffect(attacker), attackerProg.level, fx);
+                    if (Math.random() * 100 < castChance && finalDmg > 0) {
+                        if (atkMech === 'chat_decides') {
+                            const pool = chatPool(attacker, defender);
+                            fvNote('chat');
+                            applyEffect(attacker, defender, pool.length ? pool[Math.floor(Math.random() * pool.length)] : pickEffect(attacker), attackerProg.level, fx, pool.length ? { pool } : {});
+                        } else applyEffect(attacker, defender, pickEffect(attacker), attackerProg.level, fx);
+                    }
                     // Test menu only (never set in normal fights or balance runs): this hit also casts the chosen effect. The White
                     // Drake's own pair waits for the White Drake's hit (Магніт's pull goes to it, Перекування rebuilds its scales)
                     if (forcedCast && finalDmg > 0 && (EFFECTS[forcedCast].element !== WHITE_DRAKE_TYPE || attacker.drakeObj.type === WHITE_DRAKE_TYPE)) {
@@ -7689,25 +8084,38 @@ const ICONS_V2 = {
             return all[Math.floor(Math.random() * all.length)];
         }
 
+        // Чат вирішує: what its casts come from, the effects of both fighters' elements (the White Drake's pair isn't in the pool)
+        const chatPool = (caster, opponent) => POOL_IDS.filter(id => [caster.drakeObj.type, opponent.drakeObj.type].includes(EFFECTS[id].element));
+
         // Puts effect `id`, cast by `caster`, on the right fighter: a buff on the caster, a debuff on `opponent`.
         // Casting an active effect again refreshes it; with maxPerKind of that kind already, the new one replaces the one
         // closest to ending (the older one on a tie). Debuff immunity stops every debuff, Dispel included.
         // A Dispel that would find no buffs is cast as a different effect instead: picked like a normal cast, or from
-        // opts.pool when the caller limits the choice (Chaotic charge: debuffs only). Immunity is checked first, so a
-        // Dispel on an immune target still counts as cast and is logged as ignored.
+        // opts.pool when the caller limits the choice (Chaotic charge: debuffs only; Чат вирішує: the two elements). Immunity is
+        // checked first, so a Dispel on an immune target still counts as cast and is logged as ignored.
         // Магніт on the caster: a buff it casts goes to its opponent, the White Drake, instead (under the same 2-buff limit;
         // buffs it already has stay put). The White Drake's scales: while they hold, every debuff bounces off (a Dispel too,
         // counted as cast, like immunity).
-        // Returns 'applied' | 'refreshed' | 'replaced' | 'dispelled' | 'immune' | 'bounced' | 'pulled'.
+        // Повернення: returnChance of the debuffs cast on its holder go back to their caster, once, by the same rules; a Dispel
+        // that goes back to a caster with no buffs does nothing, and no recast. Магніт sent back at the White Drake does nothing
+        // either: its buffs go to the White Drake, which is itself.
+        // Returns 'applied' | 'refreshed' | 'replaced' | 'dispelled' | 'immune' | 'bounced' | 'pulled' | 'returned'.
         function applyEffect(caster, opponent, id, casterLevel, fx, opts = {}) {
             const e = EFFECTS[id];
             const uk = currentLang === 'uk';
-            const pulled = e.kind === 'buff' && !!getFx(fx[caster.name], 'magnet');
+            const pulled = e.kind === 'buff' && !!getFx(fx[caster.name], 'magnet') && caster.drakeObj.type !== WHITE_DRAKE_TYPE;
             const owner = e.kind === 'buff' && !pulled ? caster : opponent;
             const who = `<span style="color: ${owner.color}; font-weight: bold;">@${owner.name}</span>`;
             const log = opts.silent ? () => {} : addLog;
             const kindWord = e.kind === 'buff' ? (uk ? 'баф' : 'buff') : (uk ? 'дебаф' : 'debuff');
 
+            // Повернення: returnChance of the debuffs cast on it go back to the caster (never bounced twice); the rest land
+            if (e.kind === 'debuff' && titleMechanic(owner) === 'return_debuff' && !opts.returned && Math.random() < MECH.returnChance) {
+                log(uk ? `<span style="color: #ff4757; font-weight: bold;">🪃 Повернення:</span> ${who} відправляє ${fxAcc(id)} назад!`
+                       : `<span style="color: #ff4757; font-weight: bold;">🪃 Return:</span> ${who} sends ${fxName(id)} back!`);
+                if (!opts.silent) fvCast(owner, id, 'returned');
+                return applyEffect(owner, caster, id, casterLevel, fx, { ...opts, returned: true });
+            }
             if (e.kind === 'debuff' && isDebuffImmune(owner)) {
                 log(uk
                     ? `<span style="color: #f1c40f; font-weight: bold;">🐉 Імунітет:</span> ${who} ігнорує дебаф ${fxName(id)}!`
@@ -7723,12 +8131,15 @@ const ICONS_V2 = {
                 return 'bounced';
             }
             if (e.lasts === 'instant' && !st.buff.length) {
+                if (opts.returned) return 'returned';
                 const skip = [id];
                 const pool = opts.pool && opts.pool.filter(x => !skip.includes(x));
                 const next = pool ? pool[Math.floor(Math.random() * pool.length)] : pickEffect(caster, skip);
                 return applyEffect(caster, opponent, next, casterLevel, fx, opts);
             }
             const power = getEffectMult(caster.drakeObj.type, caster.title, casterLevel);
+            // Довгий баф: a buff on its holder lasts longBuffsMult times as long (so every element's buff gains the same share)
+            const extraLeft = e.kind === 'buff' && titleMechanic(owner) === 'long_buffs' ? Math.round(e.count * (MECH.longBuffsMult - 1)) : 0;
             tallyEffect(id, 'lands');
 
             if (e.lasts === 'instant') {   // Dispel: every buff the target has is gone at once
@@ -7751,11 +8162,11 @@ const ICONS_V2 = {
             };
             const current = list.find(x => x.id === id);
             if (current) {
-                current.left = e.count;
+                current.left = e.count + extraLeft;
                 current.power = power;
                 if (pulled) return pulledLine(null);
-                log(uk ? `${who}: ${kindWord} ${fxName(id)} оновлено (${effectLeftText(id, e.count)})`
-                       : `${who}: ${kindWord} ${fxName(id)} refreshed (${effectLeftText(id, e.count)})`);
+                log(uk ? `${who}: ${kindWord} ${fxName(id)} оновлено (${effectLeftText(id, e.count + extraLeft)})`
+                       : `${who}: ${kindWord} ${fxName(id)} refreshed (${effectLeftText(id, e.count + extraLeft)})`);
                 if (!opts.silent) fvCast(owner, id, 'refreshed');
                 return 'refreshed';
             }
@@ -7764,16 +8175,16 @@ const ICONS_V2 = {
                 replaced = list.reduce((a, b) => b.left < a.left ? b : a);
                 list.splice(list.indexOf(replaced), 1);
             }
-            list.push({ id, left: e.count, power });
+            list.push({ id, left: e.count + extraLeft, power });
             if (pulled) return pulledLine(replaced);
             if (replaced) {
-                log(uk ? `${who} отримує ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count)}), ${fxName(replaced.id)} зникає`
-                       : `${who} receives ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count)}), ${fxName(replaced.id)} is gone`);
+                log(uk ? `${who} отримує ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count + extraLeft)}), ${fxName(replaced.id)} зникає`
+                       : `${who} receives ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count + extraLeft)}), ${fxName(replaced.id)} is gone`);
                 if (!opts.silent) fvCast(owner, id, 'replaced', replaced.id);
                 return 'replaced';
             }
-            log(uk ? `${who} отримує ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count)})`
-                   : `${who} receives ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count)})`);
+            log(uk ? `${who} отримує ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count + extraLeft)})`
+                   : `${who} receives ${kindWord} ${fxName(id)} (${effectLeftText(id, e.count + extraLeft)})`);
             if (!opts.silent) fvCast(owner, id, 'applied');
             return 'applied';
         }

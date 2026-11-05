@@ -24,7 +24,10 @@
 // 9. The notes a title's ability fires, on real cards (fvCardHtml) in both languages: the fighter whose title fired the note
 //    gets the title's own icon, in the full chip and the compact one, with the ability's words (194: «баг» / "bug"); the pair
 //    title's holder gets the ability's glyph, whatever the other fighter holds. A sneaky attack keeps the spear, 97's holder's
-//    too; the White Dragon's immunity keeps the immune glyph; the opening banner shows the title's badge.
+//    too; the White Dragon's immunity keeps the immune glyph; the opening banner shows the title's badge. The notes of the
+//    abilities of titles 205–294 show the badge of the title that fired them, with the ability's words: a stand-in keeps
+//    its words when compact, an own icon (lent to the title here) shows the icon and the number, with no code change; two
+//    stand-ins on a card stay apart; «404», «…», «:(» and «AFK» on line 1; the accusative after a verb.
 // 10. The Top: each row's title in its rarity's colour, its badge in its rarity frame (the browser tests check that rows fit).
 const fs = require('fs');
 const path = require('path');
@@ -298,6 +301,84 @@ const GI = G.DI.ICONS;
         for (const id of [182, 181]) if (!shows(G.fvBannerHtml({ kind: 'opening', data: { f: fighter('a', id), id: 'rage' } }), G.titleGlyph(T(id)))) bad.push(`${lang}: the opening banner for title ${id} doesn't show its badge`);
     }
     check(!bad.length, 'the notes a title fires: its own icon for its holder, full and compact, with the ability\'s words (194: «баг» / "bug"); the ability\'s glyph for the pair title\'s; the spear and the White Dragon\'s immunity as they are', bad.slice(0, 6).join(' | '));
+
+    // The notes of the abilities of titles 205–294. They have no glyph of their own: each shows the badge of the title that
+    // fired it. Until that's the title's own icon it's a stand-in, one of a few shared glyphs, so the compact form keeps the
+    // words; with its own icon (one lent to the title here) it's the icon and the number, like any note, with no code change
+    const ABILITY_NOTES = [
+        // the note's words, a title of its ability, whose title fires it, the turn that shows it, what follows the words
+        ['combo', 205, 'atk', () => ({ notes: { combo: true } }), ''],
+        ['firstBlood', 208, 'atk', () => ({ notes: { firstBlood: true } }), ''],
+        ['ironHide', 211, 'def', () => ({ notes: { ironHide: true } }), ''],
+        ['lastStand', 214, 'atk', () => ({ notes: { lastStand: true } }), ''],
+        ['counter', 217, 'def', () => ({ notes: { counter: 9 } }), ' -9'],
+        ['eats', 220, 'atk', () => ({ notes: { eaten: { id: 'divine', healed: 12 } } }), ''],
+        ['meterRush', 223, 'atk', () => ({ ult: { id: 'firestorm', boost: 1.5 } }), ' ×1.5'],
+        ['momentum', 226, 'atk', () => ({ notes: { momentum: 12 } }), ' +12%'],
+        ['cleanse', 229, 'atk', () => ({ notes: { cleanse: ['mark'] } }), ''],
+        ['longBuffs', 232, 'atk', f => ({ casts: [{ owner: f, id: 'shield', result: 'applied' }] }), ' ×2'],
+        ['phoenix', 245, 'def', f => ({ notes: { phoenix: { f, hp: 1 } } }), ' · 1 HP'],
+        ['phoenix', 245, 'atk', f => ({ notes: { phoenix: { f, hp: 1 } } }), ' · 1 HP'],
+        ['twin', 249, 'atk', () => ({ notes: { twin: 14 } }), ' -14'],
+        ['storm', 253, 'atk', () => ({ notes: { storm: 1.5 } }), ' ×1.5'],
+        ['rewind', 257, 'atk', () => ({ notes: { rewind: { from: 40, to: 180 } } }), ' 40 → 180'],
+        ['tempered', 260, 'atk', () => ({ notes: { tempered: 15 } }), ' +15%'],
+        ['returned', 264, 'def', f => ({ casts: [{ owner: f, id: 'mark', result: 'returned' }] }), ''],
+        ['overcharge', 268, 'atk', () => ({ ult: { id: 'firestorm', boost: 1.6 } }), ' ×1.6'],
+        ['sentenced', 271, 'atk', () => ({ notes: { sentenced: true } }), ''],
+        ['sentenceDone', 271, 'atk', () => ({ notes: { sentenceDone: 2 } }), ' ×2'],
+        ['notFound', 275, 'def', f => ({ notes: { notFound: f }, attack: hit({ dmg: 0, vanish: true }) }), ''],
+        ['notFound', 275, 'atk', f => ({ notes: { notFound: f }, attack: hit({ dmg: 0, vanish: true }) }), ''],
+        ['crashed', 278, 'def', f => ({ crash: f, attack: null }), ''],
+        ['crashed', 278, 'atk', f => ({ crash: f, attack: null }), ''],
+        ['chat', 281, 'atk', () => ({ notes: { chat: true } }), ''],
+        ['away', 284, 'atk', () => ({ away: true, attack: null }), ''],
+        ['afkBack', 284, 'atk', () => ({ notes: { afkBack: 3 } }), ' ×3'],
+        ['lagHang', 287, 'atk', () => ({ notes: { lagHang: true }, attack: hit({ dmg: 0, stuck: true }) }), ''],
+        ['lagLand', 287, 'atk', () => ({ notes: { lagLand: 50 } }), ' -50'],
+        ['copy', 292, 'atk', () => ({ notes: { copy: 31 } }), ' -31'],
+    ];
+    const ct = (html, ci) => [...html.matchAll(new RegExp(`data-ci="${ci}" data-ct="([^"]*)"`, 'g'))].map(m => m[1]);
+    const LENT = 'zenLotus', lentFrom = GI[LENT].title, bad2 = [];
+    for (const lang of ['uk', 'en']) {
+        G.setLang(lang);
+        for (const [key, id, side, turn, after] of ABILITY_NOTES) {
+            const words = G.FV_TEXT[lang][key], where = `${lang} ${key} (${side})`, glyph = G.titleGlyph(T(id));
+            const draw = () => { const f = fighter('f', id), o = fighter('o', 96, 'blue'); return side === 'atk' ? card(f, o, turn(f)) : card(o, f, turn(f)); };
+            if (!['hp', 'crit'].includes(glyph)) bad2.push(`${where}: title ${id}'s stand-in is ${glyph}, not its main bonus's`);
+            const stand = draw();
+            if (!said(stand, `${words}${after}`) || !shows(stand, glyph)) bad2.push(`${where}: the card doesn't show ${glyph} and «${words}${after}»`);
+            if (!ct(stand, glyph).includes(`${words}${after}`)) bad2.push(`${where}: the stand-in's compact form lost its words: ${JSON.stringify(ct(stand, glyph))}`);
+            G.DI.ICONS[LENT].title = id;   // the page's own DrakeIcons: titleOwnIcon reads this record
+            const own = draw();
+            G.DI.ICONS[LENT].title = lentFrom;
+            if (!said(own, `${words}${after}`) || !shows(own, LENT)) bad2.push(`${where}: with its own icon the card doesn't show ${LENT} and «${words}${after}»`);
+            if (!ct(own, LENT).includes(after.trim())) bad2.push(`${where}: with its own icon the compact form isn't the icon and «${after.trim()}»: ${JSON.stringify(ct(own, LENT))}`);
+        }
+        // Two stand-ins on one card: the same heart, so only the words keep them apart, compact too
+        const both = card(fighter('a', 208), fighter('d', 211, 'blue'), { notes: { firstBlood: true, ironHide: true } }), hearts = ct(both, 'hp');
+        if (hearts.length !== 2 || hearts[0] === hearts[1]) bad2.push(`${lang}: two stand-in notes on a card look alike: ${JSON.stringify(hearts)}`);
+        // The crit «!» as a stand-in never stands alone: Комбо's compact chip says what it is
+        if (!ct(card(fighter('a', 205), fighter('d', 96, 'blue'), { notes: { combo: true } }), 'crit').includes(G.FV_TEXT[lang].combo)) bad2.push(`${lang}: Комбо's compact chip is a bare «!»`);
+        // What the Meme abilities show instead of the number; a name after a verb in the accusative
+        const a = fighter('a', 96), d = fighter('d', 275, 'blue'), line1 = html => (html.match(/<div class="lc-l1">(.*?)<\/div>/s) || [])[1] || '';
+        const vanished = line1(card(a, d, { attack: hit({ dmg: 0, vanish: true }), notes: { notFound: d } }));
+        if (!/>404<\/span>/.test(vanished) || />0<\/span>/.test(vanished)) bad2.push(`${lang}: a vanished hit's card doesn't show «404» in place of the number`);
+        if (!/>…<\/span>/.test(line1(card(a, d, { attack: hit({ dmg: 0, stuck: true }), notes: { lagHang: true } })))) bad2.push(`${lang}: a stuck hit's card still shows a number`);
+        if (!line1(card(a, d, { attack: null, crash: d })).includes('>:(<')) bad2.push(`${lang}: the blue screen's card has no «:(» on line 1`);
+        if (!line1(card(a, d, { attack: null, away: true })).includes('>AFK<')) bad2.push(`${lang}: the AFK card has no «AFK» on line 1`);
+        const landed = line1(card(a, d, { attack: null, notes: { lagLand: 50 } }));
+        if (!landed.includes('>-50<') || !landed.includes(G.FV_TEXT[lang].lagLand)) bad2.push(`${lang}: a stuck hit that knocks out, with no attack after it, doesn't show its number: ${landed}`);
+        const acc = lang === 'uk' ? ['Божественну міць', 'Мітку'] : ['Divine Might', 'Mark'];
+        if (!card(fighter('a', 220), d, { notes: { eaten: { id: 'divine', healed: 12 } } }).includes(`>${acc[0]}<`)) bad2.push(`${lang}: «${G.FV_TEXT[lang].eats}» isn't followed by the accusative`);
+        for (const [what, extra] of [['cleanse', { notes: { cleanse: ['mark'] } }], ['returned', { casts: [{ owner: d, id: 'mark', result: 'returned' }] }]])
+            if (!card(fighter('a', 229), fighter('d', 264, 'blue'), extra).includes(`>${acc[1]}<`)) bad2.push(`${lang}: ${what}: the debuff's name after the verb isn't in the accusative`);
+        // Перша кров and Око бурі beating a block say so, with the same words and glyph as Вогняний шторм; Підзарядка's banner
+        if (!shows(card(fighter('a', 208), fighter('d', 96, 'blue'), { notes: { unblock: 'first_blood', firstBlood: true } }), 'unblockable')) bad2.push(`${lang}: Перша кров beating a block doesn't say so`);
+        const banner = G.fvBannerHtml({ kind: 'meterStart', data: { f: fighter('a', 223) } });
+        if (!banner.includes('2/5') || !shows(banner, G.titleGlyph(T(223)))) bad2.push(`${lang}: Підзарядка's banner doesn't show its badge and 2/5: ${banner.slice(0, 120)}`);
+    }
+    check(!bad2.length, `the notes of titles 205–294 (${ABILITY_NOTES.length} cases, both languages): the badge's glyph with the ability's words; a stand-in's compact form keeps them, an own icon's doesn't; two stand-ins on a card stay apart; «404», «…», «:(», «AFK» on line 1; the accusative after a verb`, bad2.slice(0, 6).join(' | '));
 }
 
 // ---- 10. The Top: each title in its rarity's colour, its badge in its frame
