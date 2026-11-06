@@ -124,9 +124,9 @@ note a title's ability fires shows that title's own icon, with the ability's wor
 | opening buff | 🌅 | (hidden `addLog` only; the banner uses the title's badge: title 182's own icon, `firstCoffee`) | title 181 |
 
 The notes of the abilities of titles 205–294 have no glyph of their own: each shows the badge of the title that fired it
-(`fvNoteGlyph`, `fvAbilityNote`), its own icon once it has one and the stand-in until then (section 5). A stand-in is one of a
-few shared glyphs, so its compact form keeps the words; with the title's own icon it's the icon and the number. Their words
-are in `FV_TEXT`, with no emoji; the emoji are in the hidden `addLog` lines.
+(`fvNoteGlyph`, `fvAbilityNote`), its own icon once it has one (the Legendary titles 205–244 have theirs) and the stand-in
+until then (section 5). A stand-in is one of a few shared glyphs, so its compact form keeps the words; with the title's own
+icon it's the icon and the number. Their words are in `FV_TEXT`, with no emoji; the emoji are in the hidden `addLog` lines.
 
 | Note | Words (uk / en) | Fired by | On the card |
 |---|---|---|---|
@@ -187,14 +187,16 @@ Titles 195–294 share an emoji per bonus or ability (🥁 205–207 and so on):
 
 "Proposed icon" follows style.md: every title shows what it gives in its rarity frame: its own icon if it has one, else its
 mechanic (legendary, mythic, meme: the same glyph as the mechanic's log note), otherwise its biggest stat bonus. Legendary,
-Mythic and Meme titles get icons of their own, one per title, never shared; 12 have theirs so far (one of each pair; the rows
-say "own icon: <id>" and what it shows), and until a title has one its badge is its ability's glyph. «Біла сталь» has its
+Mythic and Meme titles get icons of their own, one per title, never shared; 52 have theirs so far (12 older titles, one of
+each pair, and all 40 Legendary titles 205–244; the rows say "own icon: <id>" and what it shows), and until a title has one
+its badge is its ability's glyph. «Біла сталь» has its
 own too; the Sovereign keeps its crown, its ability's glyph. `design/icons/test.js` reads these rows. The "main bonus" is
 the stat with the biggest share of the title's value; crit and crit power count as one (crit).
 
-Rows marked "(stand-in)" are titles 205–294, Legendary to Meme, with no art yet. The ones that reuse an ability with a glyph
-(235–244, 289, 290) show that glyph, the rest their main bonus's; here "main bonus" is the first stat in the title's `stats`, as
-`titleGlyph` reads it. Each will get its own icon in a later batch of art and data only, and the row then says "own icon: <id>".
+Rows marked "(stand-in)" are titles 245–294, Mythic and Meme, with no art yet. The ones that reuse an ability with a glyph
+(289, 290) show that glyph, the rest their main bonus's; here "main bonus" is the first stat in the title's `stats`, as
+`titleGlyph` reads it. Each will get its own icon in a later batch, and the row then says "own icon: <id>". The Legendary
+titles 205–244 got theirs as art and data only (their notes took the icons with no code change).
 The Epic titles 195–204 are stat titles like the other Epics: their bonus glyph is final.
 
 | id | rarity | now | name (uk / en) | gives | proposed icon |
@@ -403,46 +405,46 @@ The Epic titles 195–204 are stat titles like the other Epics: their bonus glyp
 | 202 | epic | 🦉 | Ідеальний таймінг / Perfect Timing | crit +12%, crit power +0.28 | bonus: crit |
 | 203 | epic | 🔮 | Чарівник клавіатури / Keyboard Wizard | effect chance +12%, buff power +40% | bonus: buff power |
 | 204 | epic | 🗡️ | Влучне слово / Well-Aimed Word | crit +8%, crit power +0.4 | bonus: crit |
-| 205 | legendary | 🥁 | Три в ряд / Three in a Row | combo + crit power +0.3 | bonus: crit (stand-in) |
-| 206 | legendary | 🥁 | Ритм-машина / Rhythm Machine | combo + crit power +0.3 | bonus: crit (stand-in) |
-| 207 | legendary | 🥁 | Третій удар — мій / The Third Hit Is Mine | combo + crit power +0.3 | bonus: crit (stand-in) |
-| 208 | legendary | 🐦 | Швидкий палець / Quick Finger | first_blood + HP +8, HP/level +0.5 | bonus: HP (stand-in) |
-| 209 | legendary | 🐦 | Перший у черзі / First in Line | first_blood + HP +8, HP/level +0.5 | bonus: HP (stand-in) |
-| 210 | legendary | 🐦 | Рання пташка / Early Bird | first_blood + HP +8, HP/level +0.5 | bonus: HP (stand-in) |
-| 211 | legendary | 🧱 | Залізна шкура / Iron Hide | iron_hide + HP +8, HP/level +0.6 | bonus: HP (stand-in) |
-| 212 | legendary | 🧱 | Бетонний дрейк / Concrete Drake | iron_hide + HP +8, HP/level +0.6 | bonus: HP (stand-in) |
-| 213 | legendary | 🧱 | Танк чату / Chat Tank | iron_hide + HP +8, HP/level +0.6 | bonus: HP (stand-in) |
-| 214 | legendary | 🏰 | Останній бастіон / Last Bastion | last_stand + HP +14 | bonus: HP (stand-in) |
-| 215 | legendary | 🏰 | Ще не кінець / It's Not Over Yet | last_stand + HP +14 | bonus: HP (stand-in) |
-| 216 | legendary | 🏰 | Камбек року / Comeback of the Year | last_stand + HP +14 | bonus: HP (stand-in) |
-| 217 | legendary | 🤺 | Відповідь не забариться / Reply Incoming | counter + HP +12 | bonus: HP (stand-in) |
-| 218 | legendary | 🤺 | Відбиваю, не дивлячись / Parry Without Looking | counter + HP +12 | bonus: HP (stand-in) |
-| 219 | legendary | 🤺 | Фехтувальник / The Fencer | counter + HP +12 | bonus: HP (stand-in) |
-| 220 | legendary | 😋 | Пожирач бафів / Buff Eater | buff_eater + HP +12 | bonus: HP (stand-in) |
-| 221 | legendary | 😋 | Збирач чужих бонусів / Bonus Collector | buff_eater + HP +12 | bonus: HP (stand-in) |
-| 222 | legendary | 😋 | Податківець / Tax Collector | buff_eater + HP +12 | bonus: HP (stand-in) |
-| 223 | legendary | 🏹 | Заряджений на повну / Fully Charged | meter_rush + HP +8, HP/level +0.6 | bonus: HP (stand-in) |
-| 224 | legendary | 🏹 | Турборежим / Turbo Mode | meter_rush + HP +8, HP/level +0.6 | bonus: HP (stand-in) |
-| 225 | legendary | 🏹 | Завжди напоготові / Always Ready | meter_rush + HP +8, HP/level +0.6 | bonus: HP (stand-in) |
-| 226 | legendary | ⛄ | Снігова куля / Snowball | momentum + crit power +0.3 | bonus: crit (stand-in) |
-| 227 | legendary | ⛄ | Розгін до сотні / Zero to a Hundred | momentum + crit power +0.3 | bonus: crit (stand-in) |
-| 228 | legendary | ⛄ | Невпинний / Unstoppable | momentum + crit power +0.3 | bonus: crit (stand-in) |
-| 229 | legendary | 🧪 | Чистий сигнал / Clean Signal | cleanse + HP +14, HP/level +0.6 | bonus: HP (stand-in) |
-| 230 | legendary | 🧪 | Антидот / Antidote | cleanse + HP +14, HP/level +0.6 | bonus: HP (stand-in) |
-| 231 | legendary | 🧪 | Вічно свіжий / Ever Fresh | cleanse + HP +14, HP/level +0.6 | bonus: HP (stand-in) |
-| 232 | legendary | 💿 | Довгограйний / Long-Playing | long_buffs + HP +10, effect chance +10%, HP/level +0.6 | bonus: HP (stand-in) |
-| 233 | legendary | 💿 | Вічний двигун / Perpetual Motion | long_buffs + HP +10, effect chance +10%, HP/level +0.6 | bonus: HP (stand-in) |
-| 234 | legendary | 💿 | Бонус на бонус / Bonus on Bonus | long_buffs + HP +10, effect chance +10%, HP/level +0.6 | bonus: HP (stand-in) |
-| 235 | legendary | 🩹 | Друге дихання / Second Wind | guardian_shield + HP +12 | mechanic: guardian (stand-in) |
-| 236 | legendary | 🩹 | Аптечка в кишені / Pocket First Aid | guardian_shield + HP +12 | mechanic: guardian (stand-in) |
-| 237 | legendary | 🔩 | Відкривачка / Can Opener | armor_piercer + crit power +0.5 | mechanic: pierce (stand-in) |
-| 238 | legendary | 🔩 | Свердло / The Drill | armor_piercer + crit power +0.5 | mechanic: pierce (stand-in) |
-| 239 | legendary | 😷 | Тефлоновий / Teflon | debuff_immunity + HP +15 | mechanic: immune (stand-in) |
-| 240 | legendary | 😷 | Імунітет до токсичності / Immune to Toxicity | debuff_immunity + HP +15 | mechanic: immune (stand-in) |
-| 241 | legendary | 🌫️ | Невловимий / Elusive | quantum_dodge + HP +16 | mechanic: dodge (stand-in) |
-| 242 | legendary | 🌫️ | Міраж / Mirage | quantum_dodge + HP +16 | mechanic: dodge (stand-in) |
-| 243 | legendary | 🎱 | Генератор рандому / Random Generator | chaotic_charge + effect chance +15% | mechanic: chaos (stand-in) |
-| 244 | legendary | 🎱 | Баг на ніжках / Bug on Legs | chaotic_charge + effect chance +15% | mechanic: chaos (stand-in) |
+| 205 | legendary | 🥁 | Три в ряд / Three in a Row | combo + crit power +0.3 | own icon: matchThree (three pink candy tiles in a row, lighting up one after another; a full row sparkles) |
+| 206 | legendary | 🥁 | Ритм-машина / Rhythm Machine | combo + crit power +0.3 | own icon: metronome (a wooden metronome, its arm swinging to the beat) |
+| 207 | legendary | 🥁 | Третій удар — мій / The Third Hit Is Mine | combo + crit power +0.3 | own icon: thirdHit (a big comic-book «3», sparks bursting around it on the beat) |
+| 208 | legendary | 🐦 | Швидкий палець / Quick Finger | first_blood + HP +8, HP/level +0.5 | own icon: quickFinger (a finger jabbing a red button, a sparkle popping off) |
+| 209 | legendary | 🐦 | Перший у черзі / First in Line | first_blood + HP +8, HP/level +0.5 | own icon: trafficLight (a traffic light going from red, then red and yellow, to green) |
+| 210 | legendary | 🐦 | Рання пташка / Early Bird | first_blood + HP +8, HP/level +0.5 | own icon: earlyBird (a robin on a branch with a worm in its beak) |
+| 211 | legendary | 🧱 | Залізна шкура / Iron Hide | iron_hide + HP +8, HP/level +0.6 | own icon: ironPlate (a riveted steel plate, a glint running along its edge) |
+| 212 | legendary | 🧱 | Бетонний дрейк / Concrete Drake | iron_hide + HP +8, HP/level +0.6 | own icon: cinderBlock (a concrete cinder block, a chip flicking off its corner) |
+| 213 | legendary | 🧱 | Танк чату / Chat Tank | iron_hide + HP +8, HP/level +0.6 | own icon: chatTank (a purple tank, a chat bubble popping up over its turret) |
+| 214 | legendary | 🏰 | Останній бастіон / Last Bastion | last_stand + HP +14 | own icon: bastion (a stone tower, its red flag fluttering) |
+| 215 | legendary | 🏰 | Ще не кінець / It's Not Over Yet | last_stand + HP +14 | own icon: candleStub (a candle stub whose flame flares up again) |
+| 216 | legendary | 🏰 | Камбек року / Comeback of the Year | last_stand + HP +14 | own icon: uppercut (a red boxing glove rising in an uppercut) |
+| 217 | legendary | 🤺 | Відповідь не забариться / Reply Incoming | counter + HP +12 | own icon: racket (a tennis racket, a ball bouncing back off it) |
+| 218 | legendary | 🤺 | Відбиваю, не дивлячись / Parry Without Looking | counter + HP +12 | own icon: blindfold (a blindfolded head, a sword raised to parry, sparks off the blade) |
+| 219 | legendary | 🤺 | Фехтувальник / The Fencer | counter + HP +12 | own icon: fencingFoil (a fencing foil, a glint running up the blade to a spark at the tip) |
+| 220 | legendary | 😋 | Пожирач бафів / Buff Eater | buff_eater + HP +12 | own icon: buffEater (a toothy red mouth chomping down on a gold star) |
+| 221 | legendary | 😋 | Збирач чужих бонусів / Bonus Collector | buff_eater + HP +12 | own icon: bonusSack (a burlap sack, stars dropping into it) |
+| 222 | legendary | 😋 | Податківець / Tax Collector | buff_eater + HP +12 | own icon: taxPurse (a purse taking in coins, a «%» tax tag hanging off it) |
+| 223 | legendary | 🏹 | Заряджений на повну / Fully Charged | meter_rush + HP +8, HP/level +0.6 | own icon: chargeCrystal (an amber crystal cluster glowing brighter, pulse by pulse) |
+| 224 | legendary | 🏹 | Турборежим / Turbo Mode | meter_rush + HP +8, HP/level +0.6 | own icon: turbine (a turbine spinning fast) |
+| 225 | legendary | 🏹 | Завжди напоготові / Always Ready | meter_rush + HP +8, HP/level +0.6 | own icon: drawnBow (a drawn bow with an arrow nocked, the string trembling) |
+| 226 | legendary | ⛄ | Снігова куля / Snowball | momentum + crit power +0.3 | own icon: snowball (a snowball rolling down a snowy slope) |
+| 227 | legendary | ⛄ | Розгін до сотні / Zero to a Hundred | momentum + crit power +0.3 | own icon: speedometer (a speedometer, its needle climbing into the red) |
+| 228 | legendary | ⛄ | Невпинний / Unstoppable | momentum + crit power +0.3 | own icon: boulder (a boulder rolling on, dust kicking up behind it) |
+| 229 | legendary | 🧪 | Чистий сигнал / Clean Signal | cleanse + HP +14, HP/level +0.6 | own icon: cleanSignal (a monitor where a noisy waveform smooths into a clean wave) |
+| 230 | legendary | 🧪 | Антидот / Antidote | cleanse + HP +14, HP/level +0.6 | own icon: antidote (a flask of teal antidote, bubbles rising) |
+| 231 | legendary | 🧪 | Вічно свіжий / Ever Fresh | cleanse + HP +14, HP/level +0.6 | own icon: soapBar (a pink bar of soap, bubbles rising off it) |
+| 232 | legendary | 💿 | Довгограйний / Long-Playing | long_buffs + HP +10, effect chance +10%, HP/level +0.6 | own icon: vinylRecord (a vinyl record spinning under the tonearm) |
+| 233 | legendary | 💿 | Вічний двигун / Perpetual Motion | long_buffs + HP +10, effect chance +10%, HP/level +0.6 | own icon: gears (two gears, gold and steel, turning together) |
+| 234 | legendary | 💿 | Бонус на бонус / Bonus on Bonus | long_buffs + HP +10, effect chance +10%, HP/level +0.6 | own icon: starStack (three gold stars stacked up, a fourth landing on top) |
+| 235 | legendary | 🩹 | Друге дихання / Second Wind | guardian_shield + HP +12 | own icon: windsock (a striped windsock on its pole, sagging and filling with wind again) |
+| 236 | legendary | 🩹 | Аптечка в кишені / Pocket First Aid | guardian_shield + HP +12 | own icon: pocketKit (a red first-aid kit with a white cross, sticking out of a jeans pocket) |
+| 237 | legendary | 🔩 | Відкривачка / Can Opener | armor_piercer + crit power +0.5 | own icon: canOpener (a can opener prying the lid off a can) |
+| 238 | legendary | 🔩 | Свердло / The Drill | armor_piercer + crit power +0.5 | own icon: drillBit (a spinning drill bit, shavings curling off) |
+| 239 | legendary | 😷 | Тефлоновий / Teflon | debuff_immunity + HP +15 | own icon: teflonPan (a frying pan, a water drop sliding off it) |
+| 240 | legendary | 😷 | Імунітет до токсичності / Immune to Toxicity | debuff_immunity + HP +15 | own icon: gasMask (a gas mask, green toxic puffs drifting past) |
+| 241 | legendary | 🌫️ | Невловимий / Elusive | quantum_dodge + HP +16 | own icon: sneakerDash (a red sneaker dashing off, its afterimage left behind) |
+| 242 | legendary | 🌫️ | Міраж / Mirage | quantum_dodge + HP +16 | own icon: mirage (a palm on a sand island, wavering and fading in the heat haze) |
+| 243 | legendary | 🎱 | Генератор рандому / Random Generator | chaotic_charge + effect chance +15% | own icon: pinball (a silver ball bouncing between three bumpers) |
+| 244 | legendary | 🎱 | Баг на ніжках / Bug on Legs | chaotic_charge + effect chance +15% | own icon: bugLegs (a beetle scuttling along, sparks popping off its back) |
 | 245 | mythic | 🪶 | Феніксове перо / Phoenix Feather | phoenix + HP +15, HP/level +1.1 | bonus: HP (stand-in) |
 | 246 | mythic | 🪶 | Не сьогодні / Not Today | phoenix + HP +15, HP/level +1.1 | bonus: HP (stand-in) |
 | 247 | mythic | 🪶 | Дев’ять життів / Nine Lives | phoenix + HP +15, HP/level +1.1 | bonus: HP (stand-in) |
