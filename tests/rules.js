@@ -1779,4 +1779,8 @@ for (const lang of ['en', 'uk']) {
 }
 
 console.log(failures ? `\n${failures} rule check(s) failed.` : '\nAll rule checks passed.');
-process.exit(failures ? 1 : 0);
+// Exit only once stdout has drained: on a pipe (CI) Node queues what doesn't fit, and process.exit would throw the queue away.
+// An empty write's callback runs after every write queued before it, so nothing printed is lost, and the process still
+// ends even if something is left open.
+const exit = code => process.stdout.write('', () => process.exit(code));
+exit(failures ? 1 : 0);

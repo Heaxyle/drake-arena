@@ -720,4 +720,8 @@ check(dispel.wasted === 0 && dispel.recast > 0,
 check(!stats.immuneHad.length, 'immune fighters never carried a debuff in a fight', `immune fighter with a debuff: ${stats.immuneHad.slice(0, 3).join(' | ')}`);
 
 console.log(failures ? `\n${failures} effect check(s) failed.` : '\nAll effect checks passed.');
-process.exit(failures ? 1 : 0);
+// Exit only once stdout has drained: on a pipe (CI) Node queues what doesn't fit, and process.exit would throw the queue away.
+// An empty write's callback runs after every write queued before it, so nothing printed is lost, and the process still
+// ends even if something is left open.
+const exit = code => process.stdout.write('', () => process.exit(code));
+exit(failures ? 1 : 0);

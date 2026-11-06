@@ -19,6 +19,10 @@ const FILE = fi === -1 ? 'showcase/index.html' : args[fi + 1];
 // Line endings normalised to \n, so the multi-line patterns below match on Windows (CRLF checkout) and in CI (LF)
 const src = fs.readFileSync(FILE, 'utf8').replace(/\r\n/g, '\n');
 const readme = fs.readFileSync(path.join(path.dirname(FILE), 'README.md'), 'utf8');
+// Exit only once stdout has drained: on a pipe (CI) Node queues what doesn't fit, and process.exit would throw the queue away.
+// An empty write's callback runs after every write queued before it, so nothing printed is lost, and the process still
+// ends even if something is left open.
+const exit = code => process.stdout.write('', () => process.exit(code));
 // Where the docs give the list's length, one place each
 const COUNTS = [['README.md', /(\d+) deliberate bugs/], ['TESTING.md', /(\d+) specific ways/]];
 // TESTING.md's table of them: a row for each, numbered 1 to N, so a mutation with no row fails. What's wrong with it, or nothing
@@ -594,14 +598,14 @@ async function pool(jobs, size) {
     if (table) stale.push(`TESTING.md ${table}`);
     if (stale.length) {
         console.log(`✗ the list has ${MUTATIONS.length} mutations, but ${stale.join(' and ')}: update the docs`);
-        process.exit(1);
+        return exit(1);
     }
     console.log(`✓ ${COUNTS.map(([file]) => file).join(' and ')} give the list's length, and TESTING.md's table has a row for each`);
     const control = await runTests(src);
     const bad = control.filter(r => r.code !== 0);
     if (bad.length) {
         console.log(`✗ the unchanged game already fails ${bad.map(r => r.file).join(' and ')}, so mutations can't be judged:\n  ${bad.flatMap(r => r.failed).slice(0, 3).join('\n  ')}`);
-        process.exit(1);
+        return exit(1);
     }
     console.log(`✓ unchanged game: ${TESTS.join(' and ')} pass\n`);
     const runnable = MUTATIONS.filter(([name, , find]) => {
@@ -616,5 +620,5 @@ async function pool(jobs, size) {
         console.log(`✓ caught: ${name} (${what})\n    by ${caughtBy.map(r => `${r.file} (${r.failed.length} check(s))`).join(', ')}; first: ${(first.failed[0] || '').slice(0, 150)}`);
     });
     console.log(missed ? `\n${missed} mutation(s) not caught.` : `\nAll ${MUTATIONS.length} mutations caught.`);
-    process.exit(missed ? 1 : 0);
+    exit(missed ? 1 : 0);
 })();
