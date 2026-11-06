@@ -615,7 +615,7 @@ heat tick and Виверження's heat are notes with their words. `design/ic
 | Id | What it will be | Record emoji | Stand-in | Why |
 |---|---|---|---|---|
 | `heat` | «Розжарення» / Heat: the card's count, the tick | 🌡️ | `burn` | the spec |
-| `stoke` | «Жар» / Stoke | ♨️ | `divine` | the spec |
+| `stoke` | «Запал» / Stoke | ♨️ | `divine` | the spec |
 | `melt` | «Оплавлення» / Melt | 🫠 | `mark` | the spec |
 | `eruption` | «Виверження» / Eruption | 🌋 | `firestorm` | the spec |
 | `frenzy` | «Кривавий шал» / Blood Frenzy | | `rage` | the spec |

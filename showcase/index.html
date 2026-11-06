@@ -6734,7 +6734,7 @@ const ICONS_V2 = {
                         lasts: 'turns', count: 3, nums: { hp: 3, healCut: 50 },
                         desc: { uk: '{hp}% макс. HP шкоди на початку кожного з {count} ходів цілі, її лікування −{healCut}%',
                                 en: '{hp}% max HP damage at the start of each of the target\'s {count} turns, and its healing is −{healCut}%' } },
-            stoke:    { element: 'orange', kind: 'buff',   icon: '♨️', color: '#ff8f2e', name: { uk: 'Жар', en: 'Stoke' }, acc: 'Жар',
+            stoke:    { element: 'orange', kind: 'buff',   icon: '♨️', color: '#ff8f2e', name: { uk: 'Запал', en: 'Stoke' }, acc: 'Запал',
                         lasts: 'attacks', count: 2, nums: {},
                         desc: { uk: 'Кожна з наступних {count} власних атак, що завдає шкоди, дає ще одне очко Сили стихії',
                                 en: 'Each of the next {count} own attacks that deals damage gives one extra point of Element Power' } },
@@ -8939,7 +8939,7 @@ const ICONS_V2 = {
                     }
                     // Element Power: +1 for an own attack that dealt damage (the ultimate doesn't count)
                     if (!ult && finalDmg > 0 && ultimateFor(attacker.drakeObj.type)) atkFx.meter = Math.min(METER.max, atkFx.meter + 1);
-                    // Жар: one more for an own attack that dealt damage (the ultimate still never fills the meter)
+                    // Запал: one more for an own attack that dealt damage (the ultimate still never fills the meter)
                     if (stoke && !ult && finalDmg > 0 && ultimateFor(attacker.drakeObj.type)) {
                         atkFx.meter = Math.min(METER.max, atkFx.meter + 1);
                         fvNote('stoke');

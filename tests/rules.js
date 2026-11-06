@@ -38,7 +38,7 @@
 //      sudden death and the time-out
 //   25 Season 2's Помаранчевий: the colour words and the drakes still being built; only an attack that lands adds heat; the
 //      tick (its numbers, its order, a knockout), its block roll, and everything that doesn't touch it; the White Dragon, the White Drake's scales;
-//      Оплавлення and Жар with the title abilities, debuff immunity and the scales; the card's heat and the record's words
+//      Оплавлення and Запал with the title abilities, debuff immunity and the scales; the card's heat and the record's words
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
@@ -1932,22 +1932,22 @@ for (const lang of ['en', 'uk']) {
         // The effects with the title abilities: each treats them like any other
         {
             const long = (() => { let left = null; scripted({ A: drake('plain', T(232)), setup: (fx, a, b) => { G.applyEffect(a, b, 'stoke', 20, fx); left = fx.A.buff[0].left; } }); return left; })();
-            check(long === 4, '25. Довгий баф: Жар lasts 4 attacks', String(long));
+            check(long === 4, '25. Довгий баф: Запал lasts 4 attacks', String(long));
             const eaten = scripted({ A: drake('plain', T(220)), setup: fx => { hurt(fx, 'A', G.getMaxHP(20, 'plain', T(220)), 100); put(fx, 'B', 'stoke'); }, turns: [dice({ after: [0.1, 0] })] }).turns[0];
-            check(eaten.notes.eaten && eaten.notes.eaten.id === 'stoke' && !eaten.fx.B.buff.length, '25. Пожирач бафів eats Жар', JSON.stringify(eaten.notes));
+            check(eaten.notes.eaten && eaten.notes.eaten.id === 'stoke' && !eaten.fx.B.buff.length, '25. Пожирач бафів eats Запал', JSON.stringify(eaten.notes));
             let sent = null;
             scripted({ A: OR(), B: drake('plain', T(264)), setup: (fx, a, b) => { rolled([0.1], () => G.applyEffect(a, b, 'melt', 20, fx)); sent = { a: fx.A.debuff.map(x => x.id), b: fx.B.debuff.map(x => x.id) }; } });
             check(sent.a.join() === 'melt' && !sent.b.length, '25. Повернення sends Оплавлення back to its caster', JSON.stringify(sent));
             const cleansed = scripted({ A: drake('plain', T(229)), setup: fx => put(fx, 'A', 'melt'), turns: [dice()] }).turns[0];
             check(!cleansed.fx.A.debuff.length && cleansed.notes.cleanse.join() === 'melt', '25. Очищення takes Оплавлення off', JSON.stringify(cleansed.notes));
             const stolen = scripted({ A: drake('black'), setup: fx => { fx.A.meter = 5; put(fx, 'B', 'stoke', 2); }, turns: [dice()] }).turns[0];
-            check(stolen.fx.A.buff.map(x => `${x.id}:${x.left}`).join() === 'stoke:1' && !stolen.fx.B.buff.length, '25. Крадіжка тіні takes Жар with what it has left (2, and its own attack uses one)', JSON.stringify(stolen.fx.A.buff));
+            check(stolen.fx.A.buff.map(x => `${x.id}:${x.left}`).join() === 'stoke:1' && !stolen.fx.B.buff.length, '25. Крадіжка тіні takes Запал with what it has left (2, and its own attack uses one)', JSON.stringify(stolen.fx.A.buff));
             let dispelled = null;
             scripted({ A: drake('purple'), B: OR(), setup: (fx, a, b) => { put(fx, 'B', 'stoke'); dispelled = { r: G.applyEffect(a, b, 'dispel', 20, fx), left: fx.B.buff.length }; } });
-            check(dispelled.r === 'dispelled' && dispelled.left === 0, '25. Розвіювання takes Жар off', JSON.stringify(dispelled));
+            check(dispelled.r === 'dispelled' && dispelled.left === 0, '25. Розвіювання takes Запал off', JSON.stringify(dispelled));
             let pulled = null;
             scripted({ A: OR(), B: WD(), setup: (fx, a, b) => { put(fx, 'A', 'magnet'); pulled = { r: G.applyEffect(a, b, 'stoke', 20, fx), wd: fx.B.buff.map(x => x.id), mine: fx.A.buff.length }; } });
-            check(pulled.r === 'pulled' && pulled.wd.join() === 'stoke' && !pulled.mine, '25. Магніт pulls Жар to the White Drake', JSON.stringify(pulled));
+            check(pulled.r === 'pulled' && pulled.wd.join() === 'stoke' && !pulled.mine, '25. Магніт pulls Запал to the White Drake', JSON.stringify(pulled));
             let immune = null;
             scripted({ A: OR(), B: drake('plain', titleWith('debuff_immunity')), setup: (fx, a, b) => { immune = G.applyEffect(a, b, 'melt', 20, fx); } });
             check(immune === 'immune', '25. debuff immunity stops Оплавлення', String(immune));
@@ -1964,7 +1964,7 @@ for (const lang of ['en', 'uk']) {
 
         {
             const told = scripted({ A: OR(), setup: fx => put(fx, 'A', 'stoke'), turns: [dice()] }).turns[0];
-            check(told.notes.stoke && /POWER/.test(told.text), '25. nothing only in the hidden record: Жар\'s extra point tells the view', JSON.stringify(told.notes));
+            check(told.notes.stoke && /POWER/.test(told.text), '25. nothing only in the hidden record: Запал\'s extra point tells the view', JSON.stringify(told.notes));
             const erupted = scripted({ A: OR(), setup: fx => { fx.A.meter = 5; fx.A.heat = 8; }, turns: [dice()] }).turns[0];
             check(erupted.notes.mult === 1.9 && erupted.notes.heatFrom === 8 && erupted.notes.heatTo === 4 && erupted.text.includes('8 → 4'), '25. nothing only in the hidden record: Виверження tells the view its multiplier and the heat', JSON.stringify(erupted.notes));
         }

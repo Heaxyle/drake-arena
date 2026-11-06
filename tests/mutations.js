@@ -612,14 +612,14 @@ const MUTATIONS = [
         ": t.block ? `${t.shadow ? fvFxChip('shadow') : ''}${fvLk(`${fvH(t.id)} ${fvH('block')}`, 'note')}`\n", "\n"],
     ['the heat off the fighter card', "the fighter card doesn't show the heat",
         "if (st && st.heat != null) html +=", "if (false) html +="],
-    // Season 2: Жар
-    ['Жар on a blocked attack', 'an attack that dealt no damage still gets the extra point',
+    // Season 2: Запал
+    ['Запал on a blocked attack', 'an attack that dealt no damage still gets the extra point',
         "if (stoke && !ult && finalDmg > 0 && ultimateFor(attacker.drakeObj.type)) {", "if (stoke && !ult && ultimateFor(attacker.drakeObj.type)) {"],
-    ['Жар fills the meter on the ultimate', 'the ultimate gets the extra point',
+    ['Запал fills the meter on the ultimate', 'the ultimate gets the extra point',
         "if (stoke && !ult && finalDmg > 0 && ultimateFor(attacker.drakeObj.type)) {", "if (stoke && finalDmg > 0 && ultimateFor(attacker.drakeObj.type)) {"],
-    ['effect power scales Жар', 'a count is scaled: the extra point grows with effect power',
+    ['effect power scales Запал', 'a count is scaled: the extra point grows with effect power',
         "atkFx.meter = Math.min(METER.max, atkFx.meter + 1);\n                        fvNote('stoke');", "atkFx.meter = Math.min(METER.max, atkFx.meter + Math.round(stoke.power));\n                        fvNote('stoke');"],
-    ["Жар's point only in the hidden record", "the extra point doesn't tell the view",
+    ["Запал's point only in the hidden record", "the extra point doesn't tell the view",
         "fvNote('stoke');\n", ''],
     // Season 2: Оплавлення
     ['Оплавлення on the wrong fighter', "the attacker's own Оплавлення raises its damage",
