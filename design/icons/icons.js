@@ -1848,6 +1848,7 @@
     // doesn't read on the dark UI; this stays a neutral grey, never a purple)
     const ELEMENT_COLORS = {
         red: '#ff4f5a', blue: '#4a98ff', black: '#9b9ba8', gold: '#f2c14e', purple: '#b47aff', green: '#6fe896',
+        orange: '#ff8a1f', cherry: '#b8304f', pink: '#f78fbf', turquoise: '#26c2b0',
         steel: '#cdd6e4',   // the White Drake: its scale bar's white steel; never Black's grey (bluer, much lighter, green accents)
     };
     // The White Drake's own letters: the sprite's navy outline and slate shade (not a neutral grey), pure white, the crack's red
@@ -2023,6 +2024,19 @@
     // The emblems: the drakes' heads, every drake's in the game's order, then the streamer's two forms
     const EMBLEM_IDS = ['emRed', 'emBlue', 'emBlack', 'emGold', 'emPurple', 'emGreen', 'emDragon', 'emSteel'];
     const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind) && !BATCH4_ICON_IDS.includes(id) && ICONS[id].element !== 'steel');
+
+    // ----- Stand-ins: Season 2's icons until their art is drawn -----
+    // The one list: each new icon id and the icon of today's set drawn in its place. The game asks for the new id everywhere
+    // (an id here has no record in ICONS, no glyph and no V2 art of its own) and pxIcon draws the stand-in, so when the art
+    // lands the id gets its record, glyph, V2 still and loop, its line goes from this list, and nothing else changes. A stand-in
+    // is shared with the icon it borrows, so on a log card its compact form keeps its words. inventory.md lists them.
+    const STAND_INS = {
+        emOrange: 'emGold', emCherry: 'emRed', emPink: 'emPurple', emTurquoise: 'emBlue',
+        heat: 'burn', stoke: 'divine', melt: 'mark', eruption: 'firestorm',
+        frenzy: 'rage', bloodprice: 'vampire', bleed: 'poison', lastbreath: 'crit',
+        illusion: 'theft', borrowed: 'theft', fairydust: 'blessing', infatuation: 'weakness',
+        nacre: 'shield', clearwater: 'regen', seaweed: 'frost', hightide: 'bloom',
+    };
 
     // ----- Palette from one colour -----
     const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
@@ -2248,5 +2262,5 @@
     // The CSS for a chip of this element and kind (the element's text colour goes with it)
     const chipStyle = (element, kind) => `border-style: solid; border-width: 1px ${CHIP.cap}px; border-image: url(${chipURL(element, kind)}) 1 ${CHIP.cap} fill / 1px ${CHIP.cap}px stretch; color: ${mix(ELEMENT_COLORS[element], '#ffffff', 0.35)};`;
 
-    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, TITLE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, EMBLEM_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleURL, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
+    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, STAND_INS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, TITLE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, EMBLEM_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleURL, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
 })(typeof window !== 'undefined' ? window : globalThis);

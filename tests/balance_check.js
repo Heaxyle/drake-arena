@@ -41,7 +41,6 @@ const NO_COUNTERS = args.includes('--no-counters');
 const SKIP_ELEMENTS = args.includes('--skip-elements');
 const LEVELS = [1, 10, 20];
 const LADDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
-const TYPES = ['red', 'blue', 'black', 'gold', 'purple', 'green'];
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'drake-balance-'));
 const balance = path.join(__dirname, 'balance.js');
@@ -79,6 +78,7 @@ async function pool(jobs, size) {
     const results = await pool([...matrixJobs, ...tierJobs], Math.max(1, os.cpus().length - 1));
     const matrices = results.slice(0, matrixJobs.length), tiers = results.slice(matrixJobs.length);
     const problems = [], counters = [];
+    const TYPES = matrices.length ? Object.keys(matrices[0].matrix) : [];   // every viewer element, as the sim played them
     const avg = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
 
     for (const lvl of SKIP_ELEMENTS ? [] : LEVELS) {

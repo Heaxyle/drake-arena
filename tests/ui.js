@@ -10,7 +10,7 @@
 // vertically, the info feed never overflows its column, buff/debuff chips read "name · what's left" and aren't cut off. The streamer's
 // two forms are streamer-only: the White Drake (!дрейк білий) and the White Dragon (!дракон) are refused while no streamer is
 // set and for every other viewer (!дрейк / !drake / !рерол / !дракон), and work for the streamer set in Test Settings, who
-// fights as the White Drake, then switches to the Dragon and back with its XP kept: all 8 drake types are drawn.
+// fights as the White Drake, then switches to the Dragon and back with its XP kept: every drake type on offer is drawn.
 // Fights with the dragon (one natural, one with vampire rolls forced) must never log a heal above the healer's max HP.
 // A separate run loads an old save (viewers' White Drakes) and checks the migration to Green is correct and idempotent,
 // and that the streamer's old Dragon save gets a White Drake at level 1 behind it.
@@ -47,12 +47,12 @@ const SEED = Number(process.env.UI_SEED || 3);
 const VERSIONS = {
     showcase: {
         file: 'showcase/index.html',
-        // 6 viewer elements + the streamer's White Drake (!дрейк білий), which only the streamer (set in Test Settings) can
+        // The viewer elements + the streamer's White Drake (!дрейк білий), which only the streamer (set in Test Settings) can
         // pick; the streamer's other form, the White Dragon, comes through !дракон before the heal-log duels (3b)
         drakes: [['ruby', 'червоний', 'red'], ['sapphire', 'синій', 'blue'], ['onyx', 'чорний', 'black'], ['topaz', 'золотий', 'gold'],
-                 ['amethyst', 'фіолетовий', 'purple'], ['jade', 'зелений', 'green'], ['teststreamer', 'білий', 'steel']],
+                 ['amethyst', 'фіолетовий', 'purple'], ['jade', 'зелений', 'green'], ['ember', 'помаранчевий', 'orange'], ['teststreamer', 'білий', 'steel']],
         // First pair fights ranked via !черга; the rest are friendly duels so every sprite gets drawn
-        duels: [['onyx', 'topaz'], ['amethyst', 'jade'], ['teststreamer', 'ruby']],
+        duels: [['onyx', 'topaz'], ['amethyst', 'jade'], ['ember', 'sapphire'], ['teststreamer', 'ruby']],
         dragon: { streamer: 'teststreamer', type: 'white', titleId: 999, drakeType: 'steel', drakeTitleId: 998, storageKey: 'drake_arena_showcase_streamer' },
         hasInfoFeed: true,
         hasOdds: true,
@@ -118,7 +118,7 @@ function powerMeters() {
         const content = kids.length ? Math.max(...kids.map(c => c.right)) : r.left;
         const name = document.getElementById(`name-${p}`).innerText.replace('@', '').trim();
         const st = isBattleRunning && typeof battleFx !== 'undefined' && battleFx && battleFx[name];   // between fights the cards are idle
-        const d = getDragonStrict(name), ult = d && d.drakeObj ? ultimateFor(d.drakeObj.type) : null;   // «ГОТОВО» shows this ultimate's icon
+        const d = getDragonStrict(name), ult = d && d.drakeObj && ultimateFor(d.drakeObj.type) ? iconOf(ultimateFor(d.drakeObj.type)) : null;   // «ГОТОВО» shows this ultimate's icon (a stand-in's until it has its own)
         return { p, ult, text: window.__vt(row), pips: row.querySelectorAll('.pm-pip').length, on: row.querySelectorAll('.pm-pip.on').length,
                  meter: st ? st.meter : null, overlapsChips: r.height > 0 && r.top < chips.bottom - 0.5, overlapsHp: r.height > 0 && r.bottom > hp.top + 0.5,
                  // the sprite is on the right of the left card and on the left of the right card: check both sides
@@ -461,10 +461,11 @@ async function testVersion(browser, key) {
     if (barMoves.size) [...barMoves].slice(0, 10).forEach(fail);
     else pass('HP bars stayed at the same vertical position the whole time');
     const allTypes = await page.evaluate(() => DRAKE_TYPES.map(d => d.type));
-    const missing = allTypes.filter(t => !spritesSeen[t]);
-    if (allTypes.length !== 8) fail(`expected 8 drake types (6 viewer elements, the White Drake and the White Dragon), the game has ${allTypes.length}: ${allTypes.join(', ')}`);
+    const unbuilt = await page.evaluate(() => UNBUILT_TYPES);   // nobody can get one of these yet, so they aren't drawn
+    const missing = allTypes.filter(t => !spritesSeen[t] && !unbuilt.includes(t));
+    if (allTypes.length !== 12) fail(`expected 12 drake types (10 viewer elements, the White Drake and the White Dragon), the game has ${allTypes.length}: ${allTypes.join(', ')}`);
     if (missing.length) fail(`sprites never rendered for: ${missing.join(', ')}`);
-    else pass(`sprites rendered for all ${allTypes.length} types (${allTypes.join(', ')})`);
+    else pass(`sprites rendered for all ${allTypes.length - unbuilt.length} types on offer (${allTypes.filter(t => !unbuilt.includes(t)).join(', ')})`);
     if (cfg.hasInfoFeed) {
         if (feedIssues.size) feedIssues.forEach((v, kind) => fail(`info feed: ${kind} — first ${v.when} (${v.detail}), seen in ${v.count} check(s)`));
         else pass('info feed never overflowed its column');

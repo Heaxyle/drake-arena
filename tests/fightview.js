@@ -49,6 +49,10 @@
 //     next turn; AFK's grey card with «AFK» until its next turn and the ×3 return; Лаг's «…» and the stuck hit landing a turn
 //     late, one that knocks out too (the target is the one out); Підзарядка's banner and 2/5 on the card. No block of a
 //     fighter card moves. Screenshots: tests/screenshots/fightview-meme-*.png
+//   - Помаранчевий in real fights with fixed dice, both languages: the heat on the fighter card from 0/8, no block moving; the
+//     tick on the opponent's log card and as a pop on its fighter card; a tick that knocks out, on the knockout cell; Виверження's
+//     card (its multiplier and the heat dropping) and the card's heat after it; against the White Drake the heat takes the
+//     scales and isn't counted as the damage she dealt
 //   - Review screenshots: tests/screenshots/fightview-cards.png (log cards of every kind, both languages) and
 //     tests/screenshots/fightview-turn.png (countdowns, the turn steps, an ultimate, the result, both languages)
 //
@@ -65,8 +69,8 @@ const ROOT = path.join(__dirname, '..');
 const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
-const TURN = 4500, HIT = 600;
-// FV_ONLY=2,4 runs only those sections (0–16, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
+const TURN = 4500, HIT = 600, WHITE_STEEL = 998;
+// FV_ONLY=2,4 runs only those sections (0–17, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
 const ONLY = (process.env.FV_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
 
@@ -96,8 +100,8 @@ async function open(browser, { lang = 'uk', betting = false, width = 1920, heigh
 const say = (page, user, msg, color = '#ff7f50') => page.evaluate(([u, m, c]) => handleChatMessage('#test', { username: u, color: c }, m, false), [user, msg, color]);
 const cmd = (lang, uk, en) => lang === 'uk' ? uk : en;
 // «білий» gives the streamer the White Drake ('steel'); the White Dragon ('white') is the streamer's other form, through !дракон
-const COLOR_WORD = { uk: { red: 'червоний', blue: 'синій', black: 'чорний', gold: 'золотий', purple: 'фіолетовий', green: 'зелений', steel: 'білий', white: 'білий' },
-                     en: { red: 'red', blue: 'blue', black: 'black', gold: 'gold', purple: 'purple', green: 'green', steel: 'white', white: 'white' } };
+const COLOR_WORD = { uk: { red: 'червоний', blue: 'синій', black: 'чорний', gold: 'золотий', purple: 'фіолетовий', green: 'зелений', orange: 'помаранчевий', steel: 'білий', white: 'білий' },
+                     en: { red: 'red', blue: 'blue', black: 'black', gold: 'gold', purple: 'purple', green: 'green', orange: 'orange', steel: 'white', white: 'white' } };
 async function register(page, lang, users) {
     for (const [u, type, color] of users) {
         await say(page, u, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][type]}`, color || '#ff7f50');
@@ -905,7 +909,7 @@ async function popAtStep2(page, turn) {
             }
             await page.selectOption('#debug-force-cast', '');
             const bad = results.filter(r => !r.ok);
-            check(!bad.length && results.length === 12, `[${lang}] all 12 effects cast from "next hit casts": the card says it ("накладає 🎯 Мітку", the name after the verb in the accusative; refresh / Dispel in words, a replacement «X · Y зникає») and the fighter card shows the chip, in the nominative`,
+            check(!bad.length && results.length === ids.length, `[${lang}] all ${ids.length} effects cast from "next hit casts": the card says it ("накладає 🎯 Мітку", the name after the verb in the accusative; refresh / Dispel in words, a replacement «X · Y зникає») and the fighter card shows the chip, in the nominative`,
                 bad.slice(0, 3).map(r => `${r.id}: ${r.why}`).join(' | '));
             if (errors.length) fail(`[${lang}] page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
@@ -1090,7 +1094,7 @@ async function popAtStep2(page, turn) {
         if (run(5)) for (const lang of ['uk', 'en']) {
             const { page, context, errors } = await open(browser, { lang });
             await page.click('button[data-i18n="btn_settings"]');
-            const ults = await page.evaluate(() => ULTIMATE_IDS.map(id => ({ id, element: CLASS_ULTIMATES[id].element, label: `${METER.label[currentLang]} · ${CLASS_ULTIMATES[id].name[currentLang]}`, name: `[${id}] ${CLASS_ULTIMATES[id].name[currentLang]}`, icon: CLASS_ULTIMATES[id].icon })));
+            const ults = await page.evaluate(() => ULTIMATE_IDS.map(id => ({ id, element: CLASS_ULTIMATES[id].element, label: `${METER.label[currentLang]} · ${CLASS_ULTIMATES[id].name[currentLang]}`, name: `[${iconOf(id)}] ${CLASS_ULTIMATES[id].name[currentLang]}`, icon: CLASS_ULTIMATES[id].icon })));
             const jackpotCases = [['💎', '💎', '💎'], ['💎', '🪙', '💀'], ['🪙', '💀', '💀'], ['💀', '💀', '💀']];
             const REEL = { '💎': '[reelgem]', '🪙': '[reelcoin]', '💀': '[reelbust]' };   // each reel's pixel icon on the card
             const runs = [...ults.map(u => ({ u })), ...jackpotCases.map(reels => ({ u: ults.find(x => x.id === 'jackpot'), reels }))];
@@ -1150,6 +1154,7 @@ async function popAtStep2(page, turn) {
                     if (u.id === 'detonation') detail = /×\d/.test(l2);
                     if (u.id === 'anvil') detail = l2.includes(`×${want.anvil}`);
                     if (u.id === 'bloom') detail = card.num.startsWith('+');
+                    if (u.id === 'eruption') detail = /×\d/.test(l2) && / → /.test(l2);
                 }
                 const ok = !!card && card.ult === u.label && !!step1 && step1.ult && step1.tab === u.name && detail;
                 results.push({ id: u.id + (run.reels ? ` [${run.reels.join('')}]` : ''), ok, why: JSON.stringify({ step1, card }) });
@@ -1860,10 +1865,10 @@ async function popAtStep2(page, turn) {
         // no cast). Rolls in the fight's order: `before` (Синій екран, AFK's draw), the attack's five, `after`, the cast
         console.log('\nThe Meme abilities, as the stream sees them');
         const ROLLS = (o = {}) => [...(o.before || []), 0.5, 0.5, 0.5, 0.99, o.block ?? 0.99, ...(o.after || []), 0.99];
-        const memePage = async (lang, motion) => {
+        const memePage = async (lang, motion, users = [['kotyk_ua', 'red'], ['jade', 'green']]) => {
             const { page, context, errors } = await open(browser, { lang, motion });
             await page.evaluate(() => { const real = Math.random; window.__dice = null; Math.random = () => window.__dice ? (window.__dice.length ? window.__dice.shift() : 0.99) : real(); });
-            await register(page, lang, [['kotyk_ua', 'red'], ['jade', 'green']]);
+            await register(page, lang, users);
             // A fight between the two with these titles: the last one played out first, then the coin flip keeps kotyk_ua first
             const fight = async (a, b) => {
                 await page.evaluate(() => { window.__dice = null; });
@@ -1970,6 +1975,51 @@ async function popAtStep2(page, turn) {
             // The flash is over in 1.4 s of real time: the screenshot holds it at its height
             await page.evaluate(() => { const x = document.querySelector('#card-p1 .fx-crash').getAnimations()[0]; x.pause(); x.currentTime = 500; });
             await page.screenshot({ path: 'tests/screenshots/fightview-meme-crash-motion.png' });
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // Помаранчевий as the stream sees it, in real fights with fixed dice
+        console.log('\nПомаранчевий, as the stream sees it');
+        if (run(17)) for (const lang of ['uk', 'en']) {
+            const { page, context, errors, fight, turn, hp, looks } = await memePage(lang, false, [['kotyk_ua', 'orange'], ['jade', 'red']]);
+            const word = (await page.evaluate(() => __fvv('heat')));   // the note as it shows: its icon and its word
+            const heatRow = () => page.evaluate(() => __vt(document.querySelector('#card-p1 .pm-heat')));
+            const glyph = word.split(' ')[0];
+            await fight(1, 1);
+            const start = await heatRow(), calm = await looks('p1');
+            check(start === `${glyph} 0/8` && !(await page.evaluate(() => !!document.querySelector('#card-p2 .pm-heat'))), `[${lang}] the fight starts with ${start} on its card, and none on the other`, start);
+            await turn(1, ROLLS());
+            const one = await heatRow(), after = await looks('p1');
+            check(one === `${glyph} 1/8` && after.boxes === calm.boxes, `[${lang}] an attack adds heat (${one}), and no block of the card moves`, JSON.stringify([one, calm.boxes, after.boxes]));
+            const before = await hp('p2');
+            const ticked = await turn(2, ROLLS());
+            check(ticked.card.l2.includes(`${word} -1`) && ticked.s.p2.pops.includes('-1') && before - await hp('p2') === 1,
+                `[${lang}] the tick: «${word} -1» on the opponent's log card and a pop on its fighter card`, JSON.stringify({ card: ticked.card, pops: ticked.s.p2.pops }));
+            // A tick that knocks out: the knockout cell says what did it (a Burn that leaves 3 HP, then 8 heat at 0.5% each)
+            const foeMax = await page.evaluate(() => { const [now, max] = document.getElementById('hp-text-p2').innerText.split('/').map(Number); battleFx.kotyk_ua.heat = 8; battleFx.jade.debuff.push({ id: 'burn', left: 1, power: (now - 3) / max * 100 / 5 }); return max; });
+            await turn(3, ROLLS({ block: 0.01 }));
+            await page.evaluate(() => { battleFx.kotyk_ua.heat = 8; });
+            await turn(4, []);
+            await page.clock.runFor(HIT);
+            const end = await page.evaluate(arenaNow), koCell = end.cells.find(c => c.kind === 'ko');
+            check(koCell && koCell.text.includes('@jade') && koCell.text.includes(`${word} -${Math.round(foeMax * 0.04)}`), `[${lang}] a tick that knocks out shows on the knockout cell`, JSON.stringify(end.cells));
+            // Виверження: ×1.85 at 7 heat, the heat dropping to 3
+            await fight(1, 1);
+            await page.evaluate(() => { battleFx.kotyk_ua.meter = 5; battleFx.kotyk_ua.heat = 7; });
+            const erupted = await turn(1, ROLLS());
+            check(erupted.card.ult.includes(await page.evaluate(() => CLASS_ULTIMATES.eruption.name[currentLang])) && erupted.card.l2.includes('×1.85') && erupted.card.l2.includes(`${word} 7 → 3`) && await heatRow() === `${glyph} 3/8`,
+                `[${lang}] Виверження: its head, ×1.85 and «${word} 7 → 3» on the card, and 3/8 on the fighter card`, JSON.stringify(erupted.card));
+            // The White Drake: the tick goes to the scales, and it isn't damage she dealt
+            await page.evaluate(() => { const db = getDragonDB(); db.jade.drakeObj = DRAKE_TYPES.find(d => d.type === WHITE_DRAKE_TYPE); saveDragonDB(db); });
+            await fight(1, WHITE_STEEL);
+            const scalesBefore = await page.evaluate(() => { battleFx.kotyk_ua.heat = 8; return battleFx.jade.scales.now; });
+            const hpBefore = await hp('p2');
+            await turn(1, ROLLS({ block: 0.01 }));
+            const burned = await turn(2, ROLLS({ block: 0.01 }));
+            const seen = await page.evaluate(() => ({ now: battleFx.jade.scales.now, dealt: fv.stats.jade.dmg, biggest: fv.stats.jade.max }));
+            check(seen.now < scalesBefore && await hp('p2') === hpBefore && seen.dealt === 0 && seen.biggest === 0 && burned.card.l2.includes(word),
+                `[${lang}] against the White Drake the tick takes her scales (${scalesBefore} → ${seen.now}), and it doesn't count as damage she dealt`, JSON.stringify({ seen, card: burned.card }));
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }

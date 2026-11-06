@@ -33,7 +33,7 @@ function pageInit(seed) {
         walk(el);
         return parts.join('').replace(/\s+/g, ' ').trim();
     };
-    window.__fxv = (id, acc = false) => `[${id}] ${acc && currentLang === 'uk' ? EFFECTS[id].acc : EFFECTS[id].name[currentLang]}`;
+    window.__fxv = (id, acc = false) => `[${iconOf(id)}] ${acc && currentLang === 'uk' ? EFFECTS[id].acc : EFFECTS[id].name[currentLang]}`;
     // The game's own overlay text for a key, as __vt reads it: __fvv (FV_TEXT, the fight view), __tv (TOURNEY_TEXT)
     const shown = html => { const d = document.createElement('div'); d.innerHTML = html; return window.__vt(d); };
     window.__fvv = (key, vars) => shown(fvH(key, vars));

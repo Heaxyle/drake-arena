@@ -5,7 +5,8 @@
 // 1. Every glyph is its kind's size (iconRows throws otherwise), and every icon has a label in both languages.
 // 2. The V2 set is the glyphs' set: every icon of icons.js and every rarity's title frame, each its glyph's size × the one
 //    density, with the same kind and names. Every V2 image is its item's size; every loop is an APNG that loops forever,
-//    with the manifest's frame count and frame time, and its first frame is the still.
+//    with the manifest's frame count and frame time, and its first frame is the still. The stand-ins (STAND_INS: Season 2's
+//    icons until their art is drawn) have no record or art of their own: each borrows an icon of the set that has both.
 // 3. The emblems differ in shape, not only in colour: every emblem is one tile (the same for every drake, colour aside) with
 //    its element's symbol on it, and each symbol (which pixels inside the tile aren't the tile's) must differ from every
 //    other's in at least MIN_DIFF pixels, so a greyscale or colour-blind viewer can tell them apart by shape.
@@ -74,7 +75,7 @@ const _warn = console.warn, _err = console.error, errors = [];
 console.warn = () => {};
 console.error = (...a) => errors.push(a.join(' '));
 eval(gameScript(FILE) + `
-;globalThis.__game = { DI: DrakeIcons, EFFECTS, CLASS_ULTIMATES, ULTIMATE_IDS, DRAKE_TYPES, TITLES_DB, FV_TEXT, FV_ICONS, TOURNEY_TEXT, TOURNEY_ICONS,
+;globalThis.__game = { DI: DrakeIcons, iconOf, pxIcon, EFFECTS, CLASS_ULTIMATES, ULTIMATE_IDS, DRAKE_TYPES, TITLES_DB, FV_TEXT, FV_ICONS, TOURNEY_TEXT, TOURNEY_ICONS,
     SHOW_TEXT, SHOW_ICONS, METER, EMBLEMS, MEDAL_ICONS, REEL_ICONS, EMOJI_RE, RARITIES, titleGlyph, ultimateFor, fvCardHtml, fvBannerHtml, renderLeaderboard,
     getDragonDB, saveDragonDB, setLang: l => { currentLang = l; } };`);
 console.warn = _warn;
@@ -117,6 +118,20 @@ const GI = G.DI.ICONS;
     const nIcons = Object.keys(D.ICONS).length;
     check(!bad.length, `the V2 set: ${Object.keys(M).length} items, icons.js's ${nIcons} icons and the ${RARITY_IDS.length} rarities' title frames, each its glyph × ${DENSITY} with the same kind and names`, bad.join(' | '));
     check(!badFiles.length, `every V2 still and loop is its item's size; every loop an APNG that loops forever, with the manifest's frame count and frame time, its first frame the still`, badFiles.slice(0, 8).join(' | '));
+}
+
+// ---- 2b. The stand-ins: the spec's list, each on an icon that exists, none with art of its own; the page draws them
+{
+    const S = D.STAND_INS, bad = [];
+    const SPEC = { heat: 'burn', stoke: 'divine', melt: 'mark', eruption: 'firestorm', frenzy: 'rage', bloodprice: 'vampire', bleed: 'poison', lastbreath: 'crit',
+        illusion: 'theft', borrowed: 'theft', fairydust: 'blessing', infatuation: 'weakness', nacre: 'shield', clearwater: 'regen', seaweed: 'frost', hightide: 'bloom' };
+    for (const [id, to] of Object.entries(SPEC)) if (!D.ICONS[id] && S[id] !== to) bad.push(`${id}: its stand-in is ${S[id]}, the spec says ${to}`);
+    for (const id of ['emOrange', 'emCherry', 'emPink', 'emTurquoise']) if (!D.ICONS[id] && !D.EMBLEM_IDS.includes(S[id])) bad.push(`${id}: its stand-in ${S[id]} isn't an emblem`);
+    for (const [id, to] of Object.entries(S)) {
+        if (D.ICONS[id] || M[id]) bad.push(`${id} has art of its own: its line goes from STAND_INS`);
+        if (!D.ICONS[to] || !M[to]) bad.push(`${id}: its stand-in ${to} isn't an icon with V2 art`);
+    }
+    check(!bad.length, `${Object.keys(S).length} stand-ins, each on an icon of the set with its V2 art, none with art of its own`, bad.join(' | '));
 }
 
 // ---- 3. Emblem symbols
@@ -179,7 +194,7 @@ const GI = G.DI.ICONS;
     [G.FV_ICONS, G.TOURNEY_ICONS, G.SHOW_ICONS].forEach(list => Object.values(list).flat().filter(Boolean).forEach(id => ask(id, 'an icon list')));
     G.DRAKE_TYPES.forEach(d => { const u = G.ultimateFor(d.type); if (u) ask(u, `${d.type}'s «ГОТОВО»`); });
     // A frame is V2 art only; every other icon is a glyph (its size and names) and its V2 art
-    const missing = [...asked].filter(([id]) => !M[id] || (!id.startsWith('frame-') && !GI[id])).map(([id, where]) => `${id} (${where}${M[id] ? ', no glyph' : GI[id] ? ', no V2 art' : ''})`);
+    const missing = [...asked].map(([id, where]) => [G.iconOf(id), where]).filter(([id]) => !M[id] || (!id.startsWith('frame-') && !GI[id])).map(([id, where]) => `${id} (${where}${M[id] ? ', no glyph' : GI[id] ? ', no V2 art' : ''})`);
     check(!missing.length && !errors.length, `every icon the game asks for exists, with its V2 still and loop (${asked.size} icons and frames)`, `missing: ${missing.concat(errors).join(', ')}`);
 }
 
@@ -396,6 +411,26 @@ const GI = G.DI.ICONS;
         if (!banner.includes('2/5') || !shows(banner, G.titleGlyph(T(223)))) bad2.push(`${lang}: Підзарядка's banner doesn't show its badge and 2/5: ${banner.slice(0, 120)}`);
     }
     check(!bad2.length, `the notes of titles 205–294 (${ABILITY_NOTES.length} cases, both languages): the badge's glyph with the ability's words; the Legendary titles' own icons and a lent one compact to the icon and the number, a stand-in keeps its words; two stand-ins on a card stay apart; «404», «…», «:(», «AFK» on line 1; the accusative after a verb`, bad2.slice(0, 6).join(' | '));
+}
+
+// ---- 9b. Stand-ins on the cards: drawn as the icon they borrow, and a compact chip keeps its words, so it can't read as that icon
+{
+    const fighter = (name, type) => ({ name, color: '#8ab4f8', drakeObj: G.DRAKE_TYPES.find(d => d.type === type), title: null });
+    const a = fighter('a', 'orange'), d = fighter('d', 'red'), bad = [];
+    const card = extra => G.fvCardHtml({ turn: 1, atk: a, def: d, side: 'left', ticks: [], notes: {}, casts: [], used: [], ult: null, attack: null, frozen: false, ...extra }, 'left');
+    for (const lang of ['uk', 'en']) {
+        G.setLang(lang);
+        for (const id of Object.keys(G.EFFECTS).filter(x => D.STAND_INS[x])) {
+            const html = card({ used: [id] }), name = G.EFFECTS[id].name[lang];
+            if (!html.includes(`data-icon="${D.STAND_INS[id]}"`) || html.includes(`data-icon="${id}"`)) bad.push(`${lang} ${id}: not drawn as ${D.STAND_INS[id]}`);
+            if (!html.includes(`data-ci="${id}" data-ct="${name}"`)) bad.push(`${lang} ${id}: its compact chip lost its words`);
+        }
+        const real = card({ used: ['burn'] });
+        if (!real.includes('data-ci="burn" data-ct=""')) bad.push(`${lang}: an effect with its own icon keeps words in its compact chip`);
+        const tick = card({ ticks: [{ id: 'heat', v: -19 }] }), words = G.FV_TEXT[lang].heat.replace(G.EMOJI_RE, '').trim();
+        if (!tick.includes(`data-icon="${D.STAND_INS.heat || 'heat'}"`) || !tick.includes(`${words} -19`)) bad.push(`${lang}: the heat tick doesn't read «${words} -19» by its icon`);
+    }
+    check(!bad.length, 'stand-ins on the cards: each effect drawn as the icon it borrows, its compact chip keeping its words; the heat tick says what it is', bad.slice(0, 6).join(' | '));
 }
 
 // ---- 10. The Top: each title in its rarity's colour, its badge in its frame

@@ -602,3 +602,34 @@ White Drake".
 | 🛑 | a refusal | «у Білого Дрейка власний титул» (info card) |
 
 Hidden record only (`addLog`): «🤍 Луска: -N», «🤍 Луска знову ціла: +N», «Перекування: +N луски», the cracked and bounced lines.
+
+## Season 2's drakes: the stand-ins
+
+Real V2 art for the four new drakes (emblems, effect and ultimate icons, the new notes) is a separate step. Until then each new
+icon id is drawn as an icon of today's set: `STAND_INS` in `design/icons/icons.js` is the one list, and `pxIcon` follows it. The game
+asks for the new id everywhere, so an icon's art drops in with no code change: its record, glyph, V2 still and loop, and its line
+gone from the list. A stand-in is shared with the icon it borrows, so an effect's compact chip keeps its words (`fvChip`), and the
+heat tick and Виверження's heat are notes with their words. `design/icons/test.js` checks the list.
+
+| Id | What it will be | Record emoji | Stand-in | Why |
+|---|---|---|---|---|
+| `emOrange` | Помаранчевий's emblem | 🟧 | `emGold` | the nearest colour that isn't another new drake's stand-in |
+| `emCherry` | Вишневий's emblem | 🍒 | `emRed` | the nearest colour |
+| `emPink` | Рожевий's emblem | 🩷 | `emPurple` | the nearest colour |
+| `emTurquoise` | Бірюзовий's emblem | 🐚 | `emBlue` | the sea, and the nearer of Blue and Green in feel |
+| `heat` | «Розжарення» / Heat: the card's count, the tick | 🌡️ | `burn` | the spec |
+| `stoke` | «Жар» / Stoke | ♨️ | `divine` | the spec |
+| `melt` | «Оплавлення» / Melt | 🫠 | `mark` | the spec |
+| `eruption` | «Виверження» / Eruption | 🌋 | `firestorm` | the spec |
+| `frenzy` | «Кривавий шал» / Blood Frenzy | | `rage` | the spec |
+| `bloodprice` | «Кров за кров» / Blood for Blood | 🫀 | `vampire` | the spec |
+| `bleed` | «Кровотеча» / Bleed | 🩸 | `poison` | the spec |
+| `lastbreath` | «Останній подих» / Last Breath | 🌬️ | `crit` | the spec |
+| `illusion` | «Ілюзія» / Illusion | 🎭 | `theft` | the spec |
+| `borrowed` | «Чужі чари» / Borrowed Magic | 🪞 | `theft` | the spec |
+| `fairydust` | «Чарівний пилок» / Fairy Dust | ✨ | `blessing` | the spec |
+| `infatuation` | «Закоханість» / Infatuation | 💘 | `weakness` | the spec |
+| `nacre` | «Перламутр» / Nacre | | `shield` | the spec |
+| `clearwater` | «Чиста вода» / Clear Water | 💧 | `regen` | the spec |
+| `seaweed` | «Водорості» / Seaweed | 🌿 | `frost` | the spec |
+| `hightide` | «Приплив» / High Tide | 🌊 | `bloom` | the spec |

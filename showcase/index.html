@@ -115,6 +115,11 @@
         .el-black  { --hi: #a7aab4; --lo: #6f7380; --deep: #000000; --meter: #a7aab4; }
         .el-gold   { --hi: #ae8513; --lo: #6e4f06; --deep: #1a1102; --meter: #d9a520; }
         .el-purple { --hi: #b47aff; --lo: #6a35b0; --deep: #12061f; --meter: #b47aff; }
+        /* Cherry's and Turquoise's light edges sit a little off their element colours, to stay 20 from Red and from the White Drake's steel */
+        .el-orange { --hi: #ff8a1f; --lo: #b85a0e; --deep: #1c0d02; --meter: #ff8a1f; }
+        .el-cherry { --hi: #b6204b; --lo: #78122f; --deep: #1a0409; --meter: #b8304f; }
+        .el-pink   { --hi: #f78fbf; --lo: #b0527f; --deep: #1c0811; --meter: #f78fbf; }
+        .el-turquoise { --hi: #23a48a; --lo: #146b5a; --deep: #04140f; --meter: #26c2b0; }
         .el-white  { --hi: #ffffff; --lo: #5a8fb0; --deep: #061018; --meter: #ffffff; }
         .el-steel  { --hi: #8ddbde; --lo: #4a8a90; --deep: #051416; --meter: #c8f4ee; }
         /* The streamer's White Drake: a white-steel frame with a soft green shimmer (opacity only; not the champion's gold) */
@@ -182,6 +187,7 @@
         .pm-count { font-size: 12px; color: var(--dim); }
         .pm-ready { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 800; letter-spacing: 1px; color: var(--meter); }
         .pm-mirror { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; color: #7fdcff; }
+        .pm-heat { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; color: var(--meter); }
         .fc-hp { position: relative; display: flex; align-items: center; gap: 12px; margin-top: auto; flex-shrink: 0; }
         .hp-bar-container { height: 20px; }
         /* The White Drake's scales (Луска Дракона): a steel segment at the VS end of the HP row, 4 px from the HP bar and 12 px
@@ -1049,7 +1055,8 @@
 
         /* ===== Display helpers for the overlay (visual only: nothing here changes a rule or a number) ===== */
         // Element colours of the reference's title plaque, used for small swatches
-        const ELEMENT_COLORS = { red: '#e0452f', blue: '#3b8fe8', black: '#4a4a60', gold: '#f2c14e', purple: '#9b59d0', green: '#3ec46d', steel: '#d8e6ec', white: '#bfe9ff' };
+        const ELEMENT_COLORS = { red: '#e0452f', blue: '#3b8fe8', black: '#4a4a60', gold: '#f2c14e', purple: '#9b59d0', green: '#3ec46d',
+                                 orange: '#ff8a1f', cherry: '#b8304f', pink: '#f78fbf', turquoise: '#26c2b0', steel: '#d8e6ec', white: '#bfe9ff' };
 
         // Player names get a minimum brightness: a dark Twitch colour is lifted towards white until it has at least
         // 4.5:1 contrast against NAME_BG, which is lighter than every background a name is drawn on.
@@ -1170,7 +1177,10 @@
             if (!iconsMissing.has(id)) { iconsMissing.add(id); console.error(`Drake Arena: no ${what} "${id}"`); }
             return '';
         }
+        // An icon with no art yet is drawn as its stand-in (DrakeIcons.STAND_INS); the game keeps asking for its own id
+        const iconOf = id => DrakeIcons.STAND_INS[id] || id;
         function pxIcon(id, scale = 2, cls = '') {
+            id = iconOf(id);
             if (!DrakeIcons.ICONS[id]) return iconMissing(id, 'icon');
             if (!ICONS_V2[id]) return iconMissing(id, 'V2 art for the icon');
             const n = DrakeIcons.iconRows(id).length, s = Math.max(1, Math.round(scale));
@@ -1238,7 +1248,8 @@
         const titleHtml = (title, scale = 2, framed = true) => title ? `${titleIcon(title, scale, framed)}<span class="ttl">${title.name[currentLang]}</span>` : '';
         // Each drake's emblem: its element's symbol on a tile in its colour, lit from the top left like every icon (so never
         // mirrored); the White Dragon's is its eye, the White Drake's a green flame in a steel ring
-        const EMBLEMS = { red: 'emRed', blue: 'emBlue', black: 'emBlack', gold: 'emGold', purple: 'emPurple', green: 'emGreen', steel: 'emSteel', white: 'emDragon' };
+        const EMBLEMS = { red: 'emRed', blue: 'emBlue', black: 'emBlack', gold: 'emGold', purple: 'emPurple', green: 'emGreen',
+                          orange: 'emOrange', cherry: 'emCherry', pink: 'emPink', turquoise: 'emTurquoise', steel: 'emSteel', white: 'emDragon' };
         const emblem = (type, scale = 2, cls = '') => EMBLEMS[type] ? pxIcon(EMBLEMS[type], scale, cls) : '';
         // 1st, 2nd and 3rd place: one medal each, everywhere (the Top, the cards, !стата, the podium, the Hall of Fame)
         const MEDAL_ICONS = ['medalGold', 'medalSilver', 'medalBronze'];
@@ -1543,7 +1554,7 @@
                   cleanse: 'очищення', longBuffs: 'довгий баф', meterRush: 'підзарядка', phoenix: 'відродження', twin: 'двійник', storm: 'око бурі', rewind: 'перемотка', tempered: 'загартування',
                   returned: 'повернення', sendsBack: 'відправляє', overcharge: 'перевантаження', sentenced: 'вирок', sentenceDone: 'вирок виконано', notFound: 'шкоду не знайдено',
                   crashed: 'синій екран', turnLost: 'хід втрачено', chat: 'чат вирішує', away: 'відійшов', turnSkipped: 'хід пропущено', afkBack: 'повернувся', lagHang: 'удар завис', lagLand: 'удар долетів', copy: 'копіпаст',
-                  meterStart: '{title}: {who} починає бій зі шкалою Сили {n}/{max}' },
+                  meterStart: '{title}: {who} починає бій зі шкалою Сили {n}/{max}', heat: '🌡️ жар' },
             en: { attacks: 'attacks', physical: 'physical', magical: 'magic', vampire: 'vampire', tab: '⚔ Attacks', attacking: 'attacks…', upNext: '⏳ up next:',
                   ko: 'is knocked out', start: 'start of turn', applies: 'applies', gets: 'gets', refreshes: 'refreshes', removes: 'removes',
                   takes: 'takes', lost: 'lost', lostMany: 'lost', immune: '🐉 immune', block: '🚫 block', dodge: '🌀 dodge', sovereign: '👑 the attack dissolves', pierce: '⚡ armour-piercing',
@@ -1563,7 +1574,7 @@
                   cleanse: 'cleanse', longBuffs: 'long buff', meterRush: 'meter rush', phoenix: 'rebirth', twin: 'twin', storm: 'eye of the storm', rewind: 'rewind', tempered: 'tempered',
                   returned: 'return', sendsBack: 'sends', overcharge: 'overcharge', sentenced: 'sentenced', sentenceDone: 'sentence carried out', notFound: 'damage not found',
                   crashed: 'blue screen', turnLost: 'turn lost', chat: 'chat decides', away: 'away', turnSkipped: 'turn skipped', afkBack: 'back', lagHang: 'the hit hangs', lagLand: 'the hit lands', copy: 'copy-paste',
-                  meterStart: '{title}: {who} starts with the Element Power meter at {n}/{max}' },
+                  meterStart: '{title}: {who} starts with the Element Power meter at {n}/{max}', heat: '🌡️ heat' },
         };
         const fvT = (key, vars = {}) => FV_TEXT[currentLang][key].replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '');
         // FV_TEXT keeps its emoji (several lines go to the hidden text record too); on the overlay each of a text's emoji, in
@@ -1574,7 +1585,7 @@
             wrath: ['wrath'], guardian: ['guardian'], chaos: ['chaos'], cat: ['cat'], bug: ['spaghettiCode'], bounced: ['bounce'], cracked: ['cracked'], scales: ['scales'],
             steelIn: ['whiteSteel'], steelWin: ['whiteSteel'], steelLoss: ['emDragon'], sdBanner: ['suddendeath'], timeout: ['hourglass'], error: [null],
             fightStart: ['bell', 'die'], knockout: ['victory'], timeoutWin: ['hourglass'], draw: ['draw'], noRecord: ['emDragon'],
-            cdFlip: ['die'], cdFirst: ['die'], plateBets: ['hourglass'], plateStart: ['hourglass'], levelUp: ['levelup'], meterBtn: [null],
+            cdFlip: ['die'], cdFirst: ['die'], plateBets: ['hourglass'], plateStart: ['hourglass'], levelUp: ['levelup'], meterBtn: [null], heat: ['heat'],
         };
         const fvH = (key, vars = {}, scale = 2) => iconText(FV_TEXT[currentLang][key], FV_ICONS[key] || [], vars, scale, key);
         const fvIcon = key => (FV_ICONS[key] || [])[0] || null;   // a note's glyph (its compact form)
@@ -1605,6 +1616,9 @@
             green:  { physical: { light: ['Удар лози', 'Vine Lash'], heavy: ['Корінний удар', 'Root Slam'], sneaky: ['Колючий випад', 'Thorn Lunge'] },
                       magical: { light: ['Гострий лист', 'Razor Leaf'], heavy: ['Гнів лісу', 'Forest Wrath'], sneaky: ['Отруйний пилок', 'Toxic Pollen'] },
                       vampire: { light: ['Укус лози', 'Vine Bite'], heavy: ['Сокова спрага', 'Sap Thirst'] } },
+            orange: { physical: { light: ['Розпечені кігті', 'Molten Claws'], heavy: ['Удар брили', 'Boulder Slam'], sneaky: ['Попелястий випад', 'Ash Lunge'] },
+                      magical: { light: ['Жаринка', 'Ember'], heavy: ['Потік лави', 'Lava Flow'], sneaky: ['Струмінь пари', 'Steam Jet'] },
+                      vampire: { light: ['Вугільний укус', 'Cinder Bite'], heavy: ['Вулканічна спрага', 'Volcanic Thirst'] } },
             steel:  { physical: { light: ['Сталеві кігті', 'Steel Claws'], heavy: ['Молот крила', 'Wing Hammer'], sneaky: ['Гартоване жало', 'Tempered Sting'] },
                       magical: { light: ['Білий промінь', 'White Ray'], heavy: ['Подих горна', 'Forge Breath'], sneaky: ['Іскра з ковадла', 'Anvil Spark'] },
                       vampire: { light: ['Залізний укус', 'Iron Bite'], heavy: ['Металева жага', 'Metal Thirst'] } },
@@ -1627,15 +1641,18 @@
         // A chip's compact form (data-c), used when its line is too long (fvFitLine): its icon (data-ci) and its number
         // (data-ct), no words. Chips with no data-c are compact already (a tick's icon and -9, the vampire heal's +19, sudden
         // death's ×1.6). Every icon on a card is a different drawing, so no two compact chips look alike.
-        // An effect's chip: its icon in the chip of its kind (the shape) and element (the colour); compact = the icon alone
+        // An effect's chip: its icon in the chip of its kind (the shape) and element (the colour); compact = the icon alone, or
+        // the icon and its words while the icon is a stand-in (shared with the effect it borrows, so it could read as that one)
         const fvChip = (id, text, cls = '') =>
-            `<span class="lk fx ${EFFECTS[id].kind} ${chipClass(id)}${cls ? ' ' + cls : ''}" data-c="1" data-ci="${id}" data-ct="">${pxIcon(id)}<span class="lkt">${text}</span></span>`;
+            `<span class="lk fx ${EFFECTS[id].kind} ${chipClass(id)}${cls ? ' ' + cls : ''}" data-c="1" data-ci="${id}" data-ct="${DrakeIcons.STAND_INS[id] ? text : ''}">${pxIcon(id)}<span class="lkt">${text}</span></span>`;
         const fvFxChip = id => fvChip(id, EFFECTS[id].name[currentLang]);
         // The same chip straight after «накладає», «отримує», «оновлює», «знімає», «забирає»: the name in the accusative
         // («накладає Мітку»); everywhere else it stays in the nominative, as on the fighter cards' chips
         const fvAccChip = id => fvChip(id, currentLang === 'uk' ? EFFECTS[id].acc : EFFECTS[id].name[currentLang]);
         const fvUsedChip = id => fvChip(id, EFFECTS[id].name[currentLang], 'used');   // an effect this attack counted down
-        const fvTickChip = t => `<span class="lk fx ${EFFECTS[t.id].kind} ${chipClass(t.id)}">${pxIcon(t.id)}<span class="lkt">${t.v < 0 ? t.v : '+' + t.v}</span></span>`;
+        // A tick: an effect's in its chip; Розжарення's, which is no effect, is a note with its words
+        const fvTickChip = t => EFFECTS[t.id] ? `<span class="lk fx ${EFFECTS[t.id].kind} ${chipClass(t.id)}">${pxIcon(t.id)}<span class="lkt">${t.v < 0 ? t.v : '+' + t.v}</span></span>`
+            : fvLk(`${fvH(t.id)} ${t.v}`, 'note hurt');
         const fvLx = text => `<span class="lx">${text}</span>`;
         // A plain chip: its html, and its compact form { i: an icon, t: the text after it } (or none)
         const fvLk = (html, cls = '', compact = null) =>
@@ -1962,6 +1979,7 @@
                 if (x.hits !== undefined) g(0, fvLk(`${pxIcon('mirror')}<span class="lkt">${unitLeftText('hits', x.hits)}</span>`, 'note ult'));
                 if (x.removed && x.id === 'bloom' && x.removed.length) g(0, fvLx(fvT('removes')), ...x.removed.map(fvAccChip));
                 if (x.id === 'anvil') g(0, fvLk(`×${x.mult}`), x.reforged ? fvNum('scales', `+${x.reforged}`, 'heal') : '');
+                if (x.id === 'eruption') g(0, fvLk(`×${x.mult}`), fvLk(`${fvH('heat')} ${x.heatFrom} → ${x.heatTo}`, 'note'));
             }
             if (a && a.sd) g(3, fvNum('suddendeath', `×${Math.round(a.sd * 10) / 10}`, 'sd'));
             if (n.wrath) g(4, fvNoteChip('wrath'));
@@ -2004,6 +2022,7 @@
             if (n.scales) g(4, fvNoteChip('scales', ` -${n.scales}`));
             if (n.crack) g(0, fvLk(fvH('cracked'), 'note hurt'));
             if (n.reforge) g(4, `<span class="lk fx buff ${chipClass('reforge')}">${pxIcon('reforge')}<span class="lkt">+${n.reforge}</span></span>`);
+            if (n.stoke) g(4, `<span class="lk fx buff ${chipClass('stoke')}">${pxIcon('stoke')}<span class="lkt">+1 ${METER.short[currentLang]}</span></span>`);
             // One attack touching the same effect twice (Firestorm's Burn, then a cast of Burn that refreshes it) shows it once
             const seen = new Set(), casts = rec.casts.filter(c => { const k = c.owner.name + '|' + c.id; if (seen.has(k)) return false; seen.add(k); return true; });
             const castIds = new Set(casts.map(c => c.id));
@@ -2421,15 +2440,13 @@
             box.querySelectorAll('.sc-name, .sc-sub, .sc-title').forEach(el => fitText(el, 9));
         }
         // "Червоний Дрейк 🟥" → "Червоний Дрейк" (the swatch is drawn separately)
-        const drakeLabel = drakeObj => drakeObj ? drakeObj.name[currentLang].replace(/\s*[\u{1F7E5}-\u{1F7EB}\u{2B1B}\u{1F409}\u{1F90D}]\s*$/u, '').trim() : '';
-        const drakeIcon = drakeObj => { const m = drakeObj && /([\u{1F7E5}-\u{1F7EB}\u{2B1B}\u{1F409}\u{1F90D}])\s*$/u.exec(drakeObj.name[currentLang]); return m ? m[1] : ''; };
+        const drakeLabel = drakeObj => drakeObj ? drakeObj.name[currentLang].replace(/\s*\p{Extended_Pictographic}\uFE0F?\s*$/u, '').trim() : '';
+        const drakeIcon = drakeObj => { const m = drakeObj && /(\p{Extended_Pictographic})\uFE0F?\s*$/u.exec(drakeObj.name[currentLang]); return m ? m[1] : ''; };
 
         // "Як грати" / "How to play": the game's real chat commands, shown exactly when the chat panel is empty
         const HOW_TO_PLAY = {
-            uk: { title: 'Як грати', rows: [['!дрейк червоний', 'обрати дрейка'], ['!черга', 'стати в чергу на рейтинговий бій'], ['!бій @нік', 'викликати на дуель'], ['!стата', 'твоя картка дрейка'], ['!титул · !рерол', 'за бали каналу']],
-                  colors: 'червоний · синій · чорний · золотий · фіолетовий · зелений' },
-            en: { title: 'How to play', rows: [['!drake red', 'pick your drake'], ['!queue', 'join the ranked queue'], ['!battle @name', 'challenge to a duel'], ['!stats', 'your drake card'], ['!title · !reroll', 'with channel points']],
-                  colors: 'red · blue · black · gold · purple · green' },
+            uk: { title: 'Як грати', rows: [['!дрейк червоний', 'обрати дрейка'], ['!черга', 'стати в чергу на рейтинговий бій'], ['!бій @нік', 'викликати на дуель'], ['!стата', 'твоя картка дрейка'], ['!титул · !рерол', 'за бали каналу']], },
+            en: { title: 'How to play', rows: [['!drake red', 'pick your drake'], ['!queue', 'join the ranked queue'], ['!battle @name', 'challenge to a duel'], ['!stats', 'your drake card'], ['!title · !reroll', 'with channel points']], },
         };
         function renderHowTo() {
             const feed = document.getElementById('info-feed');
@@ -2439,7 +2456,7 @@
             if (live.length) { if (existing) existing.remove(); return; }
             const h = HOW_TO_PLAY[currentLang];
             const html = `<div class="howto-title">${h.title}</div>` + h.rows.map(([cmd, what], i) =>
-                `<div class="howto-row"><span class="howto-cmd">${cmd}</span><span class="howto-what">${what}</span></div>` + (i === 0 ? `<div class="howto-colors">${h.colors}</div>` : '')).join('');
+                `<div class="howto-row"><span class="howto-cmd">${cmd}</span><span class="howto-what">${what}</span></div>` + (i === 0 ? `<div class="howto-colors">${colorList(' · ')}</div>` : '')).join('');
             if (existing) { existing.innerHTML = html; return; }
             const card = document.createElement('li');
             card.className = 'info-card howto';
@@ -2703,6 +2720,174 @@ const DRAKE_SPRITES = {
             '............apppllldNLLLM.akkpppllldLLLM........',
             '.............PdPlPdMQMQM...dPlPlPdQMQMM.........',
             '...............dd............dddd...............'
+        ]
+    },
+    // Orange Drake: heats up with every attack. Short basalt horns with glowing tips, magma cracks, a hot yellow belly, an ash-grey wing with magma bones, a lava rock on the tail tip
+    orange: {
+        pal: ["#7a2a08", "#ffe274", "#3a1204", "#ffb232", "#6e2c08", "#2c241c", "#2a2622", "#524c46", "#211e1c", "#060505", "#ffb04c", "#615446", "#261f19", "#0b0806", "#1e0a02", "#c8560e", "#4a1906", "#fff8d4", "#86320a", "#36322e", "#ee7e1e", "#4a4036", "#372f27", "#fff4b0", "#ffb000", "#ffc83a", "#ffd672", "#17120e", "#ffac3c", "#746c62", "#121010", "#e47c1e", "#b24a0e", "#c05c14", "#983e0c", "#3a1404", "#160702", "#662608", "#de7a22", "#d8cfc4", "#5a524a"],
+        rows: [
+            '...............abc..............................',
+            '..............adbc...........e.ff...............',
+            '..........eeeghij.a.........ekflmn..............',
+            '........eekkohij.abc.......ekpqrrmnaa...........',
+            '.......ekkkohiosgtj.......ekuqdrldrrrcaaa.......',
+            '......ekkkkooophtj........eksqrllllllddrrc......',
+            '....eekkooosophiqo.......ekpqvrdlllllllwn.......',
+            '...ekkkooxyssssqqo.......eksqvwrllllllwn........',
+            '..ekkouuupsqssqqqo......ekuqvvvrllllrwn.........',
+            '.euuupppssqqqqqqso......ekpqvvvwdllllrca........',
+            '.eppssqqqqqoqqqqso.....ekusqvvvvrllllldrc.......',
+            '..oqoooooooqqqqpzqo....ekpqvvvvvrdlllwmn........',
+            '...oppppppuupsoppxo....eupqvvvvvwrllmnn.........',
+            '....ossssssssouppzqo..ekupqvvvvvvrlmn...........',
+            '.....ooooooooAupppzo..ekusqvvvvvvwdc............',
+            '............oAAupppsoeekusqvvwmBBBdc........gg..',
+            '............eCAuuppppuquusqBBnnnnnc........gDhj.',
+            '............eCCAuupuupqupsqpkuuupoe.......gDdhdc',
+            '.............oCCuuuuupqssqpkkzuuuppo.....ghhrrdE',
+            '.............eCCCpuuzpsqqqkkkuxooopso....gtdbbEE',
+            '..............oCCCoooxoqqqkuuozkupooso....jiEEdc',
+            '..............eFCokkkpsoqqquokkzzupsoqo....jEEj.',
+            '..............eAFokkupsoqqqokkkkuupsoqso...eooo.',
+            '..............eCouuupsqoqqpokkkkuppsqoppoe.eupo.',
+            '..............eCouuppsqoqqpokkuupzssqoppppekusqo',
+            '...............oouupsqqoqqsouuuooozqqopzpppkusqo',
+            '...............eokupsqqoqGGoppokkpzqqoppzzpppqo.',
+            '................ekupsqoGGGGopokkupqoqossssssqqo.',
+            '...............euupsqqoGGGGGoouuppsooqqqqqqqqo..',
+            '...............ekupsqqooooGGGospppsqooqqqqqqo...',
+            '...............ekupqqoHIJJKoooepppsqooooKooo....',
+            '.............eeeupsqoHHLJK.eeekkusqqoIJJK.......',
+            '............ekkkusqqoMHJJKekkkkupqqoIJJK........',
+            '............essssqqoLJJJK.eppsssqqoJJJJK........',
+            '.............NoNqNoKOKOK...oNqNqNoOKOKK.........',
+            '...............oo............oooo...............'
+        ]
+    },
+    // Cherry Drake: the more it's hurt, the harder it hits. Dark cherry scales, a horn broken off halfway, pale scars, black neck spikes, a blood drop with a black thorn on the tail tip
+    cherry: {
+        pal: ["#2a1a1a", "#5a4444", "#7e6464", "#050202", "#3e0918", "#2c0612", "#3a2a2a", "#241818", "#b8304f", "#701d3a", "#270712", "#0a0105", "#0e0206", "#66102a", "#22040c", "#f4ece8", "#f6c6d0", "#7a2a3e", "#8e1b3b", "#a88a8c", "#420919", "#1a1010", "#3a2626", "#55122a", "#3d0b1d", "#ffe08a", "#ff3a22", "#701232", "#d98a9c", "#cc6a72", "#a83e4e", "#14030a", "#5a0a1a", "#ffd0d6", "#ff4a60", "#cc1a3a", "#4a0010", "#822436", "#8c0a24", "#561222", "#6c1530", "#4e0c21", "#0a0104", "#300714", "#1a030a", "#330713", "#882440", "#f2d0d0", "#a8243c"],
+        rows: [
+            '...............aaa..............................',
+            '..............abccd..........e.ff...............',
+            '..........eeaabghd..........eifjkl..............',
+            '........eeimbbghd..........einoppklee...........',
+            '.......eiqimbghmm..rd.....eisotpjtpppmeee.......',
+            '......eiiqimmhmum.rvd.....eiuopjjjjjjttppm......',
+            '....eeiimmmummuuomrwvd...einoxptjjjjjjjyl.......',
+            '...eiiimmzABuuuoom..rd...eiuoxypjjjjjjyl........',
+            '..eiimsssnuCuuooom.rvd..eisoxxxpjjjjpyl.........',
+            '.esssnnnuuoCooooum.rwvd.einoxxxytjjjjpme........',
+            '.ennuuooooomooooum...rdeisuoxxxxpjjjjjtpm.......',
+            '..mommmmmmmoooonuom.rvdeinoxxxxxptjjjykl........',
+            '...mnnnnnnssnumnuom.rwvdsnoxxxxxypjjkll.........',
+            '....muuuuuuuumsnnum...eisnoxxxxxxpjkl...........',
+            '.....mmmmmmmmDssnuum..eisuoxxxxxxytm............',
+            '............eEDsnnnumeeisuoxxykFFFtm..........a.',
+            '............eEDssnnnusossuoFFlllllm........GGabd',
+            '.............mEDssnnsnosnuonsssmee........GHIagd',
+            '.............eEEDssssnouuoniissssnme......GIJKdd',
+            '.............eLEEnssnuuoooiiCssqsnnum.....GMKdhd',
+            '..............mLEEEmmmooooiisCmmqmmuom.....adgd.',
+            '..............eDLEmiinmooosssCiiqsnmom....abbhd.',
+            '..............eDNmiisnumoossmiCissnumome..abhhd.',
+            '..............eEEmssnuomoonmiiiisnnuomnnm..emmm.',
+            '..............eLmsssnoomoonmiisssnuoomnnnmeisnom',
+            '...............mmssnuoomoLLmsssmmCuoomnnnnsisum.',
+            '................misnuomNNNNmnnmiinCoomnnnnnsnom.',
+            '................eisnuomNNNNmunmisnomomuuuuuuoom.',
+            '................eisuoommNNNNmmssnnommoooooooom..',
+            '...............eisnuomOPmmQmmmmnnnummmmoooomm...',
+            '...............eisnooROPSQ....mnnnoROPTmQmm.....',
+            '.............eeesnuomOOTSQ..eeeisuomOPSQ........',
+            '............eiiisuoomUOSSQ.eiissnoomPTSQ........',
+            '............euuuuoomTTSSQ.ennuuuoomSSSQ.........',
+            '.............VmVoVm.WQWQ...mVoVoVmWQWQ..........',
+            '...............mm............mmm................'
+        ]
+    },
+    // Pink Drake: copies the opponent. Pastel pink scales with a pearl sheen, a dark masquerade mask, thin feelers with pearl tips, a butterfly wing with two eye-spots, a heart on the tail tip
+    pink: {
+        pal: ["#4a1a40", "#6a5a7a", "#ffffff", "#c8bcd4", "#3a2a48", "#1c0716", "#ece6f2", "#9a8aa8", "#6e2a54", "#5a3070", "#8a3e7e", "#fbf8fd", "#ffd4e7", "#fbe6fb", "#8e5492", "#24102a", "#26091c", "#c070b0", "#d4689c", "#5e2044", "#d49ad6", "#963a6c", "#f398bf", "#7e4482", "#5a2a5e", "#6e2a62", "#3a1236", "#e6b4e4", "#3a1640", "#4fc8dc", "#e8fff8", "#4ad4e8", "#8c3f6c", "#f8e2ee", "#4a0a24", "#e8c4d8", "#ffc0d8", "#ff4f8a", "#b8184e", "#c496b4", "#9a6888", "#c873a2", "#a24e80", "#5a2246", "#481838", "#743058", "#e194bf", "#fff4fa", "#c08aac"],
+        rows: [
+            '..............abcdeb............................',
+            '.............afgghege........i.jj...............',
+            '..........iiakfafflhe.......imjnop..............',
+            '........iimqrkakkfee.......imstuuopjj...........',
+            '.......immmqkqkvq.........imwtxuyxuuupjjj.......',
+            '......imzAAAzrkvq.........icvtuyunnycxxuup......',
+            '....iimAAqqvAsvvtq.......imstBuxyxucCDyyp.......',
+            '...immmAqEFGAvvttq.......imvtByunnxuCDyp........',
+            '..immqwwAAAAvvtttq......imwtBBBunnnyuyp.........',
+            '.iwwwssssvttttttvq......imstBBByxccnyupj........',
+            '.issvvtttttqttttvq.....imwvtBBBBuDCcnyxup.......',
+            '..qtqqqqqqqttttsvtq....imwtBBBBBuxDcnyyp........',
+            '...qsssssswwsvqsstq....imstBBBBByunyypp.........',
+            '....qvvsvvvvvqwssvq...imwstBBBBBBunyp...........',
+            '.....qqqqqqqqHwwssvq..imwvtBBBBBByxp............',
+            '............iHHwssvvqiimwvtBByyyyyxp......II.II.',
+            '............iJHwwsssvwtmwvtyypppppp......IKLILLI',
+            '.............qJHwwwswsvwsvtswwwqii.......IcLLLMI',
+            '.............iJJHwwwwstsvtsmmmwwwsqi......ILLMI.',
+            '.............iNJJwwwssttttmmmwwwwssvq......IMI..',
+            '..............qJJJJqqqttttmmwwqqqqqvtq....imIq..',
+            '..............iHNJqmmsqtttmwwqmmmwsqtq....iwwtq.',
+            '..............iHOqmcwsvqttwwqmmmmwsvqtqi..imwvq.',
+            '..............iJJqwwsvtqttsqmmmmwssvtqssqiimwvq.',
+            '..............iNJqwwsttqttsqmmmwwsvttqssssimwtq.',
+            '...............qqwwsvttqtNNqwwwwqqvttqsssssmstq.',
+            '................qmwsvtqOOOOqsssqmsqttqssssssvtq.',
+            '................imwsvtqOOOOqvsqmwstqqvvvvvvvtq..',
+            '................imwvttqqOOOOqqwwssvqqtttttttq...',
+            '...............immsvtqPQqqfqqqqsssvqqqqqttqq....',
+            '...............imwsttRPQSf....qssstRPQTSfq......',
+            '.............iiiwsvtqPPQSf..iiimwvtqPQSf........',
+            '............immmwvtqUUPSSf.immmwsttqQTSf........',
+            '............issvvttqTTSSf.issvvvttqSSSf.........',
+            '.............VqVtVq.WfWf...qVtVtVqWfWf..........',
+            '...............qq............qqq................'
+        ]
+    },
+    // Turquoise Drake: gets tougher with every hit. Deep turquoise scales, mother-of-pearl plates down the neck, back and tail, a pale fin-like wing, a small coral crest, a forked fin on the tail tip
+    turquoise: {
+        pal: ["#ffbfa6", "#ff7a5c", "#0a3e3e", "#2a5a5c", "#4a1410", "#6fd8c6", "#e6faf2", "#4a8a8a", "#0a2a2c", "#21a497", "#011314", "#c2443a", "#127872", "#04282a", "#6cc6be", "#0a4c4c", "#1e7a78", "#b4e0d4", "#3a9e98", "#f0fffa", "#5ee0d2", "#2a5a5e", "#c4ecdc", "#7ab8b0", "#8acdb8", "#ffffff", "#f4e8f6", "#d4dcf2", "#a8e6e6", "#8aa0b8", "#55a090", "#2e6e64", "#188079", "#0e5e5a", "#031f21", "#010e0f", "#083d3d", "#2ca293", "#f0fff8", "#7aa8a0"],
+        rows: [
+            '...............a..a.............................',
+            '...............b.ab..........c.dd...............',
+            '..........ccccabbbe.........cfdghi..............',
+            '........ccffjjklbe.........cfmnoohidd...........',
+            '.......cffffjjmpl.........cfjnqorqoooiddd.......',
+            '......cffffkkmmpk.........cfpnorosgrrqqooi......',
+            '....ccffkkkpmmppnk.......cfmnroqrqosggrhi.......',
+            '...cfffkktupmppnnk.......cfpnrhosgqogshi........',
+            '..cffkjjjmpnppnnnk......cfjnsrrogggrohi.........',
+            '.cjjjmmmppnnnnnnpk......cfmnsrrqqgggsoid........',
+            '.cmmppnnnnnknnnnpk.....cfjpnrrrroggggsqoi.......',
+            '..knkkkkkkknnnnmpnk....cfmnrrrrroqsgghqi........',
+            '...kmmmmmmjjmpkmmpk....cjmnrrrrrqogsvii.........',
+            '....kppppppppkjmmpnk..cfjmnsrrrrrogvi...........',
+            '.....kkkkkkkkwjmmmpk..cfjpnsrrrrrqqi......d.....',
+            '............kwwjmmmpkccfjpnsrxqvvqqi.....dgi..dd',
+            '............cywjjmmmmjnjjpnqviiiiii......dgxidgv',
+            '............cyywjjmjjmnjmpnzABjzAkc......dgrdgsi',
+            '.............kyyjjjjjmnppnmBCDjCBDmk.....dgsxgxi',
+            '.............cyyymjjmmpnnnfffjjkkkmBk....dggrhhi',
+            '..............kyyykkkkknnnfjjkkfjmkkpk...drgrxvi',
+            '..............cEykfffmpknnnjkffffjmpknk..drrxvvi',
+            '..............cwEkffjmpknnnkffffjjmpknpk..ihvvi.',
+            '..............cykjjjmpnknnmkffffjmmpnkmCkcckkkk.',
+            '..............cykjjmmpnknnmkffjjmmppnkmmmmcfjpk.',
+            '...............kkjjmpnnknnpkjjjkkkpnnkmmmmmfmnk.',
+            '...............ckfjmpnnknFFkmmkffmknnkmmmmmmpnk.',
+            '................cfjmpnkFFFFkmkffjmnknkppppppnnk.',
+            '...............cjjmpnnkFFFFFkkjjmmpkknnnnnnnnk..',
+            '...............cfjmpnnkkkkFFFkpmmmpnkknnnnnkk...',
+            '...............cfjmnnkGHIIJkkkcmmmpnkkkkJkk.....',
+            '.............cccjmpnkGGKIJ.cccffjpnnkHIIJ.......',
+            '............cfffjpnnkLGIIJcffffjmnnkHIIJ........',
+            '............cppppnnkKIIIJ.cmmpppnnkIIIIJ........',
+            '.............MkMnMkJNJNJ...kMnMnMkNJNJJ.........',
+            '...............kk............kkkk...............'
         ]
     },
     // White Drake (the streamer's regular form, the White Dragon's young form): the drakes' own body in polished white steel, with a small green mane swept back on the head and small green spikes down the back of the neck like the Dragon's, a bright green eye, plate lines with green seams, steel wing ribs, and a small green flame on the tail tip in the Dragon's green
@@ -4678,6 +4863,7 @@ function drakeSpriteURL(type) {
     // doesn't read on the dark UI; this stays a neutral grey, never a purple)
     const ELEMENT_COLORS = {
         red: '#ff4f5a', blue: '#4a98ff', black: '#9b9ba8', gold: '#f2c14e', purple: '#b47aff', green: '#6fe896',
+        orange: '#ff8a1f', cherry: '#b8304f', pink: '#f78fbf', turquoise: '#26c2b0',
         steel: '#cdd6e4',   // the White Drake: its scale bar's white steel; never Black's grey (bluer, much lighter, green accents)
     };
     // The White Drake's own letters: the sprite's navy outline and slate shade (not a neutral grey), pure white, the crack's red
@@ -4853,6 +5039,19 @@ function drakeSpriteURL(type) {
     // The emblems: the drakes' heads, every drake's in the game's order, then the streamer's two forms
     const EMBLEM_IDS = ['emRed', 'emBlue', 'emBlack', 'emGold', 'emPurple', 'emGreen', 'emDragon', 'emSteel'];
     const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind) && !BATCH4_ICON_IDS.includes(id) && ICONS[id].element !== 'steel');
+
+    // ----- Stand-ins: Season 2's icons until their art is drawn -----
+    // The one list: each new icon id and the icon of today's set drawn in its place. The game asks for the new id everywhere
+    // (an id here has no record in ICONS, no glyph and no V2 art of its own) and pxIcon draws the stand-in, so when the art
+    // lands the id gets its record, glyph, V2 still and loop, its line goes from this list, and nothing else changes. A stand-in
+    // is shared with the icon it borrows, so on a log card its compact form keeps its words. inventory.md lists them.
+    const STAND_INS = {
+        emOrange: 'emGold', emCherry: 'emRed', emPink: 'emPurple', emTurquoise: 'emBlue',
+        heat: 'burn', stoke: 'divine', melt: 'mark', eruption: 'firestorm',
+        frenzy: 'rage', bloodprice: 'vampire', bleed: 'poison', lastbreath: 'crit',
+        illusion: 'theft', borrowed: 'theft', fairydust: 'blessing', infatuation: 'weakness',
+        nacre: 'shield', clearwater: 'regen', seaweed: 'frost', hightide: 'bloom',
+    };
 
     // ----- Palette from one colour -----
     const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
@@ -5078,7 +5277,7 @@ function drakeSpriteURL(type) {
     // The CSS for a chip of this element and kind (the element's text colour goes with it)
     const chipStyle = (element, kind) => `border-style: solid; border-width: 1px ${CHIP.cap}px; border-image: url(${chipURL(element, kind)}) 1 ${CHIP.cap} fill / 1px ${CHIP.cap}px stretch; color: ${mix(ELEMENT_COLORS[element], '#ffffff', 0.35)};`;
 
-    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, TITLE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, EMBLEM_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleURL, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
+    root.DrakeIcons = { CHIP, CHIP_SHAPES, chipURL, chipStyle, SIZES, GLYPHS, ICONS, STAND_INS, ELEMENT_COLORS, EFFECT_ICON_IDS, ULTIMATE_ICON_IDS, NOTE_ICON_IDS, TITLE_ICON_IDS, ATTACK_ICON_IDS, BATCH3_ICON_IDS, BATCH4_ICON_IDS, STEEL_ICON_IDS, EMBLEM_IDS, RARITY_COLORS, TITLE_FRAMES, makeTitleCanvas, titleURL, titleImg, paletteOf, iconRows, makeIconCanvas, iconURL, iconImg };
 })(typeof window !== 'undefined' ? window : globalThis);
 // ===== ICONS END =====
 // ===== ICONS V2 START =====
@@ -5571,25 +5770,35 @@ const ICONS_V2 = {
             { name: { uk: 'Золотий Дрейк 🟨', en: 'Gold Drake 🟨' }, type: 'gold' },
             { name: { uk: 'Фіолетовий Дрейк 🟪', en: 'Purple Drake 🟪' }, type: 'purple' },
             { name: { uk: 'Зелений Дрейк 🟩', en: 'Green Drake 🟩' }, type: 'green' },
+            { name: { uk: 'Помаранчевий Дрейк 🟧', en: 'Orange Drake 🟧' }, type: 'orange' },
+            { name: { uk: 'Вишневий Дрейк 🍒', en: 'Cherry Drake 🍒' }, type: 'cherry' },
+            { name: { uk: 'Рожевий Дрейк 🩷', en: 'Pink Drake 🩷' }, type: 'pink' },
+            { name: { uk: 'Бірюзовий Дрейк 🐚', en: 'Turquoise Drake 🐚' }, type: 'turquoise' },
             { name: { uk: 'Білий Дрейк 🤍', en: 'White Drake 🤍' }, type: 'steel' },   // streamer only: regular play
             { name: { uk: 'Білий Дракон 🐉', en: 'White Dragon 🐉' }, type: 'white' }   // streamer only: god mode
         ];
         // The streamer's two forms (STREAMER_USER): the White Drake for regular play (its own kit, a fixed title, a bar of
         // scales on top of HP) and the White Dragon (god mode); !дракон switches between them. Viewers (and random picks)
-        // only ever get the other six
+        // only ever get the others
         const DRAGON_TYPE = 'white';
         const DRAGON_TITLE_ID = 999;
         const WHITE_DRAKE_TYPE = 'steel';
         const WHITE_DRAKE_TITLE_ID = 998;
         const STREAMER_TYPES = [WHITE_DRAKE_TYPE, DRAGON_TYPE];
-        const VIEWER_DRAKE_TYPES = DRAKE_TYPES.filter(d => !STREAMER_TYPES.includes(d.type));
+        // Season 2's drakes still being built: their sprites, colours and words are in, their kits aren't, so nobody can get one yet
+        const UNBUILT_TYPES = ['cherry', 'pink', 'turquoise'];
+        const VIEWER_DRAKE_TYPES = DRAKE_TYPES.filter(d => !STREAMER_TYPES.includes(d.type) && !UNBUILT_TYPES.includes(d.type));
         const randomViewerDrake = () => VIEWER_DRAKE_TYPES[Math.floor(Math.random() * VIEWER_DRAKE_TYPES.length)];
         // Color words for !drake / !reroll, in both languages
         const COLOR_WORDS = {
             'червоний': 'red', red: 'red', 'синій': 'blue', blue: 'blue', 'чорний': 'black', black: 'black', 'золотий': 'gold', gold: 'gold',
-            'фіолетовий': 'purple', purple: 'purple', 'зелений': 'green', green: 'green', 'білий': 'steel', white: 'steel'
+            'фіолетовий': 'purple', purple: 'purple', 'зелений': 'green', green: 'green', 'помаранчевий': 'orange', orange: 'orange',
+            'вишневий': 'cherry', cherry: 'cherry', 'рожевий': 'pink', pink: 'pink', 'бірюзовий': 'turquoise', turquoise: 'turquoise',
+            'білий': 'steel', white: 'steel'
         };
-        const drakeByWord = word => DRAKE_TYPES.find(d => d.type === COLOR_WORDS[word]);
+        const drakeByWord = word => DRAKE_TYPES.find(d => d.type === COLOR_WORDS[word] && !UNBUILT_TYPES.includes(d.type));
+        // The colours a viewer can pick, as chat types them: "червоний, синій, …" (the first word of each viewer drake's name)
+        const colorList = (sep, lang = currentLang) => VIEWER_DRAKE_TYPES.map(d => d.name[lang].split(' ')[0].toLowerCase()).join(sep);
 
         // ===== TITLES =====
         // Rarity sets the drop chance (weight, in %) and colour. Titles within a rarity drop evenly.
@@ -6363,7 +6572,7 @@ const ICONS_V2 = {
 
         // ===== ELEMENT BALANCE =====
         // Element base (from level 1) + bonus per level tier: [1-4, 5-9, 10-14, 15-19, 20]
-        const ELEMENT_BASE = { redCrit: 13, redPower: 0.35, blueDef: 8, blueReflect: 11, blackBlock: 3, blackChance: 18, goldXp: 50, goldOneHp: 7, purpleEff: 25, purpleChance: 20, greenHp: 22 };
+        const ELEMENT_BASE = { redCrit: 13, redPower: 0.35, blueDef: 8, blueReflect: 11, blackBlock: 3, blackChance: 18, goldXp: 50, goldOneHp: 7, purpleEff: 25, purpleChance: 20, greenHp: 22, orangeHeat: 0.5, orangeHeatMax: 8 };
         const ELEMENT_TIERS = {
             redCrit:      [0, 0, 1, 1, 1],
             redPower:     [0, 0.05, 0.10, 0.15, 0.20],
@@ -6375,10 +6584,13 @@ const ICONS_V2 = {
             goldOneHp:    [0, 0, 1, 1, 2],
             purpleEff:    [0, 3, 5, 10, 15],
             purpleChance: [0, 3, 5, 10, 15],
-            greenHp:      [0, 3, 5, 9, 12]
+            greenHp:      [0, 3, 5, 9, 12],
+            orangeHeat:   [0, 0, 0, 0, 0.2]
         };
         // Level tier: 0 for levels 1-4, 1 for 5-9, 2 for 10-14, 3 for 15-19, 4 for 20
         const tierIndex = level => level >= 20 ? 4 : level >= 15 ? 3 : level >= 10 ? 2 : level >= 5 ? 1 : 0;
+        // Помаранчевий's Розжарення: the % of the opponent's max HP each point of heat burns, at the heat holder's level
+        const heatRate = level => ELEMENT_BASE.orangeHeat + getTierMultiplier(level).orangeHeat;
         // The streamer's White Drake, on top of a viewer drake's numbers (tuned with tests/balance.js whitedrake; viewer
         // elements and titles never change for it): hp is a % of max HP, def/crit/cast are added points, power is added
         // crit damage. scales: its bar («Луска Дракона») as % of max HP by level tier, on top of HP: hits take it first, and
@@ -6451,6 +6663,14 @@ const ICONS_V2 = {
                         lasts: 'turns', count: 3, nums: { hp: 3, healCut: 50 },
                         desc: { uk: '{hp}% макс. HP шкоди на початку кожного з {count} ходів цілі, її лікування −{healCut}%',
                                 en: '{hp}% max HP damage at the start of each of the target\'s {count} turns, and its healing is −{healCut}%' } },
+            stoke:    { element: 'orange', kind: 'buff',   icon: '♨️', color: '#ff8a1f', name: { uk: 'Жар', en: 'Stoke' }, acc: 'Жар',
+                        lasts: 'attacks', count: 2, nums: {},
+                        desc: { uk: 'Кожна з наступних {count} власних атак, що завдає шкоди, дає ще одне очко Сили стихії',
+                                en: 'Each of the next {count} own attacks that deals damage gives one extra point of Element Power' } },
+            melt:     { element: 'orange', kind: 'debuff', icon: '🫠', color: '#ff8a1f', name: { uk: 'Оплавлення', en: 'Melt' }, acc: 'Оплавлення',
+                        lasts: 'hits', count: 2, nums: { dmg: 25 },
+                        desc: { uk: 'Наступні {count} удари по цілі завдають +{dmg}% шкоди; на шкоду на початку ходу не діє',
+                                en: 'The next {count} hits on the target deal +{dmg}% damage; it doesn\'t touch damage at the start of a turn' } },
             reforge:  { element: 'steel',  kind: 'buff',   icon: '⚒️', color: '#cdd6e4', name: { uk: 'Перекування', en: 'Reforging' }, acc: 'Перекування',
                         lasts: 'attacks', count: 2, nums: { bar: 6, barTop: 8 },
                         desc: { uk: 'Кожна з наступних {count} власних атак, що завдає шкоди, відновлює луску на {bar}% макс. HP ({barTop}% на найвищому рівні), до її початкового розміру; це не лікування',
@@ -6463,13 +6683,15 @@ const ICONS_V2 = {
         const EFFECT_IDS = Object.keys(EFFECTS);
         const BUFF_IDS = EFFECT_IDS.filter(id => EFFECTS[id].kind === 'buff');
         const DEBUFF_IDS = EFFECT_IDS.filter(id => EFFECTS[id].kind === 'debuff');
-        // The shared pool: the 12 any drake can cast, and the random picks (a cast outside the own pair, Chaotic charge, the
-        // cat, the opening buff) — in this order, so viewer fights roll exactly as before. The White Drake's pair is its own
+        // The shared pool: every viewer element's pair, which any drake can cast, and the random picks (a cast outside the own
+        // pair, Chaotic charge, the cat, the opening buff). The White Drake's pair is its own
         const POOL_IDS = EFFECT_IDS.filter(id => !STREAMER_TYPES.includes(EFFECTS[id].element));
         const POOL_BUFF_IDS = POOL_IDS.filter(id => EFFECTS[id].kind === 'buff');
         const POOL_DEBUFF_IDS = POOL_IDS.filter(id => EFFECTS[id].kind === 'debuff');
+        // The buffs that can be handed out to keep (the opening buff): an instant one acts once and never sits on the card
+        const POOL_LASTING_BUFF_IDS = POOL_BUFF_IDS.filter(id => EFFECTS[id].lasts !== 'instant');
         // Casting: after a hit that dealt damage, castBase% (+ element and title bonuses) to cast something.
-        // ownElement% of casts pick one of the caster's own two element effects (50/50 buff or debuff), the rest any of the 12.
+        // ownElement% of casts pick one of the caster's own two element effects (50/50 buff or debuff), the rest any in the pool.
         const EFFECT_CAST = { castBase: 30, ownElement: 70, maxPerKind: 2 };
         // Hard caps after effect power scaling: no effect cuts damage or healing by more than 90%, whatever its power
         const EFFECT_CAPS = { cut: 90, healCut: 90 };
@@ -6520,8 +6742,8 @@ const ICONS_V2 = {
 
         // One fighter's state during a fight: active effects { buff: [...], debuff: [...] } (each entry { id, left, power }),
         // plus the ultimate meter (0..METER.max), whether its below-half bonus has been used, and Ice Mirror hits left
-        // scales: the White Drake's bar { now, max } (null for everyone else)
-        const newFxState = () => ({ buff: [], debuff: [], meter: 0, halfDone: false, mirror: 0, scales: null });
+        // scales: the White Drake's bar { now, max }; heat: Помаранчевий's Розжарення, 0 to its max (each null for everyone else)
+        const newFxState = () => ({ buff: [], debuff: [], meter: 0, halfDone: false, mirror: 0, scales: null, heat: null });
         const hasFx = (st, id) => !!(st && st[EFFECTS[id].kind].find(x => x.id === id));
         const getFx = (st, id) => st && st[EFFECTS[id].kind].find(x => x.id === id);
         // Counts down every effect of this fighter that lasts `unit` (only the ones `which` picks); drops the ones that reach 0
@@ -6583,6 +6805,10 @@ const ICONS_V2 = {
                           attacks: false, nums: { heal: 25 },
                           desc: { uk: 'Знімає власні дебафи і одразу лікує {heal}% макс. HP',
                                   en: 'Removes its own debuffs and instantly heals {heal}% max HP' } },
+            eruption:   { element: 'orange', icon: '🌋', color: '#ff8a1f', name: { uk: 'Виверження', en: 'Eruption' },
+                          attacks: true, nums: { dmgMult: 1.5, perHeat: 5 },
+                          desc: { uk: 'Атака ×{dmgMult} шкоди плюс {perHeat}% за кожну одиницю жару; жару вона не додає, а після неї жар падає вдвічі, з округленням униз',
+                                  en: 'An attack for ×{dmgMult} damage plus {perHeat}% per point of heat; it adds no heat, and afterwards the heat drops by half, rounded down' } },
         };
         const ULTIMATE_IDS = Object.keys(CLASS_ULTIMATES);
         // The ultimate of a fighter's element (none for the White Dragon or anything without one)
@@ -6727,8 +6953,8 @@ const ICONS_V2 = {
         // The White Dragon is the streamer's alone (STREAMER_USER); anyone else asking for it gets this reply
         function refuseDragon(sender, senderColor) {
             let msg = currentLang === 'uk' ?
-                `<span style="color: ${senderColor};">@${sender}</span>, ${emblem(DRAGON_TYPE, 1)} Білий Дракон — це секретна зброя стрімера! Ви не можете його обрати. Інші кольори: червоний, синій, чорний, золотий, фіолетовий, зелений.` :
-                `<span style="color: ${senderColor};">@${sender}</span>, the ${emblem(DRAGON_TYPE, 1)} White Dragon is the streamer's secret weapon! You can't pick it. Other colors: red, blue, black, gold, purple, green.`;
+                `<span style="color: ${senderColor};">@${sender}</span>, ${emblem(DRAGON_TYPE, 1)} Білий Дракон — це секретна зброя стрімера! Ви не можете його обрати. Інші кольори: ${colorList(', ')}.` :
+                `<span style="color: ${senderColor};">@${sender}</span>, the ${emblem(DRAGON_TYPE, 1)} White Dragon is the streamer's secret weapon! You can't pick it. Other colors: ${colorList(', ')}.`;
             addInfo(msg, 'warn');
         }
         // The streamer's two forms. Switching (!дракон) never costs level, XP or title: while the streamer is the White Dragon,
@@ -6831,8 +7057,8 @@ const ICONS_V2 = {
                     addInfo(msg, 'ok');
                 } else {
                     let msg = currentLang === 'uk' ?
-                        `<span style="color: ${senderColor};">@${sender}</span>, щоб створити Дрейка, напишіть: <b>!дрейк [колір]</b> (червоний, синій, чорний, золотий, фіолетовий, зелений).` :
-                        `<span style="color: ${senderColor};">@${sender}</span>, to create a Drake, type: <b>!drake [color]</b> (red, blue, black, gold, purple, green).`;
+                        `<span style="color: ${senderColor};">@${sender}</span>, щоб створити Дрейка, напишіть: <b>!дрейк [колір]</b> (${colorList(', ')}).` :
+                        `<span style="color: ${senderColor};">@${sender}</span>, to create a Drake, type: <b>!drake [color]</b> (${colorList(', ')}).`;
                     addInfo(msg, 'warn');
                 }
                 return;
@@ -7846,6 +8072,7 @@ const ICONS_V2 = {
             let html = `<span class="pm-label">${METER.short[lang]}</span><span class="pm-pips">${pips}</span>`;
             html += v >= METER.max ? `<span class="pm-ready">${iconText(METER.ready[lang], [ultId], {}, 1, 'METER.ready')}</span>` : `<span class="pm-count">${v} / ${METER.max}</span>`;
             if (st && st.mirror) html += `<span class="pm-mirror">${pxIcon('mirror', 1)} ${unitLeftText('hits', st.mirror, lang)}</span>`;
+            if (st && st.heat != null) html += `<span class="pm-heat">${pxIcon('heat', 1)} ${st.heat}/${ELEMENT_BASE.orangeHeatMax}</span>`;
             morphHtml(el, html);
             el.classList.toggle('full', v >= METER.max);
             el.title = `${METER.name[lang]}: ${v}/${METER.max}` + (ultId ? ` — ${ultName(ultId, lang)}: ${describeUltimate(ultId, lang)}` : '');
@@ -8006,6 +8233,7 @@ const ICONS_V2 = {
             battleFx = fx;
             // The White Drake's bar of scales (Луска Дракона): a share of its max HP by level tier, on top of HP
             [p1, p2].forEach(f => { if (f.drakeObj.type === WHITE_DRAKE_TYPE) { const sc = scalesOf(levelOf(f), maxHPOf(f)); fx[f.name].scales = { now: sc, max: sc }; } });
+            [p1, p2].forEach(f => { if (f.drakeObj.type === 'orange') fx[f.name].heat = 0; });   // Розжарення starts cold
             fvBegin(p1, p2, isRanked, opts);
             let guardianUsed = { [p1.name]: false, [p2.name]: false };
             // Підзарядка: the fight starts with some Element Power already in the meter
@@ -8014,13 +8242,14 @@ const ICONS_V2 = {
             const tName = f => `<span style="color: ${RARITIES[f.title.rarity].color}; font-weight: bold;">${f.title.icon} ${f.title.name[currentLang]}:</span>`;
             // Перевантаження and Підзарядка: how much stronger its ultimate is (an attack's damage, Bloom's heal, Ice Mirror's absorbing)
             const ultBoost = f => 1 + (titleMechanic(f) === 'overcharge' ? MECH.overchargeBonus : titleMechanic(f) === 'meter_rush' ? MECH.meterRushUltBonus : 0);
-            // Damage outside the hit itself (Двійник, Лаг): the White Drake's scales take it first, like a hit
-            const hitThrough = (f, amount) => {
+            // Damage outside the hit itself: the White Drake's scales take it first, like a hit
+            const scalesFirst = (f, amount) => {
                 const sc = fx[f.name].scales, toSc = sc ? Math.min(sc.now, amount) : 0;
                 if (toSc > 0) { sc.now -= toSc; fvScales(toSc); if (sc.now <= 0) fvNote('crack'); }
                 setHP(f, Math.max(0, hpOf(f) - (amount - toSc)));
-                fvHit(amount);
             };
+            // A hit outside the attack (Двійник, Лаг): the attacker's numbers on the result card count it
+            const hitThrough = (f, amount) => { scalesFirst(f, amount); fvHit(amount); };
             // Damage dealt per attack so far (the balance sim estimates what Frost prevented from it)
             let dealt = { [p1.name]: { sum: 0, n: 0 }, [p2.name]: { sum: 0, n: 0 } };
 
@@ -8054,7 +8283,7 @@ const ICONS_V2 = {
             if ([p1, p2].some(f => f.drakeObj.type === WHITE_DRAKE_TYPE)) addLog(`<b>${fvT('steelIn')}</b>`);
             [p1, p2].forEach(f => {
                 if (titleMechanic(f) === 'opening_buff') {
-                    const id = POOL_BUFF_IDS[Math.floor(Math.random() * POOL_BUFF_IDS.length)];
+                    const id = POOL_LASTING_BUFF_IDS[Math.floor(Math.random() * POOL_LASTING_BUFF_IDS.length)];
                     const other = f === p1 ? p2 : p1;
                     applyEffect(f, other, id, levelOf(f), fx, { silent: true });
                     fvOpening(f, id);
@@ -8136,6 +8365,15 @@ const ICONS_V2 = {
                                 : `${tag(attacker)} heals HP from ${fxName(inst.id)} (<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>) · ${leftAfter}`);
                         }
                     });
+                    // Розжарення: the other fighter's heat burns the one whose turn it is, after its own ticks. It's neither a hit
+                    // nor a debuff, so nothing that stops those stops it; the White Dragon ignores it, the scales take it first
+                    if (defFx.heat > 0 && hpOf(attacker) > 0 && attacker.drakeObj.type !== DRAGON_TYPE) {
+                        const burned = Math.max(1, Math.round(attackerMaxHP * heatRate(levelOf(defender)) * defFx.heat / 100));
+                        scalesFirst(attacker, burned);
+                        tallyEffect('heat', 'dmg', burned);
+                        fvTick('heat', -burned);
+                        addLog(`${tag(attacker)} ${fvT('heat')} <span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${burned}</span>`);
+                    }
                     countDownEffects(atkFx, 'turns');
                     updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
 
@@ -8277,6 +8515,11 @@ const ICONS_V2 = {
                         ultText = `×${ultMult} `;
                         fvUltInfo({ mult: ultMult });
                     }
+                    if (ultId === 'eruption') {
+                        ultMult = ult.nums.dmgMult + ult.nums.perHeat / 100 * (atkFx.heat || 0);
+                        ultText = `×${Math.round(ultMult * 100) / 100} `;
+                        fvUltInfo({ mult: Math.round(ultMult * 100) / 100 });
+                    }
                     if (ultId === 'jackpot') {
                         const reels = [0, 1, 2].map(() => spinReel(Math.random()));
                         const gems = reels.filter(r => r.gem).length, skulls = reels.filter(r => r.skull).length;
@@ -8350,11 +8593,13 @@ const ICONS_V2 = {
                     // Effects that change this hit's damage. Each factor is kept so the balance sim can credit it.
                     const rage = getFx(atkFx, 'rage'), weakness = getFx(atkFx, 'weakness'), divine = getFx(atkFx, 'divine'), reforge = getFx(atkFx, 'reforge');
                     const defRage = getFx(defFx, 'rage'), shield = getFx(defFx, 'shield'), shadow = getFx(defFx, 'shadow'), mark = getFx(defFx, 'mark');
+                    const stoke = getFx(atkFx, 'stoke'), melt = getFx(defFx, 'melt');
+                    const meltMult = melt ? 1 + fxNum(melt, 'dmg') / 100 : 1;
                     const rageMult = rage ? 1 + fxNum(rage, 'dmg') / 100 : 1;
                     const weakMult = weakness ? 1 - fxNum(weakness, 'cut') / 100 : 1;
                     const divineMult = divine ? 1 + fxNum(divine, 'dmg') / 100 : 1;
                     const rageTakenMult = defRage ? 1 + fxNum(defRage, 'taken') / 100 : 1;
-                    let damageMultiplier = rageMult * weakMult * divineMult * rageTakenMult * ultMult;
+                    let damageMultiplier = rageMult * weakMult * divineMult * rageTakenMult * meltMult * ultMult;
 
                     let suddenDeathMult = 1.0;
                     if (turn >= SUDDEN_DEATH.from) {
@@ -8380,6 +8625,10 @@ const ICONS_V2 = {
                         if (Math.random() < MECH.sleepChance) { baseDmg = 0; logExtra += currentLang === 'uk' ? `😴 Проспав хід! ` : `😴 Slept through the turn! `; fvNote('sleep'); }
                         else baseDmg *= 1 + MECH.sleepBonus;
                     }
+
+                    // Розжарення: every attack it makes adds heat, blocked or not, a «Проспав хід» one too (a skipped turn never gets
+                    // here). Виверження adds none, and Двійник's second hit is part of this same attack
+                    if (atkFx.heat !== null && ultId !== 'eruption') atkFx.heat = Math.min(ELEMENT_BASE.orangeHeatMax, atkFx.heat + 1);
 
                     // New title abilities that change this hit's damage
                     tA.attacks++;
@@ -8503,6 +8752,7 @@ const ICONS_V2 = {
                         const share = m => finalDmg * (1 - 1 / m);   // part of the damage a ×m factor is responsible for
                         if (blockedByShadow) tallyEffect('shadow', 'prevented', Math.round(hitDmg));
                         if (rage) tallyEffect('rage', 'dmg', share(rageMult));
+                        if (melt) tallyEffect('melt', 'dmg', share(meltMult));
                         if (defRage) tallyEffect('rage', 'prevented', -share(rageTakenMult));   // extra damage the raging drake took
                         if (weakness) tallyEffect('weakness', 'prevented', finalDmg / weakMult - finalDmg);
                         if (divine) tallyEffect('divine', 'dmg', divineBreak ? finalDmg : share(divineMult));
@@ -8603,9 +8853,22 @@ const ICONS_V2 = {
                     }
                     // Element Power: +1 for an own attack that dealt damage (the ultimate doesn't count)
                     if (!ult && finalDmg > 0 && ultimateFor(attacker.drakeObj.type)) atkFx.meter = Math.min(METER.max, atkFx.meter + 1);
+                    // Жар: one more for an own attack that dealt damage (the ultimate still never fills the meter)
+                    if (stoke && !ult && finalDmg > 0 && ultimateFor(attacker.drakeObj.type)) {
+                        atkFx.meter = Math.min(METER.max, atkFx.meter + 1);
+                        fvNote('stoke');
+                        logExtra += `${fxName('stoke')}: +1 ${METER.short[currentLang]}! `;
+                    }
                     if (ult) tallyUltimate(ultId, 'dmg', finalDmg);
                     // Arcane Detonation: the debuffs it counted are gone, whether or not the hit landed
                     if (detonated.length) defFx.debuff = defFx.debuff.filter(x => !detonated.includes(x));
+                    // Виверження: the heat drops by half, rounded down, whether or not the hit landed
+                    if (ultId === 'eruption') {
+                        const was = atkFx.heat || 0;
+                        atkFx.heat = Math.floor(was / 2);
+                        fvUltInfo({ heatFrom: was, heatTo: atkFx.heat });
+                        logExtra += `${fvT('heat')}: ${was} → ${atkFx.heat}! `;
+                    }
                     // Перекування: an own attack that dealt damage rebuilds the attacker's scales, up to their starting size; it isn't
                     // healing, so Poison doesn't cut it. Anyone else holding it (Shadow Theft) has no scales to rebuild
                     if (reforge && finalDmg > 0 && atkFx.scales) {
@@ -8754,9 +9017,9 @@ const ICONS_V2 = {
             }, TURN_MS);
         }
 
-        // What a cast does: usually one of the caster's own element pair (50/50 buff or debuff), otherwise any of the 12 in
-        // the shared pool. The White Drake's own pair (Перекування, Магніт) is only ever its own cast. The White Dragon (and
-        // anything without an element pair) always picks from the 12.
+        // What a cast does: usually one of the caster's own element pair (50/50 buff or debuff), otherwise any in the shared
+        // pool. The White Drake's own pair (Перекування, Магніт) is only ever its own cast. The White Dragon (and anything
+        // without an element pair) always picks from the pool.
         // `skip`: effects to leave out (a Dispel that would find no buffs is recast as something else).
         function pickEffect(caster, skip = []) {
             const type = caster.drakeObj.type;
@@ -9533,7 +9796,8 @@ const ICONS_V2 = {
         // Where the crown sits on each viewer drake, in sprite pixels of the sprite as drawn (facing left): x is the column
         // the crown is centred on, y the line its bottom edge sits on, so its bottom row covers the top row of the skull,
         // in front of the horns and crests
-        const SHOW_HEADS = { red: { x: 12, y: 4 }, blue: { x: 10, y: 4 }, black: { x: 11, y: 5 }, gold: { x: 12, y: 4 }, purple: { x: 12, y: 4 }, green: { x: 10, y: 4 }, steel: { x: 12, y: 4 } };
+        const SHOW_HEADS = { red: { x: 12, y: 4 }, blue: { x: 10, y: 4 }, black: { x: 11, y: 5 }, gold: { x: 12, y: 4 }, purple: { x: 12, y: 4 }, green: { x: 10, y: 4 },
+                             orange: { x: 11, y: 4 }, cherry: { x: 12, y: 4 }, pink: { x: 11, y: 4 }, turquoise: { x: 11, y: 4 }, steel: { x: 12, y: 4 } };
         // Crowns a drake sprite element: it goes into a wrapper (.ts-drake) with the crown, so the crown moves with whatever
         // moves the drake. The crown is scaled like the sprite (its screen pixels per sprite pixel) and placed on whole sprite
         // pixels; a mirrored sprite (a negative scaleX) gets its anchor and the crown mirrored too. Returns the wrapper, or

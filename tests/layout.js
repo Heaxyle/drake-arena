@@ -73,7 +73,7 @@ function fillWorstCase() {
     const lang = currentLang;
     const longName = 'mwmwmwmwmwmwmwmwmwmwmwmwm';   // 25 characters, Twitch's maximum, wide letters
     const longTitle = TITLES_DB.filter(t => t.id !== DRAGON_TITLE_ID).sort((a, b) => (b.icon + b.name[lang]).length - (a.icon + a.name[lang]).length)[0];
-    const longDrake = DRAKE_TYPES.filter(d => d.type !== DRAGON_TYPE).sort((a, b) => b.name[lang].length - a.name[lang].length)[0];
+    const longDrake = DRAKE_TYPES.filter(d => ultimateFor(d.type)).sort((a, b) => b.name[lang].length - a.name[lang].length)[0];   // one with a СИЛА row
     const chipLen = id => effectChipText({ id, left: EFFECTS[id].count }, lang).length;
     const longest = ids => [...ids].filter(id => EFFECTS[id].lasts !== 'instant').sort((a, b) => chipLen(b) - chipLen(a)).slice(0, EFFECT_CAST.maxPerKind);
     const fx = { buff: longest(BUFF_IDS).map(id => ({ id, left: EFFECTS[id].count, power: 1 })),
@@ -374,6 +374,17 @@ async function layoutChecks(browser, lang) {
     check(!problems.length, `${tag} worst case fits at 1920×1080: name "${worst.longName}", title "${worst.longTitle}", "${worst.longDrake}", 4 longest chips, full СИЛА + Ice Mirror, 7 leaderboard rows, a stats card`,
         problems.slice(0, 6).join(' | '));
     await iconCheck(page, `layout-worst-${lang}`);
+    // The longest the meter's row gets with heat in it: a full meter and all the heat, on both cards, the right one mirrored
+    const heatRow = await page.evaluate(() => {
+        const box = el => { const b = el.getBoundingClientRect(); return `${Math.round(b.top)}:${Math.round(b.height)}`; };
+        const rows = ['p1', 'p2'].map(p => document.getElementById(`power-${p}`)), was = rows.map(box);
+        ['p1', 'p2'].forEach(p => renderPowerMeter(p, 'orange', { meter: METER.max, mirror: 0, heat: ELEMENT_BASE.orangeHeatMax }));
+        return { over: rows.filter(r => r.scrollWidth > r.clientWidth + 0.5).map(r => r.id), moved: rows.filter((r, i) => box(r) !== was[i]).map(r => r.id), text: rows.map(r => window.__vt(r)) };
+    });
+    const heatProblems = await page.evaluate(layoutProblems);
+    check(!heatRow.over.length && !heatRow.moved.length && !heatProblems.length, `${tag} the meter's row with a full meter and 8 heat fits on both cards, and doesn't move: «${heatRow.text[0]}»`, JSON.stringify({ heatRow, problems: heatProblems.slice(0, 4) }));
+    await page.evaluate(fillWorstCase);
+    await settle(page);
     // Синій екран and AFK are layers over the card: no block may move, in either state, on either card
     const memeStates = await page.evaluate(() => {
         const boxes = c => [c, ...[...c.children].filter(x => !x.classList.contains('fx-layer'))].map(x => { const b = x.getBoundingClientRect(); return `${x.id || x.className}:${b.left}:${b.top}:${b.width}:${b.height}`; }).join(' ');
@@ -523,7 +534,7 @@ function topRows(ids) {
         return { id, rarity: title.rarity, want: rgb(RARITIES[title.rarity].color), colour: getComputedStyle(span).color, badgeColour: badge && getComputedStyle(badge).color,
             frame: badge && badge.dataset.frame, frameIcon: frame && frame.dataset.icon, glyph: glyph && glyph.dataset.icon, wantGlyph: titleGlyph(title), own: titleOwnIcon(title),
             name: __vt(span), wantName: `[${titleGlyph(title)}] ${title.name[currentLang]}`, level: __vt(sub).includes(`${currentLang === 'uk' ? 'Рівень' : 'Level'} 19`),
-            emblem: first && first.dataset.icon, wantEmblem: EMBLEMS[getDragonDB()[`top_${i}`].drakeObj.type],
+            emblem: first && first.dataset.icon, wantEmblem: iconOf(EMBLEMS[getDragonDB()[`top_${i}`].drakeObj.type]),
             font: parseFloat(getComputedStyle(sub).fontSize), fits: end.right <= box.right + 0.5 && box.right <= rowBox.right + 0.5, inside: end.bottom <= rowBox.bottom + 0.5 && end.top >= rowBox.top - 0.5 };
     });
 }
@@ -898,7 +909,7 @@ async function iconLoopsAndStills(browser) {
             const frames = await page.evaluate(() => {
                 const card = document.getElementById('card-p1'), out = {};
                 const read = cls => { card.className = 'fighter-card ' + cls; const s = getComputedStyle(card); return { hi: s.getPropertyValue('--hi').trim(), lo: s.getPropertyValue('--lo').trim() }; };
-                for (const t of ['red', 'green', 'blue', 'black', 'gold', 'purple', 'steel', 'white']) out[t] = read('el-' + t);
+                for (const t of ['red', 'green', 'blue', 'black', 'gold', 'purple', 'orange', 'cherry', 'pink', 'turquoise', 'steel', 'white']) out[t] = read('el-' + t);
                 out.winner = read('el-gold is-winner');
                 out.loser = read('el-red is-loser');
                 const a = getComputedStyle(document.getElementById('arena'));
@@ -907,8 +918,8 @@ async function iconLoopsAndStills(browser) {
                 return out;
             });
             const PANEL = '#0d0e15';
-            // Every pair of light edges (six elements, the White Drake, the White Dragon, the winner — the same gold as the arena frame — and the loser)
-            const names = ['red', 'green', 'blue', 'black', 'gold', 'purple', 'steel', 'white', 'winner', 'loser'];
+            // Every pair of light edges (ten elements, the White Drake, the White Dragon, the winner — the same gold as the arena frame — and the loser)
+            const names = ['red', 'green', 'blue', 'black', 'gold', 'purple', 'orange', 'cherry', 'pink', 'turquoise', 'steel', 'white', 'winner', 'loser'];
             const pairs = [];
             for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) pairs.push([names[i], names[j], de2000(frames[names[i]].hi, frames[names[j]].hi)]);
             pairs.sort((a, b) => a[2] - b[2]);
@@ -920,10 +931,11 @@ async function iconLoopsAndStills(browser) {
             const FAMILY = {
                 red: c => (c.h >= 345 || c.h <= 15) && c.s >= 0.5, gold: c => c.h >= 38 && c.h <= 55 && c.s >= 0.5, green: c => c.h >= 100 && c.h <= 160 && c.s >= 0.5,
                 blue: c => c.h >= 200 && c.h <= 230 && c.s >= 0.5, purple: c => c.h >= 255 && c.h <= 290 && c.s >= 0.5, black: c => c.s <= 0.15 && c.l >= 0.45 && c.l <= 0.75,
+                orange: c => c.h >= 16 && c.h <= 36 && c.s >= 0.5, cherry: c => c.h >= 335 && c.h <= 356 && c.s >= 0.5, pink: c => c.h >= 310 && c.h <= 345 && c.s >= 0.3, turquoise: c => c.h >= 160 && c.h <= 185 && c.s >= 0.5,
                 steel: c => c.h >= 170 && c.h <= 195 && c.s >= 0.3 && c.s <= 0.6, white: c => c.l >= 0.9, winner: c => c.h >= 38 && c.h <= 55 && c.s >= 0.5, loser: c => c.s <= 0.15 && c.l <= 0.5,
             };
             const off = names.filter(n => !FAMILY[n](hslOf(frames[n].hi)) || (n !== 'white' && n !== 'black' && n !== 'loser' && !FAMILY[n](hslOf(frames[n].lo))));
-            check(!off.length, 'each frame reads as its element (red, gold, green, blue and purple hues on both edges; neutral steel for Black; a cool white steel for the White Drake; near-white for the White Dragon; grey for the loser)',
+            check(!off.length, 'each frame reads as its element (red, gold, green, blue, purple, orange, cherry, pink and turquoise hues on both edges; neutral steel for Black; a cool white steel for the White Drake; near-white for the White Dragon; grey for the loser)',
                 off.map(n => `${n} ${frames[n].hi} / ${frames[n].lo}: ${JSON.stringify(hslOf(frames[n].hi))}`).join(' | '));
             const weak = names.filter(n => n !== 'loser' && contrast(frames[n].hi, PANEL) < 3);
             const blackLo = contrast(frames.black.lo, PANEL);
@@ -1139,7 +1151,7 @@ async function iconLoopsAndStills(browser) {
             await page.locator('#review-sheet').screenshot({ path: path.join(SHOTS, 'layout-review-cards.png') });
             const n = await page.evaluate(() => document.querySelectorAll('#review-sheet .fighter-card').length);
             const tags = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .result-tag')].filter(t => getComputedStyle(t).display !== 'none').map(t => t.innerText));
-            check(n === 20 && tags.join() === 'ПЕРЕМОЖЕЦЬ,НОКАУТ,WINNER,KNOCKED OUT', `review sheet: ${n} cards (8 types + winner + loser, both languages) in tests/screenshots/layout-review-cards.png`, `${n} cards, tags ${tags.join()}`);
+            check(n === 28 && tags.join() === 'ПЕРЕМОЖЕЦЬ,НОКАУТ,WINNER,KNOCKED OUT', `review sheet: ${n} cards (12 types + winner + loser, both languages) in tests/screenshots/layout-review-cards.png`, `${n} cards, tags ${tags.join()}`);
             await context.close();
         }
 
