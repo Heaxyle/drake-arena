@@ -1791,7 +1791,7 @@ for (const lang of ['en', 'uk']) {
     {
         console.log('\n[25. Season 2: Помаранчевий]');
         const OR = (title = null, level = 20) => drake('orange', title, level);
-        const MAX = 340;   // a plain level-20 drake's max HP (150 + 19 × 10)
+        const MAX = 340, OMAX = 380;   // a plain level-20 drake's max HP (150 + 19 × 10); Помаранчевий's, 12% more
         const heatAfter = (A, turns, setup = null) => scripted({ A, turns, setup }).turns.map(t => t.fx.A.heat);
 
         for (const [lang, make1, words] of [['uk', '!дрейк', ['помаранчевий']], ['en', '!drake', ['orange']]]) {
@@ -1844,25 +1844,27 @@ for (const lang of ['en', 'uk']) {
         };
         {
             const maxOf = l => 150 + (l - 1) * 10;
-            const cases = [[20, 20, 8, 19], [20, 20, 1, 2], [19, 19, 8, 13], [1, 1, 1, 1], [1, 20, 8, 8], [20, 1, 8, 14], [10, 10, 4, 5]];
+            const cases = [[20, 20, 8, 38], [20, 20, 1, 5], [19, 19, 8, 30], [1, 1, 1, 2], [1, 20, 8, 17], [20, 1, 8, 29], [10, 10, 4, 11], [5, 5, 8, 17]];
             const wrong = cases.filter(([a, b, heat, want]) => maxOf(a) - tick(a, b, heat).hpA !== want).map(c => `${c}: ${maxOf(c[0]) - tick(c[0], c[1], c[2]).hpA}`);
-            check(!wrong.length, "25. the tick: 0.5% of the opponent's max HP per heat, 0.7% at the holder's level 20 (340 HP at 8 heat: 19; a level-1 target of a level-20 holder: 8; 1 HP at least)", wrong.join(' | '));
+            check(!wrong.length, "25. the tick: 1.05% of the opponent's max HP per heat, 1.15% from the holder's level 5, 1.4% at its level 20 (340 HP at 8 heat: 38; a level-1 target of a level-20 holder: 17)", wrong.join(' | '));
+            const tiny = scripted({ A: drake(), B: OR(null, 1), hp: 20, setup: fx => { fx.B.heat = 1; }, turns: [dice({ before: [0.99], block: 0.01 })] }).turns[0];
+            check(tiny.notes['tick:heat'] === -1, '25. a tick is 1 HP at least (20 max HP at 1 heat)', JSON.stringify(tiny.notes));
             const none = tick(20, 20, 0);
             check(none.hpA === MAX && !none.text.includes('🌡️') && !('tick:heat' in none.notes), '25. no heat, no tick', none.text.slice(0, 100));
             const heard25 = tick(20, 20, 8);
-            check(heard25.notes['tick:heat'] === -19, '25. nothing only in the hidden record: the tick tells the view', JSON.stringify(heard25.notes));
-            for (const [lang, line] of [['uk', '@A 🌡️ жар -19'], ['en', '@A 🌡️ heat -19']])
+            check(heard25.notes['tick:heat'] === -38, '25. nothing only in the hidden record: the tick tells the view', JSON.stringify(heard25.notes));
+            for (const [lang, line] of [['uk', '@A 🌡️ жар -38'], ['en', '@A 🌡️ heat -38']])
                 check(tick(20, 20, 8, () => {}, { lang }).text.includes(line), `25. the record says «${line}» on the opponent's turn`, tick(20, 20, 8, () => {}, { lang }).text.slice(0, 120));
             G.setLang('en');
         }
         {   // Its place among the start-of-turn ticks: after the target's own, so it can knock out
             const order = tick(20, 20, 8, fx => put(fx, 'A', 'burn'));
-            check(order.text.indexOf('Burn') !== -1 && order.text.indexOf('Burn') < order.text.indexOf('🌡️') && order.hpA === MAX - 17 - 19, "25. the tick comes after the target's own debuff ticks (Burn -17, then heat -19)", order.text.slice(0, 160));
-            // 5 HP after the Burn, +22 from Regeneration, -19 from the heat: 8. Heat before the heal would stop at 0 and end on 22
-            const healed = tick(20, 20, 8, fx => { hurt(fx, 'A', MAX, 5); put(fx, 'A', 'regen'); });
-            check(healed.hpA === 8, "25. ...and after its buff ticks: Regeneration can't undo a knockout the heat deals", String(healed.hpA));
+            check(order.text.indexOf('Burn') !== -1 && order.text.indexOf('Burn') < order.text.indexOf('🌡️') && order.hpA === MAX - 17 - 38, "25. the tick comes after the target's own debuff ticks (Burn -17, then heat -38)", order.text.slice(0, 160));
+            // 20 HP after the Burn, +22 from Regeneration, -38 from the heat: 4. Heat before the heal would stop at 0 and end on 22
+            const healed = tick(20, 20, 8, fx => { hurt(fx, 'A', MAX, 20); put(fx, 'A', 'regen'); });
+            check(healed.hpA === 4, "25. ...and after its buff ticks: Regeneration can't undo a knockout the heat deals", String(healed.hpA));
             const out = scripted({ A: drake(), B: OR(), setup: fx => { fx.B.heat = 8; hurt(fx, 'A', MAX, 10); }, turns: [dice({ before: [0.99] })] });
-            check(out.ended && out.turns[0].hpA === 0 && out.turns[0].text.includes('🌡️ heat -19') && !/\[Turn 1\]/.test(out.turns[0].text), '25. the tick can knock the opponent out, before it attacks', JSON.stringify([out.ended, out.turns[0].hpA, out.turns[0].text.slice(0, 160)]));
+            check(out.ended && out.turns[0].hpA === 0 && out.turns[0].text.includes('🌡️ heat -38') && !/\[Turn 1\]/.test(out.turns[0].text), '25. the tick can knock the opponent out, before it attacks', JSON.stringify([out.ended, out.turns[0].hpA, out.turns[0].text.slice(0, 160)]));
             const dead = scripted({ A: drake(), B: OR(), setup: fx => { fx.B.heat = 8; hurt(fx, 'A', MAX, 0); }, turns: [dice()] });
             check(dead.ended && !dead.turns[0].text.includes('🌡️'), "25. a debuff tick that knocks it out leaves the heat nothing to do", dead.turns[0].text.slice(0, 160));
             const m = G.getMaxHP(20, 'plain', T(245));
@@ -1909,9 +1911,9 @@ for (const lang of ['en', 'uk']) {
                 ['debuff immunity', 'plain', titleWith('debuff_immunity'), () => {}], ['Очищення', 'plain', T(229), fx => put(fx, 'A', 'mark')]];
             const bad = [];
             for (const [what, type, title, setup] of untouched) {
-                const m = G.getMaxHP(20, type, title), want = Math.round(m * 0.7 * 8 / 100);
+                const m = G.getMaxHP(20, type, title), want = Math.round(m * 1.4 * 8 / 100);
                 const r = scripted({ A: drake(type, title), B: OR(), setup: fx => { fx.B.heat = 8; setup(fx); }, turns: [dice({ before: [0.99], block: 0.01 })] }).turns[0];
-                if (r.hpA !== m - want || r.hpB !== MAX) bad.push(`${what}: A ${m} → ${r.hpA} (want ${m - want}), B ${r.hpB} (want ${MAX})`);
+                if (r.hpA !== m - want || r.hpB !== OMAX) bad.push(`${what}: A ${m} → ${r.hpA} (want ${m - want}), B ${r.hpB} (want ${OMAX})`);
             }
             check(!bad.length, "25. the tick is neither a hit nor a debuff: Щит, armour, reflect, Шипи, Контратака, 404, debuff immunity and Очищення don't touch it, and nothing comes back at the holder", bad.join(' | '));
             const bloom = scripted({ A: drake('green'), B: OR(), setup: fx => { fx.A.meter = 5; fx.B.heat = 8; }, turns: [dice({ before: [0.99] }), dice({ block: 0.01 }), dice({ before: [0.99], block: 0.01 })] }).turns;
@@ -1922,7 +1924,7 @@ for (const lang of ['en', 'uk']) {
         {
             const dragon = scripted({ A: DRAGON(), B: OR(), setup: fx => { fx.B.heat = 8; }, turns: [dice()] }).turns[0];
             check(dragon.hpA === 99999 && !dragon.text.includes('🌡️'), '25. the White Dragon ignores the heat', dragon.text.slice(0, 120));
-            const m = G.getMaxHP(20, G.WHITE_DRAKE_TYPE, T(G.WHITE_DRAKE_TITLE_ID)), burn = Math.round(m * 0.7 * 8 / 100), sc = G.scalesOf(20, m);
+            const m = G.getMaxHP(20, G.WHITE_DRAKE_TYPE, T(G.WHITE_DRAKE_TITLE_ID)), burn = Math.round(m * 1.4 * 8 / 100), sc = G.scalesOf(20, m);
             const full = scripted({ A: WD(), B: OR(), setup: fx => { fx.B.heat = 8; }, turns: [dice({ before: [0.99], block: 0.01 })] }).turns[0];
             check(full.fx.A.scales.now === sc - burn && full.hpA === m, `25. against the White Drake the heat burns the scales first (${sc} → ${sc - burn}), her HP stays`, JSON.stringify([full.fx.A.scales, full.hpA]));
             const thin = scripted({ A: WD(), B: OR(), setup: fx => { fx.B.heat = 8; fx.A.scales.now = 5; }, turns: [dice({ before: [0.99], block: 0.01 })] }).turns[0];
@@ -1984,7 +1986,7 @@ for (const lang of ['en', 'uk']) {
     {
         console.log('\n[26. Season 2: Вишневий]');
         const CH = (title = null, level = 20) => drake('cherry', title, level);
-        const MAX = 340;   // a plain level-20 drake's max HP (150 + 19 × 10), Вишневий's too
+        const MAX = 340, CMAX = 360;   // a plain level-20 drake's max HP (150 + 19 × 10); Вишневий's, 6% more
 
         for (const [lang, make1, word] of [['uk', '!дрейк', 'вишневий'], ['en', '!drake', 'cherry']]) {
             G.setLang(lang);
@@ -1995,32 +1997,32 @@ for (const lang of ['en', 'uk']) {
         }
         check(G.VIEWER_DRAKE_TYPES.some(d => d.type === 'cherry'), '26. random picks can give the Cherry Drake', JSON.stringify(G.VIEWER_DRAKE_TYPES.map(d => d.type)));
 
-        // Кривавий шал: +1% for every 3% of max HP lost, every 2% at level 20
+        // Кривавий шал: +1% for every 2.5% of max HP lost, every 2.1% from level 10, every 1.38% at level 20
         {
             const hit = (level, share, title = null) => { const m = G.getMaxHP(level, 'cherry', title); return scripted({ A: CH(title, level), setup: fx => { if (share) hurt(fx, 'A', m, Math.round(m * (1 - share))); strong('A')(fx); }, turns: [dice()] }).turns[0]; };
             const steps = (level, table) => { const b = hit(level, 0).dmg; return table.filter(([share, m]) => Math.abs(hit(level, share).dmg / (b * m) - 1) >= 0.01).map(([s]) => `${level}: ${s} → ${hit(level, s).dmg / b}`); };
-            const bad = [...steps(19, [[0.3, 1.1], [0.6, 1.2], [0.9, 1.3]]), ...steps(1, [[0.9, 1.3]]), ...steps(20, [[0.3, 1.15], [0.6, 1.3], [0.9, 1.45]])];
-            check(!bad.length, '26. Кривавий шал: +1% for every 3% of max HP lost (+30% at 10% HP), +1% for every 2% at level 20 (+45%), nothing at full HP', bad.join(' | '));
+            const bad = [...steps(19, [[0.3, 1.1429], [0.6, 1.2857], [0.9, 1.4286]]), ...steps(1, [[0.9, 1.36]]), ...steps(20, [[0.3, 1.2174], [0.6, 1.4348], [0.9, 1.6522]])];
+            check(!bad.length, '26. Кривавий шал: +1% for every 2.5% of max HP lost (+36% at 10% HP), every 2.1% from level 10 (+43%), every 1.38% at level 20 (+65%), nothing at full HP', bad.join(' | '));
             const t = T(260), both = hit(20, 0.9, t).dmg, neither = hit(20, 0, bare(t)).dmg;
-            check(Math.abs(both / (neither * 1.45 * 1.3) - 1) < 0.01, '26. it stacks with Загартування: ×1.45 and ×1.3 together', String(both / neither));
+            check(Math.abs(both / (neither * 1.6522 * 1.3) - 1) < 0.01, '26. it stacks with Загартування: ×1.65 and ×1.3 together', String(both / neither));
             const told = hit(20, 0.6);
-            check(told.notes.frenzy === 30, '26. nothing only in the hidden record: the bonus tells the view', JSON.stringify(told.notes));
+            check(told.notes.frenzy === 43, '26. nothing only in the hidden record: the bonus tells the view', JSON.stringify(told.notes));
             const notHere = scripted({ A: drake('red'), setup: fx => hurt(fx, 'A', MAX, 34), turns: [dice()] }).turns[0];
             check(!notHere.notes.frenzy, "26. Кривавий шал is Вишневий's alone", JSON.stringify(notHere.notes));
             // The card: +N% once it's above 0, from the HP it has now
             const row = () => document.getElementById('power-p1').innerHTML;
             scripted({ A: CH(), B: drake('red'), turns: [dice({ block: 0.01 })] });
             const full = row();
-            scripted({ A: CH(), B: drake('red'), setup: fx => hurt(fx, 'A', MAX, 136), turns: [dice({ block: 0.01 })] });
+            scripted({ A: CH(), B: drake('red'), setup: fx => hurt(fx, 'A', CMAX, 144), turns: [dice({ block: 0.01 })] });
             const hurtRow = row();
-            check(!full.includes('pm-frenzy') && hurtRow.includes('pm-frenzy') && hurtRow.includes('+30%'), "26. the card shows the bonus (+30% at 40% HP) once it's above 0, and nothing at full HP", hurtRow.slice(-160));
-            const healed = scripted({ A: CH(), setup: fx => { hurt(fx, 'A', MAX, 136); put(fx, 'A', 'regen'); }, turns: [dice({ block: 0.01 })] }).turns[0];
-            check(healed.fx.A.frenzy === 27, "26. the card's bonus follows its HP down as well as up (+27% once Регенерація has healed it)", String(healed.fx.A.frenzy));
+            check(!full.includes('pm-frenzy') && hurtRow.includes('pm-frenzy') && hurtRow.includes('+43%'), "26. the card shows the bonus (+43% at 40% HP) once it's above 0, and nothing at full HP", hurtRow.slice(-160));
+            const healed = scripted({ A: CH(), setup: fx => { hurt(fx, 'A', CMAX, 144); put(fx, 'A', 'regen'); }, turns: [dice({ block: 0.01 })] }).turns[0];
+            check(healed.fx.A.frenzy === 39, "26. the card's bonus follows its HP down as well as up (+39% once Регенерація has healed it)", String(healed.fx.A.frenzy));
         }
 
         // Кров за кров
         {
-            const heal = (setup, d = {}, A = CH(), B = {}) => scripted({ A, B, setup: fx => { hurt(fx, 'A', MAX, 100); setup(fx); }, turns: [dice(d)] }).turns[0];
+            const heal = (setup, d = {}, A = CH(), B = {}) => scripted({ A, B, setup: fx => { hurt(fx, 'A', CMAX, 100); setup(fx); }, turns: [dice(d)] }).turns[0];
             const buff = fx => put(fx, 'A', 'bloodprice');
             const t = heal(buff);
             check(t.notes.bloodprice === Math.round(t.dmg * 0.5) && t.hpA === 100 + Math.round(t.dmg * 0.5), `26. Кров за кров: heals half the damage the attack dealt (${t.dmg} → +${t.notes.bloodprice})`, JSON.stringify([t.dmg, t.notes, t.hpA]));
@@ -2030,28 +2032,28 @@ for (const lang of ['en', 'uk']) {
             check(deep.notes.bloodprice === Math.round(deep.dmg * 0.5 * 0.1) || (deep.dmg * 0.05 < 0.5 && !deep.notes.bloodprice), "26. Отруєння's cut stops at 90%", JSON.stringify([deep.dmg, deep.notes]));
             const big = heal(fx => { fx.A.buff.push({ id: 'bloodprice', left: 2, power: 3 }); });
             check(big.notes.bloodprice === Math.round(big.dmg * 0.9), `26. effect power scales it, up to 90% of the damage (power ×3: ${big.dmg} → +${big.notes.bloodprice})`, JSON.stringify([big.dmg, big.notes]));
-            const top = scripted({ A: CH(), setup: fx => { hurt(fx, 'A', MAX, MAX - 5); buff(fx); }, turns: [dice()] }).turns[0];
-            check(top.notes.bloodprice === 5 && top.hpA === MAX, '26. it stops at max HP', JSON.stringify([top.notes, top.hpA]));
+            const top = scripted({ A: CH(), setup: fx => { hurt(fx, 'A', CMAX, CMAX - 5); buff(fx); }, turns: [dice()] }).turns[0];
+            check(top.notes.bloodprice === 5 && top.hpA === CMAX, '26. it stops at max HP', JSON.stringify([top.notes, top.hpA]));
             const blocked = heal(buff, { block: 0.01 });
             check(blocked.dmg === 0 && !blocked.notes.bloodprice && blocked.fx.A.buff[0].left === 1, '26. a blocked attack heals nothing, and it still counts down', JSON.stringify(blocked.fx.A.buff));
             const twin = heal(buff, { after: [0.01] }, CH(T(249)));
             check(twin.notes.twin > 0 && twin.notes.bloodprice === Math.round((twin.dmg + twin.notes.twin) * 0.5), "26. Двійник's second hit is part of the attack, so its damage counts", JSON.stringify([twin.dmg, twin.notes]));
             const vamp = heal(buff, { attack: 0.95 });
             check(vamp.notes.vamp > 0 && vamp.notes.bloodprice > 0, "26. it adds to a vampire attack's own heal", JSON.stringify(vamp.notes));
-            const thorned = scripted({ A: CH(), B: drake('plain', titleWith('thorns')), setup: fx => { hurt(fx, 'A', MAX, 2); buff(fx); }, turns: [dice()] });
+            const thorned = scripted({ A: CH(), B: drake('plain', titleWith('thorns')), setup: fx => { hurt(fx, 'A', CMAX, 2); buff(fx); }, turns: [dice()] });
             check(thorned.ended && !thorned.turns[0].notes.bloodprice && thorned.turns[0].hpA === 0, "26. a drake Шипи knocked out on its own attack doesn't heal back", JSON.stringify([thorned.ended, thorned.turns[0].notes]));
         }
 
-        // Кровотеча: 3% of its own max HP after each attack it makes
+        // Кровотеча: 4% of its own max HP after each attack it makes
         {
             const bled = (A = drake(), B = {}, turn = dice({ block: 0.01 }), setup = () => {}) => scripted({ A, B, setup: fx => { put(fx, 'A', 'bleed'); setup(fx); }, turns: [turn] }).turns[0];
             const t = bled();
-            check(t.notes.bleed === 10 && t.hpA === MAX - 10 && t.text.includes('Bleed (-10 HP)'), '26. Кровотеча: 3% of its own max HP after its attack, blocked or not', JSON.stringify([t.notes, t.hpA]));
+            check(t.notes.bleed === 14 && t.hpA === MAX - 14 && t.text.includes('Bleed (-14 HP)'), '26. Кровотеча: 4% of its own max HP after its attack, blocked or not', JSON.stringify([t.notes, t.hpA]));
             const slept = bled(drake('plain', titleWith('sleepy')), {}, [0.5, 0.5, 0.5, 0, 0.99, 0.99, 0.99]);
             check(/Slept through/.test(slept.text) && slept.notes.bleed > 0, '26. a «Проспав хід» attack is still an attack: it ticks', slept.text.slice(0, 120));
             const twin = bled(drake('plain', T(249)), {}, dice({ after: [0.01] }));
             const twinMax = G.getMaxHP(20, 'plain', T(249));
-            check(twin.notes.twin > 0 && twin.fx.A.debuff[0].left === 2 && twin.hpA === twinMax - Math.round(twinMax * 0.03) && (twin.text.match(/Bleed \(-/g) || []).length === 1, "26. Двійник's second hit is part of the same attack: one tick, one 3% off its HP", JSON.stringify([twin.hpA, twinMax, twin.text.slice(0, 120)]));
+            check(twin.notes.twin > 0 && twin.fx.A.debuff[0].left === 2 && twin.hpA === twinMax - Math.round(twinMax * 0.04) && (twin.text.match(/Bleed \(-/g) || []).length === 1, "26. Двійник's second hit is part of the same attack: one tick, one 4% off its HP", JSON.stringify([twin.hpA, twinMax, twin.text.slice(0, 120)]));
             // Read on the next turn: a lost turn doesn't draw the HP again, so the card would hide a tick
             const [frozen, afterFrozen] = scripted({ A: drake(), setup: fx => { put(fx, 'A', 'bleed'); put(fx, 'A', 'frost'); }, turns: [[], dice({ block: 0.01 })] }).turns;
             check(/frozen/.test(frozen.text) && !frozen.notes.bleed && afterFrozen.hpA === MAX && frozen.fx.A.debuff.find(x => x.id === 'bleed').left === 3, "26. a turn lost to Мороз makes no attack: no tick, no HP lost, and it doesn't count down", JSON.stringify([afterFrozen.hpA, frozen.fx.A.debuff]));
@@ -2071,7 +2073,7 @@ for (const lang of ['en', 'uk']) {
             const won = scripted({ A: drake('plain'), setup: fx => { put(fx, 'A', 'bleed'); fx.A.buff.push({ id: 'rage', left: 2, power: 100 }); }, turns: [dice()] });
             check(won.ended && won.turns[0].hpB === 0 && won.turns[0].hpA === MAX && !won.turns[0].notes.bleed, "26. the attack that ends the fight: no tick after it", JSON.stringify([won.ended, won.turns[0].hpA, won.turns[0].notes]));
             const lost = scripted({ A: drake(), setup: fx => { hurt(fx, 'A', MAX, 5); put(fx, 'A', 'bleed'); }, turns: [dice({ block: 0.01 })] });
-            check(lost.ended && lost.turns[0].hpA === 0 && lost.turns[0].notes.bleed === 10, '26. it can knock the bleeding drake out', JSON.stringify([lost.ended, lost.turns[0].hpA, lost.turns[0].notes]));
+            check(lost.ended && lost.turns[0].hpA === 0 && lost.turns[0].notes.bleed === 14, '26. it can knock the bleeding drake out', JSON.stringify([lost.ended, lost.turns[0].hpA, lost.turns[0].notes]));
             const m = G.getMaxHP(20, 'plain', T(245));
             const reborn = scripted({ A: drake('plain', T(245)), setup: fx => { hurt(fx, 'A', m, 5, m); put(fx, 'A', 'bleed'); }, turns: [dice({ block: 0.01 })] });
             check(!reborn.ended && reborn.turns[0].hpA === 1 && reborn.turns[0].notes.phoenix, '26. Відродження survives it', JSON.stringify([reborn.ended, reborn.turns[0].hpA]));
@@ -2081,7 +2083,7 @@ for (const lang of ['en', 'uk']) {
             check(bounced === 'bounced' && landed === 'applied', "26. Кровотеча bounces off the White Drake's scales while they hold, and lands once they're gone", JSON.stringify([bounced, landed]));
             const wdMax = G.getMaxHP(20, G.WHITE_DRAKE_TYPE, T(G.WHITE_DRAKE_TITLE_ID));
             const onHp = scripted({ A: WD(), setup: fx => { put(fx, 'A', 'bleed'); fx.A.scales.now = 40; }, turns: [dice({ block: 0.01 })] }).turns[0];
-            check(onHp.fx.A.scales.now === 40 && onHp.hpA === wdMax - Math.round(wdMax * 0.03), "26. it's damage, not a hit: the scales rebuilt over it don't take it, like Burn and Poison", JSON.stringify([onHp.fx.A.scales, onHp.hpA]));
+            check(onHp.fx.A.scales.now === 40 && onHp.hpA === wdMax - Math.round(wdMax * 0.04), "26. it's damage, not a hit: the scales rebuilt over it don't take it, like Burn and Poison", JSON.stringify([onHp.fx.A.scales, onHp.hpA]));
             let immune = null, dragon = null;
             scripted({ A: CH(), B: drake('plain', titleWith('debuff_immunity')), setup: (fx, a, b) => { immune = G.applyEffect(a, b, 'bleed', 20, fx); } });
             scripted({ A: CH(), B: DRAGON(), setup: (fx, a, b) => { dragon = G.applyEffect(a, b, 'bleed', 20, fx); } });
@@ -2118,7 +2120,7 @@ for (const lang of ['en', 'uk']) {
     {
         console.log('\n[27. Season 2: Бірюзовий]');
         const TQ = (title = null, level = 20) => drake('turquoise', title, level);
-        const MAX = 340;
+        const MAX = 346;   // Бірюзовий's max HP at level 20: 2% more than a plain drake's 340
 
         for (const [lang, make1, word] of [['uk', '!дрейк', 'бірюзовий'], ['en', '!drake', 'turquoise']]) {
             G.setLang(lang);
@@ -2135,7 +2137,7 @@ for (const lang of ['en', 'uk']) {
             check(cold.B.layers === 0 && cold.A.layers === null, '27. a fight starts with no layers, and only Бірюзовий has any', JSON.stringify([cold.A.layers, cold.B.layers]));
             check(layers(scripted({ B: TQ(), turns: rounds(3) })).join() === '1,1,2', "27. every hit it takes adds a layer; its own attacks don't", layers(scripted({ B: TQ(), turns: rounds(3) })).join());
             check(layers(scripted({ B: TQ(), turns: [dice({ block: 0.01 })] })).join() === '1', '27. a blocked hit adds one too', '');
-            check(layers(scripted({ B: TQ(), setup: fx => { fx.B.layers = 7; }, turns: [dice(), dice(), dice()] })).join() === '8,8,8', '27. layers stop at 8', '');
+            check(layers(scripted({ B: TQ(), setup: fx => { fx.B.layers = 5; }, turns: [dice(), dice(), dice()] })).join() === '6,6,6', '27. layers stop at 6', '');
             const twin = scripted({ A: drake('plain', T(249)), B: TQ(), turns: [dice({ after: [0.01] })] }).turns[0];
             check(twin.notes.twin > 0 && twin.fx.B.layers === 2, "27. Двійник's second hit is a hit of its own: another layer", JSON.stringify(twin.fx.B.layers));
             const lag = scripted({ A: drake('plain', T(287)), B: TQ(), turns: [dice({ after: [0.01] }), dice({ block: 0.01 }), dice({ block: 0.01 })] }).turns;
@@ -2144,42 +2146,43 @@ for (const lang of ['en', 'uk']) {
             check(ticks.fx.A.layers === 0, '27. ticks add none', String(ticks.fx.A.layers));
         }
 
-        // The cut: 3% a layer, 4% at level 20, on every kind of hit
+        // The cut: 3.75% a layer, 4% from level 5, 4.5% from level 10, 5.5% at level 20, on every kind of hit
         {
             const hit = (layersOn, d = {}, level = 20, setup = () => {}) => scripted({ B: TQ(null, level), setup: fx => { fx.B.layers = layersOn; strong('A')(fx); setup(fx); }, turns: [dice(d)] }).turns[0];
             const ratio = (n, d, level) => hit(n, d, level).dmg / hit(0, d, level).dmg, close = (a, b) => Math.abs(a / b - 1) < 0.01;
             const SNEAKY = { attack: 0.3, sub: 0.9 }, VAMPIRE = { attack: 0.95, sub: 0.3 }, bad = [];
             for (const [what, d] of [['magic', {}], ['armour-piercing', SNEAKY], ['vampire', VAMPIRE]]) {
-                if (!close(ratio(8, d, 19), 0.76)) bad.push(`${what} at 8 layers, level 19: ×${ratio(8, d, 19)}`);
-                if (!close(ratio(8, d, 20), 0.68)) bad.push(`${what} at 8 layers, level 20: ×${ratio(8, d, 20)}`);
-                if (!close(ratio(1, d, 1), 0.97)) bad.push(`${what} at 1 layer, level 1: ×${ratio(1, d, 1)}`);
+                if (!close(ratio(6, d, 19), 0.73)) bad.push(`${what} at 6 layers, level 19: ×${ratio(6, d, 19)}`);
+                if (!close(ratio(6, d, 20), 0.67)) bad.push(`${what} at 6 layers, level 20: ×${ratio(6, d, 20)}`);
+                if (!close(ratio(6, d, 5), 0.76)) bad.push(`${what} at 6 layers, level 5: ×${ratio(6, d, 5)}`);
+                if (!close(ratio(1, d, 1), 0.9625)) bad.push(`${what} at 1 layer, level 1: ×${ratio(1, d, 1)}`);
             }
-            check(!bad.length, '27. Перламутр: −3% a layer (−24% at 8), −4% at level 20 (−32%), on every kind of hit, armour-piercing and vampire too', bad.join(' | '));
-            const withShield = hit(8, {}, 20, fx => put(fx, 'B', 'shield')).dmg, shieldOnly = hit(0, {}, 20, fx => put(fx, 'B', 'shield')).dmg;
-            check(close(withShield, shieldOnly * 0.68), '27. it comes on top of armour and Щит', JSON.stringify([withShield, shieldOnly]));
-            // The cap: Щит at its 90% and 8 layers on a hit past armour would leave 6.8%; everything together stops at 90%
-            const raw = hit(0, SNEAKY).dmg, capped = hit(8, SNEAKY, 20, fx => { fx.B.buff.push({ id: 'shield', left: 2, power: 10 }); }).dmg;
+            check(!bad.length, '27. Перламутр: −3.75% a layer, −4% from level 5, −4.5% from level 10 (−27% at 6), −5.5% at level 20 (−33%), on every kind of hit, armour-piercing and vampire too', bad.join(' | '));
+            const withShield = hit(6, {}, 20, fx => put(fx, 'B', 'shield')).dmg, shieldOnly = hit(0, {}, 20, fx => put(fx, 'B', 'shield')).dmg;
+            check(close(withShield, shieldOnly * 0.67), '27. it comes on top of armour and Щит', JSON.stringify([withShield, shieldOnly]));
+            // The cap: Щит at its 90% and 6 layers on a hit past armour would leave 6.7%; everything together stops at 90%
+            const raw = hit(0, SNEAKY).dmg, capped = hit(6, SNEAKY, 20, fx => { fx.B.buff.push({ id: 'shield', left: 2, power: 10 }); }).dmg;
             check(close(capped, raw * 0.1), `27. defence, Щит and layers together stay inside the 90% cap (${raw} → ${capped})`, JSON.stringify([raw, capped]));
-            const told = hit(8);
-            check(told.notes.nacre === 32 && told.text.includes('🐚 −32%'), '27. the cut tells the view, and the record says «🐚 −32%»', JSON.stringify([told.notes, told.text.slice(-60)]));
-            const none = hit(0), blocked = hit(8, { block: 0.01 });
+            const told = hit(6);
+            check(told.notes.nacre === 33 && told.text.includes('🐚 −33%'), '27. the cut tells the view, and the record says «🐚 −33%»', JSON.stringify([told.notes, told.text.slice(-60)]));
+            const none = hit(0), blocked = hit(6, { block: 0.01 });
             check(!none.notes.nacre && !blocked.notes.nacre, '27. no layers, or a blocked hit: no cut to show', JSON.stringify([none.notes, blocked.notes]));
-            const dead = scripted({ A: DRAGON(), B: TQ(), setup: fx => { fx.B.layers = 8; }, turns: [dice()] });
+            const dead = scripted({ A: DRAGON(), B: TQ(), setup: fx => { fx.B.layers = 6; }, turns: [dice()] });
             check(dead.ended && dead.turns[0].hpB === 0, "27. the White Dragon's hit stays lethal", JSON.stringify([dead.ended, dead.turns[0].hpB]));
-            const copyOn = scripted({ A: drake('plain', T(292)), B: TQ(), setup: fx => { fx.B.layers = 8; }, turns: [dice({ block: 0.01 }), dice(), dice({ after: [0.05] })] }).turns;
+            const copyOn = scripted({ A: drake('plain', T(292)), B: TQ(), setup: fx => { fx.B.layers = 6; }, turns: [dice({ block: 0.01 }), dice(), dice({ after: [0.05] })] }).turns;
             check(copyOn[2].notes.copy === copyOn[1].dmg, "27. Копіпаст deals exactly the number it copies: layers don't cut it", JSON.stringify([copyOn[1].dmg, copyOn[2].dmg]));
         }
 
         // What layers never touch: ticks and damage returns
         {
-            const tick = setup => scripted({ A: TQ(), setup: fx => { fx.A.layers = 8; setup(fx); }, turns: [dice({ block: 0.01 })] }).turns[0];
+            const tick = setup => scripted({ A: TQ(), setup: fx => { fx.A.layers = 6; setup(fx); }, turns: [dice({ block: 0.01 })] }).turns[0];
             check(MAX - tick(fx => put(fx, 'A', 'burn')).hpA === 17, "27. Підпал isn't cut", String(tick(fx => put(fx, 'A', 'burn')).hpA));
             check(MAX - tick(fx => put(fx, 'A', 'poison')).hpA === 10, '27. nor is Отруєння', String(tick(fx => put(fx, 'A', 'poison')).hpA));
-            check(MAX - tick(fx => put(fx, 'A', 'bleed')).hpA === 10, '27. nor is Кровотеча', String(tick(fx => put(fx, 'A', 'bleed')).hpA));
-            const heat = scripted({ A: TQ(), B: drake('orange'), setup: fx => { fx.A.layers = 8; fx.B.heat = 8; }, turns: [dice({ before: [0.99], block: 0.01 })] }).turns[0];
-            check(MAX - heat.hpA === 19, "27. nor is the heat's tick", String(heat.hpA));
-            // It attacks a Шипи holder, a reflecting Синій, a Контратака holder and an Ice Mirror: what comes back is the same with 8 layers
-            const back = (B, roll, setup = () => {}) => [0, 8].map(n => scripted({ A: TQ(), B, setup: fx => { fx.A.layers = n; setup(fx); }, turns: [dice({ after: roll })] }).turns[0].hpA);
+            check(MAX - tick(fx => put(fx, 'A', 'bleed')).hpA === 14, '27. nor is Кровотеча', String(tick(fx => put(fx, 'A', 'bleed')).hpA));
+            const heat = scripted({ A: TQ(), B: drake('orange'), setup: fx => { fx.A.layers = 6; fx.B.heat = 8; }, turns: [dice({ before: [0.99], block: 0.01 })] }).turns[0];
+            check(MAX - heat.hpA === 39, "27. nor is the heat's tick", String(heat.hpA));
+            // It attacks a Шипи holder, a reflecting Синій, a Контратака holder and an Ice Mirror: what comes back is the same with 6 layers
+            const back = (B, roll, setup = () => {}) => [0, 6].map(n => scripted({ A: TQ(), B, setup: fx => { fx.A.layers = n; setup(fx); }, turns: [dice({ after: roll })] }).turns[0].hpA);
             const same = ([a, b]) => a === b && a < MAX;
             check(same(back(drake('plain', titleWith('thorns')), [])), '27. nor is Шипи', JSON.stringify(back(drake('plain', titleWith('thorns')), [])));
             check(same(back(drake('plain', T(217)), [0.01])), '27. nor is Контратака', JSON.stringify(back(drake('plain', T(217)), [0.01])));
@@ -2191,9 +2194,9 @@ for (const lang of ['en', 'uk']) {
         {
             scripted({ A: drake('red'), B: TQ(), turns: [dice()] });
             const theirs = document.getElementById('power-p1').innerHTML, mine = document.getElementById('power-p2').innerHTML;
-            check(mine.includes('pm-nacre') && mine.includes('1/8') && !theirs.includes('pm-nacre'), "27. the fighter card shows the layers (1/8) in the meter's row, and only on Бірюзовий's card", mine.slice(-140));
-            const uk = scripted({ B: TQ(), lang: 'uk', setup: fx => { fx.B.layers = 8; }, turns: [dice()] }).turns[0];
-            check(uk.text.includes('🐚 −32%'), '27. the cut reads the same in both languages', uk.text.slice(-80));
+            check(mine.includes('pm-nacre') && mine.includes('1/6') && !theirs.includes('pm-nacre'), "27. the fighter card shows the layers (1/6) in the meter's row, and only on Бірюзовий's card", mine.slice(-140));
+            const uk = scripted({ B: TQ(), lang: 'uk', setup: fx => { fx.B.layers = 6; }, turns: [dice()] }).turns[0];
+            check(uk.text.includes('🐚 −33%'), '27. the cut reads the same in both languages', uk.text.slice(-80));
             G.setLang('en');
         }
 
@@ -2239,8 +2242,8 @@ for (const lang of ['en', 'uk']) {
             const healed = title => { const m = G.getMaxHP(20, 'turquoise', title), low = 40;
                 return { m, got: scripted({ A: TQ(title), setup: fx => { fx.A.meter = 5; fx.A.layers = 4; hurt(fx, 'A', m, low); }, turns: [dice()] }).turns[0].hpA - low }; };
             const over = healed(T(268)), rush = healed(T(223));
-            check(over.got === Math.round(over.m * 0.16 * 1.6), `27. Перевантаження scales Приплив ×1.6 (+${over.got})`, JSON.stringify(over));
-            check(rush.got === Math.round(rush.m * 0.16 * 1.5), `27. Підзарядка scales it ×1.5 (+${rush.got})`, JSON.stringify(rush));
+            check(over.got === Math.round(over.m * 0.17 * 1.6), `27. Перевантаження scales Приплив ×1.6 (+${over.got})`, JSON.stringify(over));
+            check(rush.got === Math.round(rush.m * 0.17 * 1.5), `27. Підзарядка scales it ×1.5 (+${rush.got})`, JSON.stringify(rush));
             const counted = scripted({ A: TQ(), setup: fx => { fx.A.meter = 5; put(fx, 'A', 'rage'); put(fx, 'A', 'burn'); put(fx, 'B', 'shield'); }, turns: [dice()] }).turns[0];
             check(counted.fx.A.buff[0].left === 2 && counted.fx.B.buff[0].left === 2 && counted.fx.A.debuff[0].left === 2, '27. it replaces the attack: only effects that last turns count down', JSON.stringify([counted.fx.A.buff, counted.fx.B.buff, counted.fx.A.debuff]));
             check(['clearwater', 'seaweed'].every(id => G.POOL_IDS.includes(id)), '27. both join the shared pool', G.POOL_IDS.join());
@@ -2270,13 +2273,24 @@ for (const lang of ['en', 'uk']) {
             const start = (foe, level = 20, foeLevel = level, title = null) => scripted({ A: PK(title, level), B: drake(foe, null, foeLevel), turns: [] }).fx;
             const hpOf = (foe, level = 20, foeLevel = level) => { scripted({ A: PK(null, level), B: drake(foe, null, foeLevel), turns: [dice({ block: 0.01 })] }); return Number(document.getElementById('hp-text-p1').innerText.split('/')[1]); };
             check(['red', 'blue', 'black', 'gold', 'purple', 'green', 'orange', 'cherry', 'turquoise'].every(t => start(t).A.copied === t), '28. Ілюзія: it copies every other viewer element', '');
-            const none = [['pink', PK()], ['White Drake', WD()], ['White Dragon', DRAGON()]].filter(([, B]) => scripted({ A: PK(), B, turns: [] }).fx.A.copied !== null);
-            check(!none.length, '28. it copies nothing from another Рожевий, the White Drake or the White Dragon', JSON.stringify(none.map(x => x[0])));
-            const plain = scripted({ A: PK(), B: WD(), turns: [] }).fx;
-            check(plain.A.scales === null && plain.A.heat === null, "28. the White Drake's scales stay hers", JSON.stringify(plain.A));
+            // With nothing to copy: a random viewer element's, from the fight's own dice, never Рожевий's own
+            const NINE = ['red', 'blue', 'black', 'gold', 'purple', 'green', 'orange', 'cherry', 'turquoise'];
+            const drew = B => NINE.map((t, i) => [t, scripted({ A: PK(), B, start: [(i + 0.5) / NINE.length, (i + 0.5) / NINE.length], turns: [] }).fx.A.copied]).filter(([t, got]) => got !== t);
+            check(!drew(WD()).length, '28. against the White Drake the dice pick any of the other nine, each by its own share of the roll', JSON.stringify(drew(WD())));
+            check(!drew(PK()).length, '28. and against another Рожевий', JSON.stringify(drew(PK())));
+            const twins = scripted({ A: PK(), B: PK(), start: [0.05, 0.95], turns: [] }).fx;
+            check(twins.A.copied === 'red' && twins.B.copied === 'turquoise', '28. two Рожевий draw one each', JSON.stringify([twins.A.copied, twins.B.copied]));
+            check(scripted({ A: PK(), B: DRAGON(), start: [0.5, 0.5], turns: [] }).fx.A.copied === null, '28. against the White Dragon it still copies nothing', '');
+            const green = hpOf('green'), steel = scripted({ A: PK(), B: WD(), start: [0.6], turns: [dice({ block: 0.01 })] }).fx;
+            check(steel.A.copied === 'green' && steel.A.scales === null, "28. the White Drake's scales are never copied: it has that element's passive, no bar", JSON.stringify(steel.A));
+            check(Number(document.getElementById('hp-text-p1').innerText.split('/')[1]) === green, "28. and what it drew works like any copy, at its own level's tier (Зелений's HP)", document.getElementById('hp-text-p1').innerText);
             // Зелений: +34% at its own level 20, +22% at its own level 1, whatever the opponent's
             check(hpOf('green') === Math.floor(340 * 1.34), `28. from Зелений its HP (+34% at level 20: ${hpOf('green')})`, String(hpOf('green')));
             check(hpOf('green', 1, 20) === Math.floor(150 * 1.22) && hpOf('green', 20, 1) === Math.floor(340 * 1.34), "28. at its own level's tier, not the opponent's", JSON.stringify([hpOf('green', 1, 20), hpOf('green', 20, 1)]));
+            // A drake's base numbers are its own, no part of a passive: the +12% HP of Помаранчевий and Бірюзовий's armour stay theirs
+            check(['orange', 'cherry', 'turquoise'].every(t => hpOf(t) === 340), "28. it copies no base numbers: its HP stays its own against Помаранчевий, Вишневий and Бірюзовий (340)", ['orange', 'cherry', 'turquoise'].map(t => hpOf(t)).join());
+            const struck = B => scripted({ A: drake('turquoise'), B, turns: [dice()] }).turns[0].dmg;
+            check(struck(PK()) === struck(drake('plain')), "28. nor Бірюзовий's armour: a hit on it lands as on a plain drake", JSON.stringify([struck(PK()), struck(drake('plain'))]));
             // Червоний: 48% to crit at level 20 (34% plain), ×2.05
             const crit = (foe, roll) => scripted({ A: PK(), B: drake(foe), turns: [dice({ crit: roll })] }).turns[0];
             const hit = crit('red', 0.4), miss = crit('plain', 0.4);
@@ -2307,10 +2321,9 @@ for (const lang of ['en', 'uk']) {
             const heat = scripted({ A: PK(), B: drake('orange'), turns: [dice(), dice({ before: [0.99] })] }).turns;
             check(heat[0].fx.A.heat === 1 && heat[0].fx.B.heat === 0 && heat[1].notes['tick:heat'] < 0, '28. from Помаранчевий its own heat, built by its own attacks, and it burns', JSON.stringify([heat[0].fx.A.heat, heat[1].notes]));
             const burnt = scripted({ A: drake('orange'), B: PK(), setup: fx => { fx.B.heat = 8; }, turns: [dice({ before: [0.99] })] }).turns[0];
-            check(burnt.notes['tick:heat'] === -19, '28. which burns the opponent like any heat', JSON.stringify(burnt.notes));
-            const m = G.getMaxHP(20, 'cherry', null);
-            const frenzied = scripted({ A: PK(), B: drake('cherry'), setup: fx => hurt(fx, 'A', m, Math.round(m * 0.4)), turns: [dice()] }).turns[0];
-            check(frenzied.notes.frenzy === 30, '28. from Вишневий the frenzy', JSON.stringify(frenzied.notes));
+            check(burnt.notes['tick:heat'] === -43, '28. which burns the opponent like any heat (380 HP at 8 heat)', JSON.stringify(burnt.notes));
+            const frenzied = scripted({ A: PK(), B: drake('cherry'), setup: fx => hurt(fx, 'A', MAX, Math.round(MAX * 0.4)), turns: [dice()] }).turns[0];
+            check(frenzied.notes.frenzy === 43, '28. from Вишневий the frenzy', JSON.stringify(frenzied.notes));
             const layered = scripted({ A: drake('turquoise'), B: PK(), turns: [dice()] }).turns[0];
             check(layered.fx.B.layers === 1 && layered.fx.A.layers === 0, '28. from Бірюзовий the layers', JSON.stringify([layered.fx.A.layers, layered.fx.B.layers]));
             // Never a title
@@ -2323,8 +2336,11 @@ for (const lang of ['en', 'uk']) {
                 check(logs.slice(from).some(l => l.includes(line)), `28. the record says «${line}»`, logs.slice(from).join(' | ').slice(0, 160));
             }
             G.setLang('en');
+            const drawn = logs.length;
+            scripted({ A: PK(), B: WD(), start: [0.05], turns: [] });
+            check(logs.slice(drawn).some(l => l.includes('🎭 @A copies: Red Drake')), '28. the banner names what it drew, against the White Drake too', logs.slice(drawn).join(' | ').slice(0, 160));
             const quiet = logs.length;
-            scripted({ A: PK(), B: PK(), turns: [] });
+            scripted({ A: PK(), B: DRAGON(), turns: [] });
             check(!logs.slice(quiet).some(l => /🎭/.test(l)), '28. nothing copied, no banner', logs.slice(quiet).join(' | ').slice(0, 120));
             scripted({ A: PK(), B: drake('turquoise'), turns: [dice()] });
             const line = document.getElementById('info-p1').innerHTML, other = document.getElementById('info-p2').innerHTML;
@@ -2364,7 +2380,7 @@ for (const lang of ['en', 'uk']) {
             check(!noVamp.notes.vamp && !noVamp.notes.bloodprice, '28. no heal from a vampire attack or Кров за кров', JSON.stringify(noVamp.notes));
             // It still counts as its own attack
             const counted = go({ setup: fx => { put(fx, 'A', 'rage'); put(fx, 'A', 'bleed'); } });
-            check(counted.fx.A.buff[0].left === 1 && counted.notes.bleed === 10 && !counted.fx.A.debuff.some(x => x.id === 'infatuation') && lost(counted) === read(counted) + 10, "28. it's still its own attack: its own-attack effects count down, Кровотеча ticks, and Закоханість is used up", JSON.stringify([counted.fx.A, counted.notes]));
+            check(counted.fx.A.buff[0].left === 1 && counted.notes.bleed === 14 && !counted.fx.A.debuff.some(x => x.id === 'infatuation') && lost(counted) === read(counted) + 14, "28. it's still its own attack: its own-attack effects count down, Кровотеча ticks, and Закоханість is used up", JSON.stringify([counted.fx.A, counted.notes]));
             const cool = go({ A: drake('orange') });
             check(cool.fx.A.heat === 0, '28. it adds no heat', String(cool.fx.A.heat));
             // A hit on nobody

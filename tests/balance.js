@@ -9,6 +9,7 @@
 //   node tests/balance.js levels [N]          how much a level gap matters
 //   node tests/balance.js rolls               title roulette drop rates
 //   node tests/balance.js dragon [N]          the streamer's White Dragon must win every fight (exits non-zero otherwise)
+//   node tests/balance.js bighit [N] [level]  each element's biggest hit per fight (tests/big_hit.js reports it)
 // Add --file path/to/index.html to test a different file (default: showcase/index.html).
 // Add --seed N to change the random seed (default 12345). Same seed → identical results.
 // Add --json out.json to also write the matrix / tiers numbers as JSON (full precision).

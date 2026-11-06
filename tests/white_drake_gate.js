@@ -32,6 +32,7 @@ const LEVELS = [1, 5, 10, 20], MODES = ['titles', 'plain'];
 const KNOWN_COUNTERS = [
     [20, 'gold'],    // Gold's 1-HP hit (9% at level 20) slips past the bar and takes the White Drake to 1 HP
     [20, 'green'],   // Green's HP (+34% at level 20) makes the longest fights, and every Удар ковадла re-forges the bar
+    [20, 'cherry'],  // Blood Frenzy's step at level 20 (+1% per 1.38% of HP lost) turns the HP it loses into hits that chew through the bar
 ];
 
 const PARTS = MODES.flatMap(mode => LEVELS.map(level => ({ mode, level })));

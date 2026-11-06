@@ -56,8 +56,8 @@
 //     scales and isn't counted as the damage she dealt
 //   - Вишневий in real fights with fixed dice, both languages: the frenzy's +N% on the fighter card once it's above 0, no block
 //     moving, and its note on the log card; Кров за кров's and Кровотеча's numbers on the log card and as pops; Кровотеча knocking
-//     its own drake out; Останній подих at ×2.5 below a quarter of its HP
-//   - Бірюзовий in real fights with fixed dice, both languages: its layers on the fighter card from 0/8, no block moving; the cut
+//     its own drake out; Останній подих at ×1.8 below a quarter of its HP
+//   - Бірюзовий in real fights with fixed dice, both languages: its layers on the fighter card from 0/6, no block moving; the cut
 //     on the log card; Чиста вода naming what it took off; Приплив's heal and layers on its card, the layers staying
 //   - Рожевий in real fights with fixed dice, both languages: the banner and the copied emblem on its card, the copied stats on the
 //     card, no block moving; a self-hit on the log card, as a pop on its own card, not in its damage; Чужі чари's header naming both
@@ -817,9 +817,11 @@ async function popAtStep2(page, turn) {
                 // The result card against the fight's own cards
                 const res = await page.evaluate(arenaNow);
                 const leftName = res.p1.name, rightName = res.p2.name;
-                const sum = side => seen.turns.filter(t => t.side === side && /^-\d+$|^0$/.test(t.num)).reduce((x, t) => x + Math.abs(+t.num), 0);
-                const max = side => Math.max(0, ...seen.turns.filter(t => t.side === side && /^-\d+$|^0$/.test(t.num)).map(t => Math.abs(+t.num)));
-                const crits = side => seen.turns.filter(t => t.side === side && t.crit).length;
+                // A self-hit (Закоханість) is no damage dealt: the result card leaves it out, so it's left out here
+                const selfWord = await page.evaluate(() => __fvv('selfHit')), dealtBy = side => seen.turns.filter(t => t.side === side && !t.l2.includes(selfWord));
+                const sum = side => dealtBy(side).filter(t => /^-\d+$|^0$/.test(t.num)).reduce((x, t) => x + Math.abs(+t.num), 0);
+                const max = side => Math.max(0, ...dealtBy(side).filter(t => /^-\d+$|^0$/.test(t.num)).map(t => Math.abs(+t.num)));
+                const crits = side => dealtBy(side).filter(t => t.crit).length;
                 const table = await page.evaluate(() => [...document.querySelectorAll('#log-feed .log-result .lr-grid > span')].map(x => x.textContent.trim()));
                 const want = [`@${leftName}`, '', `@${rightName}`, String(sum('left')), table[4], String(sum('right')), String(max('left')), table[7], String(max('right')),
                     String(crits('left')), table[10], String(crits('right'))];
@@ -861,7 +863,8 @@ async function popAtStep2(page, turn) {
                 const s = await page.evaluate(arenaNow);
                 const c = s.cards.find(x => x.turn === turn);
                 if (!c || !/^-?\d+$/.test(c.num)) continue;
-                const target = turn % 2 ? 'p2' : 'p1';
+                // A self-hit (Закоханість) pops on its own maker's card
+                const selfHit = c.l2.includes(await page.evaluate(() => __fvv('selfHit'))), target = (turn % 2 === 1) !== selfHit ? 'p2' : 'p1';
                 checked++;
                 if (!pops[target].includes(c.num === '0' ? '0' : c.num)) bad.push(`turn ${turn}: card ${c.num}, pops ${JSON.stringify(pops)}`);
             }
@@ -1153,7 +1156,7 @@ async function popAtStep2(page, turn) {
                     const l2 = card.l2;
                     if (u.id === 'firestorm') detail = l2.includes(want.unblockable);
                     if (u.id === 'mirror') detail = l2.includes(want.hits);
-                    if (u.id === 'theft') detail = (l2.includes(want.takes) && l2.includes(want.rage)) || l2.includes(want.forced);
+                    if (u.id === 'theft') detail = l2.includes(want.takes) || l2.includes(want.forced);   // whichever buff the foe held by then
                     if (u.id === 'jackpot') {
                         const reels = run.reels || null, miss = reels ? reels.filter(r => r === '💀').length >= 2 : null;
                         const gems = reels ? reels.filter(r => r === '💎').length : 0;
@@ -2013,14 +2016,14 @@ async function popAtStep2(page, turn) {
             const stopped = await turn(4, ROLLS({ before: [0.01] }));
             check(stillOne === `${glyph} 1/8` && stopped.card.l2.includes(`${word} ${blockWord}`) && stopped.s.p2.pops.includes('0') && await hp('p2') === blockedHp,
                 `[${lang}] a blocked attack adds no heat (${stillOne}), and a blocked tick shows as a block: «${word} ${blockWord}», a 0 on the card, no HP lost`, JSON.stringify({ stillOne, card: stopped.card, pops: stopped.s.p2.pops }));
-            // A tick that knocks out: the knockout cell says what did it (a Burn that leaves 3 HP, then 8 heat at 0.5% each)
+            // A tick that knocks out: the knockout cell says what did it (a Burn that leaves 3 HP, then 8 heat at 1.05% each)
             const foeMax = await page.evaluate(() => { const [now, max] = document.getElementById('hp-text-p2').innerText.split('/').map(Number); battleFx.kotyk_ua.heat = 8; battleFx.jade.debuff.push({ id: 'burn', left: 1, power: (now - 3) / max * 100 / 5 }); return max; });
             await turn(5, ROLLS({ block: 0.01 }));
             await page.evaluate(() => { battleFx.kotyk_ua.heat = 8; });
             await turn(6, []);
             await page.clock.runFor(HIT);
             const end = await page.evaluate(arenaNow), koCell = end.cells.find(c => c.kind === 'ko');
-            check(koCell && koCell.text.includes('@jade') && koCell.text.includes(`${word} -${Math.round(foeMax * 0.04)}`), `[${lang}] a tick that knocks out shows on the knockout cell`, JSON.stringify(end.cells));
+            check(koCell && koCell.text.includes('@jade') && koCell.text.includes(`${word} -${Math.round(foeMax * 0.084)}`), `[${lang}] a tick that knocks out shows on the knockout cell`, JSON.stringify(end.cells));
             // Виверження: ×1.85 at 7 heat, the heat dropping to 3
             await fight(1, 1);
             await page.evaluate(() => { battleFx.kotyk_ua.meter = 5; battleFx.kotyk_ua.heat = 7; });
@@ -2073,12 +2076,12 @@ async function popAtStep2(page, turn) {
             await page.clock.runFor(HIT);
             const end = await page.evaluate(arenaNow), koCell = end.cells.find(c => c.kind === 'ko');
             check(koCell && koCell.text.includes('@kotyk_ua') && end.kind === 'result', `[${lang}] Кровотеча knocks its own drake out, after its attack`, JSON.stringify({ kind: end.kind, cells: end.cells }));
-            // Останній подих: ×2.5 below a quarter of its HP
+            // Останній подих: ×1.8 below a quarter of its HP
             await fight(1, 1);
             await page.evaluate(() => { battleFx.kotyk_ua.meter = 5; });
             await lose(0.8);
             const last = await turn(1, ROLLS());
-            check(last.card.ult.includes(await page.evaluate(() => CLASS_ULTIMATES.lastbreath.name[currentLang])) && last.card.l2.includes('×2.5'), `[${lang}] Останній подих: its head and ×2.5 on the card`, JSON.stringify(last.card));
+            check(last.card.ult.includes(await page.evaluate(() => CLASS_ULTIMATES.lastbreath.name[currentLang])) && last.card.l2.includes('×1.8'), `[${lang}] Останній подих: its head and ×1.8 on the card`, JSON.stringify(last.card));
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }
@@ -2094,14 +2097,14 @@ async function popAtStep2(page, turn) {
             await fight(1, 1);
             const side = await page.evaluate(() => document.getElementById('name-p1').textContent.includes('kotyk_ua') ? 'p1' : 'p2');
             const calm = await looks(side);
-            check(await row() === `[${glyph}] 0/8`, `[${lang}] the fight starts with ${await row()} on its card`, await row());
+            check(await row() === `[${glyph}] 0/6`, `[${lang}] the fight starts with ${await row()} on its card`, await row());
             await turn(1, ROLLS());
             const hit = await turn(2, ROLLS());
             const one = await row(), after = await looks(side);
-            check(one === `[${glyph}] 1/8` && after.boxes === calm.boxes && !hit.card.l2.includes(word), `[${lang}] a hit adds a layer (${one}), not cut by it, and no block of the card moves`, JSON.stringify({ one, card: hit.card, calm: calm.boxes, after: after.boxes }));
+            check(one === `[${glyph}] 1/6` && after.boxes === calm.boxes && !hit.card.l2.includes(word), `[${lang}] a hit adds a layer (${one}), not cut by it, and no block of the card moves`, JSON.stringify({ one, card: hit.card, calm: calm.boxes, after: after.boxes }));
             await turn(3, ROLLS());
             const cut = await turn(4, ROLLS());
-            check(cut.card.l2.includes(`[${glyph}] ${word} −3%`) && await row() === `[${glyph}] 2/8`, `[${lang}] the next hit shows the cut: «${word} −3%»`, JSON.stringify(cut.card));
+            check(cut.card.l2.includes(`[${glyph}] ${word} −3.75%`) && await row() === `[${glyph}] 2/6`, `[${lang}] the next hit shows the cut: «${word} −3.75%»`, JSON.stringify(cut.card));
             // Чиста вода: named on the card with what it took off
             await page.evaluate(() => { battleFx.kotyk_ua.debuff.push({ id: 'burn', left: 3, power: 1 }, { id: 'mark', left: 1, power: 1 }); setForcedCast('clearwater'); });
             const washed = await turn(5, ROLLS());
@@ -2112,8 +2115,8 @@ async function popAtStep2(page, turn) {
             await fight(1, 1);
             await page.evaluate(() => { battleFx.kotyk_ua.meter = 5; battleFx.kotyk_ua.layers = 6; battleFx.kotyk_ua.debuff.push({ id: 'burn', left: 1, power: 10 }); });
             const tide = await turn(1, ROLLS());
-            check(tide.card.ult.includes(await page.evaluate(() => CLASS_ULTIMATES.hightide.name[currentLang])) && tide.card.num.startsWith('+') && tide.card.l2.includes(`${word} 6/8`) && await row() === `[${glyph}] 6/8`,
-                `[${lang}] Приплив: its head, the heal as the number, «${word} 6/8», and the layers stay`, JSON.stringify(tide.card));
+            check(tide.card.ult.includes(await page.evaluate(() => CLASS_ULTIMATES.hightide.name[currentLang])) && tide.card.num.startsWith('+') && tide.card.l2.includes(`${word} 6/6`) && await row() === `[${glyph}] 6/6`,
+                `[${lang}] Приплив: its head, the heal as the number, «${word} 6/6», and the layers stay`, JSON.stringify(tide.card));
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }

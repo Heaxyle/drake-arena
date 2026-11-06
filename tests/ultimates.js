@@ -209,12 +209,12 @@ const full = fx => { fx.A.meter = METER.max; };
         `☄️ Firestorm's 🔥 Burn uses the caster's effect power (×${pb && pb.power.toFixed(2)}); an immune target ignores the Burn but still takes the ×${m} hit (${imBase} → ${im.dmg})`,
         `burn power ${pb && pb.power}, immune debuffs ${JSON.stringify(im.fx.B.debuff)}, damage ${im.dmg}`);
 }
-// 🌬️ Last Breath: ×1.5, or ×2.5 below 25% HP when it starts: this turn's ticks count, the hit doesn't. An ordinary attack otherwise
+// 🌬️ Last Breath: ×1.5, or ×1.8 below 25% HP when it starts: this turn's ticks count, the hit doesn't. An ordinary attack otherwise
 {
     const max = G.getMaxHP(20, 'cherry', null), base = hp => scripted({ A: drake('A', 'cherry'), setup: fx => { if (hp < max) castOn(fx, 'A', 'burn', (max - hp) / max * 100 / EFFECTS.burn.nums.hp); }, turns: [dice()] }).turns[0];
     const run = (hp, d = {}, title = null) => scripted({ A: drake('A', 'cherry', 20, title), setup: fx => { full(fx); if (hp < max) { castOn(fx, 'A', 'burn', (max - hp) / max * 100 / EFFECTS.burn.nums.hp); } }, turns: [dice(d)] }).turns[0];
     const line = Math.ceil(max * 0.25), rows = [], bad = [];
-    for (const [hp, mult] of [[max, 1.5], [line, 1.5], [line - 1, 2.5], [40, 2.5]]) {
+    for (const [hp, mult] of [[max, 1.5], [line, 1.5], [line - 1, 1.8], [40, 1.8]]) {
         const t = run(hp), plain = base(hp);
         rows.push(`${hp} HP: ×${mult}, ${plain.dmg} → ${t.dmg}`);
         if (!isUltLine(t, 'lastbreath') || !near(t.dmg, plain.dmg * mult, mult)) bad.push(`at ${hp} of ${max} HP: ${t.dmg}, expected ${plain.dmg * mult}`);
@@ -226,14 +226,14 @@ const full = fx => { fx.A.meter = METER.max; };
     const power = run(40, {}, POWER_TITLE);
     const pmax = G.getMaxHP(20, 'cherry', POWER_TITLE), plainPower = scripted({ A: drake('A', 'cherry', 20, POWER_TITLE), setup: fx => castOn(fx, 'A', 'burn', (pmax - 40) / pmax * 100 / EFFECTS.burn.nums.hp), turns: [dice()] }).turns[0].dmg;
     const poweredUlt = scripted({ A: drake('A', 'cherry', 20, POWER_TITLE), setup: fx => { full(fx); castOn(fx, 'A', 'burn', (pmax - 40) / pmax * 100 / EFFECTS.burn.nums.hp); }, turns: [dice()] }).turns[0].dmg;
-    check(near(poweredUlt, plainPower * 2.5, 2.5), `🌬️ Last Breath: effect power doesn't scale its multiplier (${plainPower} → ${poweredUlt}, ×2.5)`, `${poweredUlt}, expected ${plainPower * 2.5}`);
+    check(near(poweredUlt, plainPower * 1.8, 1.8), `🌬️ Last Breath: effect power doesn't scale its multiplier (${plainPower} → ${poweredUlt}, ×1.8)`, `${poweredUlt}, expected ${plainPower * 1.8}`);
 }
-// 🌊 High Tide: replaces the attack; 4% of max HP per layer, and the layers stay
+// 🌊 High Tide: replaces the attack; 4.25% of max HP per layer, and the layers stay
 {
     const max = G.getMaxHP(20, 'turquoise', null), low = 40;
     const run = (layers, setup = () => {}, title = null) => scripted({ A: drake('A', 'turquoise', 20, title), setup: fx => { full(fx); fx.A.layers = layers; castOn(fx, 'A', 'burn', (max - low) / max * 100 / EFFECTS.burn.nums.hp); setup(fx); }, turns: [dice()] }).turns[0];
     const bad = [], rows = [];
-    for (const [layers, pct] of [[0, 0], [1, 4], [3, 12], [8, 32]]) {
+    for (const [layers, pct] of [[0, 0], [1, 4.25], [3, 12.75], [6, 25.5]]) {
         const t = run(layers), want = Math.round(max * pct / 100);
         rows.push(`${layers} layers: +${t.hpA - low}`);
         if (!isUltLine(t, 'hightide') || t.hpA - low !== want) bad.push(`${layers} layers healed ${t.hpA - low}, expected ${want}`);
@@ -241,10 +241,10 @@ const full = fx => { fx.A.meter = METER.max; };
         if (t.dmg !== null || t.hpB !== max && t.hpB !== G.getMaxHP(20, 'plain', null)) bad.push(`${layers} layers: it attacked (${t.dmg})`);
         if (t.meterA !== 0) bad.push(`the meter is ${t.meterA} after it`);
     }
-    check(!bad.length, `🌊 High Tide: no attack; ${rows.join(', ')} (4% of ${max} HP per layer), and the layers stay`, bad.slice(0, 4).join(' | '));
-    const poisoned = run(8, fx => castOn(fx, 'A', 'poison')), poison = Math.round(max * EFFECTS.poison.nums.hp / 100);
-    check(poisoned.hpA - (low - poison) === Math.round(max * 0.32 * 0.5), `🌊 High Tide: Poison cuts it like any healing (${poisoned.hpA - (low - poison)})`, `${poisoned.hpA}`);
-    const top = scripted({ A: drake('A', 'turquoise'), setup: fx => { full(fx); fx.A.layers = 8; }, turns: [dice()] }).turns[0];
+    check(!bad.length, `🌊 High Tide: no attack; ${rows.join(', ')} (4.25% of ${max} HP per layer), and the layers stay`, bad.slice(0, 4).join(' | '));
+    const poisoned = run(6, fx => castOn(fx, 'A', 'poison')), poison = Math.round(max * EFFECTS.poison.nums.hp / 100);
+    check(poisoned.hpA - (low - poison) === Math.round(max * 0.255 * 0.5), `🌊 High Tide: Poison cuts it like any healing (${poisoned.hpA - (low - poison)})`, `${poisoned.hpA}`);
+    const top = scripted({ A: drake('A', 'turquoise'), setup: fx => { full(fx); fx.A.layers = 6; }, turns: [dice()] }).turns[0];
     check(top.hpA === max, '🌊 High Tide stops at max HP', String(top.hpA));
 }
 // 🪞 Borrowed Magic: the opponent's ultimate, with Рожевий's own stats; the header names both

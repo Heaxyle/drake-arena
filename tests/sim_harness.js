@@ -36,6 +36,9 @@ function __effectReport() {
         console.log(`${u.icon} ${u.name.en}`.padEnd(25) + (fights ? t.fires / fights : 0).toFixed(2).padStart(8) + '          ' +
             per(t.dmg, t.fires).slice(1) + per(t.prevented, t.fires) + per(t.healed, t.fires) + ((t.fires ? 100 * t.kills / t.fires : 0).toFixed(1) + '%').padStart(12));
     }
+    // Помаранчевий's Розжарення isn't an effect: its ticks, per fight with one in it
+    const heat = effectTally.heat, holders = __elementFights.orange || 0;
+    if (heat && holders) console.log(`Heat: ${(heat.dmg / holders).toFixed(1)} damage per Orange fighter, ${(heat.prevented / holders).toFixed(1)} blocked`);
     console.log(`Average fight length: ${(__turnsTotal / Math.max(1, __fights)).toFixed(1)} turns`);
 }
 const __elementFights = {};
@@ -58,9 +61,15 @@ function __fight(a, b) {
     if (err) throw new Error('battle error: ' + err);
     const turns = lines.filter(l => l.startsWith('[Хід') || l.startsWith('[Turn')).length;
     __turnsTotal += turns;
+    // Each side's biggest single hit this fight: its attacks' damage, and a stuck hit (Лаг) when it lands
+    const big = { A: 0, B: 0 };
+    for (const l of lines) {
+        const m = /^\[(?:Хід|Turn) \d+\] @(A|B) ➜ .*?(?:Шкода|Damage): (\d+)/.exec(l);
+        if (m) big[m[1]] = Math.max(big[m[1]], Number(m[2]));
+    }
     const end = lines.find(l => /Переміг|Переможець|нічиєю|Winner|Draw between/.test(l)) || '';
     const winner = /(Переміг|Переможець|Winner):? @A\b/.test(end) ? 'A' : /(Переміг|Переможець|Winner):? @B\b/.test(end) ? 'B' : 'draw';
-    return { winner, turns, timeout: lines.some(l => /Час вийшов|Time out/.test(l)) };
+    return { winner, turns, big, timeout: lines.some(l => /Час вийшов|Time out/.test(l)) };
 }
 const __rand = arr => arr[Math.floor(Math.random() * arr.length)];
 const __pct = x => (100 * x).toFixed(1) + '%';
@@ -176,6 +185,16 @@ if (scenario === 'matrix') {
             process.exitCode = 1;
         } else console.log(`\nAll matchups within ${__BOUNDS[0]}–${__BOUNDS[1]}%.`);
     }
+}
+
+// The biggest single hit per fight, per element: every pairing at one level, no titles. tests/big_hit.js runs the levels and seeds
+if (scenario === 'bighit') {
+    const N = +(process.argv[4] || 300), lvl = +(process.argv[5] || 20);
+    const hits = Object.fromEntries(__TYPES.map(t => [t, []]));
+    __TYPES.forEach((x, i) => __TYPES.slice(i + 1).forEach(y => {
+        for (let n = 0; n < N; n++) { const r = __fight({ type: x, level: lvl, title: __NEUTRAL }, { type: y, level: lvl, title: __NEUTRAL }); hits[x].push(r.big.A); hits[y].push(r.big.B); }
+    }));
+    __writeJson({ scenario: 'bighit', level: lvl, fights: N, hits });
 }
 
 if (scenario === 'vsplain') {
