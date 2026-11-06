@@ -209,6 +209,25 @@ const full = fx => { fx.A.meter = METER.max; };
         `☄️ Firestorm's 🔥 Burn uses the caster's effect power (×${pb && pb.power.toFixed(2)}); an immune target ignores the Burn but still takes the ×${m} hit (${imBase} → ${im.dmg})`,
         `burn power ${pb && pb.power}, immune debuffs ${JSON.stringify(im.fx.B.debuff)}, damage ${im.dmg}`);
 }
+// 🌬️ Last Breath: ×1.5, or ×2.5 below 25% HP when it starts: this turn's ticks count, the hit doesn't. An ordinary attack otherwise
+{
+    const max = G.getMaxHP(20, 'cherry', null), base = hp => scripted({ A: drake('A', 'cherry'), setup: fx => { if (hp < max) castOn(fx, 'A', 'burn', (max - hp) / max * 100 / EFFECTS.burn.nums.hp); }, turns: [dice()] }).turns[0];
+    const run = (hp, d = {}, title = null) => scripted({ A: drake('A', 'cherry', 20, title), setup: fx => { full(fx); if (hp < max) { castOn(fx, 'A', 'burn', (max - hp) / max * 100 / EFFECTS.burn.nums.hp); } }, turns: [dice(d)] }).turns[0];
+    const line = Math.ceil(max * 0.25), rows = [], bad = [];
+    for (const [hp, mult] of [[max, 1.5], [line, 1.5], [line - 1, 2.5], [40, 2.5]]) {
+        const t = run(hp), plain = base(hp);
+        rows.push(`${hp} HP: ×${mult}, ${plain.dmg} → ${t.dmg}`);
+        if (!isUltLine(t, 'lastbreath') || !near(t.dmg, plain.dmg * mult, mult)) bad.push(`at ${hp} of ${max} HP: ${t.dmg}, expected ${plain.dmg * mult}`);
+        if (!t.text.includes(`×${mult} `)) bad.push(`the record doesn't say ×${mult}: ${t.text.slice(0, 120)}`);
+        if (t.meterA !== 0) bad.push(`the meter is ${t.meterA} after it`);
+    }
+    const blocked = run(40, { block: 0.05 });
+    check(!bad.length && blocked.dmg === 0 && isUltLine(blocked, 'lastbreath'), `🌬️ Last Breath: ${rows.join('; ')} (25% of ${max} is ${max / 4}); it can be blocked`, bad.slice(0, 4).join(' | '));
+    const power = run(40, {}, POWER_TITLE);
+    const pmax = G.getMaxHP(20, 'cherry', POWER_TITLE), plainPower = scripted({ A: drake('A', 'cherry', 20, POWER_TITLE), setup: fx => castOn(fx, 'A', 'burn', (pmax - 40) / pmax * 100 / EFFECTS.burn.nums.hp), turns: [dice()] }).turns[0].dmg;
+    const poweredUlt = scripted({ A: drake('A', 'cherry', 20, POWER_TITLE), setup: fx => { full(fx); castOn(fx, 'A', 'burn', (pmax - 40) / pmax * 100 / EFFECTS.burn.nums.hp); }, turns: [dice()] }).turns[0].dmg;
+    check(near(poweredUlt, plainPower * 2.5, 2.5), `🌬️ Last Breath: effect power doesn't scale its multiplier (${plainPower} → ${poweredUlt}, ×2.5)`, `${poweredUlt}, expected ${plainPower * 2.5}`);
+}
 // 🌋 Eruption: ×1.5 plus 5% per heat (×1.9 at 8), the heat as it stands when it starts. It adds none, and afterwards the
 // heat drops by half, rounded down, whether or not the hit landed. An ordinary attack otherwise: it can be blocked
 {

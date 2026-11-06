@@ -126,6 +126,7 @@ Every animation lasts 3 s or less (except the draw and the champion screen) and 
 | 🟨 Gold | +50–90% XP; 7–9% chance for a hit to leave the enemy at exactly 1 HP |
 | 🟪 Purple | Buffs and debuffs 25–40% stronger; +20–35% effect chance |
 | 🟩 Green | +22–34% max HP |
+| 🍒 Cherry | «Кривавий шал» / Blood Frenzy: +1% damage for every 3% of max HP it has lost (+30% at 10% HP); at level 20, +1% for every 2% (+45%) |
 | 🟧 Orange | «Розжарення» / Heat: each attack it makes adds 1 heat, up to 8; at the start of each of the opponent's turns the heat burns the opponent for 0.5% of its max HP per heat (0.7% at level 20) |
 | 🤍 White Drake (the streamer's) | «Луска Дракона» / "Dragon Scale": a bar of 19.5–24% of max HP on top of HP (see [below](#white-drake-streamer-only)) |
 
@@ -186,6 +187,7 @@ Each element has one buff (cast on itself) and one debuff (cast on the opponent)
 | 🟪 Purple | 🌟 **Divine Might** (Божественна міць): Next own attack deals ×1.55 damage and can't be blocked | 💨 **Dispel** (Розвіювання): Removes all of the target's buffs at once |
 | 🟩 Green | 💚 **Regeneration** (Регенерація): Heals 6.5% max HP at the start of each of the owner's next 3 turns | ☠️ **Poison** (Отруєння): 3% max HP damage at the start of each of the target's 3 turns, and its healing is −50% |
 | 🟧 Orange | ♨️ **Stoke** (Запал): Each of the next 2 own attacks that deals damage gives one extra point of Element Power | 🫠 **Melt** (Оплавлення): The next 2 hits on the target deal +25% damage; it doesn't touch damage at the start of a turn |
+| 🍒 Cherry | 🫀 **Blood for Blood** (Кров за кров): Each of the next 2 own attacks heals it for 50% of the damage it dealt | 🩸 **Bleed** (Кровотеча): After each of its next 3 attacks the target loses 3% of its max HP |
 | 🤍 White Drake (the streamer's) | ⚒️ **Reforging** (Перекування): Each of the next 2 own attacks that deals damage rebuilds the scales by 6% of max HP (8% at the top level), up to their starting size; it isn't healing | 🔗 **Magnet** (Магніт): For the target's next attack, every buff it casts goes to the White Drake instead (within the usual buff limit); buffs it already has stay put |
 
 - **Durations** count what each effect names: the owner's own attacks, the hits it takes (a blocked hit still counts), or the start of its turns. The rules are the same for both fighters. Fighter cards show what's left in words, e.g. "💢 Лють · ще 2 атаки" / "💢 Rage · 2 attacks left".
@@ -212,6 +214,7 @@ The fighter card shows the meter as 5 pips labelled "СИЛА" / "POWER", with �
 | 🟨 Gold | 🎰 **Jackpot** (Джекпот) | Three reels (💎 50%, 🪙 35%, 💀 15%): damage ×(1 + 1 per 💎); 2 or more 💀 is a miss |
 | 🟪 Purple | ✴️ **Arcane Detonation** (Арканна детонація) | An attack for ×2.2 damage plus 50% per debuff on the opponent, then those debuffs are removed |
 | 🟩 Green | 🌸 **Bloom** (Цвітіння) | Removes its own debuffs and instantly heals 25% max HP |
+| 🍒 Cherry | 🌬️ **Last Breath** (Останній подих) | An attack for ×1.5 damage, or ×2.5 if its maker is below 25% HP when it starts |
 | 🟧 Orange | 🌋 **Eruption** (Виверження) | An attack for ×1.5 damage plus 5% per point of heat; it adds no heat, and afterwards the heat drops by half, rounded down |
 | 🤍 White Drake (the streamer's) | 🔨 **Anvil Strike** (Удар ковадла) | A heavy blow for ×1.5 damage (×1.7 at the top level) that also re-forges the scales to their full starting size |
 

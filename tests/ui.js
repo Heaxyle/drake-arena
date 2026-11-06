@@ -50,9 +50,9 @@ const VERSIONS = {
         // The viewer elements + the streamer's White Drake (!дрейк білий), which only the streamer (set in Test Settings) can
         // pick; the streamer's other form, the White Dragon, comes through !дракон before the heal-log duels (3b)
         drakes: [['ruby', 'червоний', 'red'], ['sapphire', 'синій', 'blue'], ['onyx', 'чорний', 'black'], ['topaz', 'золотий', 'gold'],
-                 ['amethyst', 'фіолетовий', 'purple'], ['jade', 'зелений', 'green'], ['ember', 'помаранчевий', 'orange'], ['teststreamer', 'білий', 'steel']],
+                 ['amethyst', 'фіолетовий', 'purple'], ['jade', 'зелений', 'green'], ['ember', 'помаранчевий', 'orange'], ['garnet', 'вишневий', 'cherry'], ['teststreamer', 'білий', 'steel']],
         // First pair fights ranked via !черга; the rest are friendly duels so every sprite gets drawn
-        duels: [['onyx', 'topaz'], ['amethyst', 'jade'], ['ember', 'sapphire'], ['teststreamer', 'ruby']],
+        duels: [['onyx', 'topaz'], ['amethyst', 'jade'], ['ember', 'sapphire'], ['garnet', 'topaz'], ['teststreamer', 'ruby']],
         dragon: { streamer: 'teststreamer', type: 'white', titleId: 999, drakeType: 'steel', drakeTitleId: 998, storageKey: 'drake_arena_showcase_streamer' },
         hasInfoFeed: true,
         hasOdds: true,

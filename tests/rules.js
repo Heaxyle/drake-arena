@@ -39,6 +39,9 @@
 //   25 Season 2's Помаранчевий: the colour words and the drakes still being built; only an attack that lands adds heat; the
 //      tick (its numbers, its order, a knockout), its block roll, and everything that doesn't touch it; the White Dragon, the White Drake's scales;
 //      Оплавлення and Запал with the title abilities, debuff immunity and the scales; the card's heat and the record's words
+//   26 Season 2's Вишневий: Кривавий шал (its numbers, the level-20 tier, stacking with Загартування, the card's +N%); Кров за кров
+//      (Отруєння, max HP, the caps, Двійник, a knocked-out drake); Кровотеча (what ticks and what doesn't, never after a knockout,
+//      knocking its own drake out, the scales, immunity); both with the title abilities
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
 
@@ -1786,7 +1789,7 @@ for (const lang of ['en', 'uk']) {
         const heatAfter = (A, turns, setup = null) => scripted({ A, turns, setup }).turns.map(t => t.fx.A.heat);
 
         // The colours: the built one everywhere, the ones still being built nowhere a viewer can reach
-        for (const [lang, make1, words, unbuilt] of [['uk', '!дрейк', ['помаранчевий'], ['вишневий', 'рожевий', 'бірюзовий']], ['en', '!drake', ['orange'], ['cherry', 'pink', 'turquoise']]]) {
+        for (const [lang, make1, words, unbuilt] of [['uk', '!дрейк', ['помаранчевий'], ['рожевий', 'бірюзовий']], ['en', '!drake', ['orange'], ['pink', 'turquoise']]]) {
             G.setLang(lang);
             fresh();
             G.say('viewer1', `${make1} ${words[0]}`);
@@ -1800,7 +1803,7 @@ for (const lang of ['en', 'uk']) {
                 check(!G.getDragonDB().viewer2 && lastInfo().includes(words[0]) && !lastInfo().includes(w), `25. "${make1} ${w}": still being built, so the help card, which lists only the colours on offer`, JSON.stringify([Object.keys(G.getDragonDB()), lastInfo()]));
             }
         }
-        check(G.VIEWER_DRAKE_TYPES.some(d => d.type === 'orange') && !G.VIEWER_DRAKE_TYPES.some(d => ['cherry', 'pink', 'turquoise'].includes(d.type)), '25. random picks can give the Orange Drake, not a drake still being built', JSON.stringify(G.VIEWER_DRAKE_TYPES.map(d => d.type)));
+        check(G.VIEWER_DRAKE_TYPES.some(d => d.type === 'orange') && !G.VIEWER_DRAKE_TYPES.some(d => ['pink', 'turquoise'].includes(d.type)), '25. random picks can give the Orange Drake, not a drake still being built', JSON.stringify(G.VIEWER_DRAKE_TYPES.map(d => d.type)));
 
         // What adds heat
         {
@@ -1974,6 +1977,139 @@ for (const lang of ['en', 'uk']) {
             scripted({ A: OR(), B: drake('red'), turns: [dice(), dice({ before: [0.99], block: 0.01 }), dice()] });
             const mine = document.getElementById('power-p1').innerHTML, theirs = document.getElementById('power-p2').innerHTML;
             check(mine.includes('pm-heat') && mine.includes('2/8') && !theirs.includes('pm-heat'), "25. the fighter card shows the heat (2/8) in the meter's row, and only on Помаранчевий's card", mine.slice(-160));
+        }
+    }
+
+    // ---- 26. Season 2's Вишневий. Every number is written out here, like section 24's
+    {
+        console.log('\n[26. Season 2: Вишневий]');
+        const CH = (title = null, level = 20) => drake('cherry', title, level);
+        const MAX = 340;   // a plain level-20 drake's max HP (150 + 19 × 10), Вишневий's too
+
+        for (const [lang, make1, word] of [['uk', '!дрейк', 'вишневий'], ['en', '!drake', 'cherry']]) {
+            G.setLang(lang);
+            fresh();
+            G.say('viewer1', `${make1} ${word}`);
+            const made = G.getDragonDB().viewer1, named = lastInfo();
+            check(made && made.drakeObj.type === 'cherry' && named.includes(lang === 'uk' ? 'Вишневий Дрейк' : 'Cherry Drake') && !named.includes('🍒'), `26. "${make1} ${word}" gives the Cherry Drake, named with no emoji`, named);
+        }
+        check(G.VIEWER_DRAKE_TYPES.some(d => d.type === 'cherry'), '26. random picks can give the Cherry Drake', JSON.stringify(G.VIEWER_DRAKE_TYPES.map(d => d.type)));
+
+        // Кривавий шал: +1% for every 3% of max HP lost, every 2% at level 20
+        {
+            const hit = (level, share, title = null) => { const m = G.getMaxHP(level, 'cherry', title); return scripted({ A: CH(title, level), setup: fx => { if (share) hurt(fx, 'A', m, Math.round(m * (1 - share))); strong('A')(fx); }, turns: [dice()] }).turns[0]; };
+            const steps = (level, table) => { const b = hit(level, 0).dmg; return table.filter(([share, m]) => Math.abs(hit(level, share).dmg / (b * m) - 1) >= 0.01).map(([s]) => `${level}: ${s} → ${hit(level, s).dmg / b}`); };
+            const bad = [...steps(19, [[0.3, 1.1], [0.6, 1.2], [0.9, 1.3]]), ...steps(1, [[0.9, 1.3]]), ...steps(20, [[0.3, 1.15], [0.6, 1.3], [0.9, 1.45]])];
+            check(!bad.length, '26. Кривавий шал: +1% for every 3% of max HP lost (+30% at 10% HP), +1% for every 2% at level 20 (+45%), nothing at full HP', bad.join(' | '));
+            const t = T(260), both = hit(20, 0.9, t).dmg, neither = hit(20, 0, bare(t)).dmg;
+            check(Math.abs(both / (neither * 1.45 * 1.3) - 1) < 0.01, '26. it stacks with Загартування: ×1.45 and ×1.3 together', String(both / neither));
+            const told = hit(20, 0.6);
+            check(told.notes.frenzy === 30, '26. nothing only in the hidden record: the bonus tells the view', JSON.stringify(told.notes));
+            const notHere = scripted({ A: drake('red'), setup: fx => hurt(fx, 'A', MAX, 34), turns: [dice()] }).turns[0];
+            check(!notHere.notes.frenzy, "26. Кривавий шал is Вишневий's alone", JSON.stringify(notHere.notes));
+            // The card: +N% once it's above 0, from the HP it has now
+            const row = () => document.getElementById('power-p1').innerHTML;
+            scripted({ A: CH(), B: drake('red'), turns: [dice({ block: 0.01 })] });
+            const full = row();
+            scripted({ A: CH(), B: drake('red'), setup: fx => hurt(fx, 'A', MAX, 136), turns: [dice({ block: 0.01 })] });
+            const hurtRow = row();
+            check(!full.includes('pm-frenzy') && hurtRow.includes('pm-frenzy') && hurtRow.includes('+30%'), "26. the card shows the bonus (+30% at 40% HP) once it's above 0, and nothing at full HP", hurtRow.slice(-160));
+            const healed = scripted({ A: CH(), setup: fx => { hurt(fx, 'A', MAX, 136); put(fx, 'A', 'regen'); }, turns: [dice({ block: 0.01 })] }).turns[0];
+            check(healed.fx.A.frenzy === 27, "26. the card's bonus follows its HP down as well as up (+27% once Регенерація has healed it)", String(healed.fx.A.frenzy));
+        }
+
+        // Кров за кров
+        {
+            const heal = (setup, d = {}, A = CH(), B = {}) => scripted({ A, B, setup: fx => { hurt(fx, 'A', MAX, 100); setup(fx); }, turns: [dice(d)] }).turns[0];
+            const buff = fx => put(fx, 'A', 'bloodprice');
+            const t = heal(buff);
+            check(t.notes.bloodprice === Math.round(t.dmg * 0.5) && t.hpA === 100 + Math.round(t.dmg * 0.5), `26. Кров за кров: heals half the damage the attack dealt (${t.dmg} → +${t.notes.bloodprice})`, JSON.stringify([t.dmg, t.notes, t.hpA]));
+            const poisoned = heal(fx => { buff(fx); put(fx, 'A', 'poison'); });
+            check(poisoned.notes.bloodprice === Math.round(poisoned.dmg * 0.5 * 0.5), `26. Отруєння cuts it (${poisoned.dmg} → +${poisoned.notes.bloodprice})`, JSON.stringify(poisoned.notes));
+            const deep = heal(fx => { buff(fx); fx.A.debuff.push({ id: 'poison', left: 3, power: 100 }); });
+            check(deep.notes.bloodprice === Math.round(deep.dmg * 0.5 * 0.1) || (deep.dmg * 0.05 < 0.5 && !deep.notes.bloodprice), "26. Отруєння's cut stops at 90%", JSON.stringify([deep.dmg, deep.notes]));
+            const big = heal(fx => { fx.A.buff.push({ id: 'bloodprice', left: 2, power: 3 }); });
+            check(big.notes.bloodprice === Math.round(big.dmg * 0.9), `26. effect power scales it, up to 90% of the damage (power ×3: ${big.dmg} → +${big.notes.bloodprice})`, JSON.stringify([big.dmg, big.notes]));
+            const top = scripted({ A: CH(), setup: fx => { hurt(fx, 'A', MAX, MAX - 5); buff(fx); }, turns: [dice()] }).turns[0];
+            check(top.notes.bloodprice === 5 && top.hpA === MAX, '26. it stops at max HP', JSON.stringify([top.notes, top.hpA]));
+            const blocked = heal(buff, { block: 0.01 });
+            check(blocked.dmg === 0 && !blocked.notes.bloodprice && blocked.fx.A.buff[0].left === 1, '26. a blocked attack heals nothing, and it still counts down', JSON.stringify(blocked.fx.A.buff));
+            const twin = heal(buff, { after: [0.01] }, CH(T(249)));
+            check(twin.notes.twin > 0 && twin.notes.bloodprice === Math.round((twin.dmg + twin.notes.twin) * 0.5), "26. Двійник's second hit is part of the attack, so its damage counts", JSON.stringify([twin.dmg, twin.notes]));
+            const vamp = heal(buff, { attack: 0.95 });
+            check(vamp.notes.vamp > 0 && vamp.notes.bloodprice > 0, "26. it adds to a vampire attack's own heal", JSON.stringify(vamp.notes));
+            const thorned = scripted({ A: CH(), B: drake('plain', titleWith('thorns')), setup: fx => { hurt(fx, 'A', MAX, 2); buff(fx); }, turns: [dice()] });
+            check(thorned.ended && !thorned.turns[0].notes.bloodprice && thorned.turns[0].hpA === 0, "26. a drake Шипи knocked out on its own attack doesn't heal back", JSON.stringify([thorned.ended, thorned.turns[0].notes]));
+        }
+
+        // Кровотеча: 3% of its own max HP after each attack it makes
+        {
+            const bled = (A = drake(), B = {}, turn = dice({ block: 0.01 }), setup = () => {}) => scripted({ A, B, setup: fx => { put(fx, 'A', 'bleed'); setup(fx); }, turns: [turn] }).turns[0];
+            const t = bled();
+            check(t.notes.bleed === 10 && t.hpA === MAX - 10 && t.text.includes('Bleed (-10 HP)'), '26. Кровотеча: 3% of its own max HP after its attack, blocked or not', JSON.stringify([t.notes, t.hpA]));
+            const slept = bled(drake('plain', titleWith('sleepy')), {}, [0.5, 0.5, 0.5, 0, 0.99, 0.99, 0.99]);
+            check(/Slept through/.test(slept.text) && slept.notes.bleed > 0, '26. a «Проспав хід» attack is still an attack: it ticks', slept.text.slice(0, 120));
+            const twin = bled(drake('plain', T(249)), {}, dice({ after: [0.01] }));
+            const twinMax = G.getMaxHP(20, 'plain', T(249));
+            check(twin.notes.twin > 0 && twin.fx.A.debuff[0].left === 2 && twin.hpA === twinMax - Math.round(twinMax * 0.03) && (twin.text.match(/Bleed \(-/g) || []).length === 1, "26. Двійник's second hit is part of the same attack: one tick, one 3% off its HP", JSON.stringify([twin.hpA, twinMax, twin.text.slice(0, 120)]));
+            const frozen = bled(drake(), {}, [], fx => put(fx, 'A', 'frost'));
+            check(/frozen/.test(frozen.text) && !frozen.notes.bleed && frozen.fx.A.debuff.find(x => x.id === 'bleed').left === 3, "26. a turn lost to Мороз makes no attack: no tick, and it doesn't count down", JSON.stringify(frozen.fx.A.debuff));
+            const crashed = bled(drake(), drake('plain', T(278)), [0.01]);
+            check(/freezes/.test(crashed.text) && !crashed.notes.bleed, '26. nor does a turn lost to Синій екран', crashed.text.slice(0, 120));
+            const away = scripted({ A: drake('plain', T(284)), setup: fx => put(fx, 'A', 'bleed'), turns: [dice({ before: [0] }), dice(), []] }).turns[2];
+            check(/is away/.test(away.text) && !away.notes.bleed, '26. nor does a turn AFK skips', away.text.slice(0, 120));
+            const bloom = bled(drake('green'), {}, dice(), fx => { fx.A.meter = 5; });
+            check(/Bloom/.test(bloom.text) && !bloom.notes.bleed, '26. Цвітіння replaces the attack and takes the debuff off: no tick', bloom.text.slice(0, 120));
+            const mirror = bled(drake('blue'), {}, dice(), fx => { fx.A.meter = 5; });
+            check(/Ice Mirror/.test(mirror.text) && !mirror.notes.bleed && mirror.fx.A.debuff[0].left === 3, 'Крижане дзеркало replaces the attack too: no tick, no count'.replace(/^/, '26. '), mirror.text.slice(0, 120));
+            const storm = bled(drake('red'), {}, dice(), fx => { fx.A.meter = 5; });
+            check(/Firestorm/.test(storm.text) && storm.notes.bleed > 0, '26. an attacking ultimate is an attack: it ticks', storm.text.slice(0, 120));
+            const hurtB = scripted({ B: drake(), setup: fx => put(fx, 'A', 'bleed'), turns: [dice({ block: 0.01 }), dice({ block: 0.01 })] }).turns;
+            check(hurtB[0].notes.bleed && !hurtB[1].notes.bleed, "26. it ticks on its holder's attacks only", JSON.stringify(hurtB.map(x => x.notes)));
+            // Knockouts
+            const won = scripted({ A: drake('plain'), setup: fx => { put(fx, 'A', 'bleed'); fx.A.buff.push({ id: 'rage', left: 2, power: 100 }); }, turns: [dice()] });
+            check(won.ended && won.turns[0].hpB === 0 && won.turns[0].hpA === MAX && !won.turns[0].notes.bleed, "26. the attack that ends the fight: no tick after it", JSON.stringify([won.ended, won.turns[0].hpA, won.turns[0].notes]));
+            const lost = scripted({ A: drake(), setup: fx => { hurt(fx, 'A', MAX, 5); put(fx, 'A', 'bleed'); }, turns: [dice({ block: 0.01 })] });
+            check(lost.ended && lost.turns[0].hpA === 0 && lost.turns[0].notes.bleed === 10, '26. it can knock the bleeding drake out', JSON.stringify([lost.ended, lost.turns[0].hpA, lost.turns[0].notes]));
+            const m = G.getMaxHP(20, 'plain', T(245));
+            const reborn = scripted({ A: drake('plain', T(245)), setup: fx => { hurt(fx, 'A', m, 5, m); put(fx, 'A', 'bleed'); }, turns: [dice({ block: 0.01 })] });
+            check(!reborn.ended && reborn.turns[0].hpA === 1 && reborn.turns[0].notes.phoenix, '26. Відродження survives it', JSON.stringify([reborn.ended, reborn.turns[0].hpA]));
+            // The White Drake and the White Dragon
+            let bounced = null, landed = null;
+            scripted({ A: CH(), B: WD(), setup: (fx, a, b) => { bounced = G.applyEffect(a, b, 'bleed', 20, fx); fx.B.scales.now = 0; landed = G.applyEffect(a, b, 'bleed', 20, fx); } });
+            check(bounced === 'bounced' && landed === 'applied', "26. Кровотеча bounces off the White Drake's scales while they hold, and lands once they're gone", JSON.stringify([bounced, landed]));
+            const wdMax = G.getMaxHP(20, G.WHITE_DRAKE_TYPE, T(G.WHITE_DRAKE_TITLE_ID));
+            const onHp = scripted({ A: WD(), setup: fx => { put(fx, 'A', 'bleed'); fx.A.scales.now = 40; }, turns: [dice({ block: 0.01 })] }).turns[0];
+            check(onHp.fx.A.scales.now === 40 && onHp.hpA === wdMax - Math.round(wdMax * 0.03), "26. it's damage, not a hit: the scales rebuilt over it don't take it, like Burn and Poison", JSON.stringify([onHp.fx.A.scales, onHp.hpA]));
+            let immune = null, dragon = null;
+            scripted({ A: CH(), B: drake('plain', titleWith('debuff_immunity')), setup: (fx, a, b) => { immune = G.applyEffect(a, b, 'bleed', 20, fx); } });
+            scripted({ A: CH(), B: DRAGON(), setup: (fx, a, b) => { dragon = G.applyEffect(a, b, 'bleed', 20, fx); } });
+            check(immune === 'immune' && dragon === 'immune', 'debuff immunity and the White Dragon stop it'.replace(/^/, '26. '), JSON.stringify([immune, dragon]));
+        }
+
+        // The effects with the title abilities: each treats them like any other
+        {
+            const long = (() => { let left = null; scripted({ A: drake('plain', T(232)), setup: (fx, a, b) => { G.applyEffect(a, b, 'bloodprice', 20, fx); left = fx.A.buff[0].left; } }); return left; })();
+            check(long === 4, '26. Довгий баф: Кров за кров lasts 4 attacks', String(long));
+            const eaten = scripted({ A: drake('plain', T(220)), setup: fx => { hurt(fx, 'A', G.getMaxHP(20, 'plain', T(220)), 100); put(fx, 'B', 'bloodprice'); }, turns: [dice({ after: [0.1, 0] })] }).turns[0];
+            check(eaten.notes.eaten && eaten.notes.eaten.id === 'bloodprice' && !eaten.fx.B.buff.length, '26. Пожирач бафів eats Кров за кров', JSON.stringify(eaten.notes));
+            let sent = null;
+            scripted({ A: CH(), B: drake('plain', T(264)), setup: (fx, a, b) => { rolled([0.1], () => G.applyEffect(a, b, 'bleed', 20, fx)); sent = { a: fx.A.debuff.map(x => x.id), b: fx.B.debuff.map(x => x.id) }; } });
+            check(sent.a.join() === 'bleed' && !sent.b.length, '26. Повернення sends Кровотеча back to its caster', JSON.stringify(sent));
+            const cleansed = scripted({ A: drake('plain', T(229)), setup: fx => put(fx, 'A', 'bleed'), turns: [dice()] }).turns[0];
+            check(!cleansed.fx.A.debuff.length && cleansed.notes.cleanse.join() === 'bleed' && !cleansed.notes.bleed, '26. Очищення takes Кровотеча off before it can act', JSON.stringify(cleansed.notes));
+            const stolen = scripted({ A: drake('black'), setup: fx => { fx.A.meter = 5; put(fx, 'B', 'bloodprice', 2); }, turns: [dice()] }).turns[0];
+            check(stolen.fx.A.buff.map(x => `${x.id}:${x.left}`).join() === 'bloodprice:1' && !stolen.fx.B.buff.length, '26. Крадіжка тіні takes Кров за кров with what it has left (2, and its own attack uses one)', JSON.stringify(stolen.fx.A.buff));
+            let dispelled = null;
+            scripted({ A: drake('purple'), B: CH(), setup: (fx, a, b) => { put(fx, 'B', 'bloodprice'); dispelled = { r: G.applyEffect(a, b, 'dispel', 20, fx), left: fx.B.buff.length }; } });
+            check(dispelled.r === 'dispelled' && dispelled.left === 0, '26. Розвіювання takes Кров за кров off', JSON.stringify(dispelled));
+            let pulled = null;
+            scripted({ A: CH(), B: WD(), setup: (fx, a, b) => { put(fx, 'A', 'magnet'); pulled = { r: G.applyEffect(a, b, 'bloodprice', 20, fx), wd: fx.B.buff.map(x => x.id), mine: fx.A.buff.length }; } });
+            check(pulled.r === 'pulled' && pulled.wd.join() === 'bloodprice' && !pulled.mine, '26. Магніт pulls Кров за кров to the White Drake', JSON.stringify(pulled));
+            check(['bloodprice', 'bleed'].every(id => G.POOL_IDS.includes(id)), '26. both join the shared pool', G.POOL_IDS.join());
+            const hit = title => scripted({ A: CH(title), setup: fx => { fx.A.meter = 5; hurt(fx, 'A', G.getMaxHP(20, 'cherry', title), 40); strong('A')(fx); }, turns: [dice()], hp: null }).turns[0];
+            const plain = hit(bare(T(268))), boosted = hit(T(268));
+            check(/Last Breath/.test(plain.text) && boosted.dmg > plain.dmg * 1.3, 'Перевантаження scales Останній подих like any attacking ultimate'.replace(/^/, '26. '), JSON.stringify([plain.dmg, boosted.dmg]));
         }
     }
     Math.random = KEEP;

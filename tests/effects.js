@@ -79,7 +79,7 @@ const UNITS = ['attacks', 'hits', 'turns', 'instant'];
 const sameWords = (a, b) => { const x = a.split(' '), y = b.split(' ');
     return x.length === y.length && x.every((w, i) => { let k = 0; while (k < w.length && w[k] === y[i][k]) k++; return k >= Math.max(w.length, y[i].length) - 2; }); };
 // The names whose accusative isn't the name itself; the rest read the same after a verb («накладає 🔥 Підпал»)
-const ACC_UK = { mark: 'Мітку', regen: 'Регенерацію', divine: 'Божественну міць' };
+const ACC_UK = { mark: 'Мітку', regen: 'Регенерацію', divine: 'Божественну міць', bleed: 'Кровотечу' };
 const POOL_N = 2 * G.VIEWER_DRAKE_TYPES.length;   // every viewer element's pair
 check(EFFECT_IDS.length === POOL_N + 2 && G.POOL_IDS.length === POOL_N && G.POOL_IDS.every(id => !G.STREAMER_TYPES.includes(EFFECTS[id].element)),
     `there are ${POOL_N + 2} effects: the ${POOL_N} of the shared pool (every viewer element's pair) and the White Drake's own pair, which isn't in it`,
@@ -151,6 +151,7 @@ const EFFECT_TEXT_ALLOWLIST = [
     { line: 'id: 151, rarity:', terms: ['🛡', 'Щит', 'Shield'], why: 'title: Щит від спойлерів / Spoiler Shield' },
     { line: 'id: 163, rarity:', terms: ['Магніт', 'Magnet'], why: "title: Магніт для критів / Crit Magnet (older than the White Drake's Магніт)" },
     { line: 'id: 152, rarity:', terms: ['🔥'], why: 'title icon: Hot Take' },
+    { line: '🩸 +${vampHealed} HP лікування!', terms: ['🩸'], why: "a vampire hit's heal in the text record (not Bleed)" },
     { line: 'id: 166, rarity:', terms: ['🌋'], why: 'title icon: Emotion Volcano (not the Eruption ultimate)' },
     { line: 'id: 290, rarity:', terms: ['🌋'], why: 'title icon: Sleeping Volcano (not the Eruption ultimate)' },
     { line: 'id: 160, rarity:', terms: ['🍀'], why: 'title icon: Four-Leaf Clover' },
@@ -550,6 +551,25 @@ for (const [pLabel, pCaster] of POWERS) {
         behaviour(`♨️ Stoke (${pLabel}): two attacks fill ${plain} → ${r.meter} points (one attack: ${one.meter}), count ${r.r.setup.left}; a blocked attack adds ${blocked.meter} and still counts down (left ${blocked.left})`,
             plain === 2 && r.meter === 4 && one.meter === 2 && one.left === 1 && blocked.meter === 0 && blocked.left === 1 && r.r.setup.left === EFFECTS.stoke.count && third.left === undefined,
             `expected 2 → 4, one attack 2, blocked 0 with 1 left, count ${EFFECTS.stoke.count}; plain ${plain}, stoked ${r.meter}, one ${one.meter}/${one.left}, blocked ${blocked.meter}/${blocked.left}`);
+    }
+    // 🫀 Blood for Blood: each own attack heals a share of the damage it dealt (a first attack at full HP heals nothing, the second
+    // does); a blocked attack heals nothing and still counts down
+    {
+        const healOf = r => Number((r.turns[2].lines.join('\n').match(/Blood for Blood: \+(\d+) HP/) || [])[1]);
+        const r = scripted(() => castOn('A', 'bloodprice', pCaster), [dice(), dice({ crit: 0 }), dice()]);
+        const want = Math.round(r.turns[2].dmg * Math.min(90, pct(r.setup, 'heal')) / 100);
+        const blocked = scripted(() => castOn('A', 'bloodprice', pCaster), [dice({ block: 0.05 })]);
+        const leftAfterBlock = (G.battleFx.A.buff.find(x => x.id === 'bloodprice') || {}).left;
+        behaviour(`🫀 Blood for Blood (${pLabel}): an attack of ${r.turns[2].dmg} heals ${healOf(r)} (${+pct(r.setup, 'heal').toFixed(2)}% of it, at most 90%), count ${r.setup.left}; a blocked attack heals nothing and counts down (left ${leftAfterBlock})`,
+            healOf(r) === want && r.setup.left === EFFECTS.bloodprice.count && !blocked.turns[0].lines.some(l => /Blood for Blood:/.test(l)) && leftAfterBlock === 1, `expected +${want}`);
+    }
+    // 🩸 Bleed: after each of the target's attacks, hp% of its max HP, count times; none on the other fighter's turns
+    {
+        const r = scripted(() => castOn('A', 'bleed', pCaster), [dice({ block: 0.05 }), dice({ block: 0.05 }), dice({ block: 0.05 }), dice({ block: 0.05 }), dice({ block: 0.05 }), dice({ block: 0.05 }), dice({ block: 0.05 })]);
+        const want = Math.max(1, Math.round(MAXHP * pct(r.setup, 'hp') / 100));
+        const lost = r.turns.map(t => Number((t.lines.join('\n').match(/Bleed \(-(\d+) HP\)/) || [])[1] || 0));
+        behaviour(`🩸 Bleed (${pLabel}): -${want} HP after each of the target's ${EFFECTS.bleed.count} attacks, blocked or not, then gone: ${lost.join(' ')}, count ${r.setup.left}`,
+            lost.join() === [want, 0, want, 0, want, 0, 0].join() && r.setup.left === EFFECTS.bleed.count, `expected -${want} on turns 1, 3 and 5`);
     }
     // 🫠 Melt: hits on the target ×(1 + dmg%), every kind of hit; never ticks; "hits taken", so a blocked hit uses it up
     {

@@ -424,6 +424,10 @@ const GI = G.DI.ICONS;
             if (!html.includes(`data-icon="${D.STAND_INS[id]}"`) || html.includes(`data-icon="${id}"`)) bad.push(`${lang} ${id}: not drawn as ${D.STAND_INS[id]}`);
             if (!html.includes(`data-ci="${id}" data-ct="${name}"`)) bad.push(`${lang} ${id}: its compact chip lost its words`);
         }
+        for (const [id, note, n] of [['bleed', { bleed: 10 }, '-10'], ['bloodprice', { bloodprice: 22 }, '+22']]) {
+            const html = card({ notes: note }), text = `${G.EFFECTS[id].name[lang]} ${n}`;
+            if (!html.includes(`data-ci="${id}" data-ct="${D.STAND_INS[id] ? text : n}"`) || !html.includes(`>${text}<`)) bad.push(`${lang} ${id}: its number's chip doesn't read «${text}», full and compact`);
+        }
         const real = card({ used: ['burn'] });
         if (!real.includes('data-ci="burn" data-ct=""')) bad.push(`${lang}: an effect with its own icon keeps words in its compact chip`);
         const tick = card({ ticks: [{ id: 'heat', v: -19 }] }), words = G.FV_TEXT[lang].heat.replace(G.EMOJI_RE, '').trim();

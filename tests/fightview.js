@@ -54,6 +54,9 @@
 //     block; a tick that knocks out, on the knockout cell; Виверження's
 //     card (its multiplier and the heat dropping) and the card's heat after it; against the White Drake the heat takes the
 //     scales and isn't counted as the damage she dealt
+//   - Вишневий in real fights with fixed dice, both languages: the frenzy's +N% on the fighter card once it's above 0, no block
+//     moving, and its note on the log card; Кров за кров's and Кровотеча's numbers on the log card and as pops; Кровотеча knocking
+//     its own drake out; Останній подих at ×2.5 below a quarter of its HP
 //   - Review screenshots: tests/screenshots/fightview-cards.png (log cards of every kind, both languages) and
 //     tests/screenshots/fightview-turn.png (countdowns, the turn steps, an ultimate, the result, both languages)
 //
@@ -71,7 +74,7 @@ const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
 const TURN = 4500, HIT = 600, WHITE_STEEL = 998;
-// FV_ONLY=2,4 runs only those sections (0–17, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
+// FV_ONLY=2,4 runs only those sections (0–18, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
 const ONLY = (process.env.FV_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
 
@@ -101,8 +104,8 @@ async function open(browser, { lang = 'uk', betting = false, width = 1920, heigh
 const say = (page, user, msg, color = '#ff7f50') => page.evaluate(([u, m, c]) => handleChatMessage('#test', { username: u, color: c }, m, false), [user, msg, color]);
 const cmd = (lang, uk, en) => lang === 'uk' ? uk : en;
 // «білий» gives the streamer the White Drake ('steel'); the White Dragon ('white') is the streamer's other form, through !дракон
-const COLOR_WORD = { uk: { red: 'червоний', blue: 'синій', black: 'чорний', gold: 'золотий', purple: 'фіолетовий', green: 'зелений', orange: 'помаранчевий', steel: 'білий', white: 'білий' },
-                     en: { red: 'red', blue: 'blue', black: 'black', gold: 'gold', purple: 'purple', green: 'green', orange: 'orange', steel: 'white', white: 'white' } };
+const COLOR_WORD = { uk: { red: 'червоний', blue: 'синій', black: 'чорний', gold: 'золотий', purple: 'фіолетовий', green: 'зелений', orange: 'помаранчевий', cherry: 'вишневий', steel: 'білий', white: 'білий' },
+                     en: { red: 'red', blue: 'blue', black: 'black', gold: 'gold', purple: 'purple', green: 'green', orange: 'orange', cherry: 'cherry', steel: 'white', white: 'white' } };
 async function register(page, lang, users) {
     for (const [u, type, color] of users) {
         await say(page, u, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][type]}`, color || '#ff7f50');
@@ -1156,6 +1159,7 @@ async function popAtStep2(page, turn) {
                     if (u.id === 'anvil') detail = l2.includes(`×${want.anvil}`);
                     if (u.id === 'bloom') detail = card.num.startsWith('+');
                     if (u.id === 'eruption') detail = /×\d/.test(l2) && / → /.test(l2);
+                    if (u.id === 'lastbreath') detail = /×\d/.test(l2);
                 }
                 const ok = !!card && card.ult === u.label && !!step1 && step1.ult && step1.tab === u.name && detail;
                 results.push({ id: u.id + (run.reels ? ` [${run.reels.join('')}]` : ''), ok, why: JSON.stringify({ step1, card }) });
@@ -2027,6 +2031,48 @@ async function popAtStep2(page, turn) {
             const seen = await page.evaluate(() => ({ now: battleFx.jade.scales.now, dealt: fv.stats.jade.dmg, biggest: fv.stats.jade.max }));
             check(seen.now < scalesBefore && await hp('p2') === hpBefore && seen.dealt === 0 && seen.biggest === 0 && burned.card.l2.includes(word),
                 `[${lang}] against the White Drake the tick takes her scales (${scalesBefore} → ${seen.now}), and it doesn't count as damage she dealt`, JSON.stringify({ seen, card: burned.card }));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // Вишневий as the stream sees it, in real fights with fixed dice
+        console.log('\nВишневий, as the stream sees it');
+        if (run(18)) for (const lang of ['uk', 'en']) {
+            const { page, context, errors, fight, turn, hp, looks } = await memePage(lang, false, [['kotyk_ua', 'cherry'], ['jade', 'red']]);
+            const frenzyRow = () => page.evaluate(() => __vt(document.querySelector('#card-p1 .pm-frenzy')));
+            const word = await page.evaluate(() => FV_TEXT[currentLang].frenzy), name = id => page.evaluate(id => EFFECTS[id].name[currentLang], id);
+            const glyph = await page.evaluate(() => iconOf('frenzy'));
+            // A share of its max HP lost at the start of its next turn, through a Burn that ends there
+            const lose = share => page.evaluate(share => { battleFx.kotyk_ua.debuff.push({ id: 'burn', left: 1, power: share * 100 / 5 }); }, share);
+            await fight(1, 1);
+            const calm = await looks('p1');
+            check(await frenzyRow() === '', `[${lang}] no frenzy on the card at full HP`, await frenzyRow());
+            await lose(0.6);
+            const hurt = await turn(1, ROLLS());
+            const shown = await frenzyRow(), after = await looks('p1');
+            check(shown === `[${glyph}] +20%` && hurt.card.l2.includes(`[${glyph}] ${word} +20%`) && after.boxes === calm.boxes,
+                `[${lang}] 60% of its HP lost: «${shown}» on the fighter card, «${word} +20%» on the log card, and no block moves`, JSON.stringify({ shown, card: hurt.card, calm: calm.boxes, after: after.boxes }));
+            // Кров за кров and Кровотеча: their numbers on the card and as pops
+            await turn(2, ROLLS());
+            await page.evaluate(() => { battleFx.kotyk_ua.buff.push({ id: 'bloodprice', left: 2, power: 1 }); battleFx.kotyk_ua.debuff.push({ id: 'bleed', left: 3, power: 1 }); });
+            const both = await turn(3, ROLLS());
+            const bp = await name('bloodprice'), bl = await name('bleed');
+            const healed = (both.card.l2.match(new RegExp(`${bp} \\+(\\d+)`)) || [])[1], bled = (both.card.l2.match(new RegExp(`${bl} -(\\d+)`)) || [])[1];
+            check(healed > 0 && bled > 0 && both.s.p1.pops.includes(`+${healed}`) && both.s.p1.pops.includes(`-${bled}`),
+                `[${lang}] «${bp} +${healed}» and «${bl} -${bled}» on the log card, and as pops on its own fighter card`, JSON.stringify({ card: both.card, pops: both.s.p1.pops }));
+            // Кровотеча knocks its own drake out: a Burn that leaves 2 HP, then an attack that lands nothing
+            await turn(4, ROLLS());
+            await page.evaluate(() => { const [now, max] = document.getElementById('hp-text-p1').innerText.split('/').map(Number); battleFx.kotyk_ua.debuff.push({ id: 'burn', left: 1, power: (now - 2) / max * 100 / 5 }); });
+            await turn(5, ROLLS({ block: 0.01 }));
+            await page.clock.runFor(HIT);
+            const end = await page.evaluate(arenaNow), koCell = end.cells.find(c => c.kind === 'ko');
+            check(koCell && koCell.text.includes('@kotyk_ua') && end.kind === 'result', `[${lang}] Кровотеча knocks its own drake out, after its attack`, JSON.stringify({ kind: end.kind, cells: end.cells }));
+            // Останній подих: ×2.5 below a quarter of its HP
+            await fight(1, 1);
+            await page.evaluate(() => { battleFx.kotyk_ua.meter = 5; });
+            await lose(0.8);
+            const last = await turn(1, ROLLS());
+            check(last.card.ult.includes(await page.evaluate(() => CLASS_ULTIMATES.lastbreath.name[currentLang])) && last.card.l2.includes('×2.5'), `[${lang}] Останній подих: its head and ×2.5 on the card`, JSON.stringify(last.card));
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }

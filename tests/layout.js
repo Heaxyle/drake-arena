@@ -382,6 +382,12 @@ async function layoutChecks(browser, lang) {
         return { over: rows.filter(r => r.scrollWidth > r.clientWidth + 0.5).map(r => r.id), moved: rows.filter((r, i) => box(r) !== was[i]).map(r => r.id), text: rows.map(r => window.__vt(r)) };
     });
     const heatProblems = await page.evaluate(layoutProblems);
+    const frenzyRow = await page.evaluate(() => {
+        const rows = ['p1', 'p2'].map(p => document.getElementById(`power-${p}`));
+        ['p1', 'p2'].forEach(p => renderPowerMeter(p, 'cherry', { meter: METER.max, mirror: 0, frenzy: 45 }));
+        return { over: rows.filter(r => r.scrollWidth > r.clientWidth + 0.5).map(r => r.id), text: rows.map(r => window.__vt(r)) };
+    });
+    check(!frenzyRow.over.length, `${tag} the meter's row with a full meter and the frenzy at its highest fits on both cards: «${frenzyRow.text[0]}»`, JSON.stringify(frenzyRow));
     check(!heatRow.over.length && !heatRow.moved.length && !heatProblems.length, `${tag} the meter's row with a full meter and 8 heat fits on both cards, and doesn't move: «${heatRow.text[0]}»`, JSON.stringify({ heatRow, problems: heatProblems.slice(0, 4) }));
     await page.evaluate(fillWorstCase);
     await settle(page);
