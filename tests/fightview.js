@@ -1130,7 +1130,7 @@ async function popAtStep2(page, turn) {
                     await toFightTime(page, turn * TURN + 1);
                     await settleArena(page);
                     const s1 = await page.evaluate(arenaNow);
-                    if (filled && mine && !step1) step1 = { tab: s1[side].tab, ult: s1[side].ult };
+                    if (filled && mine) step1 = { tab: s1[side].tab, ult: s1[side].ult };   // the turn the ultimate fires: a Frost can hold it back a turn
                     await toFightTime(page, turn * TURN + HIT + 1);
                     if (filled && mine && u.id === 'firestorm') { await page.waitForTimeout(380); turnShots[`${lang}-3`] = await page.screenshot({ clip: crop }); }
                     await settleArena(page);
