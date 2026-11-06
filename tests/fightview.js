@@ -57,6 +57,8 @@
 //   - Вишневий in real fights with fixed dice, both languages: the frenzy's +N% on the fighter card once it's above 0, no block
 //     moving, and its note on the log card; Кров за кров's and Кровотеча's numbers on the log card and as pops; Кровотеча knocking
 //     its own drake out; Останній подих at ×2.5 below a quarter of its HP
+//   - Бірюзовий in real fights with fixed dice, both languages: its layers on the fighter card from 0/8, no block moving; the cut
+//     on the log card; Чиста вода naming what it took off; Приплив's heal and layers on its card, the layers staying
 //   - Review screenshots: tests/screenshots/fightview-cards.png (log cards of every kind, both languages) and
 //     tests/screenshots/fightview-turn.png (countdowns, the turn steps, an ultimate, the result, both languages)
 //
@@ -74,7 +76,7 @@ const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
 const TURN = 4500, HIT = 600, WHITE_STEEL = 998;
-// FV_ONLY=2,4 runs only those sections (0–18, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
+// FV_ONLY=2,4 runs only those sections (0–19, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
 const ONLY = (process.env.FV_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
 
@@ -104,8 +106,8 @@ async function open(browser, { lang = 'uk', betting = false, width = 1920, heigh
 const say = (page, user, msg, color = '#ff7f50') => page.evaluate(([u, m, c]) => handleChatMessage('#test', { username: u, color: c }, m, false), [user, msg, color]);
 const cmd = (lang, uk, en) => lang === 'uk' ? uk : en;
 // «білий» gives the streamer the White Drake ('steel'); the White Dragon ('white') is the streamer's other form, through !дракон
-const COLOR_WORD = { uk: { red: 'червоний', blue: 'синій', black: 'чорний', gold: 'золотий', purple: 'фіолетовий', green: 'зелений', orange: 'помаранчевий', cherry: 'вишневий', steel: 'білий', white: 'білий' },
-                     en: { red: 'red', blue: 'blue', black: 'black', gold: 'gold', purple: 'purple', green: 'green', orange: 'orange', cherry: 'cherry', steel: 'white', white: 'white' } };
+const COLOR_WORD = { uk: { red: 'червоний', blue: 'синій', black: 'чорний', gold: 'золотий', purple: 'фіолетовий', green: 'зелений', orange: 'помаранчевий', cherry: 'вишневий', turquoise: 'бірюзовий', steel: 'білий', white: 'білий' },
+                     en: { red: 'red', blue: 'blue', black: 'black', gold: 'gold', purple: 'purple', green: 'green', orange: 'orange', cherry: 'cherry', turquoise: 'turquoise', steel: 'white', white: 'white' } };
 async function register(page, lang, users) {
     for (const [u, type, color] of users) {
         await say(page, u, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][type]}`, color || '#ff7f50');
@@ -1160,6 +1162,7 @@ async function popAtStep2(page, turn) {
                     if (u.id === 'bloom') detail = card.num.startsWith('+');
                     if (u.id === 'eruption') detail = /×\d/.test(l2) && / → /.test(l2);
                     if (u.id === 'lastbreath') detail = /×\d/.test(l2);
+                    if (u.id === 'hightide') detail = card.num.startsWith('+');
                 }
                 const ok = !!card && card.ult === u.label && !!step1 && step1.ult && step1.tab === u.name && detail;
                 results.push({ id: u.id + (run.reels ? ` [${run.reels.join('')}]` : ''), ok, why: JSON.stringify({ step1, card }) });
@@ -2073,6 +2076,41 @@ async function popAtStep2(page, turn) {
             await lose(0.8);
             const last = await turn(1, ROLLS());
             check(last.card.ult.includes(await page.evaluate(() => CLASS_ULTIMATES.lastbreath.name[currentLang])) && last.card.l2.includes('×2.5'), `[${lang}] Останній подих: its head and ×2.5 on the card`, JSON.stringify(last.card));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // Бірюзовий as the stream sees it, in real fights with fixed dice
+        console.log('\nБірюзовий, as the stream sees it');
+        if (run(19)) for (const lang of ['uk', 'en']) {
+            const { page, context, errors, fight, turn, hp, looks } = await memePage(lang, false, [['jade', 'red'], ['kotyk_ua', 'turquoise']]);
+            const word = await page.evaluate(() => FV_TEXT[currentLang].nacre), glyph = await page.evaluate(() => iconOf('nacre'));
+            const layerRow = () => page.evaluate(() => __vt(document.querySelector('#card-p2 .pm-nacre')));
+            // kotyk_ua, the first in `fight`, attacks first: Бірюзовий is on the left there, so its row is read by name
+            const row = () => page.evaluate(() => { const p = document.getElementById('name-p1').textContent.includes('kotyk_ua') ? 'p1' : 'p2'; return __vt(document.querySelector(`#card-${p} .pm-nacre`)); });
+            await fight(1, 1);
+            const side = await page.evaluate(() => document.getElementById('name-p1').textContent.includes('kotyk_ua') ? 'p1' : 'p2');
+            const calm = await looks(side);
+            check(await row() === `[${glyph}] 0/8`, `[${lang}] the fight starts with ${await row()} on its card`, await row());
+            await turn(1, ROLLS());
+            const hit = await turn(2, ROLLS());
+            const one = await row(), after = await looks(side);
+            check(one === `[${glyph}] 1/8` && after.boxes === calm.boxes && !hit.card.l2.includes(word), `[${lang}] a hit adds a layer (${one}), not cut by it, and no block of the card moves`, JSON.stringify({ one, card: hit.card, calm: calm.boxes, after: after.boxes }));
+            await turn(3, ROLLS());
+            const cut = await turn(4, ROLLS());
+            check(cut.card.l2.includes(`[${glyph}] ${word} −3%`) && await row() === `[${glyph}] 2/8`, `[${lang}] the next hit shows the cut: «${word} −3%»`, JSON.stringify(cut.card));
+            // Чиста вода: named on the card with what it took off
+            await page.evaluate(() => { battleFx.kotyk_ua.debuff.push({ id: 'burn', left: 3, power: 1 }, { id: 'mark', left: 1, power: 1 }); setForcedCast('clearwater'); });
+            const washed = await turn(5, ROLLS());
+            const names = await page.evaluate(() => [__fxv('clearwater'), __fxv('burn', true), __fxv('mark', true)]);
+            check(washed.card.l2.includes(names[0]) && washed.card.l2.includes(names[1]) && washed.card.l2.includes(names[2]) && !(await page.evaluate(() => battleFx.kotyk_ua.debuff.length)),
+                `[${lang}] Чиста вода on the log card: «${names.join(' ')}», and nothing left on the fighter card`, JSON.stringify(washed.card));
+            // Приплив: the heal and the layers on its card, and they stay
+            await fight(1, 1);
+            await page.evaluate(() => { battleFx.kotyk_ua.meter = 5; battleFx.kotyk_ua.layers = 6; battleFx.kotyk_ua.debuff.push({ id: 'burn', left: 1, power: 10 }); });
+            const tide = await turn(1, ROLLS());
+            check(tide.card.ult.includes(await page.evaluate(() => CLASS_ULTIMATES.hightide.name[currentLang])) && tide.card.num.startsWith('+') && tide.card.l2.includes(`${word} 6/8`) && await row() === `[${glyph}] 6/8`,
+                `[${lang}] Приплив: its head, the heal as the number, «${word} 6/8», and the layers stay`, JSON.stringify(tide.card));
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }

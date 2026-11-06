@@ -228,6 +228,25 @@ const full = fx => { fx.A.meter = METER.max; };
     const poweredUlt = scripted({ A: drake('A', 'cherry', 20, POWER_TITLE), setup: fx => { full(fx); castOn(fx, 'A', 'burn', (pmax - 40) / pmax * 100 / EFFECTS.burn.nums.hp); }, turns: [dice()] }).turns[0].dmg;
     check(near(poweredUlt, plainPower * 2.5, 2.5), `🌬️ Last Breath: effect power doesn't scale its multiplier (${plainPower} → ${poweredUlt}, ×2.5)`, `${poweredUlt}, expected ${plainPower * 2.5}`);
 }
+// 🌊 High Tide: replaces the attack; 4% of max HP per layer, and the layers stay
+{
+    const max = G.getMaxHP(20, 'turquoise', null), low = 40;
+    const run = (layers, setup = () => {}, title = null) => scripted({ A: drake('A', 'turquoise', 20, title), setup: fx => { full(fx); fx.A.layers = layers; castOn(fx, 'A', 'burn', (max - low) / max * 100 / EFFECTS.burn.nums.hp); setup(fx); }, turns: [dice()] }).turns[0];
+    const bad = [], rows = [];
+    for (const [layers, pct] of [[0, 0], [1, 4], [3, 12], [8, 32]]) {
+        const t = run(layers), want = Math.round(max * pct / 100);
+        rows.push(`${layers} layers: +${t.hpA - low}`);
+        if (!isUltLine(t, 'hightide') || t.hpA - low !== want) bad.push(`${layers} layers healed ${t.hpA - low}, expected ${want}`);
+        if (t.fx.A.layers !== layers) bad.push(`${layers} layers became ${t.fx.A.layers}`);
+        if (t.dmg !== null || t.hpB !== max && t.hpB !== G.getMaxHP(20, 'plain', null)) bad.push(`${layers} layers: it attacked (${t.dmg})`);
+        if (t.meterA !== 0) bad.push(`the meter is ${t.meterA} after it`);
+    }
+    check(!bad.length, `🌊 High Tide: no attack; ${rows.join(', ')} (4% of ${max} HP per layer), and the layers stay`, bad.slice(0, 4).join(' | '));
+    const poisoned = run(8, fx => castOn(fx, 'A', 'poison')), poison = Math.round(max * EFFECTS.poison.nums.hp / 100);
+    check(poisoned.hpA - (low - poison) === Math.round(max * 0.32 * 0.5), `🌊 High Tide: Poison cuts it like any healing (${poisoned.hpA - (low - poison)})`, `${poisoned.hpA}`);
+    const top = scripted({ A: drake('A', 'turquoise'), setup: fx => { full(fx); fx.A.layers = 8; }, turns: [dice()] }).turns[0];
+    check(top.hpA === max, '🌊 High Tide stops at max HP', String(top.hpA));
+}
 // 🌋 Eruption: ×1.5 plus 5% per heat (×1.9 at 8), the heat as it stands when it starts. It adds none, and afterwards the
 // heat drops by half, rounded down, whether or not the hit landed. An ordinary attack otherwise: it can be blocked
 {
@@ -379,7 +398,7 @@ const castLine = t => /receives (buff|debuff)|refreshed|replaces|loses every buf
         `an attacking ultimate counts as an attack: 💢 Rage 2 → ${left(cast, 'A', 'buff', 'rage')}, the target's 🛡️ Shield 2 → ${left(cast, 'B', 'buff', 'shield')}, and a low cast roll casts an effect`,
         `rage ${left(cast, 'A', 'buff', 'rage')}, shield ${left(cast, 'B', 'buff', 'shield')}, cast line ${castLine(cast)}: "${cast.text.slice(0, 200)}"`);
 }
-for (const [id, type] of [['mirror', 'blue'], ['bloom', 'green']]) {
+for (const [id, type] of [['mirror', 'blue'], ['bloom', 'green'], ['hightide', 'turquoise']]) {
     // Ice Mirror and Bloom replace the attack: only the owner's "turns" effects count down
     const t = scripted({ A: drake('A', type), setup: fx => { full(fx); castOn(fx, 'A', 'rage'); castOn(fx, 'A', 'regen'); castOn(fx, 'B', 'shield'); }, turns: [dice()] }).turns[0];
     check(isUltLine(t, id) && left(t, 'A', 'buff', 'rage') === 2 && left(t, 'A', 'buff', 'regen') === 2 && left(t, 'B', 'buff', 'shield') === 2,

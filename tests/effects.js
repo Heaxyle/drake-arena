@@ -79,7 +79,7 @@ const UNITS = ['attacks', 'hits', 'turns', 'instant'];
 const sameWords = (a, b) => { const x = a.split(' '), y = b.split(' ');
     return x.length === y.length && x.every((w, i) => { let k = 0; while (k < w.length && w[k] === y[i][k]) k++; return k >= Math.max(w.length, y[i].length) - 2; }); };
 // The names whose accusative isn't the name itself; the rest read the same after a verb («накладає 🔥 Підпал»)
-const ACC_UK = { mark: 'Мітку', regen: 'Регенерацію', divine: 'Божественну міць', bleed: 'Кровотечу' };
+const ACC_UK = { mark: 'Мітку', regen: 'Регенерацію', divine: 'Божественну міць', bleed: 'Кровотечу', clearwater: 'Чисту воду' };
 const POOL_N = 2 * G.VIEWER_DRAKE_TYPES.length;   // every viewer element's pair
 check(EFFECT_IDS.length === POOL_N + 2 && G.POOL_IDS.length === POOL_N && G.POOL_IDS.every(id => !G.STREAMER_TYPES.includes(EFFECTS[id].element)),
     `there are ${POOL_N + 2} effects: the ${POOL_N} of the shared pool (every viewer element's pair) and the White Drake's own pair, which isn't in it`,
@@ -151,6 +151,7 @@ const EFFECT_TEXT_ALLOWLIST = [
     { line: 'id: 151, rarity:', terms: ['🛡', 'Щит', 'Shield'], why: 'title: Щит від спойлерів / Spoiler Shield' },
     { line: 'id: 163, rarity:', terms: ['Магніт', 'Magnet'], why: "title: Магніт для критів / Crit Magnet (older than the White Drake's Магніт)" },
     { line: 'id: 152, rarity:', terms: ['🔥'], why: 'title icon: Hot Take' },
+    { line: 'id: 164, rarity:', terms: ['🌊'], why: 'title icon: Emoji Tsunami (not the High Tide ultimate)' },
     { line: '🩸 +${vampHealed} HP лікування!', terms: ['🩸'], why: "a vampire hit's heal in the text record (not Bleed)" },
     { line: 'id: 166, rarity:', terms: ['🌋'], why: 'title icon: Emotion Volcano (not the Eruption ultimate)' },
     { line: 'id: 290, rarity:', terms: ['🌋'], why: 'title icon: Sleeping Volcano (not the Eruption ultimate)' },
@@ -245,6 +246,7 @@ console.log('\nEffect names on the log cards: the accusative straight after a ve
         ['a buff on the other fighter', cast('regen', 'applied', B), l => `@B ${V[l].gets} ${acc('regen', l)}`],
         ['a refresh', cast('mark', 'refreshed', B), l => `${V[l].refreshes} ${acc('mark', l)}`],
         ['Dispel', cast('dispel', 'dispelled', B, ['regen', 'divine']), l => `${nom('dispel', l)} ${V[l].removes} ${acc('regen', l)} ${acc('divine', l)}`],
+        ['Clear Water', cast('clearwater', 'cleansed', A, ['mark', 'burn']), l => `${nom('clearwater', l)} ${V[l].removes} ${acc('mark', l)} ${acc('burn', l)}`],
         ['Shadow Theft, one buff taken and one lost', { ult: { id: 'theft', taken: ['regen'], lost: ['divine'] } }, l => `${V[l].takes} ${acc('regen', l)} · ${nom('divine', l)} ${G.fvT('lost')}`],
         ['Arcane Detonation', { ult: { id: 'detonation', mult: 2.7, removed: ['mark'] } }, l => `×2.7 ${V[l].removes} ${acc('mark', l)}`],
         ['Bloom', { ult: { id: 'bloom', healed: 30, removed: ['mark', 'poison'] } }, l => `${V[l].removes} ${acc('mark', l)} ${acc('poison', l)}`],
@@ -635,6 +637,31 @@ for (const [pLabel, pCaster] of POWERS) {
         const before = G.battleFx.B.buff.map(x => x.id).join(', ');
         castOn('B', 'dispel', null); return before; }, []);
     behaviour(`💨 Dispel: the target's buffs (${d.setup}) are all removed at once`, G.battleFx.B.buff.length === 0, `left: ${G.battleFx.B.buff.map(x => x.id)}`);
+    // 💧 Clear Water: all of its owner's debuffs at once; it never sits on the card; with nothing to remove it's cast as something else
+    const c = scripted(() => { castOn('A', 'burn', null); castOn('A', 'mark', null);
+        const before = G.battleFx.A.debuff.map(x => x.id).join(', ');
+        const r = G.applyEffect(plainDrake('A'), plainDrake('B'), 'clearwater', 20, G.battleFx);
+        return { before, r, buffs: G.battleFx.A.buff.length, debuffs: G.battleFx.A.debuff.length }; }, []);
+    behaviour(`💧 Clear Water: its owner's debuffs (${c.setup.before}) all go at once, and it doesn't sit on the card`, c.setup.r === 'cleansed' && !c.setup.debuffs && !c.setup.buffs, JSON.stringify(c.setup));
+    {
+        const seen = new Set();
+        let wasted = 0;
+        for (let i = 0; i < 300; i++) {
+            const A = plainDrake('A'), B = plainDrake('B'), fx = { A: G.newFxState(), B: G.newFxState() }, [r] = logged(() => G.applyEffect(A, B, 'clearwater', 20, fx));
+            seen.add(r); if (r === 'cleansed' || [...fx.A.buff, ...fx.A.debuff].some(x => x.id === 'clearwater')) wasted++;
+        }
+        behaviour(`💧 Clear Water is never wasted: with no debuffs another effect is cast instead (${[...seen].join(', ')})`, !wasted && seen.size > 0, `${wasted} of 300 wasted`);
+        const A = plainDrake('A'), B = plainDrake('B'), fx = { A: G.newFxState(), B: G.newFxState() }, [r] = logged(() => G.applyEffect(A, B, 'clearwater', 20, fx, { pool: G.DEBUFF_IDS.filter(id => id !== 'dispel') }));
+        behaviour(`💧 ...from the caller's pool when it has one (${r})`, fx.B.debuff.length === 1 && !fx.A.buff.length, JSON.stringify(fx));
+    }
+    // 🌿 Seaweed: its attacks are light only, physical or magical, the split even
+    const LIGHT = /\((Phys|Mag) \/ Light\)/;
+    const w = (d, setup = () => castOn('A', 'seaweed', null)) => scripted(setup, [dice(d)]).turns[0].lines.join('\n');
+    const cases = [[{ attack: 0.3, sub: 0.5 }, 'Phys'], [{ attack: 0.3, sub: 0.9 }, 'Phys'], [{ attack: 0.7, sub: 0.5 }, 'Mag'], [{ attack: 0.7, sub: 0.9 }, 'Mag'], [{ attack: 0.95, sub: 0.3 }, 'Mag'], [{ attack: 0.95, sub: 0.7 }, 'Mag'], [{ attack: 0.4999, sub: 0.5 }, 'Phys'], [{ attack: 0.5, sub: 0.5 }, 'Mag']];
+    const off = cases.filter(([d, type]) => { const m = LIGHT.exec(w(d)); return !m || m[1] !== type; });
+    behaviour('🌿 Seaweed: light only, physical below half of the roll and magical above it, never vampire', !off.length, JSON.stringify(off));
+    const seaLeft = scripted(() => castOn('A', 'seaweed', null), [dice(), dice(), dice(), dice(), dice({ attack: 0.95 })]);
+    behaviour('🌿 Seaweed lasts its 2 attacks: the third is free to be anything', /\(Vamp \//.test(seaLeft.turns[4].lines.join('\n')), seaLeft.turns[4].lines.join(' ').slice(0, 120));
 }
 // Effect power changes numbers, never counts: every effect, cast at ×1 and at the highest power
 {
