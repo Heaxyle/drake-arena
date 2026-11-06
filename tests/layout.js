@@ -388,6 +388,15 @@ async function layoutChecks(browser, lang) {
         return { over: rows.filter(r => r.scrollWidth > r.clientWidth + 0.5).map(r => r.id), text: rows.map(r => window.__vt(r)) };
     });
     check(!frenzyRow.over.length, `${tag} the meter's row with a full meter and the frenzy at its highest fits on both cards: «${frenzyRow.text[0]}»`, JSON.stringify(frenzyRow));
+    const copyLine = await page.evaluate(() => {
+        const db = getDragonDB(), d = Object.values(db)[0], pink = { ...d, drakeObj: DRAKE_TYPES.find(x => x.type === 'pink') }, longest = VIEWER_DRAKE_TYPES.map(x => x.type).sort((a, b) => a.length - b.length).pop();
+        ['p1', 'p2'].forEach(p => updateFighterCard(p, pink, { buff: [], debuff: [], meter: METER.max, mirror: 0, copied: longest }));
+        const lines = ['p1', 'p2'].map(p => document.getElementById(`info-${p}`));
+        return { over: lines.filter(l => l.scrollWidth > l.clientWidth + 0.5).map(l => l.id), text: lines.map(l => window.__vt(l)) };
+    });
+    check(!copyLine.over.length, `${tag} the name line with Рожевий's copied emblem fits on both cards: «${copyLine.text[0]}»`, JSON.stringify(copyLine));
+    await page.evaluate(fillWorstCase);
+    await settle(page);
     const layerRow = await page.evaluate(() => {
         const rows = ['p1', 'p2'].map(p => document.getElementById(`power-${p}`));
         ['p1', 'p2'].forEach(p => renderPowerMeter(p, 'turquoise', { meter: METER.max, mirror: 0, layers: ELEMENT_BASE.turquoiseLayerMax }));

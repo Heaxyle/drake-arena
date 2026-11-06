@@ -36,12 +36,15 @@
 //      dice, from what it is meant to do (its numbers, once-a-fight limits, thresholds and caps); that each one tells the
 //      fight view when it fires; and what they meet: the White Dragon, the White Drake's scales, debuff immunity, Магніт,
 //      sudden death and the time-out
-//   25 Season 2's Помаранчевий: the colour words and the drakes still being built; only an attack that lands adds heat; the
+//   25 Season 2's Помаранчевий: the colour words; only an attack that lands adds heat; the
 //      tick (its numbers, its order, a knockout), its block roll, and everything that doesn't touch it; the White Dragon, the White Drake's scales;
 //      Оплавлення and Запал with the title abilities, debuff immunity and the scales; the card's heat and the record's words
 //   26 Season 2's Вишневий: Кривавий шал (its numbers, the level-20 tier, stacking with Загартування, the card's +N%); Кров за кров
 //      (Отруєння, max HP, the caps, Двійник, a knocked-out drake); Кровотеча (what ticks and what doesn't, never after a knockout,
 //      knocking its own drake out, the scales, immunity); both with the title abilities
+//   28 Season 2's Рожевий: Ілюзія (each element's fight part at its own level's tier, nothing from another Рожевий or the streamer's
+//      forms, no titles, no XP bonus, the banner and the card's emblem); Чарівний пилок; Закоханість (what applies, what doesn't,
+//      what it still counts as, a self-knockout); the other three drakes' ten-drake list and help text
 //   27 Season 2's Бірюзовий: Перламутр (what adds a layer, the cut on every kind of hit, the tier, the 90% cap, what it never
 //      cuts, the White Dragon, the card and the record's words); Чиста вода (with the opening buff, Магніт, the heat); Водорості
 //      (Удар ковадла, immunity, the scales); Приплив with Підзарядка and Перевантаження; the title abilities
@@ -1791,8 +1794,7 @@ for (const lang of ['en', 'uk']) {
         const MAX = 340;   // a plain level-20 drake's max HP (150 + 19 × 10)
         const heatAfter = (A, turns, setup = null) => scripted({ A, turns, setup }).turns.map(t => t.fx.A.heat);
 
-        // The colours: the built one everywhere, the ones still being built nowhere a viewer can reach
-        for (const [lang, make1, words, unbuilt] of [['uk', '!дрейк', ['помаранчевий'], ['рожевий']], ['en', '!drake', ['orange'], ['pink']]]) {
+        for (const [lang, make1, words] of [['uk', '!дрейк', ['помаранчевий']], ['en', '!drake', ['orange']]]) {
             G.setLang(lang);
             fresh();
             G.say('viewer1', `${make1} ${words[0]}`);
@@ -1800,13 +1802,8 @@ for (const lang of ['en', 'uk']) {
             check(made && made.drakeObj.type === 'orange', `25. "${make1} ${words[0]}" gives the Orange Drake`, JSON.stringify(made && made.drakeObj));
             const named = lastInfo();
             check(named.includes(lang === 'uk' ? 'Помаранчевий Дрейк' : 'Orange Drake') && !named.includes('🟧'), `25. the reply names it with no emoji: ${named.slice(0, 90)}`, named);
-            for (const w of unbuilt) {
-                fresh();
-                G.say('viewer2', `${make1} ${w}`);
-                check(!G.getDragonDB().viewer2 && lastInfo().includes(words[0]) && !lastInfo().includes(w), `25. "${make1} ${w}": still being built, so the help card, which lists only the colours on offer`, JSON.stringify([Object.keys(G.getDragonDB()), lastInfo()]));
-            }
         }
-        check(G.VIEWER_DRAKE_TYPES.some(d => d.type === 'orange') && !G.VIEWER_DRAKE_TYPES.some(d => ['pink'].includes(d.type)), '25. random picks can give the Orange Drake, not a drake still being built', JSON.stringify(G.VIEWER_DRAKE_TYPES.map(d => d.type)));
+        check(G.VIEWER_DRAKE_TYPES.map(d => d.type).join() === 'red,blue,black,gold,purple,green,orange,cherry,pink,turquoise', '25. the viewers have the ten drakes, Season 2\'s after Зелений', JSON.stringify(G.VIEWER_DRAKE_TYPES.map(d => d.type)));
 
         // What adds heat
         {
@@ -2247,6 +2244,184 @@ for (const lang of ['en', 'uk']) {
             const counted = scripted({ A: TQ(), setup: fx => { fx.A.meter = 5; put(fx, 'A', 'rage'); put(fx, 'A', 'burn'); put(fx, 'B', 'shield'); }, turns: [dice()] }).turns[0];
             check(counted.fx.A.buff[0].left === 2 && counted.fx.B.buff[0].left === 2 && counted.fx.A.debuff[0].left === 2, '27. it replaces the attack: only effects that last turns count down', JSON.stringify([counted.fx.A.buff, counted.fx.B.buff, counted.fx.A.debuff]));
             check(['clearwater', 'seaweed'].every(id => G.POOL_IDS.includes(id)), '27. both join the shared pool', G.POOL_IDS.join());
+        }
+    }
+
+    // ---- 28. Season 2's Рожевий. Every number is written out here, like section 24's
+    {
+        console.log('\n[28. Season 2: Рожевий]');
+        const PK = (title = null, level = 20) => drake('pink', title, level);
+        const MAX = 340;
+
+        for (const [lang, make1, word] of [['uk', '!дрейк', 'рожевий'], ['en', '!drake', 'pink']]) {
+            G.setLang(lang);
+            fresh();
+            G.say('viewer1', `${make1} ${word}`);
+            const made = G.getDragonDB().viewer1, named = lastInfo();
+            check(made && made.drakeObj.type === 'pink' && named.includes(lang === 'uk' ? 'Рожевий Дрейк' : 'Pink Drake') && !named.includes('🩷'), `28. "${make1} ${word}" gives the Pink Drake, named with no emoji`, named);
+            fresh();
+            G.say('viewer2', make1);
+            const help = lastInfo(), want = lang === 'uk' ? ['червоний', 'зелений', 'помаранчевий', 'вишневий', 'рожевий', 'бірюзовий'] : ['red', 'green', 'orange', 'cherry', 'pink', 'turquoise'];
+            check(want.every(w => help.includes(w)), `28. the help card lists all ten colours (${lang})`, help);
+        }
+
+        // Ілюзія: each element's fight part, at its own level's tier
+        {
+            const start = (foe, level = 20, foeLevel = level, title = null) => scripted({ A: PK(title, level), B: drake(foe, null, foeLevel), turns: [] }).fx;
+            const hpOf = (foe, level = 20, foeLevel = level) => { scripted({ A: PK(null, level), B: drake(foe, null, foeLevel), turns: [dice({ block: 0.01 })] }); return Number(document.getElementById('hp-text-p1').innerText.split('/')[1]); };
+            check(['red', 'blue', 'black', 'gold', 'purple', 'green', 'orange', 'cherry', 'turquoise'].every(t => start(t).A.copied === t), '28. Ілюзія: it copies every other viewer element', '');
+            const none = [['pink', PK()], ['White Drake', WD()], ['White Dragon', DRAGON()]].filter(([, B]) => scripted({ A: PK(), B, turns: [] }).fx.A.copied !== null);
+            check(!none.length, '28. it copies nothing from another Рожевий, the White Drake or the White Dragon', JSON.stringify(none.map(x => x[0])));
+            const plain = scripted({ A: PK(), B: WD(), turns: [] }).fx;
+            check(plain.A.scales === null && plain.A.heat === null, "28. the White Drake's scales stay hers", JSON.stringify(plain.A));
+            // Зелений: +34% at its own level 20, +22% at its own level 1, whatever the opponent's
+            check(hpOf('green') === Math.floor(340 * 1.34), `28. from Зелений its HP (+34% at level 20: ${hpOf('green')})`, String(hpOf('green')));
+            check(hpOf('green', 1, 20) === Math.floor(150 * 1.22) && hpOf('green', 20, 1) === Math.floor(340 * 1.34), "28. at its own level's tier, not the opponent's", JSON.stringify([hpOf('green', 1, 20), hpOf('green', 20, 1)]));
+            // Червоний: 48% to crit at level 20 (34% plain), ×2.05
+            const crit = (foe, roll) => scripted({ A: PK(), B: drake(foe), turns: [dice({ crit: roll })] }).turns[0];
+            const hit = crit('red', 0.4), miss = crit('plain', 0.4);
+            check(/CRIT \(x2\.05\)/.test(hit.text) && !/CRIT/.test(miss.text), '28. from Червоний its crit: 48% at level 20, ×2.05', hit.text.slice(0, 160));
+            // Синій: armour and the reflect
+            const armour = foe => scripted({ A: drake(foe), B: PK(), turns: [dice()] }).turns[0].dmg;
+            check(armour('blue') < armour('plain'), `28. from Синій its armour (${armour('plain')} → ${armour('blue')})`, '');
+            const reflected = scripted({ A: drake('blue'), B: PK(), turns: [dice({ after: [0.01] })] }).turns[0];
+            check(reflected.notes.reflect > 0, '28. and the reflect, its chance at its own level', JSON.stringify(reflected.notes));
+            // Чорний: 20% to block at level 20 and the cast chance
+            const blocked = scripted({ A: drake('black'), B: PK(), turns: [dice({ block: 0.15 })] }).turns[0], notBlocked = scripted({ A: drake('plain'), B: PK(), turns: [dice({ block: 0.15 })] }).turns[0];
+            check(blocked.dmg === 0 && notBlocked.dmg > 0, '28. from Чорний its block', JSON.stringify([blocked.dmg, notBlocked.dmg]));
+            const cast = (foe, roll) => { let n = 0; G.wrapApplyEffect(() => n++); scripted({ A: PK(), B: drake(foe), turns: [dice({ cast: roll })] }); G.wrapApplyEffect(null); return n; };
+            check(cast('black', 0.5) === 1 && cast('plain', 0.5) === 0, '28. and its cast chance (57% at level 20)', JSON.stringify([cast('black', 0.5), cast('plain', 0.5)]));
+            // Золотий: the 1-HP hit, not the XP
+            const fortune = scripted({ A: PK(), B: drake('gold'), turns: [dice({ after: [0.01] })] }).turns[0];
+            check(fortune.notes.fortune && fortune.hpB === 1, '28. from Золотий the 1-HP hit', JSON.stringify([fortune.notes, fortune.hpB]));
+            fresh();
+            make('pinkie', 'pink', { level: 3 });
+            const xp0 = G.getDragonDB().pinkie.xp;
+            G.addXP('pinkie', 100);
+            check(G.getDragonDB().pinkie.xp - xp0 === 100, '28. not its XP bonus', String(G.getDragonDB().pinkie.xp - xp0));
+            // Фіолетовий: its effects 40% stronger at level 20
+            let power = null;
+            scripted({ A: PK(), B: drake('purple'), setup: (fx, a, b) => { G.applyEffect(a, b, 'rage', 20, fx); power = fx.A.buff[0].power; } });
+            check(Math.abs(power - 1.4) < 1e-9, `28. from Фіолетовий its effect power (×${power})`, String(power));
+            // Помаранчевий, Вишневий, Бірюзовий: its own heat, frenzy, layers
+            const heat = scripted({ A: PK(), B: drake('orange'), turns: [dice(), dice({ before: [0.99] })] }).turns;
+            check(heat[0].fx.A.heat === 1 && heat[0].fx.B.heat === 0 && heat[1].notes['tick:heat'] < 0, '28. from Помаранчевий its own heat, built by its own attacks, and it burns', JSON.stringify([heat[0].fx.A.heat, heat[1].notes]));
+            const burnt = scripted({ A: drake('orange'), B: PK(), setup: fx => { fx.B.heat = 8; }, turns: [dice({ before: [0.99] })] }).turns[0];
+            check(burnt.notes['tick:heat'] === -19, '28. which burns the opponent like any heat', JSON.stringify(burnt.notes));
+            const m = G.getMaxHP(20, 'cherry', null);
+            const frenzied = scripted({ A: PK(), B: drake('cherry'), setup: fx => hurt(fx, 'A', m, Math.round(m * 0.4)), turns: [dice()] }).turns[0];
+            check(frenzied.notes.frenzy === 30, '28. from Вишневий the frenzy', JSON.stringify(frenzied.notes));
+            const layered = scripted({ A: drake('turquoise'), B: PK(), turns: [dice()] }).turns[0];
+            check(layered.fx.B.layers === 1 && layered.fx.A.layers === 0, '28. from Бірюзовий the layers', JSON.stringify([layered.fx.A.layers, layered.fx.B.layers]));
+            // Never a title
+            const titled = scripted({ A: PK(), B: drake('red', T(240)), turns: [] }).fx;
+            check(titled.A.copied === 'red' && document.getElementById('hp-text-p1').innerText.endsWith(`/${MAX}`), "28. never a title: a title's HP stays its holder's", document.getElementById('hp-text-p1').innerText);
+            // The record's banner and the card's emblem
+            for (const [lang, line] of [['uk', '🎭 @A копіює: Червоний Дрейк'], ['en', '🎭 @A copies: Red Drake']]) {
+                const from = logs.length;
+                scripted({ A: PK(), B: drake('red'), lang, turns: [] });
+                check(logs.slice(from).some(l => l.includes(line)), `28. the record says «${line}»`, logs.slice(from).join(' | ').slice(0, 160));
+            }
+            G.setLang('en');
+            const quiet = logs.length;
+            scripted({ A: PK(), B: PK(), turns: [] });
+            check(!logs.slice(quiet).some(l => /🎭/.test(l)), '28. nothing copied, no banner', logs.slice(quiet).join(' | ').slice(0, 120));
+            scripted({ A: PK(), B: drake('turquoise'), turns: [dice()] });
+            const line = document.getElementById('info-p1').innerHTML, other = document.getElementById('info-p2').innerHTML;
+            check(line.includes('data-icon="emTurquoise"') && line.includes('data-icon="emPink"') && !other.includes('emPink'), "28. its card shows its own emblem and the one it copied", line.slice(0, 200));
+            scripted({ A: PK(), B: drake('blue'), turns: [dice({ block: 0.01 })] });
+            const row = document.getElementById('stats-sub-p1').innerHTML;
+            check(row.includes('39%'), "28. and the stats row follows what it copied (Синій's armour: 39% at level 20)", row.slice(0, 160));
+        }
+
+        // Закоханість: dice go first in its turn
+        {
+            const go = (o = {}) => scripted({ A: o.A || drake(), B: o.B || {}, setup: fx => { put(fx, 'A', 'infatuation'); (o.setup || (() => {}))(fx); }, turns: [[...(o.pre || []), 0.01, ...dice(o.d || {})]] }).turns[0];
+            const lost = t => MAX - t.hpA, read = t => Number((t.text.match(/hits itself -(\d+)/) || [])[1]);
+            const plainHit = scripted({ turns: [dice()] }).turns[0].dmg;
+            const self = go();
+            check(read(self) === plainHit && lost(self) === plainHit && self.hpB === MAX, `28. Закоханість: the attack lands on its maker: its own armour, the same hit (${plainHit})`, JSON.stringify([read(self), plainHit, self.hpB]));
+            const armourless = go({ d: { attack: 0.3, sub: 0.9 } }), plainSneak = scripted({ turns: [dice({ attack: 0.3, sub: 0.9 })] }).turns[0].dmg;
+            check(read(armourless) === plainSneak, '28. a sneaky attack goes past its armour too', JSON.stringify([read(armourless), plainSneak]));
+            const shielded = go({ setup: fx => put(fx, 'A', 'shield') });
+            check(Math.abs(read(shielded) - plainHit * 0.7) <= 1 && shielded.fx.A.buff[0].left === 2, "28. its own Щит cuts it, and uses up no count", JSON.stringify([read(shielded), shielded.fx.A.buff]));
+            const unblockable = go({ d: { block: 0.01 } });
+            check(read(unblockable) === plainHit, "28. no ultra-block: you can't dodge your own hit", String(read(unblockable)));
+            for (const [what, B, after] of [['reflect', drake('blue'), [0.01]], ['Шипи', drake('plain', titleWith('thorns')), []], ['Контратака', drake('plain', T(217)), [0.01]]]) {
+                const t = go({ B, d: { after } });
+                check(lost(t) === read(t) && !t.notes.reflect && !t.notes.thorns && !t.notes.counter, `28. no ${what}`, JSON.stringify(t.notes));
+            }
+            const returned = go({ B: drake('plain', T(264)), setup: () => {} });
+            check(!returned.fx.A.debuff.some(x => x.id !== 'infatuation'), '28. no Повернення: nothing comes back', JSON.stringify(returned.fx.A.debuff));
+            let casts = 0;
+            G.wrapApplyEffect(() => casts++);
+            go({ d: { cast: 0 } });
+            G.wrapApplyEffect(null);
+            check(casts === 0, '28. no effect roll', String(casts));
+            const meter = go({ A: drake('red') });
+            check(meter.meterA === undefined ? meter.fx.A.meter === 0 : meter.meterA === 0, '28. no Element Power', String(meter.fx.A.meter));
+            const noVamp = go({ d: { attack: 0.95 }, setup: fx => { hurt(fx, 'A', MAX, 200); put(fx, 'A', 'bloodprice'); } });
+            check(!noVamp.notes.vamp && !noVamp.notes.bloodprice, '28. no heal from a vampire attack or Кров за кров', JSON.stringify(noVamp.notes));
+            // It still counts as its own attack
+            const counted = go({ setup: fx => { put(fx, 'A', 'rage'); put(fx, 'A', 'bleed'); } });
+            check(counted.fx.A.buff[0].left === 1 && counted.notes.bleed === 10 && !counted.fx.A.debuff.some(x => x.id === 'infatuation') && lost(counted) === read(counted) + 10, "28. it's still its own attack: its own-attack effects count down, Кровотеча ticks, and Закоханість is used up", JSON.stringify([counted.fx.A, counted.notes]));
+            const cool = go({ A: drake('orange') });
+            check(cool.fx.A.heat === 0, '28. it adds no heat', String(cool.fx.A.heat));
+            // A hit on nobody
+            const nobody = go({ B: drake('turquoise'), setup: fx => put(fx, 'B', 'shield') });
+            check(nobody.fx.B.buff[0].left === 2 && nobody.fx.B.layers === 0, "28. it's a hit on nobody: no \"hits taken\" count, no layer", JSON.stringify(nobody.fx.B));
+            const ownLayer = go({ A: drake('turquoise') });
+            check(ownLayer.fx.A.layers === 0, '28. not even on its own Бірюзовий', String(ownLayer.fx.A.layers));
+            const marked = go({ setup: fx => put(fx, 'B', 'mark') });
+            check(!/CRIT/.test(marked.text) && read(marked) === plainHit && marked.fx.B.debuff[0].left === 1, "28. the opponent's Мітка has no say in it, and stays", marked.text.slice(0, 120));
+            const melted = go({ setup: fx => put(fx, 'B', 'melt') });
+            check(read(melted) === plainHit && melted.fx.B.debuff[0].left === 2, "28. nor its Оплавлення", JSON.stringify([read(melted), melted.fx.B.debuff]));
+            const raged = go({ setup: fx => put(fx, 'B', 'rage') });
+            check(read(raged) === plainHit, "28. nor its Лють's extra damage taken", String(read(raged)));
+            const copy = scripted({ A: drake(), B: drake('plain', T(292)), setup: fx => put(fx, 'A', 'infatuation'), turns: [[0.01, ...dice()], dice({ after: [0.05] })] }).turns;
+            check(!copy[1].notes.copy, "28. it isn't a hit Копіпаст can copy", JSON.stringify(copy[1].notes));
+            const storm = scripted({ A: drake(), B: drake('plain', T(253)), setup: fx => { put(fx, 'A', 'infatuation'); }, turns: [[0.01, ...dice()], ...rounds(9, { block: 0.01 })] }).turns;
+            check(!storm[7].notes.storm && storm[9].notes.storm, "28. and no Око бурі count: it takes 4 real hits after it (turns 3, 5, 7 and 9)", JSON.stringify(storm.map(t => t.notes.storm || 0)));
+            // A knockout, an ultimate, both languages, who it can't touch
+            const out = scripted({ A: drake(), setup: fx => { put(fx, 'A', 'infatuation'); hurt(fx, 'A', MAX, 5); }, turns: [[0.01, ...dice()]] });
+            check(out.ended && out.turns[0].hpA === 0 && out.turns[0].hpB === MAX, '28. it can knock its own maker out', JSON.stringify([out.ended, out.turns[0].hpA]));
+            const erupted = scripted({ A: drake('orange'), setup: fx => { put(fx, 'A', 'infatuation'); fx.A.meter = 5; fx.A.heat = 8; }, turns: [[0.01, ...dice()]] }).turns[0];
+            check(/hits itself/.test(erupted.text) && erupted.fx.A.heat === 4 && erupted.hpB === MAX, "28. an ultimate can turn on its maker too: Виверження's heat still drops", JSON.stringify([erupted.fx.A.heat, erupted.hpB]));
+            const storm2 = scripted({ A: drake('red'), setup: fx => { put(fx, 'A', 'infatuation'); fx.A.meter = 5; }, turns: [[0.01, ...dice()]] }).turns[0];
+            check(/hits itself/.test(storm2.text) && !storm2.fx.B.debuff.length, "28. and Вогняний шторм's Підпал never reaches the target", JSON.stringify(storm2.fx.B.debuff));
+            const uk = scripted({ A: drake(), lang: 'uk', setup: fx => put(fx, 'A', 'infatuation'), turns: [[0.01, ...dice()]] }).turns[0];
+            check(/💘 б'є себе -\d+/.test(uk.text), "28. the record says «💘 б'є себе -N»", uk.text.slice(0, 120));
+            const en = scripted({ A: drake(), setup: fx => put(fx, 'A', 'infatuation'), turns: [[0.01, ...dice()]] }).turns[0];
+            check(/💘 hits itself -\d+/.test(en.text), '28. and "💘 hits itself -N"', en.text.slice(0, 120));
+            G.setLang('en');
+            let bounced = null, landed = null, immune = null, dragon = null;
+            scripted({ A: PK(), B: WD(), setup: (fx, a, b) => { bounced = G.applyEffect(a, b, 'infatuation', 20, fx); fx.B.scales.now = 0; landed = G.applyEffect(a, b, 'infatuation', 20, fx); } });
+            scripted({ A: PK(), B: drake('plain', titleWith('debuff_immunity')), setup: (fx, a, b) => { immune = G.applyEffect(a, b, 'infatuation', 20, fx); } });
+            scripted({ A: PK(), B: DRAGON(), setup: (fx, a, b) => { dragon = G.applyEffect(a, b, 'infatuation', 20, fx); } });
+            check(bounced === 'bounced' && landed === 'applied' && immune === 'immune' && dragon === 'immune', "28. it bounces off the scales while they hold; debuff immunity and the White Dragon stop it", JSON.stringify([bounced, landed, immune, dragon]));
+            const hundred = scripted({ A: drake(), setup: fx => fx.A.debuff.push({ id: 'infatuation', left: 1, power: 5 }), turns: [[0.999, ...dice()]] }).turns[0];
+            check(/hits itself/.test(hundred.text), '28. effect power scales the chance, up to 100%', hundred.text.slice(0, 120));
+        }
+
+        // The effects with the title abilities
+        {
+            const long = (() => { let left = null; scripted({ A: drake('plain', T(232)), setup: (fx, a, b) => { G.applyEffect(a, b, 'fairydust', 20, fx); left = fx.A.buff[0].left; } }); return left; })();
+            check(long === 4, '28. Довгий баф: Чарівний пилок lasts 4 attacks', String(long));
+            const eaten = scripted({ A: drake('plain', T(220)), setup: fx => { hurt(fx, 'A', G.getMaxHP(20, 'plain', T(220)), 100); put(fx, 'B', 'fairydust'); }, turns: [dice({ after: [0.1, 0] })] }).turns[0];
+            check(eaten.notes.eaten && eaten.notes.eaten.id === 'fairydust', '28. Пожирач бафів eats Чарівний пилок', JSON.stringify(eaten.notes));
+            let sent = null;
+            scripted({ A: PK(), B: drake('plain', T(264)), setup: (fx, a, b) => { rolled([0.1], () => G.applyEffect(a, b, 'infatuation', 20, fx)); sent = { a: fx.A.debuff.map(x => x.id), b: fx.B.debuff.map(x => x.id) }; } });
+            check(sent.a.join() === 'infatuation' && !sent.b.length, '28. Повернення sends Закоханість back', JSON.stringify(sent));
+            const cleansed = scripted({ A: drake('plain', T(229)), setup: fx => put(fx, 'A', 'infatuation'), turns: [[...dice()]] }).turns[0];
+            check(!cleansed.fx.A.debuff.length && !/hits itself/.test(cleansed.text), '28. Очищення takes Закоханість off before it can act', cleansed.text.slice(0, 120));
+            const stolen = scripted({ A: drake('black'), setup: fx => { fx.A.meter = 5; put(fx, 'B', 'fairydust', 2); }, turns: [dice({ cast: 0.99 })] }).turns[0];
+            check(stolen.fx.A.buff.map(x => `${x.id}:${x.left}`).join() === 'fairydust:1', '28. Крадіжка тіні takes Чарівний пилок with what it has left (2, and its own attack uses one)', JSON.stringify(stolen.fx.A.buff));
+            let dispelled = null, pulled = null;
+            scripted({ A: drake('purple'), B: PK(), setup: (fx, a, b) => { put(fx, 'B', 'fairydust'); dispelled = { r: G.applyEffect(a, b, 'dispel', 20, fx), left: fx.B.buff.length }; } });
+            check(dispelled.r === 'dispelled' && dispelled.left === 0, '28. Розвіювання takes Чарівний пилок off', JSON.stringify(dispelled));
+            scripted({ A: PK(), B: WD(), setup: (fx, a, b) => { put(fx, 'A', 'magnet'); pulled = { r: G.applyEffect(a, b, 'fairydust', 20, fx), wd: fx.B.buff.map(x => x.id) }; } });
+            check(pulled.r === 'pulled' && pulled.wd.join() === 'fairydust', '28. Магніт pulls Чарівний пилок to the White Drake', JSON.stringify(pulled));
+            check(['fairydust', 'infatuation'].every(id => G.POOL_IDS.includes(id)) && G.POOL_IDS.length === 20, '28. both join the shared pool, which is 20 now', G.POOL_IDS.join());
         }
     }
     Math.random = KEEP;

@@ -247,6 +247,39 @@ const full = fx => { fx.A.meter = METER.max; };
     const top = scripted({ A: drake('A', 'turquoise'), setup: fx => { full(fx); fx.A.layers = 8; }, turns: [dice()] }).turns[0];
     check(top.hpA === max, '🌊 High Tide stops at max HP', String(top.hpA));
 }
+// 🪞 Borrowed Magic: the opponent's ultimate, with Рожевий's own stats; the header names both
+{
+    const pink = (title = null) => drake('A', 'pink', 20, title);
+    const fired = (foe, setup = () => {}, d = dice(), title = null) => scripted({ A: pink(title), B: drake('B', foe), setup: fx => { full(fx); setup(fx); }, turns: [d] }).turns[0];
+    const bad = [], rows = [];
+    for (const [foe, id] of [['red', 'firestorm'], ['blue', 'mirror'], ['black', 'theft'], ['gold', 'jackpot'], ['purple', 'detonation'], ['green', 'bloom'], ['orange', 'eruption'], ['cherry', 'lastbreath'], ['turquoise', 'hightide']]) {
+        const t = fired(foe);
+        rows.push(U[id].name.en);
+        if (!isUltLine(t, id) || !t.text.includes(`${U.borrowed.icon} ${U.borrowed.name.en} · `)) bad.push(`against ${foe}: ${t.text.slice(0, 140)}`);
+        if (t.meterA !== 0) bad.push(`the meter is ${t.meterA} after it`);
+    }
+    check(!bad.length, `🪞 Borrowed Magic: the header names both, and it fires each opponent's own: ${rows.join(', ')}`, bad.slice(0, 4).join(' | '));
+    const plain = scripted({ A: pink(), B: drake('B', 'plain'), setup: full, turns: [dice()] }).turns[0];
+    const noMeter = scripted({ A: pink(), B: drake('B', 'plain'), turns: [dice()] }).turns[0].dmg;
+    const twin = scripted({ A: pink(), B: drake('B', 'pink'), setup: full, turns: [dice()] }).turns[0], twinBase = scripted({ A: pink(), B: drake('B', 'pink'), turns: [dice()] }).turns[0].dmg;
+    check(isUltLine(twin, 'borrowed') && near(twin.dmg, twinBase * 1.5, 1.5) && near(plain.dmg, noMeter * 1.5, 1.5), `🪞 Borrowed Magic against another Рожевий: an attack ×1.5 (${twinBase} → ${twin.dmg}), and the same with nothing to borrow`, JSON.stringify([twin.dmg, twinBase, plain.dmg, noMeter]));
+    const steel = T => scripted({ A: pink(), B: { ...drake('B', G.WHITE_DRAKE_TYPE, 20, G.TITLES_DB.find(t => t.id === G.WHITE_DRAKE_TITLE_ID)) }, setup: fx => { T && full(fx); }, turns: [dice({ sub: 0.5 })] }).turns[0];
+    const blow = steel(true), base = steel(false);
+    check(isUltLine(blow, 'anvil') && near(blow.dmg, base.dmg * 1.5, 1.5) && blow.fx.A.scales === null, `🪞 Borrowed Magic against the White Drake: only Удар ковадла's blow, ×1.5 at level 20 too (${base.dmg} → ${blow.dmg}), and no scales to re-forge`, JSON.stringify([base.dmg, blow.dmg, blow.fx.A.scales]));
+    const dragon = scripted({ A: pink(), B: drake('B', G.DRAGON_TYPE, 20, G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID)), setup: full, turns: [dice()] }).turns[0];
+    check(isUltLine(dragon, 'borrowed'), '🪞 Borrowed Magic against the White Dragon: nothing to borrow, its own attack', dragon.text.slice(0, 120));
+    // With its own stats: Bloom heals its own max HP; Eruption reads the heat it copied; Firestorm's Burn takes its effect power
+    const maxP = G.getMaxHP(20, 'green', null), low = 40;
+    const bloom = fired('green', fx => castOn(fx, 'A', 'burn', (maxP - low) / maxP * 100 / EFFECTS.burn.nums.hp));
+    check(bloom.hpA - low === Math.round(maxP * 0.25), `🪞 Borrowed Magic: Bloom heals a share of its own max HP (+${bloom.hpA - low})`, String(bloom.hpA));
+    const erupted = fired('orange', fx => { fx.A.heat = 8; });
+    check(isUltLine(erupted, 'eruption') && erupted.fx.A.heat === 4, '🪞 Borrowed Magic: Виверження reads its own copied heat, and the heat drops', String(erupted.fx.A.heat));
+    const tide = fired('turquoise', fx => { fx.A.layers = 5; });
+    check(isUltLine(tide, 'hightide') && tide.fx.A.layers === 5, '🪞 Borrowed Magic: Приплив reads its own copied layers, and they stay', String(tide.fx.A.layers));
+    const burned = fired('red', () => {}, dice(), POWER_TITLE);
+    const burn = burned.fx.B.debuff.find(x => x.id === 'burn');
+    check(burn && Math.abs(burn.power - G.getEffectMult('red', POWER_TITLE, 20)) < 1e-9, `🪞 Borrowed Magic: Firestorm's Burn uses its own effect power, Red's passive being nothing to Purple's (×${burn && burn.power.toFixed(2)})`, JSON.stringify(burn));
+}
 // 🌋 Eruption: ×1.5 plus 5% per heat (×1.9 at 8), the heat as it stands when it starts. It adds none, and afterwards the
 // heat drops by half, rounded down, whether or not the hit landed. An ordinary attack otherwise: it can be blocked
 {
@@ -520,10 +553,11 @@ for (const lang of ['uk', 'en']) {
     for (let i = 0; i < 240; i++) {
         const types = G.VIEWER_DRAKE_TYPES.map(d => d.type);
         const dragonFight = i % 8 === 0, steelFight = i % 8 === 4;   // the White Dragon (no meter), the White Drake (Удар ковадла)
-        const a = dragonFight ? { ...drake('A', G.DRAGON_TYPE, 20, G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID)), name: 'A' }
+        const twins = i % 8 === 6;   // two Рожевий: Чужі чари with nothing to borrow
+        const a = twins ? drake('A', 'pink', [1, 10, 20][i % 3]) : dragonFight ? { ...drake('A', G.DRAGON_TYPE, 20, G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID)), name: 'A' }
             : steelFight ? { ...drake('A', G.WHITE_DRAKE_TYPE, [1, 10, 20][i % 3], G.TITLES_DB.find(t => t.id === G.WHITE_DRAKE_TITLE_ID)), name: 'A' }
             : drake('A', types[i % types.length], [1, 10, 20][i % 3]);
-        const b = drake('B', types[(i * 5 + 1) % types.length], [1, 10, 20][(i + 1) % 3]);
+        const b = drake('B', twins ? 'pink' : types[(i * 5 + 1) % types.length], [1, 10, 20][(i + 1) % 3]);
         const db = G.getDragonDB(); db.A = a; db.B = b; G.saveDragonDB(db);
         current = { dragon: dragonFight ? 'A' : null };
         G.setRunning(true);

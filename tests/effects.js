@@ -80,6 +80,7 @@ const sameWords = (a, b) => { const x = a.split(' '), y = b.split(' ');
     return x.length === y.length && x.every((w, i) => { let k = 0; while (k < w.length && w[k] === y[i][k]) k++; return k >= Math.max(w.length, y[i].length) - 2; }); };
 // The names whose accusative isn't the name itself; the rest read the same after a verb («накладає 🔥 Підпал»)
 const ACC_UK = { mark: 'Мітку', regen: 'Регенерацію', divine: 'Божественну міць', bleed: 'Кровотечу', clearwater: 'Чисту воду' };
+check(G.POOL_IDS.length === 20, 'the shared pool is 20: the ten viewer elements\' pairs', `${G.POOL_IDS.length} in the pool`);
 const POOL_N = 2 * G.VIEWER_DRAKE_TYPES.length;   // every viewer element's pair
 check(EFFECT_IDS.length === POOL_N + 2 && G.POOL_IDS.length === POOL_N && G.POOL_IDS.every(id => !G.STREAMER_TYPES.includes(EFFECTS[id].element)),
     `there are ${POOL_N + 2} effects: the ${POOL_N} of the shared pool (every viewer element's pair) and the White Drake's own pair, which isn't in it`,
@@ -151,6 +152,10 @@ const EFFECT_TEXT_ALLOWLIST = [
     { line: 'id: 151, rarity:', terms: ['🛡', 'Щит', 'Shield'], why: 'title: Щит від спойлерів / Spoiler Shield' },
     { line: 'id: 163, rarity:', terms: ['Магніт', 'Magnet'], why: "title: Магніт для критів / Crit Magnet (older than the White Drake's Магніт)" },
     { line: 'id: 152, rarity:', terms: ['🔥'], why: 'title icon: Hot Take' },
+    { line: '✨ Золотий Дрейк спрацював!', terms: ['✨'], why: "Gold's XP bonus line (not Fairy Dust)" },
+    { line: '✨ Gold Drake triggered!', terms: ['✨'], why: "Gold's XP bonus line (not Fairy Dust)" },
+    { line: "selfHit: '💘 б\\'є себе'", terms: ['💘'], why: "Закоханість's self-hit in FV_TEXT, as the record and the card word it (uk)" },
+    { line: "selfHit: '💘 hits itself'", terms: ['💘'], why: "Закоханість's self-hit in FV_TEXT, as the record and the card word it (en)" },
     { line: 'id: 164, rarity:', terms: ['🌊'], why: 'title icon: Emoji Tsunami (not the High Tide ultimate)' },
     { line: '🩸 +${vampHealed} HP лікування!', terms: ['🩸'], why: "a vampire hit's heal in the text record (not Bleed)" },
     { line: 'id: 166, rarity:', terms: ['🌋'], why: 'title icon: Emotion Volcano (not the Eruption ultimate)' },
@@ -573,6 +578,15 @@ for (const [pLabel, pCaster] of POWERS) {
         behaviour(`🩸 Bleed (${pLabel}): -${want} HP after each of the target's ${EFFECTS.bleed.count} attacks, blocked or not, then gone: ${lost.join(' ')}, count ${r.setup.left}`,
             lost.join() === [want, 0, want, 0, want, 0, 0].join() && r.setup.left === EFFECTS.bleed.count, `expected -${want} on turns 1, 3 and 5`);
     }
+    // 💘 Infatuation: chance% that the attack lands on its own maker (dice before the attack's own rolls); the roll just past it doesn't
+    {
+        const cast = roll => { const r = scripted(() => castOn('A', 'infatuation', pCaster), [[roll, ...dice()]]); return r; };
+        const chance = Math.min(100, pct(cast(0.99).setup, 'chance'));
+        const under = cast((chance - 0.5) / 100), past = cast(Math.min(0.999, (chance + 0.5) / 100));
+        const self = t => /hits itself -\d+/.test(t.lines.join('\n'));
+        behaviour(`💘 Infatuation (${pLabel}): ${+chance.toFixed(2)}%: a roll under it lands on its maker, one past it on the target, count ${under.setup.left}`,
+            self(under.turns[0]) && (chance >= 100 || !self(past.turns[0])) && under.setup.left === EFFECTS.infatuation.count, JSON.stringify([under.turns[0].lines, past.turns[0].lines]));
+    }
     // 🫠 Melt: hits on the target ×(1 + dmg%), every kind of hit; never ticks; "hits taken", so a blocked hit uses it up
     {
         const parts = [];
@@ -653,6 +667,15 @@ for (const [pLabel, pCaster] of POWERS) {
         behaviour(`💧 Clear Water is never wasted: with no debuffs another effect is cast instead (${[...seen].join(', ')})`, !wasted && seen.size > 0, `${wasted} of 300 wasted`);
         const A = plainDrake('A'), B = plainDrake('B'), fx = { A: G.newFxState(), B: G.newFxState() }, [r] = logged(() => G.applyEffect(A, B, 'clearwater', 20, fx, { pool: G.DEBUFF_IDS.filter(id => id !== 'dispel') }));
         behaviour(`💧 ...from the caller's pool when it has one (${r})`, fx.B.debuff.length === 1 && !fx.A.buff.length, JSON.stringify(fx));
+    }
+    // ✨ Fairy Dust: each damaging attack casts with no roll for it; a blocked one casts nothing
+    {
+        let casts = [];
+        G.wrapApplyEffect((r, a) => casts.push(a[2]));
+        const dusted = d => { casts = []; const r = scripted(() => castOn('A', 'fairydust', null), [d]); return { r, n: casts.length - 1, left: (G.battleFx.A.buff.find(x => x.id === 'fairydust') || {}).left }; };
+        const hit = dusted(dice({ cast: 0.99 })), blocked = dusted(dice({ block: 0.05, cast: 0 }));
+        behaviour(`✨ Fairy Dust: a hit casts on a roll that never would (${hit.n}), a blocked attack casts nothing (${blocked.n}); both count down (left ${hit.left}, ${blocked.left})`,
+            hit.n === 1 && blocked.n === 0 && hit.left === 1 && blocked.left === 1, JSON.stringify([hit.n, blocked.n, hit.left, blocked.left]));
     }
     // 🌿 Seaweed: its attacks are light only, physical or magical, the split even
     const LIGHT = /\((Phys|Mag) \/ Light\)/;
@@ -740,6 +763,7 @@ G.wrapAddLog(raw => {
     const ult = G.ULTIMATE_IDS.find(id => line.includes(G.ultLabel(id, 'uk')) || line.includes(G.ultLabel(id, 'en')));
     if (ult) stats.ultimates.add(ult);
     const noAttack = frozen || (ult && !G.CLASS_ULTIMATES[ult].attacks);
+    const selfHit = /(?:б'є себе|hits itself) -\d+/.test(line);   // Закоханість: its own attack, and a hit on nobody
     const now = snap();
     for (const [inst, before] of baseline) {
         const e = EFFECTS[before.id];
@@ -748,7 +772,7 @@ G.wrapAddLog(raw => {
         const mayVanish = (ult === 'detonation' && !own && e.kind === 'debuff') || (ult === 'bloom' && own && e.kind === 'debuff');
         const d = before.id === 'magnet' ? (before.owner === lastAttacker ? 1 : 0)
                 : noAttack ? (own && (e.lasts === 'turns' || (frozen && before.id === 'frost')) ? 1 : 0)
-                           : (own ? (e.lasts === 'turns' || e.lasts === 'attacks' ? 1 : 0) : (e.lasts === 'hits' ? 1 : 0));
+                           : (own ? (e.lasts === 'turns' || e.lasts === 'attacks' ? 1 : 0) : (e.lasts === 'hits' && !selfHit ? 1 : 0));
         const want = before.left - d;
         const after = now.get(inst);
         if (mayVanish && after === undefined) continue;

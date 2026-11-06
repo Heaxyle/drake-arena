@@ -59,6 +59,8 @@
 //     its own drake out; Останній подих at ×2.5 below a quarter of its HP
 //   - Бірюзовий in real fights with fixed dice, both languages: its layers on the fighter card from 0/8, no block moving; the cut
 //     on the log card; Чиста вода naming what it took off; Приплив's heal and layers on its card, the layers staying
+//   - Рожевий in real fights with fixed dice, both languages: the banner and the copied emblem on its card, the copied stats on the
+//     card, no block moving; a self-hit on the log card, as a pop on its own card, not in its damage; Чужі чари's header naming both
 //   - Review screenshots: tests/screenshots/fightview-cards.png (log cards of every kind, both languages) and
 //     tests/screenshots/fightview-turn.png (countdowns, the turn steps, an ultimate, the result, both languages)
 //
@@ -76,7 +78,7 @@ const SHOTS = path.join(__dirname, 'screenshots');
 const PAGE = 'file:///' + path.join(ROOT, 'showcase/index.html').replace(/\\/g, '/');
 const SEED = Number(process.env.UI_SEED || 3);
 const TURN = 4500, HIT = 600, WHITE_STEEL = 998;
-// FV_ONLY=2,4 runs only those sections (0–19, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
+// FV_ONLY=2,4 runs only those sections (0–20, numbered below); the review sheet of the arena (8) needs 1, 2, 3 and 5
 const ONLY = (process.env.FV_ONLY || '').split(',').filter(Boolean);
 const run = n => !ONLY.length || ONLY.includes(String(n));
 
@@ -106,8 +108,8 @@ async function open(browser, { lang = 'uk', betting = false, width = 1920, heigh
 const say = (page, user, msg, color = '#ff7f50') => page.evaluate(([u, m, c]) => handleChatMessage('#test', { username: u, color: c }, m, false), [user, msg, color]);
 const cmd = (lang, uk, en) => lang === 'uk' ? uk : en;
 // «білий» gives the streamer the White Drake ('steel'); the White Dragon ('white') is the streamer's other form, through !дракон
-const COLOR_WORD = { uk: { red: 'червоний', blue: 'синій', black: 'чорний', gold: 'золотий', purple: 'фіолетовий', green: 'зелений', orange: 'помаранчевий', cherry: 'вишневий', turquoise: 'бірюзовий', steel: 'білий', white: 'білий' },
-                     en: { red: 'red', blue: 'blue', black: 'black', gold: 'gold', purple: 'purple', green: 'green', orange: 'orange', cherry: 'cherry', turquoise: 'turquoise', steel: 'white', white: 'white' } };
+const COLOR_WORD = { uk: { red: 'червоний', blue: 'синій', black: 'чорний', gold: 'золотий', purple: 'фіолетовий', green: 'зелений', orange: 'помаранчевий', cherry: 'вишневий', pink: 'рожевий', turquoise: 'бірюзовий', steel: 'білий', white: 'білий' },
+                     en: { red: 'red', blue: 'blue', black: 'black', gold: 'gold', purple: 'purple', green: 'green', orange: 'orange', cherry: 'cherry', pink: 'pink', turquoise: 'turquoise', steel: 'white', white: 'white' } };
 async function register(page, lang, users) {
     for (const [u, type, color] of users) {
         await say(page, u, `${cmd(lang, '!дрейк', '!drake')} ${COLOR_WORD[lang][type]}`, color || '#ff7f50');
@@ -1108,7 +1110,7 @@ async function popAtStep2(page, turn) {
             let n = 0;
             for (const run of runs) {
                 const u = run.u, me = `ult_${n}`, foe = `foe_${n}`; n++;
-                const foeType = u.element === 'purple' ? 'red' : 'purple';
+                const foeType = u.element === 'pink' ? 'pink' : u.element === 'purple' ? 'red' : 'purple';   // Чужі чари's own: a Рожевий has nothing to lend
                 if (u.element === 'steel') await page.evaluate(n => setStreamerUser(n), me);   // Удар ковадла: the streamer's White Drake
                 await register(page, lang, [[me, u.element], [foe, foeType]]);
                 if (u.id === 'theft') { /* the foe gets a buff first, so there is something to take */ await page.selectOption('#debug-force-cast', 'rage'); }
@@ -1163,6 +1165,7 @@ async function popAtStep2(page, turn) {
                     if (u.id === 'eruption') detail = /×\d/.test(l2) && / → /.test(l2);
                     if (u.id === 'lastbreath') detail = /×\d/.test(l2);
                     if (u.id === 'hightide') detail = card.num.startsWith('+');
+                    if (u.id === 'borrowed') detail = /×\d|\+\d/.test(l2 + card.num);
                 }
                 const ok = !!card && card.ult === u.label && !!step1 && step1.ult && step1.tab === u.name && detail;
                 results.push({ id: u.id + (run.reels ? ` [${run.reels.join('')}]` : ''), ok, why: JSON.stringify({ step1, card }) });
@@ -2111,6 +2114,31 @@ async function popAtStep2(page, turn) {
             const tide = await turn(1, ROLLS());
             check(tide.card.ult.includes(await page.evaluate(() => CLASS_ULTIMATES.hightide.name[currentLang])) && tide.card.num.startsWith('+') && tide.card.l2.includes(`${word} 6/8`) && await row() === `[${glyph}] 6/8`,
                 `[${lang}] Приплив: its head, the heal as the number, «${word} 6/8», and the layers stay`, JSON.stringify(tide.card));
+            if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
+            await context.close();
+        }
+
+        // Рожевий as the stream sees it, in real fights with fixed dice
+        console.log('\nРожевий, as the stream sees it');
+        if (run(20)) for (const lang of ['uk', 'en']) {
+            const { page, context, errors, fight, turn, hp, looks } = await memePage(lang, false, [['kotyk_ua', 'pink'], ['jade', 'green']]);
+            const names = await page.evaluate(() => ({ green: drakeLabel(DRAKE_TYPES.find(d => d.type === 'green')), selfHit: __fvv('selfHit'), borrowed: CLASS_ULTIMATES.borrowed.name[currentLang], bloom: CLASS_ULTIMATES.bloom.name[currentLang] }));
+            await fight(1, 1);
+            const start = await page.evaluate(() => ({ banners: [...document.querySelectorAll('#log-feed .log-banner')].map(__vt), info: __vt(document.getElementById('info-p1')), stats: __vt(document.getElementById('stats-sub-p1')), foeInfo: __vt(document.getElementById('info-p2')), hp: document.getElementById('hp-text-p1').innerText, emblem: iconOf('emGreen') }));
+            const banner = start.banners.find(x => x.includes(names.green) && x.includes('@kotyk_ua'));
+            check(banner && banner.includes('[illusion]'.replace('illusion', 'theft')) && start.info.endsWith(`· [${start.emblem}]`) && !start.foeInfo.endsWith(`· [${start.emblem}]`),
+                `[${lang}] the banner «${banner}», and the copied emblem on its card alone`, JSON.stringify(start));
+            const before = await looks('p1');
+            await page.evaluate(() => { battleFx.kotyk_ua.debuff.push({ id: 'infatuation', left: 1, power: 1 }); });
+            const self = await turn(1, ROLLS({ before: [0.01] }));
+            const after = await looks('p1'), dealt = await page.evaluate(() => fv.stats.kotyk_ua.dmg);
+            const n = (self.card.l2.match(new RegExp(`-(\\d+)`)) || [])[1];
+            check(self.card.l2.includes(`${names.selfHit} -${n}`) && self.s.p1.pops.includes(`-${n}`) && !self.s.p2.pops.length && dealt === 0 && after.boxes === before.boxes,
+                `[${lang}] a self-hit: «${names.selfHit} -${n}» on the card, the pop on its own card, none of it counted as damage dealt, and no block moves`, JSON.stringify({ card: self.card, p1: self.s.p1.pops, p2: self.s.p2.pops, dealt }));
+            await turn(2, ROLLS());
+            await page.evaluate(() => { battleFx.kotyk_ua.meter = 5; });
+            const bloom = await turn(3, ROLLS());
+            check(bloom.card.ult.includes(names.borrowed) && bloom.card.ult.includes(names.bloom) && bloom.card.num.startsWith('+'), `[${lang}] Чужі чари: the header names both («${bloom.card.ult}»), and what it borrowed plays out`, JSON.stringify(bloom.card));
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }

@@ -1554,7 +1554,7 @@
                   cleanse: 'очищення', longBuffs: 'довгий баф', meterRush: 'підзарядка', phoenix: 'відродження', twin: 'двійник', storm: 'око бурі', rewind: 'перемотка', tempered: 'загартування',
                   returned: 'повернення', sendsBack: 'відправляє', overcharge: 'перевантаження', sentenced: 'вирок', sentenceDone: 'вирок виконано', notFound: 'шкоду не знайдено',
                   crashed: 'синій екран', turnLost: 'хід втрачено', chat: 'чат вирішує', away: 'відійшов', turnSkipped: 'хід пропущено', afkBack: 'повернувся', lagHang: 'удар завис', lagLand: 'удар долетів', copy: 'копіпаст',
-                  meterStart: '{title}: {who} починає бій зі шкалою Сили {n}/{max}', heat: '🌡️ жар', frenzy: 'шал', nacre: 'перламутр' },
+                  meterStart: '{title}: {who} починає бій зі шкалою Сили {n}/{max}', heat: '🌡️ жар', frenzy: 'шал', nacre: 'перламутр', copies: '🎭 {who} копіює: {drake}', selfHit: '💘 б\'є себе' },
             en: { attacks: 'attacks', physical: 'physical', magical: 'magic', vampire: 'vampire', tab: '⚔ Attacks', attacking: 'attacks…', upNext: '⏳ up next:',
                   ko: 'is knocked out', start: 'start of turn', applies: 'applies', gets: 'gets', refreshes: 'refreshes', removes: 'removes',
                   takes: 'takes', lost: 'lost', lostMany: 'lost', immune: '🐉 immune', block: '🚫 block', dodge: '🌀 dodge', sovereign: '👑 the attack dissolves', pierce: '⚡ armour-piercing',
@@ -1574,7 +1574,7 @@
                   cleanse: 'cleanse', longBuffs: 'long buff', meterRush: 'meter rush', phoenix: 'rebirth', twin: 'twin', storm: 'eye of the storm', rewind: 'rewind', tempered: 'tempered',
                   returned: 'return', sendsBack: 'sends', overcharge: 'overcharge', sentenced: 'sentenced', sentenceDone: 'sentence carried out', notFound: 'damage not found',
                   crashed: 'blue screen', turnLost: 'turn lost', chat: 'chat decides', away: 'away', turnSkipped: 'turn skipped', afkBack: 'back', lagHang: 'the hit hangs', lagLand: 'the hit lands', copy: 'copy-paste',
-                  meterStart: '{title}: {who} starts with the Element Power meter at {n}/{max}', heat: '🌡️ heat', frenzy: 'frenzy', nacre: 'nacre' },
+                  meterStart: '{title}: {who} starts with the Element Power meter at {n}/{max}', heat: '🌡️ heat', frenzy: 'frenzy', nacre: 'nacre', copies: '🎭 {who} copies: {drake}', selfHit: '💘 hits itself' },
         };
         const fvT = (key, vars = {}) => FV_TEXT[currentLang][key].replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '');
         // FV_TEXT keeps its emoji (several lines go to the hidden text record too); on the overlay each of a text's emoji, in
@@ -1585,7 +1585,7 @@
             wrath: ['wrath'], guardian: ['guardian'], chaos: ['chaos'], cat: ['cat'], bug: ['spaghettiCode'], bounced: ['bounce'], cracked: ['cracked'], scales: ['scales'],
             steelIn: ['whiteSteel'], steelWin: ['whiteSteel'], steelLoss: ['emDragon'], sdBanner: ['suddendeath'], timeout: ['hourglass'], error: [null],
             fightStart: ['bell', 'die'], knockout: ['victory'], timeoutWin: ['hourglass'], draw: ['draw'], noRecord: ['emDragon'],
-            cdFlip: ['die'], cdFirst: ['die'], plateBets: ['hourglass'], plateStart: ['hourglass'], levelUp: ['levelup'], meterBtn: [null], heat: ['heat'],
+            cdFlip: ['die'], cdFirst: ['die'], plateBets: ['hourglass'], plateStart: ['hourglass'], levelUp: ['levelup'], meterBtn: [null], heat: ['heat'], copies: ['illusion'], selfHit: ['infatuation'],
         };
         const fvH = (key, vars = {}, scale = 2) => iconText(FV_TEXT[currentLang][key], FV_ICONS[key] || [], vars, scale, key);
         const fvIcon = key => (FV_ICONS[key] || [])[0] || null;   // a note's glyph (its compact form)
@@ -1625,6 +1625,9 @@
             turquoise: { physical: { light: ['Коралові кігті', 'Coral Claws'], heavy: ['Удар панцира', 'Shell Slam'], sneaky: ['Укус мурени', 'Moray Bite'] },
                       magical: { light: ['Морська піна', 'Sea Foam'], heavy: ['Глибинна хвиля', 'Deep Wave'], sneaky: ['Перлинний промінь', 'Pearl Ray'] },
                       vampire: { light: ['Солоний укус', 'Salty Bite'], heavy: ['Спрага глибин', 'Thirst of the Deep'] } },
+            pink:   { physical: { light: ['Рожеві кігті', 'Rosy Claws'], heavy: ['Удар метелика', 'Butterfly Strike'], sneaky: ['Підступний поцілунок', 'Sneaky Kiss'] },
+                      magical: { light: ['Блискітка', 'Sparkle'], heavy: ['Чарівний вихор', 'Charm Whirl'], sneaky: ['Оманливий промінь', 'Illusory Ray'] },
+                      vampire: { light: ['Солодкий укус', 'Sweet Bite'], heavy: ['Рожева спрага', 'Rosy Thirst'] } },
             steel:  { physical: { light: ['Сталеві кігті', 'Steel Claws'], heavy: ['Молот крила', 'Wing Hammer'], sneaky: ['Гартоване жало', 'Tempered Sting'] },
                       magical: { light: ['Білий промінь', 'White Ray'], heavy: ['Подих горна', 'Forge Breath'], sneaky: ['Іскра з ковадла', 'Anvil Spark'] },
                       vampire: { light: ['Залізний укус', 'Iron Bite'], heavy: ['Металева жага', 'Metal Thirst'] } },
@@ -1715,14 +1718,14 @@
             if (s) { s.dmg += dmg; s.max = Math.max(s.max, dmg); }
         }
         function fvUsed(ids) { if (fv.rec) fv.rec.used = ids; }
-        function fvUlt(id) { if (fv.rec) fv.rec.ult = { id }; }
+        function fvUlt(id, via = null) { if (fv.rec) fv.rec.ult = { id, via }; }
         function fvUltInfo(info) { if (fv.rec && fv.rec.ult) Object.assign(fv.rec.ult, info); }
         function fvCast(owner, id, result, extra) { if (fv.rec) fv.rec.casts.push({ owner, id, result, extra }); }
         function fvAttack(a) {
             if (!fv.rec) return;
             fv.rec.attack = a;
             const s = fv.stats[fv.rec.atk.name];
-            if (s) { s.dmg += a.dmg; s.max = Math.max(s.max, a.dmg); if (a.crit) s.crits++; }
+            if (s && !a.self) { s.dmg += a.dmg; s.max = Math.max(s.max, a.dmg); if (a.crit) s.crits++; }   // a self-hit is no damage dealt
         }
 
         // Visual updates the fight makes while a hit is "in the air" (step 1 → step 2) wait and are shown together
@@ -1910,6 +1913,7 @@
                 case 'start': return fvH('fightStart', { bets: fv.betting ? fvT('betsClosed') : '', a: fvWho(fv.p1) });
                 case 'opening': return fvH('opening', { title: titleHtml(d.f.title), who: fvWho(d.f), fx: fvFxChip(d.id) });
                 case 'meterStart': return fvH('meterStart', { title: titleHtml(d.f.title), who: fvWho(d.f), n: MECH.meterRushStart, max: METER.max });
+                case 'copies': return fvH('copies', { who: fvWho(d.f), drake: `${emblem(d.from)} ${drakeLabel(DRAKE_TYPES.find(x => x.type === d.from))}` });
                 case 'sd': return fvH('sdBanner', { n: SUDDEN_DEATH.from });
                 case 'steel': return fvH('steelIn');
                 case 'timeout': return fvH('timeout', { n: MAX_TURNS });
@@ -1956,7 +1960,7 @@
             if (a) num = a.vanish ? '<span class="lc-num zero">404</span>' : a.stuck ? '<span class="lc-num zero">…</span>' : `<span class="lc-num${a.dmg > 0 ? '' : ' zero'}">${a.dmg > 0 ? '-' + a.dmg : '0'}</span>`;
             else if (rec.ult && rec.ult.healed !== undefined) num = `<span class="lc-num heal">+${rec.ult.healed}</span>`;
             else if (n.lagLand) num = `<span class="lc-num">-${n.lagLand}</span>`;
-            const arrowTo = `<span class="lc-arrow" style="color:${rec.def.color}">${side === 'left' ? '→' : '←'}</span>`, aimed = a || n.lagLand;
+            const arrowTo = `<span class="lc-arrow" style="color:${rec.def.color}">${side === 'left' ? '→' : '←'}</span>`, aimed = (a && !a.self) || n.lagLand;
             const dmg = num ? `<span class="lc-dmg">${side === 'left' ? num + (aimed ? arrowTo : '') : (aimed ? arrowTo : '') + num}</span>` : '';
             const crit = a && a.crit ? `<span class="lc-critchip">${fvH('crit')}</span>` : '';
             const turnNo = `<span class="lc-turn">${rec.turn}</span>`;
@@ -1993,8 +1997,10 @@
                 if (x.id === 'anvil') g(0, fvLk(`×${x.mult}`), x.reforged ? fvNum('scales', `+${x.reforged}`, 'heal') : '');
                 if (x.id === 'eruption') g(0, fvLk(`×${x.mult}`), fvLk(`${fvH('heat')} ${x.heatFrom} → ${x.heatTo}`, 'note'));
                 if (x.id === 'lastbreath') g(0, fvLk(`×${x.mult}`));
+                if (x.id === 'borrowed') g(0, fvLk(`×${u.nums.dmgMult}`));
                 if (x.id === 'hightide') g(0, fvLk(`${pxIcon('nacre')} ${fvT('nacre')} ${x.layers}/${ELEMENT_BASE.turquoiseLayerMax}`, 'note'));
             }
+            if (a && a.self) g(0, fvLk(`${fvH('selfHit')} -${a.dmg}`, 'note hurt'));
             if (a && a.sd) g(3, fvNum('suddendeath', `×${Math.round(a.sd * 10) / 10}`, 'sd'));
             if (n.wrath) g(4, fvNoteChip('wrath'));
             if (n.sovereign) g(4, fvNoteChip('sovereign'));
@@ -2063,7 +2069,8 @@
                 // Довгий баф: the buff it just got lasts twice as long (the fighter card's chip shows the count)
                 if (kind === 'buff' && titleMechanic(c.owner) === 'long_buffs' && ['applied', 'refreshed', 'replaced'].includes(c.result)) g(4, fvAbilityNote('longBuffs', c.owner, ` ×${MECH.longBuffsMult}`));
             });
-            const head = u ? `<div class="lc-ult" style="color:${u.color}">${METER.label[currentLang]} · ${u.name[currentLang]}</div>` : '';   // its words; its icon is on line 1 and in the pending cell
+            // Its words; its icon is on line 1 and in the pending cell. Чужі чари names both
+            const head = u ? `<div class="lc-ult" style="color:${u.color}">${rec.ult.via ? `${pxIcon(rec.ult.via)} ${CLASS_ULTIMATES[rec.ult.via].name[currentLang]}` : METER.label[currentLang]} · ${u.name[currentLang]}</div>` : '';
             return `<div class="${cls.join(' ')}"><span class="lc-glow"></span>${head}<div class="lc-l1">${l1}</div><div class="lc-l2">${p.join('')}</div></div>`;
         }
 
@@ -2290,7 +2297,7 @@
             }
             fvFlush();
             const a = rec.attack, n = rec.notes, me = fvSide(rec.atk), them = fvSide(rec.def);
-            if (a) fvPop(them, a.vanish ? '404' : a.stuck ? '…' : a.dmg > 0 ? '-' + a.dmg : '0', a.dmg > 0 ? (a.crit ? 'crit' : '') : 'zero', 0);
+            if (a) fvPop(a.self ? me : them, a.vanish ? '404' : a.stuck ? '…' : a.dmg > 0 ? '-' + a.dmg : '0', a.dmg > 0 ? (a.crit ? 'crit' : '') : 'zero', 0);
             if (n.twin) fvPop(them, '-' + n.twin, 'small', 0);
             // Синій екран: its card flashes blue with «:(»; AFK: its card greys out until its next turn (fvTurn takes both off)
             if (rec.crash || rec.away) fvCards((c, p) => { if (p === me) c.classList.add(rec.crash ? 'crash' : 'afk'); });
@@ -5874,9 +5881,7 @@ const ICONS_V2 = {
         const WHITE_DRAKE_TYPE = 'steel';
         const WHITE_DRAKE_TITLE_ID = 998;
         const STREAMER_TYPES = [WHITE_DRAKE_TYPE, DRAGON_TYPE];
-        // Season 2's drakes still being built: their sprites, colours and words are in, their kits aren't, so nobody can get one yet
-        const UNBUILT_TYPES = ['pink'];
-        const VIEWER_DRAKE_TYPES = DRAKE_TYPES.filter(d => !STREAMER_TYPES.includes(d.type) && !UNBUILT_TYPES.includes(d.type));
+        const VIEWER_DRAKE_TYPES = DRAKE_TYPES.filter(d => !STREAMER_TYPES.includes(d.type));
         const randomViewerDrake = () => VIEWER_DRAKE_TYPES[Math.floor(Math.random() * VIEWER_DRAKE_TYPES.length)];
         // Color words for !drake / !reroll, in both languages
         const COLOR_WORDS = {
@@ -5885,7 +5890,7 @@ const ICONS_V2 = {
             'вишневий': 'cherry', cherry: 'cherry', 'рожевий': 'pink', pink: 'pink', 'бірюзовий': 'turquoise', turquoise: 'turquoise',
             'білий': 'steel', white: 'steel'
         };
-        const drakeByWord = word => DRAKE_TYPES.find(d => d.type === COLOR_WORDS[word] && !UNBUILT_TYPES.includes(d.type));
+        const drakeByWord = word => DRAKE_TYPES.find(d => d.type === COLOR_WORDS[word]);
         // The colours a viewer can pick, as chat types them: "червоний, синій, …" (the first word of each viewer drake's name)
         const colorList = (sep, lang = currentLang) => VIEWER_DRAKE_TYPES.map(d => d.name[lang].split(' ')[0].toLowerCase()).join(sep);
 
@@ -6782,6 +6787,14 @@ const ICONS_V2 = {
                         lasts: 'attacks', count: 2, nums: {},
                         desc: { uk: 'Наступні {count} атаки цілі лише слабкі: фізичні чи магічні, без сильних, підступних і вампірських',
                                 en: 'The target\'s next {count} attacks are light only: physical or magical, never heavy, sneaky or vampire' } },
+            fairydust: { element: 'pink', kind: 'buff', icon: '✨', color: '#ff8ccb', name: { uk: 'Чарівний пилок', en: 'Fairy Dust' }, acc: 'Чарівний пилок',
+                        lasts: 'attacks', count: 2, nums: {},
+                        desc: { uk: 'Кожна з наступних {count} власних атак, що завдає шкоди, накладає ефект без кидка на шанс',
+                                en: 'Each of the next {count} own attacks that deals damage casts an effect instead of rolling for one' } },
+            infatuation: { element: 'pink', kind: 'debuff', icon: '💘', color: '#ff8ccb', name: { uk: 'Закоханість', en: 'Infatuation' }, acc: 'Закоханість',
+                        lasts: 'attacks', count: 1, nums: { chance: 50 },
+                        desc: { uk: '{chance}% шанс, що наступна атака цілі влучить у неї саму',
+                                en: 'A {chance}% chance that the target\'s next attack hits the target itself instead' } },
             reforge:  { element: 'steel',  kind: 'buff',   icon: '⚒️', color: '#cdd6e4', name: { uk: 'Перекування', en: 'Reforging' }, acc: 'Перекування',
                         lasts: 'attacks', count: 2, nums: { bar: 6, barTop: 8 },
                         desc: { uk: 'Кожна з наступних {count} власних атак, що завдає шкоди, відновлює луску на {bar}% макс. HP ({barTop}% на найвищому рівні), до її початкового розміру; це не лікування',
@@ -6804,9 +6817,9 @@ const ICONS_V2 = {
         // Casting: after a hit that dealt damage, castBase% (+ element and title bonuses) to cast something.
         // ownElement% of casts pick one of the caster's own two element effects (50/50 buff or debuff), the rest any in the pool.
         const EFFECT_CAST = { castBase: 30, ownElement: 70, maxPerKind: 2 };
-        // Hard caps after effect power scaling: no effect cuts damage or healing by more than 90%, or heals more than 90% of the
-        // damage it's a share of, whatever its power
-        const EFFECT_CAPS = { cut: 90, healCut: 90, heal: 90 };
+        // Hard caps after effect power scaling: no effect cuts damage or healing by more than 90%, heals more than 90% of the
+        // damage it's a share of, or has a chance above 100%, whatever its power
+        const EFFECT_CAPS = { cut: 90, healCut: 90, heal: 90, chance: 100 };
 
         // Chance to cast an effect after a damaging hit (the White Dragon always casts)
         function getCastChance(drakeType, title, level) {
@@ -6852,11 +6865,16 @@ const ICONS_V2 = {
         }
         const effectChipText = (inst, lang = currentLang) => `${EFFECTS[inst.id].icon} ${EFFECTS[inst.id].name[lang]} · ${effectLeftText(inst.id, inst.left, lang)}`;
 
+        // Рожевий's Ілюзія: the element passive it copies from this opponent, the fight part at its own level's tier. Nothing from
+        // another Рожевий or the streamer's two forms, and never a title. passiveType: the element a fighter's passive reads as now
+        const copyOf = (me, foe) => me.drakeObj.type === 'pink' && foe.drakeObj.type !== 'pink' && VIEWER_DRAKE_TYPES.some(d => d.type === foe.drakeObj.type) ? foe.drakeObj.type : null;
+        const passiveType = (f, st) => (st && st.copied) || f.drakeObj.type;
         // One fighter's state during a fight: active effects { buff: [...], debuff: [...] } (each entry { id, left, power }),
         // plus the ultimate meter (0..METER.max), whether its below-half bonus has been used, and Ice Mirror hits left
         // scales: the White Drake's bar { now, max }; heat: Помаранчевий's Розжарення, 0 to its max; frenzy: Вишневий's Кривавий
-        // шал, the bonus its HP gives now, in %; layers: Бірюзовий's Перламутр, 0 to its max (each null for everyone else)
-        const newFxState = () => ({ buff: [], debuff: [], meter: 0, halfDone: false, mirror: 0, scales: null, heat: null, frenzy: null, layers: null });
+        // шал, the bonus its HP gives now, in %; layers: Бірюзовий's Перламутр, 0 to its max; copied: the element Рожевий's Ілюзія
+        // took (each null for everyone else)
+        const newFxState = () => ({ buff: [], debuff: [], meter: 0, halfDone: false, mirror: 0, scales: null, heat: null, frenzy: null, layers: null, copied: null });
         const hasFx = (st, id) => !!(st && st[EFFECTS[id].kind].find(x => x.id === id));
         const getFx = (st, id) => st && st[EFFECTS[id].kind].find(x => x.id === id);
         // Counts down every effect of this fighter that lasts `unit` (only the ones `which` picks); drops the ones that reach 0
@@ -6930,6 +6948,10 @@ const ICONS_V2 = {
                           attacks: false, nums: { perLayer: 4 },
                           desc: { uk: 'Замість атаки лікує {perLayer}% макс. HP за кожен шар перламутру, і шари лишаються',
                                   en: 'Instead of attacking, heals {perLayer}% of max HP per layer of nacre, and keeps its layers' } },
+            borrowed:   { element: 'pink', icon: '🪞', color: '#ff8ccb', name: { uk: 'Чужі чари', en: 'Borrowed Magic' },
+                          attacks: true, nums: { dmgMult: 1.5 },
+                          desc: { uk: 'Використовує ультимейт суперника зі своїми показниками; якщо позичати нічого, це атака ×{dmgMult}, а Білий Дрейк дає лише свій удар ×{dmgMult}',
+                                  en: 'Uses the opponent\'s ultimate with its own stats; with nothing to borrow it\'s an attack for ×{dmgMult}, and from the White Drake it gets only the blow, ×{dmgMult}' } },
         };
         const ULTIMATE_IDS = Object.keys(CLASS_ULTIMATES);
         // The ultimate of a fighter's element (none for the White Dragon or anything without one)
@@ -8205,10 +8227,10 @@ const ICONS_V2 = {
         function renderStatsRow(prefix, level, drakeType, title, fx) {
             const el = document.getElementById(`stats-sub-${prefix}`);
             if (!el) return;
-            const uk = currentLang === 'uk';
-            const defs = getModifiedDefenses(level, drakeType, title);
-            const crit = getCritStats(level, drakeType, title, fx);
-            const cast = getCastChance(drakeType, title, level);
+            const uk = currentLang === 'uk', type = (fx && fx.copied) || drakeType;
+            const defs = getModifiedDefenses(level, type, title);
+            const crit = getCritStats(level, type, title, fx);
+            const cast = getCastChance(type, title, level);
             const lab = t => `<span class="stat-label">${t}</span>`;
             el.innerHTML = `<span>${lab(uk ? 'КРИТ' : 'CRIT')} ${crit.critChance}% ×${crit.critPower}</span>` +
                 `<span>${lab(uk ? 'ЗАХИСТ' : 'DEF')} ${defs.physDef}% / ${defs.magDef}%</span>` +
@@ -8243,7 +8265,7 @@ const ICONS_V2 = {
             } else morphHtml(badgeContainer, '');
 
             const uk = currentLang === 'uk';
-            morphHtml(document.getElementById(`info-${prefix}`), `${emblem(drakeType)} ${drakeLabel(dragon.drakeObj)} · ${uk ? 'Рівень' : 'Level'} ${prog.level}`.trim());
+            morphHtml(document.getElementById(`info-${prefix}`), `${emblem(drakeType)} ${drakeLabel(dragon.drakeObj)} · ${uk ? 'Рівень' : 'Level'} ${prog.level}${fx && fx.copied ? ` · ${emblem(fx.copied)}` : ''}`.trim());
             const xpEl = document.getElementById(`xp-${prefix}`), xpBar = document.getElementById(`xpbar-${prefix}`);
             if (xpEl) xpEl.innerText = prog.level >= 20 ? 'XP MAX' : `XP ${prog.currentXP} / ${prog.requiredXP}`;
             if (xpBar) xpBar.style.transform = `scaleX(${(prog.level >= 20 ? 100 : Math.floor(100 * prog.currentXP / prog.requiredXP)) / 100})`;
@@ -8324,8 +8346,9 @@ const ICONS_V2 = {
             let p1Prog = calculateLevelAndProgress(p1.xp);
             let p2Prog = calculateLevelAndProgress(p2.xp);
 
-            let p1HP = getMaxHP(p1Prog.level, p1.drakeObj.type, p1.title);
-            let p2HP = getMaxHP(p2Prog.level, p2.drakeObj.type, p2.title);
+            const p1Copy = copyOf(p1, p2), p2Copy = copyOf(p2, p1);   // Ілюзія: Зелений's HP is part of what it copies
+            let p1HP = getMaxHP(p1Prog.level, p1Copy || p1.drakeObj.type, p1.title);
+            let p2HP = getMaxHP(p2Prog.level, p2Copy || p2.drakeObj.type, p2.title);
             let p1MaxHP = p1HP;
             let p2MaxHP = p2HP;
             playFightMax(p1MaxHP, p2MaxHP);
@@ -8357,9 +8380,11 @@ const ICONS_V2 = {
             battleFx = fx;
             // The White Drake's bar of scales (Луска Дракона): a share of its max HP by level tier, on top of HP
             [p1, p2].forEach(f => { if (f.drakeObj.type === WHITE_DRAKE_TYPE) { const sc = scalesOf(levelOf(f), maxHPOf(f)); fx[f.name].scales = { now: sc, max: sc }; } });
-            [p1, p2].forEach(f => { if (f.drakeObj.type === 'orange') fx[f.name].heat = 0; });   // Розжарення starts cold
-            [p1, p2].forEach(f => { if (f.drakeObj.type === 'cherry') fx[f.name].frenzy = 0; });   // Кривавий шал: at full HP, nothing yet
-            [p1, p2].forEach(f => { if (f.drakeObj.type === 'turquoise') fx[f.name].layers = 0; });   // Перламутр: no layers yet
+            fx[p1.name].copied = p1Copy; fx[p2.name].copied = p2Copy;
+            const pt = f => passiveType(f, fx[f.name]);
+            [p1, p2].forEach(f => { if (pt(f) === 'orange') fx[f.name].heat = 0; });   // Розжарення starts cold
+            [p1, p2].forEach(f => { if (pt(f) === 'cherry') fx[f.name].frenzy = 0; });   // Кривавий шал: at full HP, nothing yet
+            [p1, p2].forEach(f => { if (pt(f) === 'turquoise') fx[f.name].layers = 0; });   // Перламутр: no layers yet
             fvBegin(p1, p2, isRanked, opts);
             let guardianUsed = { [p1.name]: false, [p2.name]: false };
             // Підзарядка: the fight starts with some Element Power already in the meter
@@ -8370,7 +8395,7 @@ const ICONS_V2 = {
             const ultBoost = f => 1 + (titleMechanic(f) === 'overcharge' ? MECH.overchargeBonus : titleMechanic(f) === 'meter_rush' ? MECH.meterRushUltBonus : 0);
             // The ultra-block chance a hit on `f` faces, in % (Тінь's bonus goes on top): 10%, Квантовий ухил, Чорний's passive
             const blockChanceOf = f => 10 + (titleMechanic(f) === 'quantum_dodge' ? MECH.dodgeBonus : 0)
-                + (f.drakeObj.type === 'black' ? ELEMENT_BASE.blackBlock + getTierMultiplier(levelOf(f)).blackBlock : 0);
+                + (pt(f) === 'black' ? ELEMENT_BASE.blackBlock + getTierMultiplier(levelOf(f)).blackBlock : 0);
             // Розжарення: 1 heat, up to its max, for a fighter that has any
             const addHeat = st => { if (st.heat !== null) st.heat = Math.min(ELEMENT_BASE.orangeHeatMax, st.heat + 1); };
             // Перламутр: 1 layer, up to its max, for a fighter that has any
@@ -8414,6 +8439,11 @@ const ICONS_V2 = {
                 ? `🎲 Жереб: першим атакує <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span>!`
                 : `🎲 Coin flip: <span style="color: ${p1.color}; font-weight: bold;">@${p1.name}</span> attacks first!`);
             if ([p1, p2].some(f => f.drakeObj.type === WHITE_DRAKE_TYPE)) addLog(`<b>${fvT('steelIn')}</b>`);
+            [p1, p2].forEach(f => { const from = fx[f.name].copied;
+                if (!from) return;
+                fvBanner('copies', { f, from });
+                addLog(fvT('copies', { who: tag(f), drake: drakeLabel(DRAKE_TYPES.find(d => d.type === from)) }));
+            });
             [p1, p2].forEach(f => {
                 if (titleMechanic(f) === 'opening_buff') {
                     const id = POOL_LASTING_BUFF_IDS[Math.floor(Math.random() * POOL_LASTING_BUFF_IDS.length)];
@@ -8454,7 +8484,7 @@ const ICONS_V2 = {
                     let attackerProg = calculateLevelAndProgress(attacker.xp);
                     let defenderProg = calculateLevelAndProgress(defender.xp);
 
-                    let defsDefender = getModifiedDefenses(defenderProg.level, defender.drakeObj.type, defender.title);
+                    let defsDefender = getModifiedDefenses(defenderProg.level, pt(defender), defender.title);
                     let defenderPhysDef = defsDefender.physDef;
                     let defenderMagDef = defsDefender.magDef;
 
@@ -8612,14 +8642,16 @@ const ICONS_V2 = {
 
                     // Ultimate: a full Element Power meter makes this turn the fighter's ultimate (after a Frost skip it
                     // simply waited). The meter goes back to 0, and the ultimate itself never fills it.
-                    const ultId = atkFx.meter >= METER.max ? ultimateFor(attacker.drakeObj.type) : null;
+                    // Чужі чари fires the opponent's ultimate (ownUlt stays hers, for the sim's count); with none to borrow, its own attack
+                    const ownUlt = atkFx.meter >= METER.max ? ultimateFor(attacker.drakeObj.type) : null;
+                    const ultId = ownUlt === 'borrowed' ? (ultimateFor(defender.drakeObj.type) || ownUlt) : ownUlt;
                     const ult = ultId ? CLASS_ULTIMATES[ultId] : null;
                     let ultTag = '', ultText = '';
                     if (ult) {
                         atkFx.meter = titleMechanic(attacker) === 'overcharge' ? MECH.overchargeKeep : 0;   // Перевантаження keeps some
-                        tallyUltimate(ultId, 'fires');
-                        ultTag = `<span style="color: ${ult.color}; font-weight: bold;">${ultLabel(ultId)}</span>`;
-                        fvUlt(ultId);
+                        tallyUltimate(ownUlt, 'fires');
+                        ultTag = `<span style="color: ${ult.color}; font-weight: bold;">${ownUlt !== ultId ? `${ultName(ownUlt)} · ` : ''}${ultLabel(ultId)}</span>`;
+                        fvUlt(ultId, ownUlt !== ultId ? ownUlt : null);
                         if (ultBoost(attacker) > 1) fvUltInfo({ boost: ultBoost(attacker) });
                     }
                     // Ice Mirror and Bloom replace the attack: no attack is made, so no "own attacks" or "hits taken" counts go down
@@ -8633,7 +8665,7 @@ const ICONS_V2 = {
                             const before = hpOf(attacker), layers = atkFx.layers || 0;
                             setHP(attacker, Math.min(attackerMaxHP, before + Math.round(healAmount(attacker, attackerMaxHP * ult.nums.perLayer / 100 * layers * ultBoost(attacker)))));
                             const healed = hpOf(attacker) - before;
-                            tallyUltimate(ultId, 'healed', healed);
+                            tallyUltimate(ownUlt, 'healed', healed);
                             fvUltInfo({ healed, layers });
                             ultText = `<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>`;
                         } else {   // Bloom: own debuffs off first (so Poison doesn't cut the heal), then the heal
@@ -8642,7 +8674,7 @@ const ICONS_V2 = {
                             const before = hpOf(attacker);
                             setHP(attacker, Math.min(attackerMaxHP, before + Math.round(attackerMaxHP * ult.nums.heal / 100 * ultBoost(attacker))));
                             const healed = hpOf(attacker) - before;
-                            tallyUltimate(ultId, 'healed', healed);
+                            tallyUltimate(ownUlt, 'healed', healed);
                             fvUltInfo({ healed, removed: removed.map(x => x.id) });
                             const names = removed.map(x => fxAcc(x.id)).join(', ');
                             ultText = currentLang === 'uk'
@@ -8660,9 +8692,9 @@ const ICONS_V2 = {
                     }
                     // Attacking ultimates: set up their extras, then the attack is rolled and resolved like any other
                     let ultMult = 1, ultForceCrit = false, ultMiss = false, detonated = [];
-                    if (ultId === 'firestorm' || ultId === 'theft') ultMult = ult.nums.dmgMult || 1;
+                    if (ultId === 'firestorm' || ultId === 'theft' || ultId === 'borrowed') ultMult = ult.nums.dmgMult || 1;
                     if (ultId === 'anvil') {
-                        ultMult = attackerProg.level >= 20 ? ult.nums.topMult : ult.nums.dmgMult;
+                        ultMult = attackerProg.level >= 20 && ownUlt === 'anvil' ? ult.nums.topMult : ult.nums.dmgMult;   // Чужі чари: the blow, ×1.5
                         ultText = `×${ultMult} `;
                         fvUltInfo({ mult: ultMult });
                     }
@@ -8717,6 +8749,9 @@ const ICONS_V2 = {
 
                     // Водорості: light only. The 45/45 split stays, so the vampire share of the roll goes, and its sub-type is always light
                     const seaweed = getFx(atkFx, 'seaweed');
+                    // Закоханість: this attack may be turned on its own maker. It's rolled as usual, but it's no hit on the opponent, so
+                    // nothing of the opponent's that works on hits it takes (Лють, Оплавлення, Мітка) has a say in it
+                    const smitten = getFx(atkFx, 'infatuation'), selfHit = !!smitten && Math.random() * 100 < fxNum(smitten, 'chance');
                     let attackRoll = Math.random() * (seaweed ? 90 : 100);
                     let attackType, subType, subTypeNameUk, baseDmg = 15;
 
@@ -8751,12 +8786,12 @@ const ICONS_V2 = {
                     // Effects that change this hit's damage. Each factor is kept so the balance sim can credit it.
                     const rage = getFx(atkFx, 'rage'), weakness = getFx(atkFx, 'weakness'), divine = getFx(atkFx, 'divine'), reforge = getFx(atkFx, 'reforge');
                     const defRage = getFx(defFx, 'rage'), shield = getFx(defFx, 'shield'), shadow = getFx(defFx, 'shadow'), mark = getFx(defFx, 'mark');
-                    const stoke = getFx(atkFx, 'stoke'), melt = getFx(defFx, 'melt'), bloodprice = getFx(atkFx, 'bloodprice'), bleed = getFx(atkFx, 'bleed');
-                    const meltMult = melt ? 1 + fxNum(melt, 'dmg') / 100 : 1;
+                    const stoke = getFx(atkFx, 'stoke'), melt = getFx(defFx, 'melt'), bloodprice = getFx(atkFx, 'bloodprice'), bleed = getFx(atkFx, 'bleed'), fairydust = getFx(atkFx, 'fairydust');
+                    const meltMult = melt && !selfHit ? 1 + fxNum(melt, 'dmg') / 100 : 1;
                     const rageMult = rage ? 1 + fxNum(rage, 'dmg') / 100 : 1;
                     const weakMult = weakness ? 1 - fxNum(weakness, 'cut') / 100 : 1;
                     const divineMult = divine ? 1 + fxNum(divine, 'dmg') / 100 : 1;
-                    const rageTakenMult = defRage ? 1 + fxNum(defRage, 'taken') / 100 : 1;
+                    const rageTakenMult = defRage && !selfHit ? 1 + fxNum(defRage, 'taken') / 100 : 1;
                     let damageMultiplier = rageMult * weakMult * divineMult * rageTakenMult * meltMult * ultMult;
 
                     let suddenDeathMult = 1.0;
@@ -8808,10 +8843,10 @@ const ICONS_V2 = {
                     }
 
                     // Crit: Blessing raises the chance, Mark on the defender makes it certain
-                    let critData = getCritStats(attackerProg.level, attacker.drakeObj.type, attacker.title, atkFx);
-                    const plainCritChance = getCritStats(attackerProg.level, attacker.drakeObj.type, attacker.title).critChance;
+                    let critData = getCritStats(attackerProg.level, pt(attacker), attacker.title, atkFx);
+                    const plainCritChance = getCritStats(attackerProg.level, pt(attacker), attacker.title).critChance;
                     const critRoll = Math.random() * 100;
-                    let isCrit = critRoll < critData.critChance || !!mark || ultForceCrit;
+                    let isCrit = critRoll < critData.critChance || (!!mark && !selfHit) || ultForceCrit;
                     const critFrom = !isCrit || critRoll < plainCritChance ? null : (critRoll < critData.critChance ? 'blessing' : 'mark');
                     if (isCrit) {
                         baseDmg *= critData.critPower;
@@ -8821,6 +8856,62 @@ const ICONS_V2 = {
                                 `<span style="color: #ff4141; font-weight: bold;">🟥 Red Drake crit!</span> <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> deals fire crit (x${critData.critPower})!`;
                             addLog(msg);
                         }
+                    }
+
+                    // What an ultimate leaves behind, whether or not the hit landed: Arcane Detonation's counted debuffs go, Виверження's heat
+                    // drops by half, rounded down
+                    const ultAfter = () => {
+                        if (detonated.length) defFx.debuff = defFx.debuff.filter(x => !detonated.includes(x));
+                        if (ultId === 'eruption') {
+                            const was = atkFx.heat || 0;
+                            atkFx.heat = Math.floor(was / 2);
+                            fvUltInfo({ heatFrom: was, heatTo: atkFx.heat });
+                            logExtra += `${fvT('heat')}: ${was} → ${atkFx.heat}! `;
+                        }
+                    };
+                    // Кровотеча: after the attack the bleeding drake loses HP. It's damage, not a hit: straight off its HP, like Burn and
+                    // Poison. It can knock its drake out, but there's none if the attack ended the fight
+                    const bleedTick = () => {
+                        if (!bleed || p1HP <= 0 || p2HP <= 0) return;
+                        const lost = Math.max(1, Math.round(maxHPOf(attacker) * fxNum(bleed, 'hp') / 100));
+                        setHP(attacker, Math.max(0, hpOf(attacker) - lost));
+                        tallyEffect('bleed', 'dmg', lost);
+                        fvNote('bleed', lost);
+                        updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
+                        addLog(currentLang === 'uk'
+                            ? `${tag(attacker)} втрачає HP через дебаф ${fxName('bleed')} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${lost} HP</span>)`
+                            : `${tag(attacker)} loses HP from ${fxName('bleed')} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${lost} HP</span>)`);
+                    };
+
+                    // Закоханість: the attack lands on its own maker. Its armour for that attack type and its Щит apply, and nothing else:
+                    // no ultra-block, nothing comes back, no effect roll, no Element Power, no heat, no heal. It's still its own attack, so its
+                    // "own attacks" effects count down and Кровотеча ticks, but it's a hit on nobody: no "hits taken" count, no layer
+                    if (selfHit) {
+                        const own = getModifiedDefenses(attackerProg.level, pt(attacker), attacker.title), ownShield = getFx(atkFx, 'shield');
+                        let hurt = baseDmg;
+                        if (subType !== 'sneaky' && attackType !== 'vampire') hurt *= Math.max(0.35, 1.0 - ((attackType === 'physical' ? own.physDef : own.magDef) / 100));
+                        if (ownShield) hurt *= 1 - fxNum(ownShield, 'cut') / 100;
+                        hurt = Math.round(hurt);
+                        fvUsed([...atkFx.buff, ...atkFx.debuff].filter(x => EFFECTS[x.id].lasts === 'attacks').map(x => x.id));
+                        fvAttack({ type: attackType, sub: subType, dmg: hurt, crit: isCrit, block: false, shadow: false, miss: false, pierce: false, sd: turn >= SUDDEN_DEATH.from ? suddenDeathMult : 0, self: true });
+                        flashSpriteHit(attacker === p1 ? 'p1' : 'p2');
+                        setHP(attacker, Math.max(0, hpOf(attacker) - hurt));
+                        tallyEffect('infatuation', 'dmg', hurt);
+                        ultAfter();
+                        countDownEffects(atkFx, 'attacks', id => id !== 'magnet');
+                        updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
+                        addLog(`[${tl('Хід', 'Turn')} ${turn}] ${tag(attacker)} (${attackType === 'physical' ? tl('Фіз', 'Phys') : attackType === 'magical' ? tl('Маг', 'Mag') : tl('Вамп', 'Vamp')} / ${subTypeNameUk}): ${ultTag ? ultTag + ' ' + ultText : ''}${fvT('selfHit')} -${hurt}. ${logExtra}`);
+                        bleedTick();
+                        countDownEffects(atkFx, 'attacks', id => id === 'magnet');   // Магніт runs down last, as on any attack
+                        renderCards();
+                        fvTurnEnd();
+                        if (p1HP <= 0 || p2HP <= 0) {
+                            clearInterval(battleInterval);
+                            finishBattle(p1, p2, p1HP, p2HP, isRanked);
+                            return;
+                        }
+                        turn++;
+                        return;
                     }
 
                     // Ultra-block: Shadow adds to the chance; Divine Might can't be blocked
@@ -8962,7 +9053,7 @@ const ICONS_V2 = {
 
                     let blueReflectText = "";
                     let blueReflectChance = ELEMENT_BASE.blueReflect + defenderTier.blueReflect;
-                    if (defender.drakeObj.type === 'blue' && attacker.drakeObj.type !== DRAGON_TYPE && finalDmg > 0 && Math.random() * 100 < blueReflectChance) {
+                    if (pt(defender) === 'blue' && attacker.drakeObj.type !== DRAGON_TYPE && finalDmg > 0 && Math.random() * 100 < blueReflectChance) {
                         let reflectedDmg = Math.round(finalDmg * 0.5);
                         finalDmg -= reflectedDmg;
                         setHP(attacker, Math.max(0, hpOf(attacker) - reflectedDmg));
@@ -8976,7 +9067,7 @@ const ICONS_V2 = {
 
                     let goldOneHpText = "", fortunePast = false;
                     let goldOneHpChance = ELEMENT_BASE.goldOneHp + attackerTier.goldOneHp;
-                    if (attacker.drakeObj.type === 'gold' && finalDmg > 0 && defender.drakeObj.type !== DRAGON_TYPE) {
+                    if (pt(attacker) === 'gold' && finalDmg > 0 && defender.drakeObj.type !== DRAGON_TYPE) {
                         // Against the White Drake it slips past the scales (they stay as they are): 1 HP is left all the same
                         let targetHPBefore = hpOf(defender), scalesLeft = defFx.scales ? defFx.scales.now : 0;
                         if (targetHPBefore > 1 && finalDmg < targetHPBefore + scalesLeft) {
@@ -9029,16 +9120,8 @@ const ICONS_V2 = {
                         fvNote('stoke');
                         logExtra += `${fxName('stoke')}: +1 ${METER.short[currentLang]}! `;
                     }
-                    if (ult) tallyUltimate(ultId, 'dmg', finalDmg);
-                    // Arcane Detonation: the debuffs it counted are gone, whether or not the hit landed
-                    if (detonated.length) defFx.debuff = defFx.debuff.filter(x => !detonated.includes(x));
-                    // Виверження: the heat drops by half, rounded down, whether or not the hit landed
-                    if (ultId === 'eruption') {
-                        const was = atkFx.heat || 0;
-                        atkFx.heat = Math.floor(was / 2);
-                        fvUltInfo({ heatFrom: was, heatTo: atkFx.heat });
-                        logExtra += `${fvT('heat')}: ${was} → ${atkFx.heat}! `;
-                    }
+                    if (ult) tallyUltimate(ownUlt, 'dmg', finalDmg);
+                    ultAfter();
                     // Перекування: an own attack that dealt damage rebuilds the attacker's scales, up to their starting size; it isn't
                     // healing, so Poison doesn't cut it. Anyone else holding it (Shadow Theft) has no scales to rebuild
                     if (reforge && finalDmg > 0 && atkFx.scales) {
@@ -9135,12 +9218,12 @@ const ICONS_V2 = {
                         `[Хід ${turn}] <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> ➜ <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> (<span style="color: ${attackTypeColor};">${attackTypeUk} / ${subTypeNameUk}</span>): ${ultTag ? ultTag + ' ' + ultText : ''}${sdLabel}${critLabel}${multLabel}${blockText} ${mirrorText}${goldOneHpText}${blueReflectText} Шкода: ${damageFormatted}. ${logExtra}` :
                         `[Turn ${turn}] <span style="color: ${attacker.color}; font-weight: bold;">@${attacker.name}</span> ➜ <span style="color: ${defender.color}; font-weight: bold;">@${defender.name}</span> (<span style="color: ${attackTypeColor};">${attackTypeUk} / ${subTypeNameUk}</span>): ${ultTag ? ultTag + ' ' + ultText : ''}${sdLabel}${critLabel}${multLabel}${blockText} ${mirrorText}${goldOneHpText}${blueReflectText} Damage: ${damageFormatted}. ${logExtra}`;
                     addLog(logText);
-                    if (ult && hpOf(defender) <= 0) tallyUltimate(ultId, 'kills');
+                    if (ult && hpOf(defender) <= 0) tallyUltimate(ownUlt, 'kills');
                     // Firestorm's Burn follows the usual effect rules (immunity, slots, the caster's effect power)
                     if (ult && ult.applies) applyEffect(attacker, defender, ult.applies, attackerProg.level, fx);
 
-                    let castChance = getCastChance(attacker.drakeObj.type, attacker.title, attackerProg.level);
-                    if (Math.random() * 100 < castChance && finalDmg > 0) {
+                    let castChance = getCastChance(pt(attacker), attacker.title, attackerProg.level);
+                    if ((fairydust || Math.random() * 100 < castChance) && finalDmg > 0) {
                         if (atkMech === 'chat_decides') {
                             const pool = chatPool(attacker, defender);
                             fvNote('chat');
@@ -9173,18 +9256,7 @@ const ICONS_V2 = {
                         if (Math.random() < 0.5) applyEffect(attacker, defender, id, attackerProg.level, fx, { pool: POOL_IDS });
                         else applyEffect(defender, attacker, id, defenderProg.level, fx, { pool: POOL_IDS });
                     }
-                    // Кровотеча: after the attack the bleeding drake loses HP. It's damage, not a hit: straight off its HP, like Burn and
-                    // Poison. It can knock its drake out, but there's none if the attack ended the fight
-                    if (bleed && p1HP > 0 && p2HP > 0) {
-                        const lost = Math.max(1, Math.round(maxHPOf(attacker) * fxNum(bleed, 'hp') / 100));
-                        setHP(attacker, Math.max(0, hpOf(attacker) - lost));
-                        tallyEffect('bleed', 'dmg', lost);
-                        fvNote('bleed', lost);
-                        updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
-                        addLog(currentLang === 'uk'
-                            ? `${tag(attacker)} втрачає HP через дебаф ${fxName('bleed')} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${lost} HP</span>)`
-                            : `${tag(attacker)} loses HP from ${fxName('bleed')} (<span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${lost} HP</span>)`);
-                    }
+                    bleedTick();
                     countDownEffects(atkFx, 'attacks', onCasts);   // Магніт: this attack's casts are done
                     renderCards();
                     fvTurnEnd();
@@ -9278,7 +9350,7 @@ const ICONS_V2 = {
                 const next = pool ? pool[Math.floor(Math.random() * pool.length)] : pickEffect(caster, skip);
                 return applyEffect(caster, opponent, next, casterLevel, fx, opts);
             }
-            const power = getEffectMult(caster.drakeObj.type, caster.title, casterLevel);
+            const power = getEffectMult(passiveType(caster, fx[caster.name]), caster.title, casterLevel);
             // Довгий баф: a buff on its holder lasts longBuffsMult times as long (so every element's buff gains the same share)
             const extraLeft = e.kind === 'buff' && titleMechanic(owner) === 'long_buffs' ? Math.round(e.count * (MECH.longBuffsMult - 1)) : 0;
             tallyEffect(id, 'lands');
