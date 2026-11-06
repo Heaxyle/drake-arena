@@ -47,8 +47,9 @@ player guide still draw from them. Change a V2 image in `v2/`, never in the page
   shadow; Ice Mirror a faceted ice teardrop; Miss a target on its stand, untouched, the arrow stuck in the ground beside it;
   Defence a steel great helm with a red plume.
 - **Emblems: the elements' symbols** on a tile, lit from the top left like every icon, so never mirrored: Red a magma core,
-  Blue a crystal fan, Black a crescent moon, Gold a four-leaf clover, Purple an arcane orb, Green a sprout, the White Dragon
-  an eye, the White Drake a steel ring with a green flame (see "The emblems" below).
+  Blue a crystal fan, Black a crescent moon, Gold a four-leaf clover, Purple an arcane orb, Green a sprout, Orange a volcano,
+  Cherry a heart cracked open with molten light inside, Pink a butterfly, Turquoise an anchor wound with seaweed, the White
+  Dragon an eye, the White Drake a steel ring with a green flame (see "The emblems" below).
 - Every `<img>` carries `data-icon`, `data-n` (its glyph's size) and `data-s` (the scale), so `tests/overlay_icons.js` can hold
   it to its glyph's size × a whole number, its own V2 art and the display rule; `test.js` holds the files to the manifest (the
   sizes, a loop that loops forever, the frames, the still its first frame) and the page's copy to the files.
@@ -377,12 +378,16 @@ not only by colour, so a greyscale or colour-blind viewer can read them too:
 | Gold | a four-leaf clover |
 | Purple | an arcane orb |
 | Green | a sprout |
+| Orange | a volcano, lava running down it |
+| Cherry | a heart cracked open, molten light inside (it beats) |
+| Pink | a butterfly, cyan eye-spots on its hindwings, pearl-tipped feelers like the drake's |
+| Turquoise | an anchor gone turquoise with age, seaweed winding up it |
 | The White Dragon | an eye |
 | The White Drake | a steel ring with a green flame |
 
-`node design/icons/test.js` checks it: the eight emblems are one tile (its frame the same pixels in every one, colour aside),
+`node design/icons/test.js` checks it: the twelve emblems are one tile (its frame the same pixels in every one, colour aside),
 and every two symbols (the pixels inside the tile that aren't the tile's, colour ignored) differ in at least 64 art pixels,
-the old 4 glyph pixels at the 4× density (the closest pair today, Purple and Green, 102). A new drake's emblem must pass it
+the old 4 glyph pixels at the 4× density (the closest pair today, Green and Cherry, 92). A new drake's emblem must pass it
 too. Where they go: names in info cards and the intro banner, the queue (instead of the 14 px colour square), the Top (before
 the level; the sprite stays), the card's name line, the title plate (all six the same way round). The emblem glyphs in
 `icons.js` are still the drakes' heads (what the player guide draws); the overlay shows the symbols.

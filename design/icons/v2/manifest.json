@@ -203,6 +203,54 @@
   "still": "icons/emblem/emGreen.png",
   "anim": "icons/emblem/emGreen-anim.png"
  },
+ "emOrange": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Помаранчевий Дрейк",
+   "en": "Orange Drake"
+  },
+  "still": "icons/emblem/emOrange.png",
+  "anim": "icons/emblem/emOrange-anim.png"
+ },
+ "emCherry": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Вишневий Дрейк",
+   "en": "Cherry Drake"
+  },
+  "still": "icons/emblem/emCherry.png",
+  "anim": "icons/emblem/emCherry-anim.png"
+ },
+ "emPink": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Рожевий Дрейк",
+   "en": "Pink Drake"
+  },
+  "still": "icons/emblem/emPink.png",
+  "anim": "icons/emblem/emPink-anim.png"
+ },
+ "emTurquoise": {
+  "kind": "emblem",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Бірюзовий Дрейк",
+   "en": "Turquoise Drake"
+  },
+  "still": "icons/emblem/emTurquoise.png",
+  "anim": "icons/emblem/emTurquoise-anim.png"
+ },
  "emDragon": {
   "kind": "emblem",
   "size": 40,

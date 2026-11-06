@@ -1840,6 +1840,58 @@
             'mssssddppm',
             '.mmmmmmmm.',
         ],
+        // Orange: two short basalt horns rising from the back of the head, their tips glowing
+        emOrange: [
+            '.mmmmmmmm.',
+            'msssssqsqm',
+            'mssssspspm',
+            'mssshhpspm',
+            'mshhhkhssm',
+            'mwhhhhhnsm',
+            'msnnnnnnsm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Cherry: one horn snapped off halfway (its pale break), black spikes down the back of the neck
+        emCherry: [
+            '.mmmmmmmm.',
+            'mssssssssm',
+            'msssscssqm',
+            'mssshhpsqm',
+            'mshhhkhqsm',
+            'mwhhhhhnqm',
+            'msnnnnnnsm',
+            'mssssnnnqm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Pink: two thin feelers with pearl tips, a dark mask round the eye
+        emPink: [
+            '.mmmmmmmm.',
+            'msssssqsqm',
+            'mssssspspm',
+            'mssshhpssm',
+            'mshhckcssm',
+            'mwhhhhhnsm',
+            'msnnnnnnsm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Turquoise: a small coral crest growing back from the head
+        emTurquoise: [
+            '.mmmmmmmm.',
+            'mssssqssqm',
+            'mssssppqpm',
+            'mssshhppsm',
+            'mshhhkhssm',
+            'mwhhhhhnsm',
+            'msnnnnnnsm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
     };
 
     // ----- Element colours: one family per element -----
@@ -1848,8 +1900,10 @@
     // doesn't read on the dark UI; this stays a neutral grey, never a purple)
     const ELEMENT_COLORS = {
         red: '#ff4f5a', blue: '#4a98ff', black: '#9b9ba8', gold: '#f2c14e', purple: '#b47aff', green: '#6fe896',
-        orange: '#ff8a1f', cherry: '#b8304f', pink: '#f78fbf', turquoise: '#26c2b0',
         steel: '#cdd6e4',   // the White Drake: its scale bar's white steel; never Black's grey (bluer, much lighter, green accents)
+        // Season 2's four: orange between Red and Gold, cherry darker and pinker than Red, pink paler than the Meme rarity's,
+        // turquoise between Green and Blue
+        orange: '#ff8f2e', cherry: '#d13a64', pink: '#ff8ccb', turquoise: '#2fd3c0',
     };
     // The White Drake's own letters: the sprite's navy outline and slate shade (not a neutral grey), pure white, the crack's red
     const STEEL = { accent: '#58e888', pal: { o: '#151b30', d: '#6a78a2', s: '#3a466e', h: '#e8eef6', w: '#ffffff', r: '#ff8a8a' } };
@@ -2010,6 +2064,10 @@
         emGold:      { kind: 'emblem', element: 'gold', name: { uk: 'Золотий Дрейк', en: 'Gold Drake' }, emoji: '🟨', pal: { p: '#f6ead0', q: '#c9b48a', s: '#2d2006', h: '#ffd970', n: '#c08a1a', k: '#b36bff', w: '#fff4c8' } },
         emPurple:    { kind: 'emblem', element: 'purple', name: { uk: 'Фіолетовий Дрейк', en: 'Purple Drake' }, emoji: '🟪', pal: { p: '#eadcff', q: '#a98be0', s: '#1d0c33', h: '#c79bff', n: '#7d45c9', k: '#5ee0f0', w: '#efe2ff' } },
         emGreen:     { kind: 'emblem', element: 'green', name: { uk: 'Зелений Дрейк', en: 'Green Drake' }, emoji: '🟩', pal: { p: '#c4ff8f', q: '#2f9a3e', s: '#0a2412', h: '#8ff0a8', n: '#2f9c55', k: '#ffd23f', w: '#dcffe4' } },
+        emOrange:    { kind: 'emblem', element: 'orange', name: { uk: 'Помаранчевий Дрейк', en: 'Orange Drake' }, emoji: '🟧', pal: { p: '#3a3430', q: '#ffd45a', s: '#2a1406', h: '#ffb066', n: '#d4661a', k: '#fff4b0', w: '#ffe0c0' } },
+        emCherry:    { kind: 'emblem', element: 'cherry', name: { uk: 'Вишневий Дрейк', en: 'Cherry Drake' }, emoji: '🍒', pal: { p: '#3a2626', q: '#1a1010', c: '#e8b4bc', s: '#22050e', h: '#e0607e', n: '#9a1f48', k: '#ff3a22', w: '#ffc0cc' } },
+        emPink:      { kind: 'emblem', element: 'pink', name: { uk: 'Рожевий Дрейк', en: 'Pink Drake' }, emoji: '🩷', pal: { p: '#8a3e7e', q: '#f4eef8', c: '#3a1236', s: '#2a0a1e', h: '#ffb4d4', n: '#d4689c', k: '#4ad4e8', w: '#ffe8f2' } },
+        emTurquoise: { kind: 'emblem', element: 'turquoise', name: { uk: 'Бірюзовий Дрейк', en: 'Turquoise Drake' }, emoji: '🐚', pal: { p: '#d0503e', q: '#ffbfa6', s: '#032426', h: '#6fd8c6', n: '#16827c', k: '#f0fffa', w: '#d8fff6' } },
         emDragon:    { kind: 'emblem', color: '#bfe9ff', name: { uk: 'Білий Дракон', en: 'White Dragon' }, emoji: '🐉', pal: { p: '#58e888', s: '#16264a', h: '#f2f8ff', n: '#8fb2dc', k: '#1a2044', w: '#ffffff' } },
         emSteel:     { kind: 'emblem',   element: 'steel', name: { uk: 'Білий Дрейк', en: 'White Drake' },          emoji: '🤍', ...STEEL, pal: { ...STEEL.pal, s: '#1a1e28' } },
     };
@@ -2022,7 +2080,7 @@
     const BATCH4_ICON_IDS = ['attacking', 'roulette'];
     const STEEL_ICON_IDS = ['scales', 'bounce', 'cracked', 'reforge', 'magnet', 'anvil', 'whiteSteel', 'emSteel'];
     // The emblems: the drakes' heads, every drake's in the game's order, then the streamer's two forms
-    const EMBLEM_IDS = ['emRed', 'emBlue', 'emBlack', 'emGold', 'emPurple', 'emGreen', 'emDragon', 'emSteel'];
+    const EMBLEM_IDS = ['emRed', 'emBlue', 'emBlack', 'emGold', 'emPurple', 'emGreen', 'emOrange', 'emCherry', 'emPink', 'emTurquoise', 'emDragon', 'emSteel'];
     const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind) && !BATCH4_ICON_IDS.includes(id) && ICONS[id].element !== 'steel');
 
     // ----- Stand-ins: Season 2's icons until their art is drawn -----
@@ -2031,7 +2089,6 @@
     // lands the id gets its record, glyph, V2 still and loop, its line goes from this list, and nothing else changes. A stand-in
     // is shared with the icon it borrows, so on a log card its compact form keeps its words. inventory.md lists them.
     const STAND_INS = {
-        emOrange: 'emGold', emCherry: 'emRed', emPink: 'emPurple', emTurquoise: 'emBlue',
         heat: 'burn', stoke: 'divine', melt: 'mark', eruption: 'firestorm',
         frenzy: 'rage', bloodprice: 'vampire', bleed: 'poison', lastbreath: 'crit',
         illusion: 'theft', borrowed: 'theft', fairydust: 'blessing', infatuation: 'weakness',

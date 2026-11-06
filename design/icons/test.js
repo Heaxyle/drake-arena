@@ -126,7 +126,6 @@ const GI = G.DI.ICONS;
     const SPEC = { heat: 'burn', stoke: 'divine', melt: 'mark', eruption: 'firestorm', frenzy: 'rage', bloodprice: 'vampire', bleed: 'poison', lastbreath: 'crit',
         illusion: 'theft', borrowed: 'theft', fairydust: 'blessing', infatuation: 'weakness', nacre: 'shield', clearwater: 'regen', seaweed: 'frost', hightide: 'bloom' };
     for (const [id, to] of Object.entries(SPEC)) if (!D.ICONS[id] && S[id] !== to) bad.push(`${id}: its stand-in is ${S[id]}, the spec says ${to}`);
-    for (const id of ['emOrange', 'emCherry', 'emPink', 'emTurquoise']) if (!D.ICONS[id] && !D.EMBLEM_IDS.includes(S[id])) bad.push(`${id}: its stand-in ${S[id]} isn't an emblem`);
     for (const [id, to] of Object.entries(S)) {
         if (D.ICONS[id] || M[id]) bad.push(`${id} has art of its own: its line goes from STAND_INS`);
         if (!D.ICONS[to] || !M[to]) bad.push(`${id}: its stand-in ${to} isn't an icon with V2 art`);

@@ -605,7 +605,8 @@ Hidden record only (`addLog`): «🤍 Луска: -N», «🤍 Луска зно
 
 ## Season 2's drakes: the stand-ins
 
-Real V2 art for the four new drakes (emblems, effect and ultimate icons, the new notes) is a separate step. Until then each new
+The four emblems are drawn (`emOrange` a volcano, `emCherry` a heart cracked open with molten light inside, `emPink` a butterfly,
+`emTurquoise` an anchor wound with seaweed). The rest of the kits' art (effect and ultimate icons, the new notes) is a separate step. Until then each new
 icon id is drawn as an icon of today's set: `STAND_INS` in `design/icons/icons.js` is the one list, and `pxIcon` follows it. The game
 asks for the new id everywhere, so an icon's art drops in with no code change: its record, glyph, V2 still and loop, and its line
 gone from the list. A stand-in is shared with the icon it borrows, so an effect's compact chip keeps its words (`fvChip`), and the
@@ -613,10 +614,6 @@ heat tick and Виверження's heat are notes with their words. `design/ic
 
 | Id | What it will be | Record emoji | Stand-in | Why |
 |---|---|---|---|---|
-| `emOrange` | Помаранчевий's emblem | 🟧 | `emGold` | the nearest colour that isn't another new drake's stand-in |
-| `emCherry` | Вишневий's emblem | 🍒 | `emRed` | the nearest colour |
-| `emPink` | Рожевий's emblem | 🩷 | `emPurple` | the nearest colour |
-| `emTurquoise` | Бірюзовий's emblem | 🐚 | `emBlue` | the sea, and the nearer of Blue and Green in feel |
 | `heat` | «Розжарення» / Heat: the card's count, the tick | 🌡️ | `burn` | the spec |
 | `stoke` | «Жар» / Stoke | ♨️ | `divine` | the spec |
 | `melt` | «Оплавлення» / Melt | 🫠 | `mark` | the spec |
