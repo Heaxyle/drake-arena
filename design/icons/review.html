@@ -116,8 +116,8 @@
     .col-h { font-family: var(--pixel); font-size: 11px; color: var(--muted); margin-bottom: 14px; }
     .cards { display: flex; gap: 26px; flex-wrap: wrap; max-width: 880px; padding: 4px; }
     .logs { display: flex; flex-direction: column; gap: 8px; }
-    .filters { display: grid; grid-template-columns: 170px repeat(18, 46px); align-items: center; gap: 10px 8px; background: #1a1c28; padding: 16px; width: max-content; }
-    .glance { display: grid; grid-template-columns: 150px repeat(18, 40px); align-items: center; gap: 12px 10px; background: rgba(6, 7, 11, 0.96); padding: 16px 20px; width: max-content; }
+    .filters { display: grid; grid-template-columns: 170px repeat(30, 46px); align-items: center; gap: 10px 8px; background: #1a1c28; padding: 16px; width: max-content; }
+    .glance { display: grid; grid-template-columns: 150px repeat(30, 40px); align-items: center; gap: 12px 10px; background: rgba(6, 7, 11, 0.96); padding: 16px 20px; width: max-content; }
     .glance .f-h { font-size: 13px; color: var(--muted); }
     .glance .cell { display: flex; justify-content: center; }
     .glance .gap { grid-column: 1 / -1; height: 2px; }
@@ -500,16 +500,45 @@
         dispel:   { kind: 'debuff', left: null,         glyph: 'arrow up, slashed' },
         regen:    { kind: 'buff',   left: 'ще 3 ходи',  glyph: 'plus', tick: 12 },
         poison:   { kind: 'debuff', left: 'ще 3 ходи',  glyph: 'skull', tick: -5 },
+        // Season 2's kits
+        stoke:       { kind: 'buff',   left: 'ще 2 атаки', glyph: 'a lit fuse' },
+        melt:        { kind: 'debuff', left: 'ще 2 удари', glyph: 'a melting breastplate' },
+        bloodprice:  { kind: 'buff',   left: 'ще 2 атаки', glyph: 'a crimson bat' },
+        bleed:       { kind: 'debuff', left: 'ще 3 атаки', glyph: 'a bleeding cut' },
+        fairydust:   { kind: 'buff',   left: 'ще 2 атаки', glyph: 'a puff of sparkling dust' },
+        infatuation: { kind: 'debuff', left: 'ще 1 атака', glyph: 'a heart and an arrow' },
+        clearwater:  { kind: 'buff',   left: null,         glyph: 'a crown splash' },
+        seaweed:     { kind: 'debuff', left: 'ще 2 атаки', glyph: 'kelp fronds' },
     };
-    const ULT_GLYPH = { firestorm: 'meteor', mirror: 'a faceted ice teardrop', theft: 'a shadow vortex, three grey smoke arms round a dark eye, drawing small green buff arrows in', jackpot: 'slot seven', detonation: 'blast', bloom: 'flower head' };
+    const ULT_GLYPH = { firestorm: 'meteor', mirror: 'a faceted ice teardrop', theft: 'a shadow vortex, three grey smoke arms round a dark eye, drawing small green buff arrows in', jackpot: 'slot seven', detonation: 'blast', bloom: 'flower head',
+        eruption: 'lava bursting from a crater', lastbreath: 'a last breath, three crimson streaks', borrowed: 'a hand mirror holding a spell',
+        hightide: 'a curling wave' };
     const chipCss = id => D.chipStyle(D.ICONS[id].element, EFFECT_INFO[id].kind);
-    const ELEMENT_UK = { red: 'Червоний', blue: 'Синій', black: 'Чорний', gold: 'Золотий', purple: 'Фіолетовий', green: 'Зелений' };
+    const ELEMENT_UK = { red: 'Червоний', blue: 'Синій', black: 'Чорний', gold: 'Золотий', purple: 'Фіолетовий', green: 'Зелений',
+        orange: 'Помаранчевий', cherry: 'Вишневий', pink: 'Рожевий', turquoise: 'Бірюзовий' };
     const nm = id => D.ICONS[id].name.uk;
     const $ = id => document.getElementById(id);
 
     // 0 · V2: every item's glyph (icons.js, the record), its still and loop at 1:1, its loop at ×2; then how a badge is built
     // What V2 draws where it isn't the glyph (style.md, "V2: the animated set")
     const V2_ART = {
+        // Season 2's kits
+        heat: 'a thermometer, the mercury hot orange and breathing up and down; heat shimmer rises beside it',
+        stoke: 'a lit fuse («запал»): a braided cord curling up to a crackling spark; the spark crackles and throws embers',
+        melt: 'a breastplate going soft from the bottom up, a wavy glowing front, drips sagging; the glow breathes, drops fall',
+        eruption: 'the top of a crater bursting open, lava fanning out in three plumes; the plumes pulse, molten rocks fly',
+        frenzy: 'a chain torn apart: a whole link, the next one snapped, its ends red hot; sparks fly from the tear',
+        bloodprice: 'a crimson bat, wings spread, yellow eyes; the wings beat, a drop falls',
+        bleed: 'a deep curved cut, blood running off its lower edge; the drips grow and fall',
+        lastbreath: 'a last breath streaming out: three tapering crimson streaks curling at their ends; the streaks flow, embers ride them',
+        illusion: 'the theatre masks: a pale smiling mask in front of a lilac frowning one; they sway in turn',
+        fairydust: 'a puff of pink dust bursting with twinkles; the twinkles flash, glitter drifts down',
+        infatuation: 'a pink heart pierced by a golden arrow; the heart beats',
+        borrowed: 'an ornate hand mirror, a borrowed spell swirling in its glass; the spell turns, a glint sweeps across',
+        nacre: 'an abalone shell turned up: a rough turquoise rim, mother-of-pearl inside, the row of holes; a rainbow shimmer runs across the pearl',
+        clearwater: 'a crown splash of clear water rising from a ripple; droplets fly off the tips and fall back',
+        seaweed: 'three kelp fronds with little air bladders; they sway',
+        hightide: 'a great wave rising from the right and curling over, foam on its crest; the foam churns, spray flies',
         theft: 'a shadow vortex, three grey smoke arms round a dark eye, drawing small green buff arrows in',
         block: 'a barrier dome, a hit splashing off it', unblockable: 'a shield shattered into shards round a red impact flash',
         effect: 'a lilac coin, a green buff arrow on one face and an orange debuff arrow on the other; it flips',

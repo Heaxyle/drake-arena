@@ -1105,7 +1105,7 @@ async function popAtStep2(page, turn) {
         if (run(5)) for (const lang of ['uk', 'en']) {
             const { page, context, errors } = await open(browser, { lang });
             await page.click('button[data-i18n="btn_settings"]');
-            const ults = await page.evaluate(() => ULTIMATE_IDS.map(id => ({ id, element: CLASS_ULTIMATES[id].element, label: `${METER.label[currentLang]} · ${CLASS_ULTIMATES[id].name[currentLang]}`, name: `[${iconOf(id)}] ${CLASS_ULTIMATES[id].name[currentLang]}`, icon: CLASS_ULTIMATES[id].icon })));
+            const ults = await page.evaluate(() => ULTIMATE_IDS.map(id => ({ id, element: CLASS_ULTIMATES[id].element, label: `${METER.label[currentLang]} · ${CLASS_ULTIMATES[id].name[currentLang]}`, name: `[${id}] ${CLASS_ULTIMATES[id].name[currentLang]}`, icon: CLASS_ULTIMATES[id].icon })));
             const jackpotCases = [['💎', '💎', '💎'], ['💎', '🪙', '💀'], ['🪙', '💀', '💀'], ['💀', '💀', '💀']];
             const REEL = { '💎': '[reelgem]', '🪙': '[reelcoin]', '💀': '[reelbust]' };   // each reel's pixel icon on the card
             const runs = [...ults.map(u => ({ u })), ...jackpotCases.map(reels => ({ u: ults.find(x => x.id === 'jackpot'), reels }))];
@@ -2008,8 +2008,8 @@ async function popAtStep2(page, turn) {
             check(one === `${glyph} 1/8` && after.boxes === calm.boxes, `[${lang}] an attack adds heat (${one}), and no block of the card moves`, JSON.stringify([one, calm.boxes, after.boxes]));
             const before = await hp('p2');
             const ticked = await turn(2, ROLLS({ before: [0.99] }));
-            check(ticked.card.l2.includes(`${word} -1`) && ticked.s.p2.pops.includes('-1') && before - await hp('p2') === 1,
-                `[${lang}] the tick: «${word} -1» on the opponent's log card and a pop on its fighter card`, JSON.stringify({ card: ticked.card, pops: ticked.s.p2.pops }));
+            check(ticked.card.l2.includes(`${word} -2`) && ticked.s.p2.pops.includes('-2') && before - await hp('p2') === 2,
+                `[${lang}] the tick: «${word} -2» on the opponent's log card and a pop on its fighter card`, JSON.stringify({ card: ticked.card, pops: ticked.s.p2.pops }));
             // A blocked attack adds no heat, and a blocked tick shows as a block
             await turn(3, ROLLS({ block: 0.01 }));
             const stillOne = await heatRow(), blockedHp = await hp('p2'), blockWord = await page.evaluate(() => __fvv('block'));
@@ -2050,7 +2050,7 @@ async function popAtStep2(page, turn) {
             const { page, context, errors, fight, turn, hp, looks } = await memePage(lang, false, [['kotyk_ua', 'cherry'], ['jade', 'red']]);
             const frenzyRow = () => page.evaluate(() => __vt(document.querySelector('#card-p1 .pm-frenzy')));
             const word = await page.evaluate(() => FV_TEXT[currentLang].frenzy), name = id => page.evaluate(id => EFFECTS[id].name[currentLang], id);
-            const glyph = await page.evaluate(() => iconOf('frenzy'));
+            const glyph = 'frenzy';
             // A share of its max HP lost at the start of its next turn, through a Burn that ends there
             const lose = share => page.evaluate(share => { battleFx.kotyk_ua.debuff.push({ id: 'burn', left: 1, power: share * 100 / 5 }); }, share);
             await fight(1, 1);
@@ -2059,14 +2059,15 @@ async function popAtStep2(page, turn) {
             await lose(0.6);
             const hurt = await turn(1, ROLLS());
             const shown = await frenzyRow(), after = await looks('p1');
-            check(shown === `[${glyph}] +20%` && hurt.card.l2.includes(`[${glyph}] ${word} +20%`) && after.boxes === calm.boxes,
-                `[${lang}] 60% of its HP lost: «${shown}» on the fighter card, «${word} +20%» on the log card, and no block moves`, JSON.stringify({ shown, card: hurt.card, calm: calm.boxes, after: after.boxes }));
+            check(shown === `[${glyph}] +24%` && hurt.card.l2.includes(`[${glyph}] ${word} +24%`) && after.boxes === calm.boxes,
+                `[${lang}] 60% of its HP lost: «${shown}» on the fighter card, «${word} +24%» on the log card, and no block moves`, JSON.stringify({ shown, card: hurt.card, calm: calm.boxes, after: after.boxes }));
             // Кров за кров and Кровотеча: their numbers on the card and as pops
             await turn(2, ROLLS());
             await page.evaluate(() => { battleFx.kotyk_ua.buff.push({ id: 'bloodprice', left: 2, power: 1 }); battleFx.kotyk_ua.debuff.push({ id: 'bleed', left: 3, power: 1 }); });
             const both = await turn(3, ROLLS());
             const bp = await name('bloodprice'), bl = await name('bleed');
-            const healed = (both.card.l2.match(new RegExp(`${bp} \\+(\\d+)`)) || [])[1], bled = (both.card.l2.match(new RegExp(`${bl} -(\\d+)`)) || [])[1];
+            // A crowded line: each shows as its own icon and number, the words gone
+            const healed = (both.card.l2.match(/\[bloodprice\][^+[]*\+(\d+)/) || [])[1], bled = (both.card.l2.match(/\[bleed\][^-[]*-(\d+)/) || [])[1];
             check(healed > 0 && bled > 0 && both.s.p1.pops.includes(`+${healed}`) && both.s.p1.pops.includes(`-${bled}`),
                 `[${lang}] «${bp} +${healed}» and «${bl} -${bled}» on the log card, and as pops on its own fighter card`, JSON.stringify({ card: both.card, pops: both.s.p1.pops }));
             // Кровотеча knocks its own drake out: a Burn that leaves 2 HP, then an attack that lands nothing
@@ -2090,7 +2091,7 @@ async function popAtStep2(page, turn) {
         console.log('\nБірюзовий, as the stream sees it');
         if (run(19)) for (const lang of ['uk', 'en']) {
             const { page, context, errors, fight, turn, hp, looks } = await memePage(lang, false, [['jade', 'red'], ['kotyk_ua', 'turquoise']]);
-            const word = await page.evaluate(() => FV_TEXT[currentLang].nacre), glyph = await page.evaluate(() => iconOf('nacre'));
+            const word = await page.evaluate(() => FV_TEXT[currentLang].nacre), glyph = 'nacre';
             const layerRow = () => page.evaluate(() => __vt(document.querySelector('#card-p2 .pm-nacre')));
             // kotyk_ua, the first in `fight`, attacks first: Бірюзовий is on the left there, so its row is read by name
             const row = () => page.evaluate(() => { const p = document.getElementById('name-p1').textContent.includes('kotyk_ua') ? 'p1' : 'p2'; return __vt(document.querySelector(`#card-${p} .pm-nacre`)); });
@@ -2127,9 +2128,9 @@ async function popAtStep2(page, turn) {
             const { page, context, errors, fight, turn, hp, looks } = await memePage(lang, false, [['kotyk_ua', 'pink'], ['jade', 'green']]);
             const names = await page.evaluate(() => ({ green: drakeLabel(DRAKE_TYPES.find(d => d.type === 'green')), selfHit: __fvv('selfHit'), borrowed: CLASS_ULTIMATES.borrowed.name[currentLang], bloom: CLASS_ULTIMATES.bloom.name[currentLang] }));
             await fight(1, 1);
-            const start = await page.evaluate(() => ({ banners: [...document.querySelectorAll('#log-feed .log-banner')].map(__vt), info: __vt(document.getElementById('info-p1')), stats: __vt(document.getElementById('stats-sub-p1')), foeInfo: __vt(document.getElementById('info-p2')), hp: document.getElementById('hp-text-p1').innerText, emblem: iconOf('emGreen') }));
+            const start = await page.evaluate(() => ({ banners: [...document.querySelectorAll('#log-feed .log-banner')].map(__vt), info: __vt(document.getElementById('info-p1')), stats: __vt(document.getElementById('stats-sub-p1')), foeInfo: __vt(document.getElementById('info-p2')), hp: document.getElementById('hp-text-p1').innerText, emblem: 'emGreen' }));
             const banner = start.banners.find(x => x.includes(names.green) && x.includes('@kotyk_ua'));
-            check(banner && banner.includes('[illusion]'.replace('illusion', 'theft')) && start.info.endsWith(`· [${start.emblem}]`) && !start.foeInfo.endsWith(`· [${start.emblem}]`),
+            check(banner && banner.includes('[illusion]') && start.info.endsWith(`· [${start.emblem}]`) && !start.foeInfo.endsWith(`· [${start.emblem}]`),
                 `[${lang}] the banner «${banner}», and the copied emblem on its card alone`, JSON.stringify(start));
             const before = await looks('p1');
             await page.evaluate(() => { battleFx.kotyk_ua.debuff.push({ id: 'infatuation', left: 1, power: 1 }); });
@@ -2142,6 +2143,11 @@ async function popAtStep2(page, turn) {
             await page.evaluate(() => { battleFx.kotyk_ua.meter = 5; });
             const bloom = await turn(3, ROLLS());
             check(bloom.card.ult.includes(names.borrowed) && bloom.card.ult.includes(names.bloom) && bloom.card.num.startsWith('+'), `[${lang}] Чужі чари: the header names both («${bloom.card.ult}»), and what it borrowed plays out`, JSON.stringify(bloom.card));
+            // Two Рожевий: nothing to copy, so each draws a viewer element: the banners name what they took, and each card shows it
+            await page.evaluate(() => { const db = getDragonDB(); db.jade.drakeObj = DRAKE_TYPES.find(d => d.type === 'pink'); saveDragonDB(db); });
+            await fight(1, 1);
+            const twins = await page.evaluate(() => ({ want: drakeLabel(DRAKE_TYPES.find(d => d.type === 'turquoise')), banners: [...document.querySelectorAll('#log-feed .log-banner')].map(__vt).filter(x => x.includes('[illusion]')), info: ['p1', 'p2'].map(p => __vt(document.getElementById(`info-${p}`))) }));
+            check(twins.banners.length === 2 && twins.banners.every(x => x.includes(twins.want)) && twins.info.every(x => x.endsWith('· [emTurquoise]')), `[${lang}] two Рожевий draw one each: «${twins.banners[0]}», and each card shows what it took`, JSON.stringify(twins));
             if (errors.length) fail(`page errors: ${errors.slice(0, 3).join(' | ')}`);
             await context.close();
         }

@@ -603,30 +603,30 @@ White Drake".
 
 Hidden record only (`addLog`): «🤍 Луска: -N», «🤍 Луска знову ціла: +N», «Перекування: +N луски», the cracked and bounced lines.
 
-## Season 2's drakes: the stand-ins
+## Season 2's drakes: the icons
 
-The four emblems are drawn (`emOrange` a volcano, `emCherry` a heart cracked open with molten light inside, `emPink` a butterfly,
-`emTurquoise` an anchor wound with seaweed). The rest of the kits' art (effect and ultimate icons, the new notes) is a separate step. Until then each new
-icon id is drawn as an icon of today's set: `STAND_INS` in `design/icons/icons.js` is the one list, and `pxIcon` follows it. The game
-asks for the new id everywhere, so an icon's art drops in with no code change: its record, glyph, V2 still and loop, and its line
-gone from the list. A stand-in is shared with the icon it borrows, so an effect's compact chip keeps its words (`fvChip`), and the
-heat tick and Виверження's heat are notes with their words. `design/icons/test.js` checks the list.
+All drawn, in the V2 style, with no stand-ins left. The four emblems are `emOrange` (a volcano), `emCherry` (a heart cracked open
+with molten light inside), `emPink` (a butterfly) and `emTurquoise` (an anchor wound with seaweed). The kits' 16 icons below
+each have a still and a 12-frame idle loop (100 ms; the ultimates 48×48 at 90 ms), and `design/icons/test.js` checks that each has
+its own art and that its record's emoji is the one the game's texts use. Each shows its own icon full and compact: an effect's
+compact chip is the icon alone, or the icon and its number; a note's the icon and the number, the heat tick and Виверження's
+heat too. `frenzy` shows no emoji anywhere in the game's texts, so its record's ⛓️ is only the set's own (🔗 is Магніт's).
 
-| Id | What it will be | Record emoji | Stand-in | Why |
-|---|---|---|---|---|
-| `heat` | «Розжарення» / Heat: the card's count, the tick | 🌡️ | `burn` | the spec |
-| `stoke` | «Запал» / Stoke | ♨️ | `divine` | the spec |
-| `melt` | «Оплавлення» / Melt | 🫠 | `mark` | the spec |
-| `eruption` | «Виверження» / Eruption | 🌋 | `firestorm` | the spec |
-| `frenzy` | «Кривавий шал» / Blood Frenzy | | `rage` | the spec |
-| `bloodprice` | «Кров за кров» / Blood for Blood | 🫀 | `vampire` | the spec |
-| `bleed` | «Кровотеча» / Bleed | 🩸 | `poison` | the spec |
-| `lastbreath` | «Останній подих» / Last Breath | 🌬️ | `crit` | the spec |
-| `illusion` | «Ілюзія» / Illusion | 🎭 | `theft` | the spec |
-| `borrowed` | «Чужі чари» / Borrowed Magic | 🪞 | `theft` | the spec |
-| `fairydust` | «Чарівний пилок» / Fairy Dust | ✨ | `blessing` | the spec |
-| `infatuation` | «Закоханість» / Infatuation | 💘 | `weakness` | the spec |
-| `nacre` | «Перламутр» / Nacre | | `shield` | the spec |
-| `clearwater` | «Чиста вода» / Clear Water | 💧 | `regen` | the spec |
-| `seaweed` | «Водорості» / Seaweed | 🌿 | `frost` | the spec |
-| `hightide` | «Приплив» / High Tide | 🌊 | `bloom` | the spec |
+| Id | What it is | Record emoji | The drawing |
+|---|---|---|---|
+| `heat` | «Розжарення» / Heat: the card's count, the tick | 🌡️ | a thermometer, the mercury hot orange |
+| `stoke` | «Запал» / Stoke | ♨️ | a lit fuse («запал»), a crackling spark at its end |
+| `melt` | «Оплавлення» / Melt | 🫠 | a breastplate going soft from the bottom up, dripping |
+| `eruption` | «Виверження» / Eruption | 🌋 | a crater bursting open, lava fanning out in three plumes |
+| `frenzy` | «Кривавий шал» / Blood Frenzy | ⛓️ | a chain torn apart, the snapped link's ends red hot |
+| `bloodprice` | «Кров за кров» / Blood for Blood | 🫀 | a crimson bat, wings spread |
+| `bleed` | «Кровотеча» / Bleed | 🩸 | a deep curved cut, dripping |
+| `lastbreath` | «Останній подих» / Last Breath | 🌬️ | three crimson streaks of breath, curling at their ends |
+| `illusion` | «Ілюзія» / Illusion | 🎭 | the theatre masks, a pale smiling one in front of a lilac frowning one |
+| `fairydust` | «Чарівний пилок» / Fairy Dust | ✨ | a puff of pink dust full of twinkles |
+| `infatuation` | «Закоханість» / Infatuation | 💘 | a pink heart pierced by a golden arrow |
+| `borrowed` | «Чужі чари» / Borrowed Magic | 🪞 | an ornate hand mirror, a borrowed spell swirling in its glass |
+| `nacre` | «Перламутр» / Nacre | 🐚 | an abalone shell, mother-of-pearl inside a rough turquoise rim |
+| `clearwater` | «Чиста вода» / Clear Water | 💧 | a crown splash of clear water |
+| `seaweed` | «Водорості» / Seaweed | 🌿 | three kelp fronds with air bladders |
+| `hightide` | «Приплив» / High Tide | 🌊 | a great wave curling over |

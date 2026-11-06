@@ -37,7 +37,7 @@ const _warn = console.warn; console.warn = () => {};
 eval(gameScript(FILE) + `
 ;globalThis.__game = {
     EFFECTS, EFFECT_IDS, BUFF_IDS, DEBUFF_IDS, EFFECT_CAST, CLASS_ULTIMATES, ULTIMATE_IDS, ultLabel, TITLES_DB, DRAKE_TYPES, VIEWER_DRAKE_TYPES, DRAGON_TYPE, DRAGON_TITLE_ID,
-    POOL_IDS, STREAMER_TYPES, WHITE_DRAKE_TYPE, WHITE_DRAKE_TITLE_ID, STAND_INS: DrakeIcons.STAND_INS,
+    POOL_IDS, STREAMER_TYPES, WHITE_DRAKE_TYPE, WHITE_DRAKE_TITLE_ID,
     applyEffect: (...a) => applyEffect(...a), pickEffect, countDownEffects, newFxState, describeEffect, effectLeftText, effectChipText,
     fxName, fxAcc, fvCardHtml, fvBannerHtml, fvT,
     fxNum, getEffectMult, ELEMENT_BASE, getTierMultiplier, getRequiredXP, getDragonDB, saveDragonDB,
@@ -233,10 +233,9 @@ console.log('\nEffect names on the log cards: the accusative straight after a ve
     const A = fighter('A', 'red'), B = fighter('B', 'blue');
     const V = { uk: { applies: 'накладає', gets: 'отримує', refreshes: 'оновлює', removes: 'знімає', takes: 'забирає' },
                 en: { applies: 'applies', gets: 'gets', refreshes: 'refreshes', removes: 'removes', takes: 'takes' } };
-    // On the overlay an effect is its icon (shown here as [id]: a stand-in's, until it has its own) and its name, in its chip
-    const glyph = id => G.STAND_INS[id] || id;
-    const nom = (id, l) => `[${glyph(id)}] ${EFFECTS[id].name[l]}`;
-    const acc = (id, l) => `[${glyph(id)}] ${l === 'uk' ? ACC_UK[id] || EFFECTS[id].name.uk : EFFECTS[id].name.en}`;
+    // On the overlay an effect is its icon (shown here as [id]) and its name, in its chip
+    const nom = (id, l) => `[${id}] ${EFFECTS[id].name[l]}`;
+    const acc = (id, l) => `[${id}] ${l === 'uk' ? ACC_UK[id] || EFFECTS[id].name.uk : EFFECTS[id].name.en}`;
     // A card's second line: its words and chips in order, one space between (each icon as [id])
     const line2 = (o, l) => {
         G.setLang(l);

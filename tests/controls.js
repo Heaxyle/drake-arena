@@ -119,7 +119,7 @@ const armed = page => page.evaluate(() => ({ armed: forcedCast, shown: document.
                     const f = p === 'p1' ? fv.p1 : fv.p2, st = battleFx[f.name];
                     // The title's badge glyph and name, the emblem by the drake's name, each chip's icon, name and what's left (icons as [id])
                     return { badge: `[${titleGlyph(f.title)}] ${f.title.name[currentLang]}`, drake: `[${EMBLEMS[f.drakeObj.type]}] ${drakeLabel(f.drakeObj)}`,
-                        stat: currentLang === 'uk' ? 'КРИТ' : 'CRIT', power: METER.short[currentLang], chips: [...st.buff, ...st.debuff].map(x => `[${iconOf(x.id)}] ${EFFECTS[x.id].name[currentLang]} · ${effectLeftText(x.id, x.left)}`) };
+                        stat: currentLang === 'uk' ? 'КРИТ' : 'CRIT', power: METER.short[currentLang], chips: [...st.buff, ...st.debuff].map(x => `[${x.id}] ${EFFECTS[x.id].name[currentLang]} · ${effectLeftText(x.id, x.left)}`) };
                 }));
                 const problems = [];
                 after.forEach((a, i) => {

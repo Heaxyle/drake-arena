@@ -118,7 +118,7 @@ function powerMeters() {
         const content = kids.length ? Math.max(...kids.map(c => c.right)) : r.left;
         const name = document.getElementById(`name-${p}`).innerText.replace('@', '').trim();
         const st = isBattleRunning && typeof battleFx !== 'undefined' && battleFx && battleFx[name];   // between fights the cards are idle
-        const d = getDragonStrict(name), ult = d && d.drakeObj && ultimateFor(d.drakeObj.type) ? iconOf(ultimateFor(d.drakeObj.type)) : null;   // «ГОТОВО» shows this ultimate's icon (a stand-in's until it has its own)
+        const d = getDragonStrict(name), ult = d && d.drakeObj && ultimateFor(d.drakeObj.type) ? ultimateFor(d.drakeObj.type) : null;   // «ГОТОВО» shows this ultimate's icon (a stand-in's until it has its own)
         return { p, ult, text: window.__vt(row), pips: row.querySelectorAll('.pm-pip').length, on: row.querySelectorAll('.pm-pip.on').length,
                  meter: st ? st.meter : null, overlapsChips: r.height > 0 && r.top < chips.bottom - 0.5, overlapsHp: r.height > 0 && r.bottom > hp.top + 0.5,
                  // the sprite is on the right of the left card and on the left of the right card: check both sides

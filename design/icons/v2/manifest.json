@@ -467,6 +467,198 @@
   "still": "icons/ultimate/anvil.png",
   "anim": "icons/ultimate/anvil-anim.png"
  },
+ "heat": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Розжарення",
+   "en": "Heat"
+  },
+  "still": "icons/note/heat.png",
+  "anim": "icons/note/heat-anim.png"
+ },
+ "stoke": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Запал",
+   "en": "Stoke"
+  },
+  "still": "icons/buff/stoke.png",
+  "anim": "icons/buff/stoke-anim.png"
+ },
+ "melt": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Оплавлення",
+   "en": "Melt"
+  },
+  "still": "icons/debuff/melt.png",
+  "anim": "icons/debuff/melt-anim.png"
+ },
+ "eruption": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Виверження",
+   "en": "Eruption"
+  },
+  "still": "icons/ultimate/eruption.png",
+  "anim": "icons/ultimate/eruption-anim.png"
+ },
+ "frenzy": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Кривавий шал",
+   "en": "Blood Frenzy"
+  },
+  "still": "icons/note/frenzy.png",
+  "anim": "icons/note/frenzy-anim.png"
+ },
+ "bloodprice": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Кров за кров",
+   "en": "Blood for Blood"
+  },
+  "still": "icons/buff/bloodprice.png",
+  "anim": "icons/buff/bloodprice-anim.png"
+ },
+ "bleed": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Кровотеча",
+   "en": "Bleed"
+  },
+  "still": "icons/debuff/bleed.png",
+  "anim": "icons/debuff/bleed-anim.png"
+ },
+ "lastbreath": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Останній подих",
+   "en": "Last Breath"
+  },
+  "still": "icons/ultimate/lastbreath.png",
+  "anim": "icons/ultimate/lastbreath-anim.png"
+ },
+ "illusion": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Ілюзія",
+   "en": "Illusion"
+  },
+  "still": "icons/note/illusion.png",
+  "anim": "icons/note/illusion-anim.png"
+ },
+ "fairydust": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Чарівний пилок",
+   "en": "Fairy Dust"
+  },
+  "still": "icons/buff/fairydust.png",
+  "anim": "icons/buff/fairydust-anim.png"
+ },
+ "infatuation": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Закоханість",
+   "en": "Infatuation"
+  },
+  "still": "icons/debuff/infatuation.png",
+  "anim": "icons/debuff/infatuation-anim.png"
+ },
+ "borrowed": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Чужі чари",
+   "en": "Borrowed Magic"
+  },
+  "still": "icons/ultimate/borrowed.png",
+  "anim": "icons/ultimate/borrowed-anim.png"
+ },
+ "nacre": {
+  "kind": "note",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Перламутр",
+   "en": "Nacre"
+  },
+  "still": "icons/note/nacre.png",
+  "anim": "icons/note/nacre-anim.png"
+ },
+ "clearwater": {
+  "kind": "buff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Чиста вода",
+   "en": "Clear Water"
+  },
+  "still": "icons/buff/clearwater.png",
+  "anim": "icons/buff/clearwater-anim.png"
+ },
+ "seaweed": {
+  "kind": "debuff",
+  "size": 40,
+  "frames": 12,
+  "ms": 100,
+  "name": {
+   "uk": "Водорості",
+   "en": "Seaweed"
+  },
+  "still": "icons/debuff/seaweed.png",
+  "anim": "icons/debuff/seaweed-anim.png"
+ },
+ "hightide": {
+  "kind": "ultimate",
+  "size": 48,
+  "frames": 12,
+  "ms": 90,
+  "name": {
+   "uk": "Приплив",
+   "en": "High Tide"
+  },
+  "still": "icons/ultimate/hightide.png",
+  "anim": "icons/ultimate/hightide-anim.png"
+ },
  "magical": {
   "kind": "attack",
   "size": 40,

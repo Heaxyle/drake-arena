@@ -558,11 +558,11 @@ const MUTATIONS = [
         "fvNote('lagLand', late);\n", ''],
     ['the accusative lost after «з’їдає»', 'the eaten buff\'s chip stays in the nominative',
         "fvAbilityNote('eats', rec.atk), fvAccChip(n.eaten.id)", "fvAbilityNote('eats', rec.atk), fvFxChip(n.eaten.id)"],
-    // Season 2: the stand-ins
-    ['a stand-in is never drawn', "pxIcon asks for the new id itself, which has no art, not its stand-in",
-        "id = iconOf(id);\n", ''],
-    ["a stand-in's compact chip loses its words", "an effect on a stand-in shows the bare borrowed icon when compact, like the effect it borrows from",
-        "data-ct=\"${DrakeIcons.STAND_INS[id] ? text : ''}\"", 'data-ct=""'],
+    // Season 2: the kit's icons, full and compact
+    ['a new note keeps its words when compact', "Кривавий шал's compact chip isn't its icon and the number",
+        "'note', { i: 'frenzy', t: `+${n.frenzy}%` }));", "'note', { i: 'frenzy', t: `${fvT('frenzy')} +${n.frenzy}%` }));"],
+    ['the heat tick has no compact form', "a crowded card can't shrink the heat tick to its icon and the number",
+        "fvLk(`${fvH(t.id)} ${t.v}`, 'note hurt', { i: t.id, t: String(t.v) })", "fvLk(`${fvH(t.id)} ${t.v}`, 'note hurt')"],
     // Season 2: Помаранчевий's Розжарення
     ['heat past its cap', 'heat goes on past 8',
         "st.heat = Math.min(ELEMENT_BASE.orangeHeatMax, st.heat + 1);", "st.heat = st.heat + 1;"],
@@ -726,9 +726,9 @@ const MUTATIONS = [
         "fvUltInfo({ healed, layers });", "atkFx.layers = 0; fvUltInfo({ healed, layers });"],
     // Season 2: Рожевий's Ілюзія
     ['Ілюзія copies another Рожевий', 'it takes «pink» for a passive and shows the banner',
-        "me.drakeObj.type === 'pink' && foe.drakeObj.type !== 'pink' && VIEWER_DRAKE_TYPES", "me.drakeObj.type === 'pink' && VIEWER_DRAKE_TYPES"],
-    ['Ілюзія copies the streamer', "the White Drake's or the White Dragon's type goes through",
-        "VIEWER_DRAKE_TYPES.some(d => d.type === foe.drakeObj.type) ? foe.drakeObj.type : null;", "foe.drakeObj.type;"],
+        "return others.includes(foe.drakeObj.type) ? foe.drakeObj.type :", "return others.includes(foe.drakeObj.type) || foe.drakeObj.type === 'pink' ? foe.drakeObj.type :"],
+    ['Ілюзія copies the White Drake', "the White Drake's type goes through",
+        "return others.includes(foe.drakeObj.type) ? foe.drakeObj.type :", "return others.includes(foe.drakeObj.type) || foe.drakeObj.type === WHITE_DRAKE_TYPE ? foe.drakeObj.type :"],
     ["Ілюзія without Зелений's HP", "its max HP stays its own",
         "let p1HP = getMaxHP(p1Prog.level, p1Copy || p1.drakeObj.type, p1.title, p1.drakeObj.type);", "let p1HP = getMaxHP(p1Prog.level, p1.drakeObj.type, p1.title);"],
     ["Ілюзія at the opponent's tier", "Зелений's HP comes at the opponent's level",

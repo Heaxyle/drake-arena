@@ -555,7 +555,7 @@ function topRows(ids) {
         return { id, rarity: title.rarity, want: rgb(RARITIES[title.rarity].color), colour: getComputedStyle(span).color, badgeColour: badge && getComputedStyle(badge).color,
             frame: badge && badge.dataset.frame, frameIcon: frame && frame.dataset.icon, glyph: glyph && glyph.dataset.icon, wantGlyph: titleGlyph(title), own: titleOwnIcon(title),
             name: __vt(span), wantName: `[${titleGlyph(title)}] ${title.name[currentLang]}`, level: __vt(sub).includes(`${currentLang === 'uk' ? 'Рівень' : 'Level'} 19`),
-            emblem: first && first.dataset.icon, wantEmblem: iconOf(EMBLEMS[getDragonDB()[`top_${i}`].drakeObj.type]),
+            emblem: first && first.dataset.icon, wantEmblem: EMBLEMS[getDragonDB()[`top_${i}`].drakeObj.type],
             font: parseFloat(getComputedStyle(sub).fontSize), fits: end.right <= box.right + 0.5 && box.right <= rowBox.right + 0.5, inside: end.bottom <= rowBox.bottom + 0.5 && end.top >= rowBox.top - 0.5 };
     });
 }
