@@ -428,6 +428,9 @@ const GI = G.DI.ICONS;
         if (!real.includes('data-ci="burn" data-ct=""')) bad.push(`${lang}: an effect with its own icon keeps words in its compact chip`);
         const tick = card({ ticks: [{ id: 'heat', v: -19 }] }), words = G.FV_TEXT[lang].heat.replace(G.EMOJI_RE, '').trim();
         if (!tick.includes(`data-icon="${D.STAND_INS.heat || 'heat'}"`) || !tick.includes(`${words} -19`)) bad.push(`${lang}: the heat tick doesn't read «${words} -19» by its icon`);
+        const block = G.FV_TEXT[lang].block.replace(G.EMOJI_RE, '').trim(), stopped = card({ ticks: [{ id: 'heat', v: 0, block: true }] }), shaded = card({ ticks: [{ id: 'heat', v: 0, block: true, shadow: true }] });
+        if (!stopped.includes('data-icon="block"') || !stopped.includes(`> ${block}`) || stopped.includes(' 0<') || stopped.includes('data-ci="shadow"')) bad.push(`${lang}: a blocked heat tick doesn't show as a block`);
+        if (!shaded.includes('data-ci="shadow"')) bad.push(`${lang}: a heat tick Тінь's bonus blocked doesn't show Тінь's chip`);
     }
     check(!bad.length, 'stand-ins on the cards: each effect drawn as the icon it borrows, its compact chip keeping its words; the heat tick says what it is', bad.slice(0, 6).join(' | '));
 }

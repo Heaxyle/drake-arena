@@ -50,7 +50,8 @@
 //     late, one that knocks out too (the target is the one out); Підзарядка's banner and 2/5 on the card. No block of a
 //     fighter card moves. Screenshots: tests/screenshots/fightview-meme-*.png
 //   - Помаранчевий in real fights with fixed dice, both languages: the heat on the fighter card from 0/8, no block moving; the
-//     tick on the opponent's log card and as a pop on its fighter card; a tick that knocks out, on the knockout cell; Виверження's
+//     tick on the opponent's log card and as a pop on its fighter card; a blocked attack adding none, a blocked tick shown as a
+//     block; a tick that knocks out, on the knockout cell; Виверження's
 //     card (its multiplier and the heat dropping) and the card's heat after it; against the White Drake the heat takes the
 //     scales and isn't counted as the damage she dealt
 //   - Review screenshots: tests/screenshots/fightview-cards.png (log cards of every kind, both languages) and
@@ -1993,14 +1994,20 @@ async function popAtStep2(page, turn) {
             const one = await heatRow(), after = await looks('p1');
             check(one === `${glyph} 1/8` && after.boxes === calm.boxes, `[${lang}] an attack adds heat (${one}), and no block of the card moves`, JSON.stringify([one, calm.boxes, after.boxes]));
             const before = await hp('p2');
-            const ticked = await turn(2, ROLLS());
+            const ticked = await turn(2, ROLLS({ before: [0.99] }));
             check(ticked.card.l2.includes(`${word} -1`) && ticked.s.p2.pops.includes('-1') && before - await hp('p2') === 1,
                 `[${lang}] the tick: «${word} -1» on the opponent's log card and a pop on its fighter card`, JSON.stringify({ card: ticked.card, pops: ticked.s.p2.pops }));
+            // A blocked attack adds no heat, and a blocked tick shows as a block
+            await turn(3, ROLLS({ block: 0.01 }));
+            const stillOne = await heatRow(), blockedHp = await hp('p2'), blockWord = await page.evaluate(() => __fvv('block'));
+            const stopped = await turn(4, ROLLS({ before: [0.01] }));
+            check(stillOne === `${glyph} 1/8` && stopped.card.l2.includes(`${word} ${blockWord}`) && stopped.s.p2.pops.includes('0') && await hp('p2') === blockedHp,
+                `[${lang}] a blocked attack adds no heat (${stillOne}), and a blocked tick shows as a block: «${word} ${blockWord}», a 0 on the card, no HP lost`, JSON.stringify({ stillOne, card: stopped.card, pops: stopped.s.p2.pops }));
             // A tick that knocks out: the knockout cell says what did it (a Burn that leaves 3 HP, then 8 heat at 0.5% each)
             const foeMax = await page.evaluate(() => { const [now, max] = document.getElementById('hp-text-p2').innerText.split('/').map(Number); battleFx.kotyk_ua.heat = 8; battleFx.jade.debuff.push({ id: 'burn', left: 1, power: (now - 3) / max * 100 / 5 }); return max; });
-            await turn(3, ROLLS({ block: 0.01 }));
+            await turn(5, ROLLS({ block: 0.01 }));
             await page.evaluate(() => { battleFx.kotyk_ua.heat = 8; });
-            await turn(4, []);
+            await turn(6, []);
             await page.clock.runFor(HIT);
             const end = await page.evaluate(arenaNow), koCell = end.cells.find(c => c.kind === 'ko');
             check(koCell && koCell.text.includes('@jade') && koCell.text.includes(`${word} -${Math.round(foeMax * 0.04)}`), `[${lang}] a tick that knocks out shows on the knockout cell`, JSON.stringify(end.cells));
@@ -2016,7 +2023,7 @@ async function popAtStep2(page, turn) {
             const scalesBefore = await page.evaluate(() => { battleFx.kotyk_ua.heat = 8; return battleFx.jade.scales.now; });
             const hpBefore = await hp('p2');
             await turn(1, ROLLS({ block: 0.01 }));
-            const burned = await turn(2, ROLLS({ block: 0.01 }));
+            const burned = await turn(2, ROLLS({ before: [0.99], block: 0.01 }));
             const seen = await page.evaluate(() => ({ now: battleFx.jade.scales.now, dealt: fv.stats.jade.dmg, biggest: fv.stats.jade.max }));
             check(seen.now < scalesBefore && await hp('p2') === hpBefore && seen.dealt === 0 && seen.biggest === 0 && burned.card.l2.includes(word),
                 `[${lang}] against the White Drake the tick takes her scales (${scalesBefore} → ${seen.now}), and it doesn't count as damage she dealt`, JSON.stringify({ seen, card: burned.card }));

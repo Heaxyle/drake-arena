@@ -36,8 +36,8 @@
 //      dice, from what it is meant to do (its numbers, once-a-fight limits, thresholds and caps); that each one tells the
 //      fight view when it fires; and what they meet: the White Dragon, the White Drake's scales, debuff immunity, Магніт,
 //      sudden death and the time-out
-//   25 Season 2's Помаранчевий: the colour words and the drakes still being built; what adds heat and what doesn't; the tick
-//      (its numbers, its order, a knockout) and everything that doesn't touch it; the White Dragon, the White Drake's scales;
+//   25 Season 2's Помаранчевий: the colour words and the drakes still being built; only an attack that lands adds heat; the
+//      tick (its numbers, its order, a knockout), its block roll, and everything that doesn't touch it; the White Dragon, the White Drake's scales;
 //      Оплавлення and Жар with the title abilities, debuff immunity and the scales; the card's heat and the record's words
 // Exits non-zero if any check fails.
 const { mulberry32, gameScript, setupEnv } = require('./game_env');
@@ -95,7 +95,7 @@ eval(gameScript(FILE) + `
     // The new titles (section 24)
     RARITIES, describeTitleBonus, getRandomTitle: () => getRandomTitle(),
     // What the fight tells the view: f(key, value) for every note, ultimate detail and cast's result (Node has no fight view)
-    wrapFv: f => { const n = fvNote, u = fvUltInfo, c = fvCast; fvNote = (k, v = true) => { f(k, v); return n(k, v); }; fvUltInfo = i => { Object.keys(i).forEach(k => f(k, i[k])); return u(i); }; fvCast = (o, id, r, x) => { f('cast:' + r, id); return c(o, id, r, x); }; const t = fvTick; fvTick = (id, v) => { f('tick:' + id, v); return t(id, v); }; },
+    wrapFv: f => { const n = fvNote, u = fvUltInfo, c = fvCast; fvNote = (k, v = true) => { f(k, v); return n(k, v); }; fvUltInfo = i => { Object.keys(i).forEach(k => f(k, i[k])); return u(i); }; fvCast = (o, id, r, x) => { f('cast:' + r, id); return c(o, id, r, x); }; const t = fvTick; fvTick = (id, v, x) => { f('tick:' + id, v); if (x && x.block) f('tickBlock', x); return t(id, v, x); }; },
     // Every cast as it's made, recasts too (null to stop): the arguments
     wrapApplyEffect: f => { if (!globalThis.__castSpy) { const orig = applyEffect; applyEffect = (...a) => { if (globalThis.__castSpy.f) globalThis.__castSpy.f(a); return orig(...a); }; globalThis.__castSpy = {}; } globalThis.__castSpy.f = f; },
 };`);
@@ -1807,13 +1807,23 @@ for (const lang of ['en', 'uk']) {
             const cold = scripted({ A: OR(), B: drake('red'), turns: [] }).fx;
             check(cold.A.heat === 0 && cold.B.heat === null, '25. a fight starts with 0 heat, and only Помаранчевий has any', JSON.stringify([cold.A.heat, cold.B.heat]));
             const three = heatAfter(OR(), rounds(5));
-            check(three.join() === '1,1,2,2,3', '25. each attack adds 1 heat, its opponent\'s turns none', three.join());
+            check(three.join() === '1,1,2,2,3', '25. each attack that lands adds 1 heat, its opponent\'s turns none', three.join());
             const capped = heatAfter(OR(), rounds(3), fx => { fx.A.heat = 7; });
             check(capped.join() === '8,8,8', '25. heat stops at 8', capped.join());
             const blocked = scripted({ A: OR(), turns: [dice({ block: 0.01 })] }).turns[0];
-            check(blocked.dmg === 0 && blocked.fx.A.heat === 1, '25. a blocked attack adds heat', JSON.stringify([blocked.dmg, blocked.fx.A.heat]));
+            check(blocked.dmg === 0 && blocked.fx.A.heat === 0, '25. an ultra-blocked attack adds no heat', JSON.stringify([blocked.dmg, blocked.fx.A.heat]));
+            const vanished = scripted({ A: OR(), B: drake('plain', T(275)), turns: [dice({ after: [0.01] })] }).turns[0];
+            check(/404/.test(vanished.text) && vanished.fx.A.heat === 0, '25. a missed attack (404) adds no heat', vanished.text.slice(0, 120));
             const slept = scripted({ A: OR(titleWith('sleepy')), turns: [[0.5, 0.5, 0.5, 0, 0.99, 0.99, 0.99]] }).turns[0];
-            check(/Slept through/.test(slept.text) && slept.fx.A.heat === 1, '25. a «Проспав хід» attack adds heat', slept.text.slice(0, 120));
+            check(/Slept through/.test(slept.text) && slept.fx.A.heat === 0, '25. a «Проспав хід» attack adds no heat', slept.text.slice(0, 120));
+            // Лаг: the hit that hangs adds its heat when it lands, a turn later; Виверження's adds none then either
+            const hung = scripted({ A: OR(T(287)), turns: [dice({ after: [0.01] }), dice(), dice()] }).turns;
+            check(hung[0].fx.A.heat === 0 && hung[2].notes.lagLand > 0 && hung[2].fx.A.heat === 2, "25. Лаг: a hit that hangs adds no heat until it lands (0, then its landing's 1 and that turn's own hit's)", hung.map(t => t.fx.A.heat).join());
+            const hungUlt = scripted({ A: OR(T(287)), setup: fx => { fx.A.meter = 5; fx.A.heat = 4; }, turns: [dice({ after: [0.01] }), dice(), dice()] }).turns;
+            check(hungUlt[0].fx.A.heat === 2 && hungUlt[2].notes.lagLand > 0 && hungUlt[2].fx.A.heat === 3, "25. Лаг: a hung Виверження adds no heat when it lands (4 drops to 2, then only that turn's own hit adds one)", hungUlt.map(t => t.fx.A.heat).join());
+            // Ice Mirror took the whole hit: the attack still landed (and it used a charge of the mirror)
+            const mirrored = scripted({ A: OR(), B: drake('blue'), setup: fx => { fx.B.mirror = 2; }, turns: [dice()] }).turns[0];
+            check(mirrored.dmg === 0 && mirrored.fx.B.mirror === 1 && mirrored.fx.A.heat === 1, '25. a hit Ice Mirror absorbs whole has landed: it adds heat', JSON.stringify([mirrored.dmg, mirrored.fx.B.mirror, mirrored.fx.A.heat]));
             const frozen = scripted({ A: OR(), setup: fx => put(fx, 'A', 'frost'), turns: [[]] }).turns[0];
             check(/frozen/.test(frozen.text) && frozen.fx.A.heat === 0, '25. a turn lost to Мороз adds none', frozen.text.slice(0, 120));
             const crashed = scripted({ A: OR(), B: drake('plain', T(278)), turns: [[0.01]] }).turns[0];
@@ -1826,7 +1836,7 @@ for (const lang of ['en', 'uk']) {
 
         // The tick: the target's max HP, the holder's level tier
         const tick = (a, b, heat, setup = () => {}, o = {}) => {
-            const r = scripted({ A: drake('plain', null, a), B: OR(null, b), setup: fx => { fx.B.heat = heat; setup(fx); }, turns: [dice({ block: 0.01 })], ...o });
+            const r = scripted({ A: drake('plain', null, a), B: OR(null, b), setup: fx => { fx.B.heat = heat; setup(fx); }, turns: [dice({ before: [0.99], block: 0.01 })], ...o });
             return r.turns[0];
         };
         {
@@ -1848,28 +1858,60 @@ for (const lang of ['en', 'uk']) {
             // 5 HP after the Burn, +22 from Regeneration, -19 from the heat: 8. Heat before the heal would stop at 0 and end on 22
             const healed = tick(20, 20, 8, fx => { hurt(fx, 'A', MAX, 5); put(fx, 'A', 'regen'); });
             check(healed.hpA === 8, "25. ...and after its buff ticks: Regeneration can't undo a knockout the heat deals", String(healed.hpA));
-            const out = scripted({ A: drake(), B: OR(), setup: fx => { fx.B.heat = 8; hurt(fx, 'A', MAX, 10); }, turns: [dice()] });
+            const out = scripted({ A: drake(), B: OR(), setup: fx => { fx.B.heat = 8; hurt(fx, 'A', MAX, 10); }, turns: [dice({ before: [0.99] })] });
             check(out.ended && out.turns[0].hpA === 0 && out.turns[0].text.includes('🌡️ heat -19') && !/\[Turn 1\]/.test(out.turns[0].text), '25. the tick can knock the opponent out, before it attacks', JSON.stringify([out.ended, out.turns[0].hpA, out.turns[0].text.slice(0, 160)]));
             const dead = scripted({ A: drake(), B: OR(), setup: fx => { fx.B.heat = 8; hurt(fx, 'A', MAX, 0); }, turns: [dice()] });
             check(dead.ended && !dead.turns[0].text.includes('🌡️'), "25. a debuff tick that knocks it out leaves the heat nothing to do", dead.turns[0].text.slice(0, 160));
             const m = G.getMaxHP(20, 'plain', T(245));
-            const reborn = scripted({ A: drake('plain', T(245)), B: OR(), setup: fx => { fx.B.heat = 8; hurt(fx, 'A', m, 10, m); }, turns: [dice()] });
+            const reborn = scripted({ A: drake('plain', T(245)), B: OR(), setup: fx => { fx.B.heat = 8; hurt(fx, 'A', m, 10, m); }, turns: [dice({ before: [0.99] })] });
             check(!reborn.ended && reborn.turns[0].hpA > 0 && reborn.turns[0].notes.phoenix, '25. Відродження survives a tick that would knock it out', JSON.stringify(reborn.turns[0].notes));
         }
 
-        // Nothing that stops a hit or a debuff stops it
+        // The block roll: the chance a hit would face now, no more; a blocked tick deals nothing, and it never uses up a count
         {
-            const untouched = [['Щит', 'plain', null, fx => put(fx, 'A', 'shield')], ['Тінь', 'plain', null, fx => put(fx, 'A', 'shadow')], ["Синій's armour and reflect", 'blue', null, () => {}],
+            const roll = (r, A, setup = () => {}, B = OR()) => scripted({ A, B, setup: fx => { fx.B.heat = 8; setup(fx); }, turns: [dice({ before: [r], block: 0.01 })] }).turns[0];
+            const bad = [];
+            for (const [what, A, setup, chance] of [['a plain drake', drake(), () => {}, 10], ['Чорний at level 20', drake('black'), () => {}, 20], ['Чорний at level 1', drake('black', null, 1), () => {}, 13],
+                ['Тінь', drake(), fx => put(fx, 'A', 'shadow'), 35], ['Тінь on Чорний', drake('black'), fx => put(fx, 'A', 'shadow'), 45], ['Квантовий ухил', drake('plain', titleWith('quantum_dodge')), () => {}, 20]]) {
+                const under = roll((chance - 0.01) / 100, A, setup), at = roll(chance / 100, A, setup);
+                if (!under.notes.tickBlock || under.notes['tick:heat'] !== 0) bad.push(`${what}: a roll under ${chance}% isn't blocked: ${JSON.stringify(under.notes)}`);
+                if (at.notes.tickBlock || !(at.notes['tick:heat'] < 0)) bad.push(`${what}: a roll at ${chance}% is blocked: ${JSON.stringify(at.notes)}`);
+            }
+            check(!bad.length, '25. the tick rolls the ultra-block a hit would face now: 10%, Чорний 13–20%, Тінь +25%, Квантовий ухил +10%', bad.join(' | '));
+            const shadeBlocked = roll(0.3, drake(), fx => put(fx, 'A', 'shadow')), plainBlocked = roll(0.05, drake(), fx => put(fx, 'A', 'shadow'));
+            check(shadeBlocked.notes.tickBlock.shadow === true && plainBlocked.notes.tickBlock.shadow === false, "25. the view hears whether Тінь's bonus did it, as on a blocked hit", JSON.stringify([shadeBlocked.notes.tickBlock, plainBlocked.notes.tickBlock]));
+            const blocked = roll(0.05, drake());
+            check(blocked.hpA === MAX && blocked.fx.B.heat === 8, '25. a blocked tick deals nothing, and the heat stays', JSON.stringify([blocked.hpA, blocked.fx.B.heat]));
+            const left = (t, id) => (t.fx.A.buff.find(x => x.id === id) || {}).left;
+            const shadeKept = roll(0.05, drake(), fx => put(fx, 'A', 'shadow')), shadeHit = roll(0.99, drake(), fx => put(fx, 'A', 'shadow'));
+            const shieldKept = roll(0.05, drake(), fx => put(fx, 'A', 'shield')), shieldHit = roll(0.99, drake(), fx => put(fx, 'A', 'shield'));
+            check([shadeKept, shadeHit].every(t => left(t, 'shadow') === 2) && [shieldKept, shieldHit].every(t => left(t, 'shield') === 2), '25. a tick uses up no Тінь or Щит count, blocked or not', JSON.stringify([shadeKept, shadeHit].map(t => left(t, 'shadow')).concat([shieldKept, shieldHit].map(t => left(t, 'shield')))));
+            const divine = roll(0.05, drake(), fx => put(fx, 'B', 'divine'));
+            check(divine.notes.tickBlock && divine.fx.B.buff[0].left === 1, "25. the holder's Божественна міць doesn't pierce the block: that's a hit's, and the tick doesn't use it up", JSON.stringify(divine.notes));
+            const first = scripted({ A: drake(), B: OR(T(208)), setup: fx => { fx.B.heat = 8; }, turns: [dice({ before: [0.05], block: 0.01 })] }).turns[0];
+            check(first.notes.tickBlock, "25. nor do the holder's Перша кров's unblockable hits", JSON.stringify(first.notes));
+            const wd = scripted({ A: WD(), B: OR(), setup: fx => { fx.B.heat = 8; fx.A.scales.now = 50; }, turns: [dice({ before: [0.05], block: 0.01 })] }).turns[0];
+            check(wd.notes.tickBlock && wd.fx.A.scales.now === 50, "25. a blocked tick leaves the White Drake's scales alone", JSON.stringify(wd.fx.A.scales));
+            for (const [lang, line] of [['uk', '@A 🌡️ жар: 🚫 блок'], ['en', '@A 🌡️ heat: 🚫 block']]) {
+                const t = scripted({ A: drake(), B: OR(), lang, setup: fx => { fx.B.heat = 8; }, turns: [dice({ before: [0.05], block: 0.01 })] }).turns[0];
+                check(t.text.includes(line), `25. the record says «${line}»`, t.text.slice(0, 120));
+            }
+            G.setLang('en');
+        }
+
+        // Nothing else that stops a hit or a debuff stops it
+        {
+            const untouched = [['Щит', 'plain', null, fx => put(fx, 'A', 'shield')], ["Синій's armour and reflect", 'blue', null, () => {}],
                 ['Шипи', 'plain', titleWith('thorns'), () => {}], ['Контратака', 'plain', T(217), () => {}], ['404', 'plain', T(275), () => {}],
                 ['debuff immunity', 'plain', titleWith('debuff_immunity'), () => {}], ['Очищення', 'plain', T(229), fx => put(fx, 'A', 'mark')]];
             const bad = [];
             for (const [what, type, title, setup] of untouched) {
                 const m = G.getMaxHP(20, type, title), want = Math.round(m * 0.7 * 8 / 100);
-                const r = scripted({ A: drake(type, title), B: OR(), setup: fx => { fx.B.heat = 8; setup(fx); }, turns: [dice({ block: 0.01 })] }).turns[0];
+                const r = scripted({ A: drake(type, title), B: OR(), setup: fx => { fx.B.heat = 8; setup(fx); }, turns: [dice({ before: [0.99], block: 0.01 })] }).turns[0];
                 if (r.hpA !== m - want || r.hpB !== MAX) bad.push(`${what}: A ${m} → ${r.hpA} (want ${m - want}), B ${r.hpB} (want ${MAX})`);
             }
-            check(!bad.length, "25. the tick is neither a hit nor a debuff: Щит, Тінь, armour, reflect, Шипи, Контратака, 404, debuff immunity and Очищення don't touch it, and nothing comes back at the holder", bad.join(' | '));
-            const bloom = scripted({ A: drake('green'), B: OR(), setup: fx => { fx.A.meter = 5; fx.B.heat = 8; }, turns: [dice(), dice({ block: 0.01 }), dice({ block: 0.01 })] }).turns;
+            check(!bad.length, "25. the tick is neither a hit nor a debuff: Щит, armour, reflect, Шипи, Контратака, 404, debuff immunity and Очищення don't touch it, and nothing comes back at the holder", bad.join(' | '));
+            const bloom = scripted({ A: drake('green'), B: OR(), setup: fx => { fx.A.meter = 5; fx.B.heat = 8; }, turns: [dice({ before: [0.99] }), dice({ block: 0.01 }), dice({ before: [0.99], block: 0.01 })] }).turns;
             check(/Bloom/.test(bloom[0].text) && bloom[0].fx.B.heat === 8 && bloom[2].text.includes('🌡️ heat'), "25. Цвітіння takes off debuffs, not the heat", JSON.stringify(bloom.map(t => t.fx.B.heat)));
         }
 
@@ -1878,9 +1920,9 @@ for (const lang of ['en', 'uk']) {
             const dragon = scripted({ A: DRAGON(), B: OR(), setup: fx => { fx.B.heat = 8; }, turns: [dice()] }).turns[0];
             check(dragon.hpA === 99999 && !dragon.text.includes('🌡️'), '25. the White Dragon ignores the heat', dragon.text.slice(0, 120));
             const m = G.getMaxHP(20, G.WHITE_DRAKE_TYPE, T(G.WHITE_DRAKE_TITLE_ID)), burn = Math.round(m * 0.7 * 8 / 100), sc = G.scalesOf(20, m);
-            const full = scripted({ A: WD(), B: OR(), setup: fx => { fx.B.heat = 8; }, turns: [dice({ block: 0.01 })] }).turns[0];
+            const full = scripted({ A: WD(), B: OR(), setup: fx => { fx.B.heat = 8; }, turns: [dice({ before: [0.99], block: 0.01 })] }).turns[0];
             check(full.fx.A.scales.now === sc - burn && full.hpA === m, `25. against the White Drake the heat burns the scales first (${sc} → ${sc - burn}), her HP stays`, JSON.stringify([full.fx.A.scales, full.hpA]));
-            const thin = scripted({ A: WD(), B: OR(), setup: fx => { fx.B.heat = 8; fx.A.scales.now = 5; }, turns: [dice({ block: 0.01 })] }).turns[0];
+            const thin = scripted({ A: WD(), B: OR(), setup: fx => { fx.B.heat = 8; fx.A.scales.now = 5; }, turns: [dice({ before: [0.99], block: 0.01 })] }).turns[0];
             check(thin.fx.A.scales.now === 0 && thin.hpA === m - (burn - 5) && thin.notes.crack, '25. ...then her HP, the way hits do, and the scales crack', JSON.stringify([thin.fx.A.scales, thin.hpA, thin.notes]));
             let bounced = null, landed = null;
             scripted({ A: OR(), B: WD(), setup: (fx, a, b) => { bounced = G.applyEffect(a, b, 'melt', 20, fx); fx.B.scales.now = 0; landed = G.applyEffect(a, b, 'melt', 20, fx); } });
@@ -1929,7 +1971,7 @@ for (const lang of ['en', 'uk']) {
 
         // The card: the heat in the meter's row, for Помаранчевий alone
         {
-            scripted({ A: OR(), B: drake('red'), turns: [dice(), dice({ block: 0.01 }), dice()] });
+            scripted({ A: OR(), B: drake('red'), turns: [dice(), dice({ before: [0.99], block: 0.01 }), dice()] });
             const mine = document.getElementById('power-p1').innerHTML, theirs = document.getElementById('power-p2').innerHTML;
             check(mine.includes('pm-heat') && mine.includes('2/8') && !theirs.includes('pm-heat'), "25. the fighter card shows the heat (2/8) in the meter's row, and only on Помаранчевий's card", mine.slice(-160));
         }

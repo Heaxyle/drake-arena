@@ -1650,8 +1650,10 @@
         // («накладає Мітку»); everywhere else it stays in the nominative, as on the fighter cards' chips
         const fvAccChip = id => fvChip(id, currentLang === 'uk' ? EFFECTS[id].acc : EFFECTS[id].name[currentLang]);
         const fvUsedChip = id => fvChip(id, EFFECTS[id].name[currentLang], 'used');   // an effect this attack counted down
-        // A tick: an effect's in its chip; Розжарення's, which is no effect, is a note with its words
+        // A tick: an effect's in its chip; Розжарення's, which is no effect, is a note with its words, and a blocked one shows
+        // as a block (with Тінь's chip when Тінь's bonus did it, as on a blocked hit)
         const fvTickChip = t => EFFECTS[t.id] ? `<span class="lk fx ${EFFECTS[t.id].kind} ${chipClass(t.id)}">${pxIcon(t.id)}<span class="lkt">${t.v < 0 ? t.v : '+' + t.v}</span></span>`
+            : t.block ? `${t.shadow ? fvFxChip('shadow') : ''}${fvLk(`${fvH(t.id)} ${fvH('block')}`, 'note')}`
             : fvLk(`${fvH(t.id)} ${t.v}`, 'note hurt');
         const fvLx = text => `<span class="lx">${text}</span>`;
         // A plain chip: its html, and its compact form { i: an icon, t: the text after it } (or none)
@@ -1693,7 +1695,7 @@
             const panel = fvEl('log-panel');
             if (panel) panel.classList.remove('counting');
         }
-        function fvTick(id, v) { if (fv.rec) fv.rec.ticks.push({ id, v }); }
+        function fvTick(id, v, x = {}) { if (fv.rec) fv.rec.ticks.push({ id, v, ...x }); }
         function fvNote(key, value = true) { if (fv.rec) fv.rec.notes[key] = value; }
         // What the scales took outside the attack itself (Двійник, Лаг), on top of what the attack gave them
         function fvScales(n) { if (fv.rec) fv.rec.notes.scales = (fv.rec.notes.scales || 0) + n; }
@@ -2245,7 +2247,7 @@
             if (tab) morphHtml(tab, ultId ? ultNameHtml(ultId) : fvH('tab'));
             fvSetCell(rec.turn, { k: 'pending', f: rec.atk, ult: ultId });
             if (rec.turn % 2) { const row = fvRow(fvSlot(rec.turn).round); if (row && row.cells.right.k === 'empty') { row.cells.right = { k: 'wait', f: rec.def }; fvPaint(row); } }
-            rec.ticks.forEach((t, i) => fvPop(me, t.v < 0 ? String(t.v) : '+' + t.v, `small ${t.v < 0 ? '' : 'heal'}`, i));
+            rec.ticks.forEach((t, i) => fvPop(me, t.block ? '0' : t.v < 0 ? String(t.v) : '+' + t.v, `small ${t.block ? 'zero' : t.v < 0 ? '' : 'heal'}`, i));
             if (rec.notes.guardian) fvPop(me, '+' + rec.notes.guardian, 'small heal', rec.ticks.length);
             if (rec.notes.rewind) fvPop(me, '+' + (rec.notes.rewind.to - rec.notes.rewind.from), 'small heal', rec.ticks.length);
             if (rec.notes.lagLand) fvPop(fvSide(rec.def), '-' + rec.notes.lagLand, 'small', 0);
@@ -8278,7 +8280,7 @@ const ICONS_V2 = {
             const hpOf = f => f === p1 ? p1HP : p2HP;
             // The new title abilities' own state for this fight
             const newTitleState = () => ({ attacks: 0, landed: 0, taken: 0, phoenixUsed: false, rewindUsed: false, hist: [],
-                                           ownTurns: 0, afkTurn: 0, afkDone: false, afkReady: false, lag: 0, verdict: 0, storm: 0, stormReady: false, lastHit: null });
+                                           ownTurns: 0, afkTurn: 0, afkDone: false, afkReady: false, lag: 0, lagHeat: false, verdict: 0, storm: 0, stormReady: false, lastHit: null });
             const tmS = { [p1.name]: newTitleState(), [p2.name]: newTitleState() };
             // Every HP change goes through here. Element Power: +1, once per fight, the first time HP drops below half
             const setHP = (f, v) => {
@@ -8311,6 +8313,11 @@ const ICONS_V2 = {
             const tName = f => `<span style="color: ${RARITIES[f.title.rarity].color}; font-weight: bold;">${f.title.icon} ${f.title.name[currentLang]}:</span>`;
             // Перевантаження and Підзарядка: how much stronger its ultimate is (an attack's damage, Bloom's heal, Ice Mirror's absorbing)
             const ultBoost = f => 1 + (titleMechanic(f) === 'overcharge' ? MECH.overchargeBonus : titleMechanic(f) === 'meter_rush' ? MECH.meterRushUltBonus : 0);
+            // The ultra-block chance a hit on `f` faces, in % (Тінь's bonus goes on top): 10%, Квантовий ухил, Чорний's passive
+            const blockChanceOf = f => 10 + (titleMechanic(f) === 'quantum_dodge' ? MECH.dodgeBonus : 0)
+                + (f.drakeObj.type === 'black' ? ELEMENT_BASE.blackBlock + getTierMultiplier(levelOf(f)).blackBlock : 0);
+            // Розжарення: 1 heat, up to its max, for a fighter that has any
+            const addHeat = st => { if (st.heat !== null) st.heat = Math.min(ELEMENT_BASE.orangeHeatMax, st.heat + 1); };
             // Damage outside the hit itself: the White Drake's scales take it first, like a hit
             const scalesFirst = (f, amount) => {
                 const sc = fx[f.name].scales, toSc = sc ? Math.min(sc.now, amount) : 0;
@@ -8434,14 +8441,23 @@ const ICONS_V2 = {
                                 : `${tag(attacker)} heals HP from ${fxName(inst.id)} (<span style="color: #41ff41; font-weight: bold;">+${healed} HP</span>) · ${leftAfter}`);
                         }
                     });
-                    // Розжарення: the other fighter's heat burns the one whose turn it is, after its own ticks. It's neither a hit
-                    // nor a debuff, so nothing that stops those stops it; the White Dragon ignores it, the scales take it first
+                    // Розжарення: the other fighter's heat burns the one whose turn it is, after its own ticks. It rolls the ultra-block
+                    // a hit would face now, Тінь's bonus included, and a blocked tick deals nothing. It's still neither a hit nor a debuff:
+                    // armour, Щит and the rest don't touch it, it uses up no count, and what stops a debuff doesn't stop it. Only the
+                    // target's chance counts: the holder's unblockable hits are hits. The White Dragon ignores it, the scales take it first
                     if (defFx.heat > 0 && hpOf(attacker) > 0 && attacker.drakeObj.type !== DRAGON_TYPE) {
                         const burned = Math.max(1, Math.round(attackerMaxHP * heatRate(levelOf(defender)) * defFx.heat / 100));
-                        scalesFirst(attacker, burned);
-                        tallyEffect('heat', 'dmg', burned);
-                        fvTick('heat', -burned);
-                        addLog(`${tag(attacker)} ${fvT('heat')} <span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${burned}</span>`);
+                        const shade = getFx(atkFx, 'shadow'), plain = blockChanceOf(attacker), roll = Math.random() * 100;
+                        if (roll < plain + (shade ? fxNum(shade, 'block') : 0)) {
+                            tallyEffect('heat', 'prevented', burned);
+                            fvTick('heat', 0, { block: true, shadow: roll >= plain });
+                            addLog(`${tag(attacker)} ${fvT('heat')}: ${fvT('block')}`);
+                        } else {
+                            scalesFirst(attacker, burned);
+                            tallyEffect('heat', 'dmg', burned);
+                            fvTick('heat', -burned);
+                            addLog(`${tag(attacker)} ${fvT('heat')} <span style="color: #00ffcc; font-weight: bold; text-shadow: 0 0 5px rgba(0,255,204,0.5);">-${burned}</span>`);
+                        }
                     }
                     countDownEffects(atkFx, 'turns');
                     updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
@@ -8452,6 +8468,7 @@ const ICONS_V2 = {
                     if (tA.lag > 0 && hpOf(attacker) > 0) {   // Лаг: the hit that hung lands now
                         const late = tA.lag; tA.lag = 0;
                         hitThrough(defender, late);
+                        if (tA.lagHeat) addHeat(atkFx);
                         fvNote('lagLand', late);
                         flashSpriteHit(defender === p1 ? 'p1' : 'p2');
                         updateUIHP(p1HP, p1MaxHP, p2HP, p2MaxHP);
@@ -8695,10 +8712,6 @@ const ICONS_V2 = {
                         else baseDmg *= 1 + MECH.sleepBonus;
                     }
 
-                    // Розжарення: every attack it makes adds heat, blocked or not, a «Проспав хід» one too (a skipped turn never gets
-                    // here). Виверження adds none, and Двійник's second hit is part of this same attack
-                    if (atkFx.heat !== null && ultId !== 'eruption') atkFx.heat = Math.min(ELEMENT_BASE.orangeHeatMax, atkFx.heat + 1);
-
                     // New title abilities that change this hit's damage
                     tA.attacks++;
                     let titleMult = 1, unblockableBy = null;
@@ -8737,9 +8750,8 @@ const ICONS_V2 = {
                     }
 
                     // Ultra-block: Shadow adds to the chance; Divine Might can't be blocked
-                    let matrixBonus = titleMechanic(defender) === 'quantum_dodge' ? MECH.dodgeBonus : 0;
                     let defenderTier = getTierMultiplier(defenderProg.level);
-                    let ultraBlockChance = 10 + matrixBonus + (defender.drakeObj.type === 'black' ? (ELEMENT_BASE.blackBlock + defenderTier.blackBlock) : 0);
+                    let ultraBlockChance = blockChanceOf(defender);
                     const blockRoll = Math.random() * 100;
                     let ultraBlock = blockRoll < ultraBlockChance + (shadow ? fxNum(shadow, 'block') : 0);
                     let blockedByShadow = ultraBlock && blockRoll >= ultraBlockChance;
@@ -8812,9 +8824,14 @@ const ICONS_V2 = {
                     // Лаг: the hit hangs and lands at the start of its next turn, stronger
                     if (atkMech === 'lag' && finalDmg > 0 && !tA.lag && Math.random() < MECH.lagChance) {
                         tA.lag = Math.round(finalDmg * MECH.lagMult); finalDmg = 0; stuck = true;
+                        tA.lagHeat = ultId !== 'eruption';
                         logExtra += tl('🐌 Лаг... удар завис! ', '🐌 Lag... the hit hangs! ');
                         fvNote('lagHang');
                     }
+                    // Розжарення: only an attack that lands adds heat. A blocked, missed (404) or slept-through one deals nothing here and
+                    // adds none; a hit hanging on Лаг adds its heat when it lands; a skipped turn never gets here. Виверження adds none,
+                    // Двійник's second hit is part of this same attack, and a hit Ice Mirror absorbs (below) has landed
+                    if (finalDmg > 0 && ultId !== 'eruption') addHeat(atkFx);
 
                     // What each effect did to this hit, for the balance sim's per-effect report
                     if (effectTally) {
