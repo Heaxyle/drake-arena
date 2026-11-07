@@ -1139,15 +1139,20 @@ async function iconLoopsAndStills(browser) {
                     panel.style.cssText = 'position:relative;background:var(--panel);padding:30px;margin:0 8px 60px;width:max-content;display:grid;grid-template-columns:repeat(5,404px);gap:34px 24px;';
                     sheet.append(head, panel);
                     const types = [...DRAKE_TYPES.filter(d => d.type !== DRAGON_TYPE), DRAKE_TYPES.find(d => d.type === DRAGON_TYPE)];
-                    const hpPct = [1, 0.62, 0.4, 0.2, 0.75, 0.5, 0.55, 0.9];
+                    const hpPct = [1, 0.62, 0.4, 0.2, 0.75, 0.5, 0.55, 0.9, 0.35, 0.8, 0.45, 0.7];
+                    // Season 2's cards show their own pair and what their passive puts in the meter's row
+                    const kit = { orange: { heat: 5, buff: 'stoke', debuff: 'melt' }, cherry: { frenzy: 27, buff: 'bloodprice', debuff: 'bleed' },
+                                  pink: { copied: 'blue', buff: 'fairydust', debuff: 'infatuation' }, turquoise: { layers: 4, debuff: 'seaweed' } };
+                    const kitFx = (i, t) => { const { buff, debuff, ...state } = kit[t], left = id => EFFECTS[id].count, inst = id => [{ id, left: left(id), power: 1 }];
+                        return { ...fx(i), ...state, buff: buff ? inst(buff) : [], debuff: inst(debuff) }; };
                     types.forEach((d, i) => {
                         // The streamer's two forms: the White Drake (its title, its scales part-gone) and the White Dragon
                         const streamer = d.type === DRAGON_TYPE || d.type === WHITE_DRAKE_TYPE;
                         const name = streamer ? 'streamer' : 'viewer_' + d.type;
                         const title = d.type === DRAGON_TYPE ? TITLES_DB.find(t => t.id === DRAGON_TITLE_ID) : d.type === WHITE_DRAKE_TYPE ? TITLES_DB.find(t => t.id === WHITE_DRAKE_TITLE_ID) : TITLES_DB[(i * 29) % TITLES_DB.length];
-                        const dr = { name, color: ['#ff7f50', '#5fd4ff', '#c792ea', '#000000', '#ffd166', '#7cfc00', '#e8f6ff', '#ffffff'][i], drakeObj: d, title, xp };
+                        const dr = { name, color: ['#ff7f50', '#5fd4ff', '#c792ea', '#000000', '#ffd166', '#7cfc00', '#ffa94d', '#ff6b8a', '#ffb3d9', '#4fe0cf', '#e8f6ff', '#ffffff'][i], drakeObj: d, title, xp };
                         const max = d.type === WHITE_DRAKE_TYPE ? scalesOf(12, getMaxHP(12, d.type, title)) : 0;
-                        const st = d.type === DRAGON_TYPE ? null : d.type === WHITE_DRAKE_TYPE ? { ...fx(i % 6), scales: { now: Math.round(max * 0.6), max } } : fx(i % 6);
+                        const st = d.type === DRAGON_TYPE ? null : d.type === WHITE_DRAKE_TYPE ? { ...fx(i % 6), scales: { now: Math.round(max * 0.6), max } } : kit[d.type] ? kitFx(i % 6, d.type) : fx(i % 6);
                         setArenaState({ kind: 'fight', ranked: true, turn: 7 });
                         updateFighterCard('p1', dr, st);
                         updateStatusUI(name, 12, d.type, title, st || { buff: [], debuff: [] });
@@ -1170,6 +1175,8 @@ async function iconLoopsAndStills(browser) {
             });
             await settle(page);
             await page.locator('#review-sheet').screenshot({ path: path.join(SHOTS, 'layout-review-cards.png') });
+            const broken = await page.evaluate(() => (document.getElementById('review-sheet').textContent.match(/NaN|undefined/g) || []).length);
+            check(!broken, 'review sheet: no card shows NaN or undefined', `${broken} found`);
             const n = await page.evaluate(() => document.querySelectorAll('#review-sheet .fighter-card').length);
             const tags = await page.evaluate(() => [...document.querySelectorAll('#review-sheet .result-tag')].filter(t => getComputedStyle(t).display !== 'none').map(t => t.innerText));
             check(n === 28 && tags.join() === 'ПЕРЕМОЖЕЦЬ,НОКАУТ,WINNER,KNOCKED OUT', `review sheet: ${n} cards (12 types + winner + loser, both languages) in tests/screenshots/layout-review-cards.png`, `${n} cards, tags ${tags.join()}`);
