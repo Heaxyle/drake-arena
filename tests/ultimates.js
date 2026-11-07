@@ -101,6 +101,7 @@ function scripted({ A = {}, B = {}, setup = null, turns, lang = 'en' }) {
     }
 }
 const isUltLine = (t, id) => t.text.includes(G.ultLabel(id, 'en'));
+const left = (t, who, kind, id) => { const x = t.fx[who][kind].find(e => e.id === id); return x ? x.left : null; };
 const castOn = (fx, owner, id, power = 1) => {   // put effect `id` straight on a fighter with a given power
     const kind = EFFECTS[id].kind;
     fx[owner][kind] = fx[owner][kind].filter(x => x.id !== id);
@@ -109,7 +110,7 @@ const castOn = (fx, owner, id, power = 1) => {   // put effect `id` straight on 
 
 // ---------------------------------------------------------------- 1. The table
 console.log('\nCLASS_ULTIMATES table');
-check(ULTIMATE_IDS.length === 7, "there are 7 ultimates: one per viewer element and the White Drake's", `found ${ULTIMATE_IDS.length}`);
+check(ULTIMATE_IDS.length === G.VIEWER_DRAKE_TYPES.length + 1, `there are ${G.VIEWER_DRAKE_TYPES.length + 1} ultimates: one per viewer element and the White Drake's`, `found ${ULTIMATE_IDS.length}`);
 for (const d of [...G.VIEWER_DRAKE_TYPES, G.DRAKE_TYPES.find(t => t.type === G.WHITE_DRAKE_TYPE)]) {
     const own = ULTIMATE_IDS.filter(id => U[id].element === d.type);
     check(own.length === 1 && G.ultimateFor(d.type) === own[0], `${d.type}: ${own.map(id => `${U[id].icon} ${U[id].name.uk} / ${U[id].name.en}`).join('')}`, `${d.type} has ${own.length} ultimates`);
@@ -207,6 +208,100 @@ const full = fx => { fx.A.meter = METER.max; };
     check(pb && Math.abs(pb.power - G.getEffectMult('red', POWER_TITLE, 20)) < 1e-9 && im.fx.B.debuff.length === 0 && /Immunity/.test(im.text) && near(im.dmg, imBase * m, m),
         `☄️ Firestorm's 🔥 Burn uses the caster's effect power (×${pb && pb.power.toFixed(2)}); an immune target ignores the Burn but still takes the ×${m} hit (${imBase} → ${im.dmg})`,
         `burn power ${pb && pb.power}, immune debuffs ${JSON.stringify(im.fx.B.debuff)}, damage ${im.dmg}`);
+}
+// 🌬️ Last Breath: ×1.5, or ×1.8 below 25% HP when it starts: this turn's ticks count, the hit doesn't. An ordinary attack otherwise
+{
+    const max = G.getMaxHP(20, 'cherry', null), base = hp => scripted({ A: drake('A', 'cherry'), setup: fx => { if (hp < max) castOn(fx, 'A', 'burn', (max - hp) / max * 100 / EFFECTS.burn.nums.hp); }, turns: [dice()] }).turns[0];
+    const run = (hp, d = {}, title = null) => scripted({ A: drake('A', 'cherry', 20, title), setup: fx => { full(fx); if (hp < max) { castOn(fx, 'A', 'burn', (max - hp) / max * 100 / EFFECTS.burn.nums.hp); } }, turns: [dice(d)] }).turns[0];
+    const line = Math.ceil(max * 0.25), rows = [], bad = [];
+    for (const [hp, mult] of [[max, 1.5], [line, 1.5], [line - 1, 1.8], [40, 1.8]]) {
+        const t = run(hp), plain = base(hp);
+        rows.push(`${hp} HP: ×${mult}, ${plain.dmg} → ${t.dmg}`);
+        if (!isUltLine(t, 'lastbreath') || !near(t.dmg, plain.dmg * mult, mult)) bad.push(`at ${hp} of ${max} HP: ${t.dmg}, expected ${plain.dmg * mult}`);
+        if (!t.text.includes(`×${mult} `)) bad.push(`the record doesn't say ×${mult}: ${t.text.slice(0, 120)}`);
+        if (t.meterA !== 0) bad.push(`the meter is ${t.meterA} after it`);
+    }
+    const blocked = run(40, { block: 0.05 });
+    check(!bad.length && blocked.dmg === 0 && isUltLine(blocked, 'lastbreath'), `🌬️ Last Breath: ${rows.join('; ')} (25% of ${max} is ${max / 4}); it can be blocked`, bad.slice(0, 4).join(' | '));
+    const power = run(40, {}, POWER_TITLE);
+    const pmax = G.getMaxHP(20, 'cherry', POWER_TITLE), plainPower = scripted({ A: drake('A', 'cherry', 20, POWER_TITLE), setup: fx => castOn(fx, 'A', 'burn', (pmax - 40) / pmax * 100 / EFFECTS.burn.nums.hp), turns: [dice()] }).turns[0].dmg;
+    const poweredUlt = scripted({ A: drake('A', 'cherry', 20, POWER_TITLE), setup: fx => { full(fx); castOn(fx, 'A', 'burn', (pmax - 40) / pmax * 100 / EFFECTS.burn.nums.hp); }, turns: [dice()] }).turns[0].dmg;
+    check(near(poweredUlt, plainPower * 1.8, 1.8), `🌬️ Last Breath: effect power doesn't scale its multiplier (${plainPower} → ${poweredUlt}, ×1.8)`, `${poweredUlt}, expected ${plainPower * 1.8}`);
+}
+// 🌊 High Tide: replaces the attack; 4.25% of max HP per layer, and the layers stay
+{
+    const max = G.getMaxHP(20, 'turquoise', null), low = 40;
+    const run = (layers, setup = () => {}, title = null) => scripted({ A: drake('A', 'turquoise', 20, title), setup: fx => { full(fx); fx.A.layers = layers; castOn(fx, 'A', 'burn', (max - low) / max * 100 / EFFECTS.burn.nums.hp); setup(fx); }, turns: [dice()] }).turns[0];
+    const bad = [], rows = [];
+    for (const [layers, pct] of [[0, 0], [1, 4.25], [3, 12.75], [6, 25.5]]) {
+        const t = run(layers), want = Math.round(max * pct / 100);
+        rows.push(`${layers} layers: +${t.hpA - low}`);
+        if (!isUltLine(t, 'hightide') || t.hpA - low !== want) bad.push(`${layers} layers healed ${t.hpA - low}, expected ${want}`);
+        if (t.fx.A.layers !== layers) bad.push(`${layers} layers became ${t.fx.A.layers}`);
+        if (t.dmg !== null || t.hpB !== max && t.hpB !== G.getMaxHP(20, 'plain', null)) bad.push(`${layers} layers: it attacked (${t.dmg})`);
+        if (t.meterA !== 0) bad.push(`the meter is ${t.meterA} after it`);
+    }
+    check(!bad.length, `🌊 High Tide: no attack; ${rows.join(', ')} (4.25% of ${max} HP per layer), and the layers stay`, bad.slice(0, 4).join(' | '));
+    const poisoned = run(6, fx => castOn(fx, 'A', 'poison')), poison = Math.round(max * EFFECTS.poison.nums.hp / 100);
+    check(poisoned.hpA - (low - poison) === Math.round(max * 0.255 * 0.5), `🌊 High Tide: Poison cuts it like any healing (${poisoned.hpA - (low - poison)})`, `${poisoned.hpA}`);
+    const top = scripted({ A: drake('A', 'turquoise'), setup: fx => { full(fx); fx.A.layers = 6; }, turns: [dice()] }).turns[0];
+    check(top.hpA === max, '🌊 High Tide stops at max HP', String(top.hpA));
+}
+// 🪞 Borrowed Magic: the opponent's ultimate, with Рожевий's own stats; the header names both
+{
+    const pink = (title = null) => drake('A', 'pink', 20, title);
+    const fired = (foe, setup = () => {}, d = dice(), title = null) => scripted({ A: pink(title), B: drake('B', foe), setup: fx => { full(fx); setup(fx); }, turns: [d] }).turns[0];
+    const bad = [], rows = [];
+    for (const [foe, id] of [['red', 'firestorm'], ['blue', 'mirror'], ['black', 'theft'], ['gold', 'jackpot'], ['purple', 'detonation'], ['green', 'bloom'], ['orange', 'eruption'], ['cherry', 'lastbreath'], ['turquoise', 'hightide']]) {
+        const t = fired(foe);
+        rows.push(U[id].name.en);
+        if (!isUltLine(t, id) || !t.text.includes(`${U.borrowed.icon} ${U.borrowed.name.en} · `)) bad.push(`against ${foe}: ${t.text.slice(0, 140)}`);
+        if (t.meterA !== 0) bad.push(`the meter is ${t.meterA} after it`);
+    }
+    check(!bad.length, `🪞 Borrowed Magic: the header names both, and it fires each opponent's own: ${rows.join(', ')}`, bad.slice(0, 4).join(' | '));
+    const plain = scripted({ A: pink(), B: drake('B', 'plain'), setup: full, turns: [dice()] }).turns[0];
+    const noMeter = scripted({ A: pink(), B: drake('B', 'plain'), turns: [dice()] }).turns[0].dmg;
+    const twin = scripted({ A: pink(), B: drake('B', 'pink'), setup: full, turns: [dice()] }).turns[0], twinBase = scripted({ A: pink(), B: drake('B', 'pink'), turns: [dice()] }).turns[0].dmg;
+    check(isUltLine(twin, 'borrowed') && near(twin.dmg, twinBase * 1.5, 1.5) && near(plain.dmg, noMeter * 1.5, 1.5), `🪞 Borrowed Magic against another Рожевий: an attack ×1.5 (${twinBase} → ${twin.dmg}), and the same with nothing to borrow`, JSON.stringify([twin.dmg, twinBase, plain.dmg, noMeter]));
+    const steel = T => scripted({ A: pink(), B: { ...drake('B', G.WHITE_DRAKE_TYPE, 20, G.TITLES_DB.find(t => t.id === G.WHITE_DRAKE_TITLE_ID)) }, setup: fx => { T && full(fx); }, turns: [dice({ sub: 0.5 })] }).turns[0];
+    const blow = steel(true), base = steel(false);
+    check(isUltLine(blow, 'anvil') && near(blow.dmg, base.dmg * 1.5, 1.5) && blow.fx.A.scales === null, `🪞 Borrowed Magic against the White Drake: only Удар ковадла's blow, ×1.5 at level 20 too (${base.dmg} → ${blow.dmg}), and no scales to re-forge`, JSON.stringify([base.dmg, blow.dmg, blow.fx.A.scales]));
+    const dragon = scripted({ A: pink(), B: drake('B', G.DRAGON_TYPE, 20, G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID)), setup: full, turns: [dice()] }).turns[0];
+    check(isUltLine(dragon, 'borrowed'), '🪞 Borrowed Magic against the White Dragon: nothing to borrow, its own attack', dragon.text.slice(0, 120));
+    // With its own stats: Bloom heals its own max HP; Eruption reads the heat it copied; Firestorm's Burn takes its effect power
+    const maxP = G.getMaxHP(20, 'green', null), low = 40;
+    const bloom = fired('green', fx => castOn(fx, 'A', 'burn', (maxP - low) / maxP * 100 / EFFECTS.burn.nums.hp));
+    check(bloom.hpA - low === Math.round(maxP * 0.25), `🪞 Borrowed Magic: Bloom heals a share of its own max HP (+${bloom.hpA - low})`, String(bloom.hpA));
+    const erupted = fired('orange', fx => { fx.A.heat = 8; });
+    check(isUltLine(erupted, 'eruption') && erupted.fx.A.heat === 4, '🪞 Borrowed Magic: Виверження reads its own copied heat, and the heat drops', String(erupted.fx.A.heat));
+    const tide = fired('turquoise', fx => { fx.A.layers = 5; });
+    check(isUltLine(tide, 'hightide') && tide.fx.A.layers === 5, '🪞 Borrowed Magic: Приплив reads its own copied layers, and they stay', String(tide.fx.A.layers));
+    const burned = fired('red', () => {}, dice(), POWER_TITLE);
+    const burn = burned.fx.B.debuff.find(x => x.id === 'burn');
+    check(burn && Math.abs(burn.power - G.getEffectMult('red', POWER_TITLE, 20)) < 1e-9, `🪞 Borrowed Magic: Firestorm's Burn uses its own effect power, Red's passive being nothing to Purple's (×${burn && burn.power.toFixed(2)})`, JSON.stringify(burn));
+}
+// 🌋 Eruption: ×1.5 plus 5% per heat (×1.9 at 8), the heat as it stands when it starts. It adds none, and afterwards the
+// heat drops by half, rounded down, whether or not the hit landed. An ordinary attack otherwise: it can be blocked
+{
+    const orange = (title = null) => drake('A', 'orange', 20, title);
+    const base = (title = null) => scripted({ A: orange(title), turns: [dice()] }).turns[0].dmg;
+    const run = (heat, d = {}, title = null) => scripted({ A: orange(title), setup: fx => { full(fx); fx.A.heat = heat; }, turns: [dice(d)] }).turns[0];
+    const bad = [], rows = [];
+    for (const [heat, mult, after] of [[0, 1.5, 0], [1, 1.55, 0], [3, 1.65, 1], [7, 1.85, 3], [8, 1.9, 4]]) {
+        const t = run(heat);
+        rows.push(`${heat} heat: ×${mult}, ${t.dmg} damage, heat → ${t.fx.A.heat}`);
+        if (!isUltLine(t, 'eruption') || !near(t.dmg, base() * mult, mult)) bad.push(`at ${heat} heat: ${t.dmg}, expected ${base() * mult}`);
+        if (t.fx.A.heat !== after) bad.push(`${heat} heat left ${t.fx.A.heat}, expected ${after}`);
+        if (t.meterA !== 0) bad.push(`the meter is ${t.meterA} after it`);
+        if (!t.text.includes(`×${mult} `)) bad.push(`the record doesn't say ×${mult}: ${t.text.slice(0, 120)}`);
+    }
+    const blocked = run(8, { block: 0.05 });
+    check(!bad.length && blocked.dmg === 0 && blocked.fx.A.heat === 4 && isUltLine(blocked, 'eruption'),
+        `🌋 Eruption: ${rows.join('; ')}; blocked like any attack, and the heat still drops (8 → ${blocked.fx.A.heat})`, bad.concat(`blocked: ${blocked.dmg} damage, heat ${blocked.fx.A.heat}`).slice(0, 4).join(' | '));
+    const power = run(8, {}, POWER_TITLE), powerBase = base(POWER_TITLE);
+    check(near(power.dmg, powerBase * 1.9, 1.9), `🌋 Eruption: effect power doesn't scale its multiplier (${powerBase} → ${power.dmg}, ×1.9)`, `${power.dmg}, expected ${powerBase * 1.9}`);
+    const stoked = scripted({ A: orange(), setup: fx => { full(fx); fx.A.heat = 2; castOn(fx, 'A', 'stoke'); }, turns: [dice()] }).turns[0];
+    check(stoked.meterA === 0 && left(stoked, 'A', 'buff', 'stoke') === 1, '🌋 Eruption with ♨️ Stoke: the ultimate never fills the meter, and it counts down Stoke as an own attack', `meter ${stoked.meterA}, Stoke left ${left(stoked, 'A', 'buff', 'stoke')}`);
 }
 // 💠 Ice Mirror: each of the next `hits` hits is absorbed up to cap% of Blue's max HP, the rest goes through, and back%
 // of what was absorbed goes to the attacker. Checked with ordinary hits (under the cap) and with big ones (a 💢 Rage at
@@ -326,7 +421,6 @@ const full = fx => { fx.A.meter = METER.max; };
 // ---------------------------------------------------------------- 3b. Interaction choices
 // Every "where the rules don't say" choice listed in the PR, pinned down so a later change can't flip one silently.
 console.log('\nInteraction choices');
-const left = (t, who, kind, id) => { const x = t.fx[who][kind].find(e => e.id === id); return x ? x.left : null; };
 const castLine = t => /receives (buff|debuff)|refreshed|replaces|loses every buff|Immunity/.test(t.text);
 {
     // Attacking ultimates are attacks: they count down own "attacks" and the target's "hits" effects, and roll the usual cast
@@ -337,7 +431,7 @@ const castLine = t => /receives (buff|debuff)|refreshed|replaces|loses every buf
         `an attacking ultimate counts as an attack: 💢 Rage 2 → ${left(cast, 'A', 'buff', 'rage')}, the target's 🛡️ Shield 2 → ${left(cast, 'B', 'buff', 'shield')}, and a low cast roll casts an effect`,
         `rage ${left(cast, 'A', 'buff', 'rage')}, shield ${left(cast, 'B', 'buff', 'shield')}, cast line ${castLine(cast)}: "${cast.text.slice(0, 200)}"`);
 }
-for (const [id, type] of [['mirror', 'blue'], ['bloom', 'green']]) {
+for (const [id, type] of [['mirror', 'blue'], ['bloom', 'green'], ['hightide', 'turquoise']]) {
     // Ice Mirror and Bloom replace the attack: only the owner's "turns" effects count down
     const t = scripted({ A: drake('A', type), setup: fx => { full(fx); castOn(fx, 'A', 'rage'); castOn(fx, 'A', 'regen'); castOn(fx, 'B', 'shield'); }, turns: [dice()] }).turns[0];
     check(isUltLine(t, id) && left(t, 'A', 'buff', 'rage') === 2 && left(t, 'A', 'buff', 'regen') === 2 && left(t, 'B', 'buff', 'shield') === 2,
@@ -459,10 +553,11 @@ for (const lang of ['uk', 'en']) {
     for (let i = 0; i < 240; i++) {
         const types = G.VIEWER_DRAKE_TYPES.map(d => d.type);
         const dragonFight = i % 8 === 0, steelFight = i % 8 === 4;   // the White Dragon (no meter), the White Drake (Удар ковадла)
-        const a = dragonFight ? { ...drake('A', G.DRAGON_TYPE, 20, G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID)), name: 'A' }
+        const twins = i % 8 === 6;   // two Рожевий: Чужі чари with nothing to borrow
+        const a = twins ? drake('A', 'pink', [1, 10, 20][i % 3]) : dragonFight ? { ...drake('A', G.DRAGON_TYPE, 20, G.TITLES_DB.find(t => t.id === G.DRAGON_TITLE_ID)), name: 'A' }
             : steelFight ? { ...drake('A', G.WHITE_DRAKE_TYPE, [1, 10, 20][i % 3], G.TITLES_DB.find(t => t.id === G.WHITE_DRAKE_TITLE_ID)), name: 'A' }
-            : drake('A', types[i % 6], [1, 10, 20][i % 3]);
-        const b = drake('B', types[(i * 5 + 1) % 6], [1, 10, 20][(i + 1) % 3]);
+            : drake('A', types[i % types.length], [1, 10, 20][i % 3]);
+        const b = drake('B', twins ? 'pink' : types[(i * 5 + 1) % types.length], [1, 10, 20][(i + 1) % 3]);
         const db = G.getDragonDB(); db.A = a; db.B = b; G.saveDragonDB(db);
         current = { dragon: dragonFight ? 'A' : null };
         G.setRunning(true);

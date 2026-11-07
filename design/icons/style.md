@@ -47,8 +47,9 @@ player guide still draw from them. Change a V2 image in `v2/`, never in the page
   shadow; Ice Mirror a faceted ice teardrop; Miss a target on its stand, untouched, the arrow stuck in the ground beside it;
   Defence a steel great helm with a red plume.
 - **Emblems: the elements' symbols** on a tile, lit from the top left like every icon, so never mirrored: Red a magma core,
-  Blue a crystal fan, Black a crescent moon, Gold a four-leaf clover, Purple an arcane orb, Green a sprout, the White Dragon
-  an eye, the White Drake a steel ring with a green flame (see "The emblems" below).
+  Blue a crystal fan, Black a crescent moon, Gold a four-leaf clover, Purple an arcane orb, Green a sprout, Orange a volcano,
+  Cherry a heart cracked open with molten light inside, Pink a butterfly, Turquoise an anchor wound with seaweed, the White
+  Dragon an eye, the White Drake a steel ring with a green flame (see "The emblems" below).
 - Every `<img>` carries `data-icon`, `data-n` (its glyph's size) and `data-s` (the scale), so `tests/overlay_icons.js` can hold
   it to its glyph's size × a whole number, its own V2 art and the display rule; `test.js` holds the files to the manifest (the
   sizes, a loop that loops forever, the frames, the still its first frame) and the page's copy to the files.
@@ -361,6 +362,31 @@ sprite's navy outline and slate shade, never Black's neutral grey). Review: revi
 - Replies that name a form show its emblem by the name; their own leading 🤍 or 🛑 goes, as decided for chat replies.
 - The review's streamer card uses the game's two sprites, copied by `node design/icons/ref-sprites.js` into `ref/`.
 
+## Season 2: the four new drakes' kits
+
+Each new drake has a passive (its note), a buff, a debuff and an ultimate, drawn like the first batch: one bold object
+in the element's colour family, lit from the top left. Each was checked against the whole set as viewers see it (the
+stills shrunk to the chip size, outline and colour compared) and drawn away from the icon it came closest to.
+
+| Icon | Kind | The drawing (its loop) | Kept apart from |
+|---|---|---|---|
+| Heat (Розжарення) | note | a thermometer, the mercury hot orange and breathing up and down (heat shimmer rises beside it) | Burn (a flame), Drill Bit |
+| Stoke (Запал) | buff | a lit fuse («запал»): a braided cord curling up to a crackling spark (the spark crackles and throws embers) | Chaos Fireworks (a burst on a stick): the cord leads, the spark is small |
+| Melt (Оплавлення) | debuff | a breastplate going soft from the bottom up, a wavy glowing front, drips sagging (the glow breathes, drops fall) | the shields (Щит, scales, cracked) |
+| Eruption (Виверження) | ultimate | the top of a crater bursting open, lava fanning out in three plumes (the plumes pulse, molten rocks fly) | Помаранчевий's own emblem (the whole volcano) |
+| Blood Frenzy (Кривавий шал) | note | a chain torn apart: a whole link, the next one snapped, its ends red hot (sparks fly from the tear) | Physical (claw slashes), Rage (a face) |
+| Blood for Blood (Кров за кров) | buff | a crimson bat, wings spread, yellow eyes (the wings beat, a drop falls) | Lifesteal (a goblet), Vampire heal (a drop and a cross), the vampire maw |
+| Bleed (Кровотеча) | debuff | a deep curved cut, blood running off its lower edge (the drips grow and fall) | Physical (three slashes), Chaos (a bolt) |
+| Last Breath (Останній подих) | ultimate | a last breath streaming out: three tapering crimson streaks curling at their ends (the streaks flow, embers ride them) | Candle Stub, the skulls, Shadow Theft (a swirl) |
+| Illusion (Ілюзія) | note | the theatre masks: a pale smiling mask in front of a lilac frowning one (they sway in turn) | the skulls (pink, not white) |
+| Fairy Dust (Чарівний пилок) | buff | a puff of pink dust bursting with twinkles (the twinkles flash, glitter drifts down) | XP (a gold sparkle), Bonus Sack |
+| Infatuation (Закоханість) | debuff | a pink heart pierced by a golden arrow (the heart beats) | HP (a plain red heart) |
+| Borrowed Magic (Чужі чари) | ultimate | an ornate hand mirror, a borrowed spell swirling in its glass (the spell turns, a glint sweeps across) | Ice Mirror (a drop, not a mirror) |
+| Nacre (Перламутр) | note | an abalone shell turned up: a rough turquoise rim, mother-of-pearl inside, the row of holes (a rainbow shimmer runs across the pearl) | Immune (a bubble), the gems |
+| Clear Water (Чиста вода) | buff | a crown splash of clear water rising from a ripple (droplets fly off the tips and fall back) | Ice Mirror (a drop), Immune (a bubble), Soap Bar |
+| Seaweed (Водорості) | debuff | three kelp fronds with little air bladders (they sway) | Зелений's sprout, Thorns (a cactus) |
+| High Tide (Приплив) | ultimate | a great wave rising from the right and curling over, foam on its crest (the foam churns, spray flies) | Ice Mirror (a drop) |
+
 ## The emblems: the elements' symbols
 
 Each drake's emblem is its element's symbol on a tile (`EMBLEM_IDS`, `v2/icons/emblem/`, review.html section 16). The tile is
@@ -377,12 +403,16 @@ not only by colour, so a greyscale or colour-blind viewer can read them too:
 | Gold | a four-leaf clover |
 | Purple | an arcane orb |
 | Green | a sprout |
+| Orange | a volcano, lava running down it |
+| Cherry | a heart cracked open, molten light inside (it beats) |
+| Pink | a butterfly, cyan eye-spots on its hindwings, pearl-tipped feelers like the drake's |
+| Turquoise | an anchor gone turquoise with age, seaweed winding up it |
 | The White Dragon | an eye |
 | The White Drake | a steel ring with a green flame |
 
-`node design/icons/test.js` checks it: the eight emblems are one tile (its frame the same pixels in every one, colour aside),
+`node design/icons/test.js` checks it: the twelve emblems are one tile (its frame the same pixels in every one, colour aside),
 and every two symbols (the pixels inside the tile that aren't the tile's, colour ignored) differ in at least 64 art pixels,
-the old 4 glyph pixels at the 4× density (the closest pair today, Purple and Green, 102). A new drake's emblem must pass it
+the old 4 glyph pixels at the 4× density (the closest pair today, Green and Cherry, 92). A new drake's emblem must pass it
 too. Where they go: names in info cards and the intro banner, the queue (instead of the 14 px colour square), the Top (before
 the level; the sprite stays), the card's name line, the title plate (all six the same way round). The emblem glyphs in
 `icons.js` are still the drakes' heads (what the player guide draws); the overlay shows the symbols.

@@ -8,12 +8,12 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 
 ## Features
 
-- **6 elements**, each with its own passive, scaling at levels 5 / 10 / 15 / 20
+- **10 elements**, each with its own passive, scaling at levels 5 / 10 / 15 / 20
 - **White Drake 🤍:** the streamer's own drake, made of white metal: its scales take hits before its HP and make debuffs bounce off, with two effects and an ultimate of its own (see [below](#white-drake-streamer-only))
 - **White Dragon:** a bigger, unbeatable dragon, the streamer's other form: `!dragon` / `!дракон` switches between the two (see [below](#white-dragon-streamer-only))
 - **294 titles** in seven rarities, from Common stat boosts to Legendary, Mythic and Meme titles with unique abilities
 - **Chat-request window:** replies to viewers (`!stats` cards, title rolls, warnings) appear in their own panel, separate from the battle log
-- **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 12 buffs/debuffs (one of each per viewer element; the White Drake has a pair of its own), class ultimates on an Element Power meter, and a sudden-death phase
+- **Turn-based combat** with physical, magic and vampire attacks, crits, armor, ultra-blocks, 20 buffs/debuffs (one of each per viewer element; the White Drake has a pair of its own), class ultimates on an Element Power meter, and a sudden-death phase
 - **Ranked queue** with level-based matchmaking, plus friendly duels that give no XP
 - **Tournaments:** single elimination with a main bracket of 4, 8 or 16 drakes (level decides who goes straight in and keeps the two highest apart until the final or the 3rd-place match; the rest play a qualifier), best of 3, everyone at level 20; a bracket during the betting window, the score on the arena plate, a podium at the end, and prizes: badges, free title spins, medals and a Hall of Fame (see [below](#tournaments))
 - **Progression:** XP, levels 1–20 and a win/loss leaderboard (the Top drakes, ordered by wins, then fewer losses, then level; ranked fights only; a fight against the streamer's White Dragon counts for neither side, and the streamer isn't listed; each row shows the drake's title in its rarity's colour, with its badge in the rarity frame), saved in `localStorage`
@@ -21,7 +21,7 @@ A Twitch chat mini-game that runs as a browser-source overlay. Viewers create a 
 - **1920×1080 overlay** with pixel-art gold frames: the arena and a side column (streamer card, top drakes, chat replies) on the right, the camera column and the strip above the arena left free. Outside OBS the demo controls sit in the camera column and the whole stage scales down to fit the window
 - **Battle log as attack cards:** one row per round, the left fighter's attack on the left and the right fighter's on the right. Each card names the move (from the drake's element, the attack type and its strength), the damage with an arrow toward the target, and what happened in words: blocks, crits (gold cards), armour-piercing, vampire heals, start-of-turn ticks, effects cast, refreshed or replaced. Ultimates get a header strip; sudden death gets a banner and the damage multiplier on each card. A card never hides anything, since nobody can hover or scroll on stream: when its second line is full it first shrinks a little, then shows the less important notes (effects only counted down, start-of-turn ticks, the sudden-death multiplier, the other hit notes) after what the attack did, as just their icon and number (every note has a glyph of its own, so no two look alike), and if that still doesn't fit the card grows a line. The log starts empty for every fight
 - **Scroll back through the fight:** the log keeps every card of the current fight. Scroll it with the mouse wheel (in OBS: right-click the browser source → Interact). While it's at the bottom it follows each new card; scrolled up, it stays put and a pill says "↓ нові ходи (N)" / "↓ new turns (N)" in its own strip below the cards (click it, or scroll to the bottom, to follow again). During a fight a scrolled-up log left alone for 15 s glides back to the newest turn; on the result screen it stays where it is. No scrollbar is drawn
-- **Animated pixel icons, not emoji,** everywhere on the overlay (the set and its rules: `design/icons/`): pixel art like the drakes, drawn at four times the detail, each with a short idle loop (a still one when the system asks for reduced motion), shown at whole-number scales, crisp where the screen maps their pixels one to one (a 4K canvas) and smoothed at 1080p: each effect in a chip whose shape says buff (rounded) or debuff (angled) and whose colour is its element; a title as its own icon if it has one, else its ability's glyph, else its main bonus's, in its animated rarity frame; each drake's emblem, its element's symbol on a tile: Red a magma core, Blue a crystal fan, Black a crescent moon, Gold a four-leaf clover, Purple an arcane orb, Green a sprout, the White Dragon an eye, the White Drake a steel ring with a green flame (in names, the queue, the Top, the cards, and three either side of the title plate); 1st, 2nd and 3rd place as one medal each. Chat replies carry no leading emoji (the card's colour says warning, done or note); a drake, title or medal a reply names shows its icon. Only the hidden text record and the play-log export keep emoji
+- **Animated pixel icons, not emoji,** everywhere on the overlay (the set and its rules: `design/icons/`): pixel art like the drakes, drawn at four times the detail, each with a short idle loop (a still one when the system asks for reduced motion), shown at whole-number scales, crisp where the screen maps their pixels one to one (a 4K canvas) and smoothed at 1080p: each effect in a chip whose shape says buff (rounded) or debuff (angled) and whose colour is its element; a title as its own icon if it has one, else its ability's glyph, else its main bonus's, in its animated rarity frame; each drake's emblem, its element's symbol on a tile: Red a magma core, Blue a crystal fan, Black a crescent moon, Gold a four-leaf clover, Purple an arcane orb, Green a sprout, Orange a volcano, Cherry a heart cracked open, Pink a butterfly, Turquoise an anchor wound with seaweed, the White Dragon an eye, the White Drake a steel ring with a green flame (in names, the queue, the Top, the cards, and five either side of the title plate); 1st, 2nd and 3rd place as one medal each. Chat replies carry no leading emoji (the card's colour says warning, done or note); a drake, title or medal a reply names shows its icon. Only the hidden text record and the play-log export keep emoji
 - **Turn animation** inside the 4.5 s turn: the attacker lights up with an «АТАКУЄ» tab and its crossed swords (or its ultimate's icon and name), then the target flashes and recoils, its damage number pops, and the HP bar keeps a grey chunk for the lost HP before it drains. Only transform and opacity are animated, so OBS doesn't drop frames
 - **Countdown and result:** a big timer before the first turn ("БІЙ ПОЧИНАЄТЬСЯ"), and a knockout card after the fight with damage, biggest hit, crits and XP for both fighters; level-ups are announced in the chat panel
 - **Ukrainian / English** interface and commands
@@ -52,7 +52,7 @@ Chat is read anonymously through [tmi.js](https://github.com/tmijs/tmi.js) 1.8.5
 
 | English | Українська | What it does |
 |---|---|---|
-| `!drake <color>` | `!дрейк <колір>` | Create your drake: red, blue, black, gold, purple, green (`white` is the streamer's White Drake) |
+| `!drake <color>` | `!дрейк <колір>` | Create your drake: red, blue, black, gold, purple, green, orange, cherry, pink, turquoise (`white` is the streamer's White Drake) |
 | `!queue` | `!черга` | Join the ranked queue. Whoever has waited longest fights next (#1 on the "Далі в черзі" / "Next in queue" strip), against the closest level among the rest; on a level tie, whoever has waited longer. Joining again puts you at the back |
 | `!battle @name` | `!бій @нік` | Challenge someone to a friendly duel (30 s to answer). One open challenge at a time; `!battle` with no name says how to use it |
 | `!accept` / `!decline` | `!прийняти` / `!відхилити` | Answer a challenge. Accepted during a fight, the duel waits and starts after it |
@@ -126,9 +126,17 @@ Every animation lasts 3 s or less (except the draw and the champion screen) and 
 | 🟨 Gold | +50–90% XP; 7–9% chance for a hit to leave the enemy at exactly 1 HP |
 | 🟪 Purple | Buffs and debuffs 25–40% stronger; +20–35% effect chance |
 | 🟩 Green | +22–34% max HP |
+| 🟧 Orange | «Розжарення» / Heat: each of its attacks that lands adds 1 heat, up to 8; at the start of each of the opponent's turns the heat burns the opponent for 1.05% of its max HP per heat (1.15% from level 5, 1.4% at level 20) |
+| 🍒 Cherry | «Кривавий шал» / Blood Frenzy: +1% damage for every 2.5% of max HP it has lost (+36% at 10% HP); every 2.3% from level 5, every 2.1% from level 10 (+43%), every 1.38% at level 20 (+65%) |
+| 🩷 Pink | «Ілюзія» / Illusion: at the start of the fight it copies the opponent's element passive, the fight part, at its own level's tier; with nothing to copy (another Pink Drake, or the White Drake, whose scales are never copied) it takes a random viewer element's, never Pink's own; nothing against the White Dragon, and never a title |
+| 🐚 Turquoise | «Перламутр» / Nacre: every hit it takes, blocked or not, adds a layer, up to 6; each layer cuts the damage of hits by 3.75% (4% from level 5, 4.5% from level 10, 5.5% at level 20: −33% at 6 layers), after armour and Shield, within the 90% cap; ticks and damage returns aren't cut |
 | 🤍 White Drake (the streamer's) | «Луска Дракона» / "Dragon Scale": a bar of 19.5–24% of max HP on top of HP (see [below](#white-drake-streamer-only)) |
 
-All element numbers live in `ELEMENT_BASE` (the level-1 value) and `ELEMENT_TIERS` (the bonus at levels 5 / 10 / 15 / 20). They were tuned with a balance simulator (with the class ultimates in play) so every element matchup at levels 1, 10 and 20 stays within 45–57%, apart from a few known counters that sit within 2 points of that range (see [TESTING.md](../TESTING.md#known-counters)).
+Season 2's four drakes also have base numbers of their own (`DRAKE_BASE`): Orange +12% max HP, Cherry +6% max HP, Turquoise +2% max HP and +5 defense, Pink none. They're no part of a passive, so Pink copies none of them.
+
+**Heat** comes only from an attack that lands: one that was ultra-blocked, missed or slept through adds none, and neither does a skipped turn. Each tick rolls the opponent's ultra-block chance, the one a hit would face at that moment, and a blocked tick deals nothing. Nothing else touches it: armour, Shield, Nacre, debuff immunity and Bloom don't, it uses up no count, and the White Dragon ignores it. It burns the White Drake's scales first, like a hit.
+
+All element numbers live in `ELEMENT_BASE` (the level-1 value) and `ELEMENT_TIERS` (the bonus at levels 5 / 10 / 15 / 20). They were tuned with a balance simulator (with the class ultimates in play) so every element matchup at levels 1, 10 and 20 stays within 45–55%, apart from a few known counters that sit within 2 points of that range (see [TESTING.md](../TESTING.md#known-counters)).
 
 ### White Drake (streamer only)
 
@@ -174,7 +182,7 @@ When the streamer setting changes, both forms stay with the streamer only (see s
 
 ### Buffs and debuffs
 
-Each element has one buff (cast on itself) and one debuff (cast on the opponent). The descriptions below are the ones the game shows (card tooltips); they are filled in from the `EFFECTS` numbers, and `npm test` fails if this table falls out of step with them. When a cast triggers, 70% of the time it's one of the caster's own two (50/50 buff or debuff), 30% of the time any of the 12. The White Dragon always picks from all 12.
+Each element has one buff (cast on itself) and one debuff (cast on the opponent). The descriptions below are the ones the game shows (card tooltips); they are filled in from the `EFFECTS` numbers, and `npm test` fails if this table falls out of step with them. When a cast triggers, 70% of the time it's one of the caster's own two (50/50 buff or debuff), 30% of the time any of the 20. The White Dragon always picks from all 20.
 
 | Element | Buff | Debuff |
 |---|---|---|
@@ -184,6 +192,10 @@ Each element has one buff (cast on itself) and one debuff (cast on the opponent)
 | 🟨 Gold | 🍀 **Blessing** (Благословіння): Next 2 own attacks get +60% crit chance | 🎯 **Mark** (Мітка): The next hit on the target is a guaranteed crit |
 | 🟪 Purple | 🌟 **Divine Might** (Божественна міць): Next own attack deals ×1.55 damage and can't be blocked | 💨 **Dispel** (Розвіювання): Removes all of the target's buffs at once |
 | 🟩 Green | 💚 **Regeneration** (Регенерація): Heals 6.5% max HP at the start of each of the owner's next 3 turns | ☠️ **Poison** (Отруєння): 3% max HP damage at the start of each of the target's 3 turns, and its healing is −50% |
+| 🟧 Orange | ♨️ **Stoke** (Запал): Each of the next 2 own attacks that deals damage gives one extra point of Element Power | 🫠 **Melt** (Оплавлення): The next 2 hits on the target deal +30% damage; it doesn't touch damage at the start of a turn |
+| 🍒 Cherry | 🫀 **Blood for Blood** (Кров за кров): Each of the next 2 own attacks heals it for 50% of the damage it dealt | 🩸 **Bleed** (Кровотеча): After each of its next 3 attacks the target loses 4% of its max HP |
+| 🩷 Pink | ✨ **Fairy Dust** (Чарівний пилок): Each of the next 2 own attacks that deals damage casts an effect instead of rolling for one | 💘 **Infatuation** (Закоханість): A 37.5% chance that the target's next attack hits the target itself instead |
+| 🐚 Turquoise | 💧 **Clear Water** (Чиста вода): Removes all of its own debuffs at once | 🌿 **Seaweed** (Водорості): The target's next 2 attacks are light only: physical or magical, never heavy, sneaky or vampire |
 | 🤍 White Drake (the streamer's) | ⚒️ **Reforging** (Перекування): Each of the next 2 own attacks that deals damage rebuilds the scales by 6% of max HP (8% at the top level), up to their starting size; it isn't healing | 🔗 **Magnet** (Магніт): For the target's next attack, every buff it casts goes to the White Drake instead (within the usual buff limit); buffs it already has stay put |
 
 - **Durations** count what each effect names: the owner's own attacks, the hits it takes (a blocked hit still counts), or the start of its turns. The rules are the same for both fighters. Fighter cards show what's left in words, e.g. "💢 Лють · ще 2 атаки" / "💢 Rage · 2 attacks left".
@@ -192,7 +204,7 @@ Each element has one buff (cast on itself) and one debuff (cast on the opponent)
 - **Dispel never goes to waste:** if the target has no buffs to remove, a different effect is cast instead (picked the usual way; Chaotic charge picks another debuff). On an immune target it still counts as cast and the log shows it was ignored.
 - **Debuff immunity** (the Legendary ability, and the White Dragon) blocks every debuff, Dispel included.
 - **The White Drake's scales:** while they hold, every debuff bounces off it, Dispel included (counted as cast, like immunity). **Magnet** sends a buff the target casts to the White Drake, under the same 2-buff limit.
-- Title abilities draw from the same list: Opening buff picks one of the 6 buffs, Chaotic charge one of the 6 debuffs, Cat on the keyboard any of the 12 (never the White Drake's pair), Chat decides the effects of the two fighters' elements.
+- Title abilities draw from the same list: Opening buff picks one of the 9 buffs that last (never Clear Water, which is over at once), Chaotic charge one of the 10 debuffs, Cat on the keyboard any of the 20 (never the White Drake's pair), Chat decides the effects of the two fighters' elements.
 
 All of this lives in one table, `EFFECTS` (with `EFFECT_CAST` for the cast split and slot limit); the fight code, fighter cards, battle log and balance sim all read from it. The numbers were tuned with the seeded balance matrix (see [TESTING.md](../TESTING.md)).
 
@@ -210,6 +222,10 @@ The fighter card shows the meter as 5 pips labelled "СИЛА" / "POWER", with �
 | 🟨 Gold | 🎰 **Jackpot** (Джекпот) | Three reels (💎 50%, 🪙 35%, 💀 15%): damage ×(1 + 1 per 💎); 2 or more 💀 is a miss |
 | 🟪 Purple | ✴️ **Arcane Detonation** (Арканна детонація) | An attack for ×2.2 damage plus 50% per debuff on the opponent, then those debuffs are removed |
 | 🟩 Green | 🌸 **Bloom** (Цвітіння) | Removes its own debuffs and instantly heals 25% max HP |
+| 🟧 Orange | 🌋 **Eruption** (Виверження) | An attack for ×1.5 damage plus 5% per point of heat; it adds no heat, and afterwards the heat drops by half, rounded down |
+| 🍒 Cherry | 🌬️ **Last Breath** (Останній подих) | An attack for ×1.5 damage, or ×1.8 if its maker is below 25% HP when it starts |
+| 🩷 Pink | 🪞 **Borrowed Magic** (Чужі чари) | Uses the opponent's ultimate with its own stats; with nothing to borrow it's an attack for ×1.5, and from the White Drake it gets only the blow, ×1.5 |
+| 🐚 Turquoise | 🌊 **High Tide** (Приплив) | Instead of attacking, heals 4.25% of max HP per layer of nacre, and keeps its layers |
 | 🤍 White Drake (the streamer's) | 🔨 **Anvil Strike** (Удар ковадла) | A heavy blow for ×1.5 damage (×1.7 at the top level) that also re-forges the scales to their full starting size |
 
 The descriptions are the ones the game shows (the meter's tooltip), filled in from the `CLASS_ULTIMATES` numbers; `npm test` fails if this table falls out of step with them. The White Dragon has no meter and no ultimate.
@@ -219,7 +235,7 @@ How ultimates fit with the rest:
 - **Effect power** (Purple, effect-strength titles) never scales an ultimate's own numbers. The effect an ultimate applies (Firestorm's 🔥 Burn) follows the usual effect rules: the caster's effect power, the 2-per-kind limit, refresh and replacement.
 - **Debuff immunity** blocks the debuff parts of an ultimate (Firestorm's Burn, Shadow Theft's theft) but never its damage.
 - **No effect cuts damage or healing by more than 90%**, whatever its power.
-- **Ultimates that attack** (Firestorm, Shadow Theft, Jackpot, Arcane Detonation, Anvil Strike) are rolled and resolved like any attack, with their extras on top: the attacker's and defender's effects, crits, armor, title abilities, sudden death, element procs and the usual cast roll all apply, and they count down "own attacks" and "hits taken" effects. **Ice Mirror and Bloom replace the attack**: no attack is made that turn, so (as on a frozen turn) only "turns" effects count down.
+- **Ultimates that attack** (Firestorm, Shadow Theft, Jackpot, Arcane Detonation, Eruption, Last Breath, Anvil Strike, and Borrowed Magic when what it borrows attacks) are rolled and resolved like any attack, with their extras on top: the attacker's and defender's effects, crits, armor, title abilities, sudden death, element procs and the usual cast roll all apply, and they count down "own attacks" and "hits taken" effects. **Ice Mirror and Bloom replace the attack**: no attack is made that turn, so (as on a frozen turn) only "turns" effects count down.
 - **Ice Mirror** absorbs each hit only up to a share of the Blue drake's max HP; the rest goes through, and what goes back to the attacker is a share of what was absorbed. It blunts a burst rather than swallowing it. It is not a buff: Dispel and Shadow Theft can't take it. Every attack the Blue drake takes uses one of its hits, blocked or not, like any "hits taken" count. The White Dragon's hits go straight through it.
 - **Shadow Theft** moves buffs before its attack, so a stolen buff (e.g. 💢 Rage) already counts for that attack. A stolen buff the thief already has merges with it (the one with more left stays). Stolen buffs fill free slots in order; any that don't fit are removed. The guaranteed crit depends on whether the target had buffs, even when immunity stops the theft.
 - **Jackpot**'s miss is an attack that deals 0 (it still counts down attack and hit effects, and never casts).
@@ -276,7 +292,7 @@ How ultimates fit with the rest:
 | Mythic | Verdict | 25% chance on a hit to sentence the target; its 3rd hit after that deals ×2 |
 | Meme | Coin flip | Every hit deals ×1.5 or ×0.6 |
 | Meme | Sleepy | 10% chance to sleep through a turn, otherwise +25% damage |
-| Meme | Cat on the keyboard | 25% chance of any of the 12 effects, cast by either fighter |
+| Meme | Cat on the keyboard | 25% chance of any of the 20 effects, cast by either fighter |
 | Meme | 404 | In its fights any hit, by either drake, has an 8% chance to vanish and show «404» |
 | Meme | Blue screen | Each turn, 5% chance that whoever is about to hit crashes: its card flashes blue with «:(» and the turn is lost |
 | Meme | Chat decides | The effects it casts come at random from both fighters' elements |
@@ -349,11 +365,11 @@ Everything is in `index.html`:
 - `TITLES_DB`, `DRAKE_TYPES`: game data. `DRAGON_TYPE` (`'white'`) is the streamer-only dragon and `WHITE_DRAKE_TYPE` (`'steel'`) the streamer's White Drake (both in `STREAMER_TYPES`); `VIEWER_DRAKE_TYPES` is everything else, used for random picks
 - `WHITE_DRAKE`, `scalesOf`: the White Drake's numbers and its bar; `toDragon`, `fromDragon`: the switch between the streamer's forms (`!дракон`)
 - `STREAMER_USER`, `isStreamer`, `setStreamerUser`: who owns the White Drake and the White Dragon
-- `RARITIES` (drop chances), `ELEMENT_BASE` / `ELEMENT_TIERS` (element passives), `MECH` (title abilities): balance numbers — tune these, not the fight code
+- `RARITIES` (drop chances), `ELEMENT_BASE` / `ELEMENT_TIERS` (element passives), `DRAKE_BASE` (Season 2's drakes' base numbers), `MECH` (title abilities): balance numbers — tune these, not the fight code
 - `titleStats`, `getMaxHP`, `getModifiedDefenses`, `getCritStats`, `getEffectMult`, `getTierMultiplier`: stat calculations
 - `handleChatMessage`: command parsing, shared by Twitch and the simulator
-- `EFFECTS`, `EFFECT_CAST`: the 14 buffs/debuffs (`POOL_IDS`: the 12 every drake casts; the White Drake's pair) (icon, names and the Ukrainian accusative for after a verb, description, what counts them down, numbers) and the cast rules; `getCastChance` is the cast chance
-- `CLASS_ULTIMATES`, `METER`: the seven class ultimates (six viewer elements and the White Drake) (icon, names, numbers, description) and the Element Power meter; `ultimateFor`, `describeUltimate`, `renderPowerMeter` (the meter row on the fighter cards)
+- `EFFECTS`, `EFFECT_CAST`: the 22 buffs/debuffs (`POOL_IDS`: the 20 every drake casts; the White Drake's pair) (icon, names and the Ukrainian accusative for after a verb, description, what counts them down, numbers) and the cast rules; `getCastChance` is the cast chance
+- `CLASS_ULTIMATES`, `METER`: the eleven class ultimates (ten viewer elements and the White Drake) (icon, names, numbers, description) and the Element Power meter; `ultimateFor`, `describeUltimate`, `renderPowerMeter` (the meter row on the fighter cards)
 - `getHonours`, `tourneyAward`, `medalOf`, `showHallOfFame`, `showHallCard`: tournament prizes (badges, spins, medals, the Hall of Fame)
 - `show*` (`showSync`, `showDraw`, `showIntro`, `showBracket`, `showChampion`, `showBoardSync`, `showSound`) and `SHOW_SPRITES`: the tournament show (looks and sounds only)
 - `tourney*` (`tourneyCommand`, `tourneyClose`, `tourneyNext`, `tourneyResult`, `tourneyPodium`, `tourneyFighter`, `tourneyBracketHtml`): tournaments; `TOURNEY_TEXT` holds their words in both languages

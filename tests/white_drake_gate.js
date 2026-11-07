@@ -8,8 +8,8 @@
 //
 // The 8 parts (each table at each level) run in parallel, one process each (tests/balance.js whitedrake), each on its own
 // seed derived from --seed, so a run gives the same numbers on any machine. FIGHTS per matchup with titles is sized so
-// that no seed can flip the result: the closest check sits about 4 standard errors inside its bound (TESTING.md,
-// "The White Drake gate"). The table without titles only needs to be readable: PLAIN_FIGHTS.
+// that a new seed shouldn't flip the result: most checks sit about 4 standard errors inside their bounds, level 20's Cherry
+// about 2 (TESTING.md, "The White Drake gate"). The table without titles only needs to be readable: PLAIN_FIGHTS.
 //
 // Options: --fights N (per matchup, with titles)   --plain-fights N   --seed S   --file path/to/index.html
 //          --jobs N (processes at once)
@@ -32,6 +32,7 @@ const LEVELS = [1, 5, 10, 20], MODES = ['titles', 'plain'];
 const KNOWN_COUNTERS = [
     [20, 'gold'],    // Gold's 1-HP hit (9% at level 20) slips past the bar and takes the White Drake to 1 HP
     [20, 'green'],   // Green's HP (+34% at level 20) makes the longest fights, and every Удар ковадла re-forges the bar
+    [20, 'cherry'],  // Blood Frenzy's step at level 20 (+1% per 1.38% of HP lost) turns the HP it loses into hits that chew through the bar
 ];
 
 const PARTS = MODES.flatMap(mode => LEVELS.map(level => ({ mode, level })));

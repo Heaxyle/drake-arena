@@ -6,7 +6,7 @@
 //   node tests/effects.js --file path/to/index.html
 //
 // Checks:
-//   - EFFECTS: 12 effects, one buff + one debuff per viewer element, each with an icon, both names and a description
+//   - EFFECTS: one buff + one debuff per viewer element and the White Drake's pair, each with an icon, both names and a description
 //   - no internal effect id (or a removed effect) ever shows up in the battle log, in either language
 //   - in real fights, every count goes down on the event it names (own attacks, hits taken, the owner's turns), by exactly 1
 //   - descriptions take every number from the table (change a number → the text changes); README lists them as the game does
@@ -18,7 +18,7 @@
 //   - cast chance with fixed dice: 30% + element + title bonus, only after a hit that dealt damage
 //   - what each effect does: scripted turns of the real fight with fixed dice, with vs without the effect, against the
 //     EFFECTS numbers, at power ×1 and ×1.8 (Shield on every kind of hit, Poison cutting healing included)
-//   - casts pick the caster's own element pair about 70% + 30%/6 of the time; the White Dragon picks from all 12
+//   - casts pick the caster's own element pair about 70% plus its share of the other 30%; the White Dragon picks evenly from the pool
 // Exits non-zero if any check fails.
 const fs = require('fs');
 const path = require('path');
@@ -79,10 +79,12 @@ const UNITS = ['attacks', 'hits', 'turns', 'instant'];
 const sameWords = (a, b) => { const x = a.split(' '), y = b.split(' ');
     return x.length === y.length && x.every((w, i) => { let k = 0; while (k < w.length && w[k] === y[i][k]) k++; return k >= Math.max(w.length, y[i].length) - 2; }); };
 // The names whose accusative isn't the name itself; the rest read the same after a verb («накладає 🔥 Підпал»)
-const ACC_UK = { mark: 'Мітку', regen: 'Регенерацію', divine: 'Божественну міць' };
-check(EFFECT_IDS.length === 14 && G.POOL_IDS.length === 12 && G.POOL_IDS.every(id => !G.STREAMER_TYPES.includes(EFFECTS[id].element)),
-    "there are 14 effects: the 12 of the shared pool (every viewer element's pair) and the White Drake's own pair, which isn't in it",
-    `expected 14 effects (12 in the pool), found ${EFFECT_IDS.length}: ${EFFECT_IDS.join(', ')}; pool ${G.POOL_IDS.join(', ')}`);
+const ACC_UK = { mark: 'Мітку', regen: 'Регенерацію', divine: 'Божественну міць', bleed: 'Кровотечу', clearwater: 'Чисту воду' };
+check(G.POOL_IDS.length === 20, 'the shared pool is 20: the ten viewer elements\' pairs', `${G.POOL_IDS.length} in the pool`);
+const POOL_N = 2 * G.VIEWER_DRAKE_TYPES.length;   // every viewer element's pair
+check(EFFECT_IDS.length === POOL_N + 2 && G.POOL_IDS.length === POOL_N && G.POOL_IDS.every(id => !G.STREAMER_TYPES.includes(EFFECTS[id].element)),
+    `there are ${POOL_N + 2} effects: the ${POOL_N} of the shared pool (every viewer element's pair) and the White Drake's own pair, which isn't in it`,
+    `expected ${POOL_N + 2} effects (${POOL_N} in the pool), found ${EFFECT_IDS.length}: ${EFFECT_IDS.join(', ')}; pool ${G.POOL_IDS.join(', ')}`);
 for (const id of EFFECT_IDS) {
     const e = EFFECTS[id], bad = [];
     if (!e.icon || !e.icon.trim()) bad.push('no icon');
@@ -150,6 +152,14 @@ const EFFECT_TEXT_ALLOWLIST = [
     { line: 'id: 151, rarity:', terms: ['🛡', 'Щит', 'Shield'], why: 'title: Щит від спойлерів / Spoiler Shield' },
     { line: 'id: 163, rarity:', terms: ['Магніт', 'Magnet'], why: "title: Магніт для критів / Crit Magnet (older than the White Drake's Магніт)" },
     { line: 'id: 152, rarity:', terms: ['🔥'], why: 'title icon: Hot Take' },
+    { line: '✨ Золотий Дрейк спрацював!', terms: ['✨'], why: "Gold's XP bonus line (not Fairy Dust)" },
+    { line: '✨ Gold Drake triggered!', terms: ['✨'], why: "Gold's XP bonus line (not Fairy Dust)" },
+    { line: "selfHit: '💘 б\\'є себе'", terms: ['💘'], why: "Закоханість's self-hit in FV_TEXT, as the record and the card word it (uk)" },
+    { line: "selfHit: '💘 hits itself'", terms: ['💘'], why: "Закоханість's self-hit in FV_TEXT, as the record and the card word it (en)" },
+    { line: 'id: 164, rarity:', terms: ['🌊'], why: 'title icon: Emoji Tsunami (not the High Tide ultimate)' },
+    { line: '🩸 +${vampHealed} HP лікування!', terms: ['🩸'], why: "a vampire hit's heal in the text record (not Bleed)" },
+    { line: 'id: 166, rarity:', terms: ['🌋'], why: 'title icon: Emotion Volcano (not the Eruption ultimate)' },
+    { line: 'id: 290, rarity:', terms: ['🌋'], why: 'title icon: Sleeping Volcano (not the Eruption ultimate)' },
     { line: 'id: 160, rarity:', terms: ['🍀'], why: 'title icon: Four-Leaf Clover' },
     { line: 'id: 176, rarity:', terms: ['🛡'], why: 'title icon: Unbreakable Moderator' },
     { line: 'id: 153, rarity:', terms: ['🎰'], why: 'title icon: Roulette Lucky Charm (not the Jackpot ultimate)' },
@@ -240,6 +250,7 @@ console.log('\nEffect names on the log cards: the accusative straight after a ve
         ['a buff on the other fighter', cast('regen', 'applied', B), l => `@B ${V[l].gets} ${acc('regen', l)}`],
         ['a refresh', cast('mark', 'refreshed', B), l => `${V[l].refreshes} ${acc('mark', l)}`],
         ['Dispel', cast('dispel', 'dispelled', B, ['regen', 'divine']), l => `${nom('dispel', l)} ${V[l].removes} ${acc('regen', l)} ${acc('divine', l)}`],
+        ['Clear Water', cast('clearwater', 'cleansed', A, ['mark', 'burn']), l => `${nom('clearwater', l)} ${V[l].removes} ${acc('mark', l)} ${acc('burn', l)}`],
         ['Shadow Theft, one buff taken and one lost', { ult: { id: 'theft', taken: ['regen'], lost: ['divine'] } }, l => `${V[l].takes} ${acc('regen', l)} · ${nom('divine', l)} ${G.fvT('lost')}`],
         ['Arcane Detonation', { ult: { id: 'detonation', mult: 2.7, removed: ['mark'] } }, l => `×2.7 ${V[l].removes} ${acc('mark', l)}`],
         ['Bloom', { ult: { id: 'bloom', healed: 30, removed: ['mark', 'poison'] } }, l => `${V[l].removes} ${acc('mark', l)} ${acc('poison', l)}`],
@@ -362,7 +373,7 @@ for (const lang of ['uk', 'en']) {
     }
 }
 
-// Casting picks: own element pair 70% (+ the 30% random hitting it 2/12 of the time), the dragon picks uniformly
+// Casting picks: own element pair 70% (+ the 30% random hitting it two times in the pool's size), the dragon picks uniformly
 {
     const N = 24000, red = fighter('R', 'red'), dragon = fighter('W', G.DRAGON_TYPE);
     let own = 0, buffs = 0; const dragonHits = {};
@@ -371,13 +382,13 @@ for (const lang of ['uk', 'en']) {
         if (EFFECTS[id].element === 'red') { own++; if (EFFECTS[id].kind === 'buff') buffs++; }
         const d = G.pickEffect(dragon); dragonHits[d] = (dragonHits[d] || 0) + 1;
     }
-    const expectOwn = G.EFFECT_CAST.ownElement / 100 + (1 - G.EFFECT_CAST.ownElement / 100) * 2 / 12;
+    const expectOwn = G.EFFECT_CAST.ownElement / 100 + (1 - G.EFFECT_CAST.ownElement / 100) * 2 / POOL_N;
     check(Math.abs(own / N - expectOwn) < 0.015 && Math.abs(buffs / own - 0.5) < 0.02,
         `Red picks its own pair ${(100 * own / N).toFixed(1)}% of the time (expected ${(100 * expectOwn).toFixed(1)}%), ${(100 * buffs / own).toFixed(1)}% of those the buff`,
         `Red own-pair rate ${(own / N).toFixed(3)} (expected ${expectOwn.toFixed(3)}), buff share ${(buffs / own).toFixed(3)}`);
     const dr = G.POOL_IDS.map(id => (dragonHits[id] || 0) / N);
     const steelPicked = EFFECT_IDS.filter(id => !G.POOL_IDS.includes(id) && dragonHits[id]);
-    check(dr.every(x => Math.abs(x - 1 / 12) < 0.012) && !steelPicked.length, "the White Dragon picks evenly from the 12 of the shared pool, never the White Drake's pair",
+    check(dr.every(x => Math.abs(x - 1 / POOL_N) < 0.012) && !steelPicked.length, `the White Dragon picks evenly from the ${POOL_N} of the shared pool, never the White Drake's pair`,
         `White Dragon pick rates: ${dr.map(x => x.toFixed(3)).join(' ')}; picked the White Drake's: ${steelPicked.join(', ')}`);
 }
 
@@ -534,6 +545,68 @@ for (const [pLabel, pCaster] of POWERS) {
             got === want && near(regenPois, regenBase * keep, 1) && near(vampPois, vampBase * keep, 1) && r.setup.left === EFFECTS.poison.count,
             `expected -${want}, Regeneration ≈${(regenBase * keep).toFixed(1)}, vampire ≈${(vampBase * keep).toFixed(1)}`);
     }
+    // ♨️ Stoke: each own attack that deals damage gives one extra meter point (a count, so effect power never scales it)
+    {
+        const red = { A: { drakeObj: DRAKE_TYPES_BY.red } };
+        const meter = (setup, turns) => { const r = scripted(setup, turns, red); return { meter: G.battleFx.A.meter, left: (G.battleFx.A.buff.find(x => x.id === 'stoke') || {}).left, r }; };
+        const plain = meter(null, [dice(), dice(), dice()]).meter;
+        const r = meter(() => castOn('A', 'stoke', pCaster), [dice(), dice(), dice()]);
+        const one = meter(() => castOn('A', 'stoke', pCaster), [dice()]);
+        const blocked = meter(() => castOn('A', 'stoke', pCaster), [dice({ block: 0.05 })]);
+        const third = meter(() => castOn('A', 'stoke', pCaster), [dice(), dice(), dice(), dice(), dice({ crit: 0.99 })]);
+        behaviour(`♨️ Stoke (${pLabel}): two attacks fill ${plain} → ${r.meter} points (one attack: ${one.meter}), count ${r.r.setup.left}; a blocked attack adds ${blocked.meter} and still counts down (left ${blocked.left})`,
+            plain === 2 && r.meter === 4 && one.meter === 2 && one.left === 1 && blocked.meter === 0 && blocked.left === 1 && r.r.setup.left === EFFECTS.stoke.count && third.left === undefined,
+            `expected 2 → 4, one attack 2, blocked 0 with 1 left, count ${EFFECTS.stoke.count}; plain ${plain}, stoked ${r.meter}, one ${one.meter}/${one.left}, blocked ${blocked.meter}/${blocked.left}`);
+    }
+    // 🫀 Blood for Blood: each own attack heals a share of the damage it dealt (a first attack at full HP heals nothing, the second
+    // does); a blocked attack heals nothing and still counts down
+    {
+        const healOf = r => Number((r.turns[2].lines.join('\n').match(/Blood for Blood: \+(\d+) HP/) || [])[1]);
+        const r = scripted(() => castOn('A', 'bloodprice', pCaster), [dice(), dice({ crit: 0 }), dice()]);
+        const want = Math.round(r.turns[2].dmg * Math.min(90, pct(r.setup, 'heal')) / 100);
+        const blocked = scripted(() => castOn('A', 'bloodprice', pCaster), [dice({ block: 0.05 })]);
+        const leftAfterBlock = (G.battleFx.A.buff.find(x => x.id === 'bloodprice') || {}).left;
+        behaviour(`🫀 Blood for Blood (${pLabel}): an attack of ${r.turns[2].dmg} heals ${healOf(r)} (${+pct(r.setup, 'heal').toFixed(2)}% of it, at most 90%), count ${r.setup.left}; a blocked attack heals nothing and counts down (left ${leftAfterBlock})`,
+            healOf(r) === want && r.setup.left === EFFECTS.bloodprice.count && !blocked.turns[0].lines.some(l => /Blood for Blood:/.test(l)) && leftAfterBlock === 1, `expected +${want}`);
+    }
+    // 🩸 Bleed: after each of the target's attacks, hp% of its max HP, count times; none on the other fighter's turns
+    {
+        const r = scripted(() => castOn('A', 'bleed', pCaster), [dice({ block: 0.05 }), dice({ block: 0.05 }), dice({ block: 0.05 }), dice({ block: 0.05 }), dice({ block: 0.05 }), dice({ block: 0.05 }), dice({ block: 0.05 })]);
+        const want = Math.max(1, Math.round(MAXHP * pct(r.setup, 'hp') / 100));
+        const lost = r.turns.map(t => Number((t.lines.join('\n').match(/Bleed \(-(\d+) HP\)/) || [])[1] || 0));
+        behaviour(`🩸 Bleed (${pLabel}): -${want} HP after each of the target's ${EFFECTS.bleed.count} attacks, blocked or not, then gone: ${lost.join(' ')}, count ${r.setup.left}`,
+            lost.join() === [want, 0, want, 0, want, 0, 0].join() && r.setup.left === EFFECTS.bleed.count, `expected -${want} on turns 1, 3 and 5`);
+    }
+    // 💘 Infatuation: chance% that the attack lands on its own maker (dice before the attack's own rolls); the roll just past it doesn't
+    {
+        const cast = roll => { const r = scripted(() => castOn('A', 'infatuation', pCaster), [[roll, ...dice()]]); return r; };
+        const chance = Math.min(100, pct(cast(0.99).setup, 'chance'));
+        const under = cast((chance - 0.5) / 100), past = cast(Math.min(0.999, (chance + 0.5) / 100));
+        const self = t => /hits itself -\d+/.test(t.lines.join('\n'));
+        behaviour(`💘 Infatuation (${pLabel}): ${+chance.toFixed(2)}%: a roll under it lands on its maker, one past it on the target, count ${under.setup.left}`,
+            self(under.turns[0]) && (chance >= 100 || !self(past.turns[0])) && under.setup.left === EFFECTS.infatuation.count, JSON.stringify([under.turns[0].lines, past.turns[0].lines]));
+    }
+    // 🫠 Melt: hits on the target ×(1 + dmg%), every kind of hit; never ticks; "hits taken", so a blocked hit uses it up
+    {
+        const parts = [];
+        let ok = true, count = null;
+        for (const [kind, d] of [['magic', MAGIC], ['armour-piercing', SNEAKY], ['vampire', VAMPIRE]]) {
+            const base = scripted(null, [dice(d)]).turns[0].dmg;
+            const r = scripted(() => castOn('B', 'melt', pCaster), [dice(d)]);
+            const m = 1 + pct(r.setup, 'dmg') / 100;
+            count = r.setup.left;
+            ok = ok && near(r.turns[0].dmg, base * m, m);
+            parts.push(`${kind} ${base} → ${r.turns[0].dmg}`);
+        }
+        const burnTick = r => Number((r.turns[1].lines.join('\n').match(/Burn \(-(\d+) HP\)/) || [])[1]);
+        const burnBase = burnTick(scripted(() => castOn('B', 'burn', null), [dice(), dice()]));
+        const burnMelted = burnTick(scripted(() => { castOn('B', 'burn', null); return castOn('B', 'melt', pCaster); }, [dice(), dice()]));
+        scripted(() => castOn('B', 'melt', pCaster), [dice({ block: 0.05 })]);
+        const leftAfterBlock = (G.battleFx.B.debuff.find(x => x.id === 'melt') || {}).left;
+        const third = scripted(() => castOn('B', 'melt', pCaster), [dice(), dice(), dice(), dice(), dice()]).turns[4].dmg, plainThird = scripted(null, [dice(), dice(), dice(), dice(), dice()]).turns[4].dmg;
+        behaviour(`🫠 Melt (${pLabel}): ${parts.join(', ')}, count ${count}; a Burn tick stays ${burnBase} (${burnMelted}); a blocked hit uses one up (left ${leftAfterBlock}); the third hit is back to ${third}`,
+            ok && count === EFFECTS.melt.count && burnMelted === burnBase && leftAfterBlock === 1 && third === plainThird, `every kind of hit up by the same factor, ticks untouched, count ${EFFECTS.melt.count}`);
+    }
 }
 // Cast chance, with fixed dice. The line is worked out here from the rule (30% + element bonus + title bonus), not
 // read from the game: a hit that deals no damage never casts; a damaging hit casts when the roll is under the line
@@ -577,6 +650,40 @@ for (const [pLabel, pCaster] of POWERS) {
         const before = G.battleFx.B.buff.map(x => x.id).join(', ');
         castOn('B', 'dispel', null); return before; }, []);
     behaviour(`💨 Dispel: the target's buffs (${d.setup}) are all removed at once`, G.battleFx.B.buff.length === 0, `left: ${G.battleFx.B.buff.map(x => x.id)}`);
+    // 💧 Clear Water: all of its owner's debuffs at once; it never sits on the card; with nothing to remove it's cast as something else
+    const c = scripted(() => { castOn('A', 'burn', null); castOn('A', 'mark', null);
+        const before = G.battleFx.A.debuff.map(x => x.id).join(', ');
+        const r = G.applyEffect(plainDrake('A'), plainDrake('B'), 'clearwater', 20, G.battleFx);
+        return { before, r, buffs: G.battleFx.A.buff.length, debuffs: G.battleFx.A.debuff.length }; }, []);
+    behaviour(`💧 Clear Water: its owner's debuffs (${c.setup.before}) all go at once, and it doesn't sit on the card`, c.setup.r === 'cleansed' && !c.setup.debuffs && !c.setup.buffs, JSON.stringify(c.setup));
+    {
+        const seen = new Set();
+        let wasted = 0;
+        for (let i = 0; i < 300; i++) {
+            const A = plainDrake('A'), B = plainDrake('B'), fx = { A: G.newFxState(), B: G.newFxState() }, [r] = logged(() => G.applyEffect(A, B, 'clearwater', 20, fx));
+            seen.add(r); if (r === 'cleansed' || [...fx.A.buff, ...fx.A.debuff].some(x => x.id === 'clearwater')) wasted++;
+        }
+        behaviour(`💧 Clear Water is never wasted: with no debuffs another effect is cast instead (${[...seen].join(', ')})`, !wasted && seen.size > 0, `${wasted} of 300 wasted`);
+        const A = plainDrake('A'), B = plainDrake('B'), fx = { A: G.newFxState(), B: G.newFxState() }, [r] = logged(() => G.applyEffect(A, B, 'clearwater', 20, fx, { pool: G.DEBUFF_IDS.filter(id => id !== 'dispel') }));
+        behaviour(`💧 ...from the caller's pool when it has one (${r})`, fx.B.debuff.length === 1 && !fx.A.buff.length, JSON.stringify(fx));
+    }
+    // ✨ Fairy Dust: each damaging attack casts with no roll for it; a blocked one casts nothing
+    {
+        let casts = [];
+        G.wrapApplyEffect((r, a) => casts.push(a[2]));
+        const dusted = d => { casts = []; const r = scripted(() => castOn('A', 'fairydust', null), [d]); return { r, n: casts.length - 1, left: (G.battleFx.A.buff.find(x => x.id === 'fairydust') || {}).left }; };
+        const hit = dusted(dice({ cast: 0.99 })), blocked = dusted(dice({ block: 0.05, cast: 0 }));
+        behaviour(`✨ Fairy Dust: a hit casts on a roll that never would (${hit.n}), a blocked attack casts nothing (${blocked.n}); both count down (left ${hit.left}, ${blocked.left})`,
+            hit.n === 1 && blocked.n === 0 && hit.left === 1 && blocked.left === 1, JSON.stringify([hit.n, blocked.n, hit.left, blocked.left]));
+    }
+    // 🌿 Seaweed: its attacks are light only, physical or magical, the split even
+    const LIGHT = /\((Phys|Mag) \/ Light\)/;
+    const w = (d, setup = () => castOn('A', 'seaweed', null)) => scripted(setup, [dice(d)]).turns[0].lines.join('\n');
+    const cases = [[{ attack: 0.3, sub: 0.5 }, 'Phys'], [{ attack: 0.3, sub: 0.9 }, 'Phys'], [{ attack: 0.7, sub: 0.5 }, 'Mag'], [{ attack: 0.7, sub: 0.9 }, 'Mag'], [{ attack: 0.95, sub: 0.3 }, 'Mag'], [{ attack: 0.95, sub: 0.7 }, 'Mag'], [{ attack: 0.4999, sub: 0.5 }, 'Phys'], [{ attack: 0.5, sub: 0.5 }, 'Mag']];
+    const off = cases.filter(([d, type]) => { const m = LIGHT.exec(w(d)); return !m || m[1] !== type; });
+    behaviour('🌿 Seaweed: light only, physical below half of the roll and magical above it, never vampire', !off.length, JSON.stringify(off));
+    const seaLeft = scripted(() => castOn('A', 'seaweed', null), [dice(), dice(), dice(), dice(), dice({ attack: 0.95 })]);
+    behaviour('🌿 Seaweed lasts its 2 attacks: the third is free to be anything', /\(Vamp \//.test(seaLeft.turns[4].lines.join('\n')), seaLeft.turns[4].lines.join(' ').slice(0, 120));
 }
 // Effect power changes numbers, never counts: every effect, cast at ×1 and at the highest power
 {
@@ -655,6 +762,7 @@ G.wrapAddLog(raw => {
     const ult = G.ULTIMATE_IDS.find(id => line.includes(G.ultLabel(id, 'uk')) || line.includes(G.ultLabel(id, 'en')));
     if (ult) stats.ultimates.add(ult);
     const noAttack = frozen || (ult && !G.CLASS_ULTIMATES[ult].attacks);
+    const selfHit = /(?:б'є себе|hits itself) -\d+/.test(line);   // Закоханість: its own attack, and a hit on nobody
     const now = snap();
     for (const [inst, before] of baseline) {
         const e = EFFECTS[before.id];
@@ -663,7 +771,7 @@ G.wrapAddLog(raw => {
         const mayVanish = (ult === 'detonation' && !own && e.kind === 'debuff') || (ult === 'bloom' && own && e.kind === 'debuff');
         const d = before.id === 'magnet' ? (before.owner === lastAttacker ? 1 : 0)
                 : noAttack ? (own && (e.lasts === 'turns' || (frozen && before.id === 'frost')) ? 1 : 0)
-                           : (own ? (e.lasts === 'turns' || e.lasts === 'attacks' ? 1 : 0) : (e.lasts === 'hits' ? 1 : 0));
+                           : (own ? (e.lasts === 'turns' || e.lasts === 'attacks' ? 1 : 0) : (e.lasts === 'hits' && !selfHit ? 1 : 0));
         const want = before.left - d;
         const after = now.get(inst);
         if (mayVanish && after === undefined) continue;

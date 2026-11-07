@@ -34,6 +34,15 @@ const KNOWN_COUNTERS = [
     [20, 'black', 'red'],
     [20, 'purple', 'blue'],  // Ice Mirror blunts Purple's burst hits (Divine Might, Arcane Detonation)
     [20, 'green', 'gold'],   // Gold's 1-HP proc takes a share of Green's large HP pool
+    [1, 'red', 'turquoise'],   // Nacre's layers count hits, not damage, so Red's crits get through before they build up
+    [10, 'red', 'turquoise'],
+    [1, 'orange', 'turquoise'],   // Heat is the one damage Nacre can't cut, and Turquoise's long fights give it time
+    [20, 'orange', 'turquoise'],
+    [1, 'pink', 'turquoise'],   // Illusion copies the layers but not Turquoise's own armour and HP
+    [20, 'orange', 'cherry'],   // Heat's burn feeds Blood Frenzy: every tick raises Cherry's bonus
+    [20, 'orange', 'red'],   // Red's crits end the fight before heat has built up
+    [20, 'blue', 'cherry'],   // Blue's reflect sends back half of the bigger hits Blood Frenzy gives Cherry
+    [20, 'gold', 'turquoise'],   // Gold's 1-HP hit takes no cut from Nacre
 ];
 const COUNTER_SLACK = 2;
 const SKIP_TIERS = args.includes('--skip-tiers');
@@ -41,7 +50,6 @@ const NO_COUNTERS = args.includes('--no-counters');
 const SKIP_ELEMENTS = args.includes('--skip-elements');
 const LEVELS = [1, 10, 20];
 const LADDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
-const TYPES = ['red', 'blue', 'black', 'gold', 'purple', 'green'];
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'drake-balance-'));
 const balance = path.join(__dirname, 'balance.js');
@@ -79,6 +87,7 @@ async function pool(jobs, size) {
     const results = await pool([...matrixJobs, ...tierJobs], Math.max(1, os.cpus().length - 1));
     const matrices = results.slice(0, matrixJobs.length), tiers = results.slice(matrixJobs.length);
     const problems = [], counters = [];
+    const TYPES = matrices.length ? Object.keys(matrices[0].matrix) : [];   // every viewer element, as the sim played them
     const avg = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
 
     for (const lvl of SKIP_ELEMENTS ? [] : LEVELS) {

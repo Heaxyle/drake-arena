@@ -69,11 +69,11 @@ flowchart TD
 
 ## Layer 1: effect rules
 
-`effects.js` (`npm run test:effects`, also the first step of `npm test`) loads the game script the same way the balance sim does (`tests/game_env.js`: stub page, instant timers, seeded `Math.random`) and checks the 14 buffs/debuffs in the `EFFECTS` table: the 12 every drake can cast and the streamer's White Drake's own pair. It takes about a second.
+`effects.js` (`npm run test:effects`, also the first step of `npm test`) loads the game script the same way the balance sim does (`tests/game_env.js`: stub page, instant timers, seeded `Math.random`) and checks the 22 buffs/debuffs in the `EFFECTS` table: the 20 every drake can cast and the streamer's White Drake's own pair. It takes about a second.
 
 | Check | What it catches |
 |---|---|
-| 14 effects: the 12 of the shared pool (`POOL_IDS`, every viewer element's pair, in the order random casts use) and the White Drake's own pair, which isn't in it; each viewer element and the White Drake has one buff and one debuff; each has an icon, Ukrainian and English names, a description with every `{number}` filled in, a duration unit and a count | A half-added effect, a typo in the table, a description that shows `{dmg}` or `NaN` |
+| 22 effects: the 20 of the shared pool (`POOL_IDS`, every viewer element's pair, in the order random casts use) and the White Drake's own pair, which isn't in it; each viewer element and the White Drake has one buff and one debuff; each has an icon, Ukrainian and English names, a description with every `{number}` filled in, a duration unit and a count | A half-added effect, a typo in the table, a description that shows `{dmg}` or `NaN` |
 | **The accusative** (`acc`): every effect, a new one too, has its Ukrainian accusative in the table, even when it's the name itself («Лють» → «Лють»); it's the name with other endings at most (as many words, each the same but for its last two letters); the three that change are pinned: Мітка → Мітку, Регенерація → Регенерацію, Божественна міць → Божественну міць | A new effect added without its accusative, a slip back to «Мітка», another effect's name pasted in |
 | Stoneskin and Armor Break are gone from the game file | The removed effects creeping back |
 | Chip text in both languages, including Ukrainian plurals (1 атака / 2 атаки / 5 атак / 21 атака); the fighter cards' chips name every effect in the nominative («🎯 Мітка · ще 1 удар») | "ще 5 атаки"-style grammar slips, the accusative on a chip |
@@ -81,7 +81,7 @@ flowchart TD
 | Effect power (Purple + an effect-strength title) scales the percentages but not the count | Purple making effects last longer |
 | Refresh: casting an active effect resets its count and is logged. Replacement: a third buff/debuff replaces the one closest to ending (the older one on a tie), and the log names both. Dispel removes every buff and takes no slot | Stacking duplicates, replacing the wrong effect, silent replacements |
 | Debuff immunity (title and White Dragon) ignores all 7 debuffs, Dispel and Магніт included, and keeps its own buffs | Immunity lost in the rework, or a debuff that skips the check |
-| Casting split: Red picks its own pair ~75% of the time (70% + 30% × 2/12), half of those the buff; the White Dragon picks evenly from the 12 of the shared pool, never the White Drake's pair | A wrong split, a broken random pick, or the White Drake's pair leaking into random casts |
+| Casting split: Red picks its own pair ~73% of the time (70% + 30% × 2/20), half of those the buff; the White Dragon picks evenly from the 20 of the shared pool, never the White Drake's pair | A wrong split, a broken random pick, or the White Drake's pair leaking into random casts |
 | **Real fights** (300 per language, all elements, ability titles, the White Dragon and the White Drake): before every `[Turn N]` log line, every active effect's count is compared with the state after the previous turn or cast. Own-attack effects must drop by 1 when their owner attacks (Магніт only once that attack's casts are done, so it shows on the next line), hits-taken effects when their owner is attacked (blocked or not), turn effects when their owner's turn starts. On a frozen turn only the owner's turn effects and Frost itself go down. An effect may only disappear when its count reaches 0 | A count going down on the wrong event, by 2, or not at all; Frost eating other buffs; effects vanishing early |
 | No internal effect id (`rage`, `mark`, ..., or the old `stoneskin`) appears in any battle-log line, in either language, and all 14 effect names show up | Log text built from the id instead of the table |
 | In the same fights: every effect name straight after one of those five verbs in the Ukrainian log (Shadow Theft's «забирає …», Bloom's «знімає …», every name of the list) is in the accusative; no effect name comes straight after a preposition: «баф» / «дебаф» goes first and the name stays in the nominative («з бафом …», «завдяки бафу …», «через дебаф …»; about a thousand of them); and every attack line names the damage once: «Шкода: 17.» / "Damage: 17." | A log line that names an effect after a verb with `fxName`, a bare name after a preposition («завдяки 💚 Регенерація»), «Шкода: 17 шкоди» |
@@ -172,11 +172,15 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | **Each ability, with fixed dice** (24, every number written out in the test, not read from `MECH`): Комбо on hits 3 and 6; Перша кров's 3 hits, unblockable; Залізна шкура's 3 hits taken, a blocked one counting; Останній рубіж one HP either side of 40%; Контратака at 29 and 30, none after a block; Пожирач бафів at 59 and 60, no heal with no buffs; Підзарядка's 2/5 for every element and ×1.5, Перевантаження's ×1.6 and restart at 2, on every attacking ultimate, Цвітіння's heal and Крижане дзеркало's absorbing; Інерція stopping at +35%; Очищення before the debuffs act (no HP lost to Burn or Poison, no skipped attack, no cut hit); Довгий баф on every buff and a refresh, Божественна міць covering 2 attacks; Відродження once, a tick too; Двійник at 19 and 20; Око бурі's hits 5 and 9, unblockable; Перемотка one HP either side of 20%, not on its first turn, once a fight; Загартування at 30, 60 and 90% lost; Повернення at 59 and 60, once, a Dispel taking the caster's buffs or doing nothing; Вирок's 4th hit; 404 and Синій екран for either drake; Чат вирішує's casts in 60 real fights; AFK on each of its turns 2–5, a lost turn moving it but never past 5; Лаг's stuck hit; Копіпаст's last hit that did damage | A wrong number, a limit or cap gone, a threshold off by one, a debuff acting before Очищення takes it off |
 | **Nothing only in the hidden record** (24): each ability tells the fight view when it fires, with its number (Синій екран and AFK: the fight view test) | A log card with no sign of what changed the fight |
 | **What they meet** (24): the White Dragon wins by knockout against all 24 abilities at levels 1 and 20, its hit can't vanish or be softened, Відродження only delays it, and Перша кров's hits dissolve on it; the White Drake's scales take Двійник's second hit and Лаг's stuck hit first, a vanished hit leaves them whole, Контратака goes past them as Шипи do, a debuff sent back bounces off them; immunity stops a debuff sent back and keeps the buffs from Пожирач бафів; Магніт: a Довгий баф buff pulled to the White Drake lasts its usual count, Очищення takes Магніт off before the attack, and sent back at the White Drake it does nothing; sudden death: Копіпаст deals exactly the last hit; the time-out: a turn 30 lost to Синій екран is the last turn, a hit stuck on turn 30 never lands | An ability that beats the White Dragon, skips the scales or outlives the fight |
+| **Помаранчевий** (25, every number written out): an attack adds heat only if it lands (blocked, missed, slept through or skipped: none; Двійник's second hit: none; a hit stuck on Лаг when it lands); the tick is 1.05% of the opponent's max HP per heat, 1.15% from the holder's level 5, 1.4% at level 20, after the target's own ticks, and can knock out; it rolls the ultra-block a hit would face, Чорний's and Тінь's included, and a blocked tick deals nothing and shows as a block; no armour, Щит, Шипи, 404 or immunity touches it, it uses up no count; the scales take it first; the White Dragon ignores it. Запал's extra СИЛА, Оплавлення's +30% on hits only, Виверження ×1.5 plus 5% a heat, the heat halved after it. The title abilities treat its effects like any others | Heat from a blocked attack, a tick that can't be blocked, a tick that's cut like a hit, a chance that isn't the hit's |
+| **Вишневий** (26): Кривавий шал's steps (every 2.5% of HP lost, 2.1% from level 10, 1.38% at level 20), stacking with Загартування, the card's +N%. Кров за кров through the usual healing path, capped at 90%, Двійник's hit counted, no heal after a knockout. Кровотеча's 4% after each attack, a tick and no hit: none on a lost turn, none after a knockout, one for Двійник. Останній подих ×1.5, or ×1.8 below 25% HP when it starts | A bonus read from the wrong HP, a heal that skips Отруєння, a bleed tick after the fight ended |
+| **Бірюзовий** (27): every hit taken adds a layer, up to 6, blocked or not, Двійник's and Лаг's too; each cuts 3.75%, 4% from level 5, 4.5% from level 10, 5.5% at level 20, after armour and Щит, inside the 90% cap, on every kind of hit, never ticks or damage returns. Чиста вода's cleanse, Магніт's pull of it, never as the opening buff. Водорості's light-only attacks. Приплив's 4.25% a layer, the layers kept | A layer from a tick, a cut on a return, a cut past the cap, an opening buff that's over at once |
+| **Рожевий** (28): Ілюзія copies each element's fight part at its own level's tier; against the White Drake or another Рожевий the dice draw any of the other nine, never Рожевий's own; nothing against the White Dragon, no title and no base numbers (`DRAKE_BASE`). Чарівний пилок's forced casts. Закоханість's 37.5%, up to 100% with effect power: the attack lands on its maker with its own armour and Щит, no block, nothing back, no СИЛА, no heat, no layer. Чужі чари borrows with its own stats | A copied title or base number, a copy of its own passive, a self-hit that charges the meter |
 | **Migration** (23, each run twice: idempotent): the streamer's old Dragon save (1,000,000 XP) stays the Dragon at level 20 with a White Drake at level 1 behind it; the streamer's regular drake (Red, level 9) becomes the White Drake with the same XP; an old viewer `'white'` save loads as Green; someone no longer the streamer gets a viewer element with the same XP, never the streamer's titles | A level-20 White Drake, a lost XP, a viewer with a streamer form or title |
 
 ### Testing the tests: deliberate breakages
 
-`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 255 specific ways and checks that `effects.js`, `ultimates.js`, `rules.js` or `design/icons/test.js` fails on each one (all four run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". Before that, the count in this paragraph and the one in the root `README.md` must be the list's length, and the table below must number its rows 1 to that length, or the run stops there: a new mutation means a new number in both and a new row. 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, the underdog bonus, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, 116–132 the renamed titles, the wording for the attacker (Ice Mirror, Thorns) and the saved tournament's title refresh, 133–135 the Top's last tie-break and the fights against the White Dragon, 136–168 the streamer's White Drake, 169–179 effect names after a verb or a preposition and the damage line, 180–186 the icon set, and 187–190 a ranked win's XP from the level gap (the floor, the cut, who pays it, Gold after it):
+`npm run test:mutations` (also part of `npm test`) breaks a copy of the game in 380 specific ways and checks that `effects.js`, `ultimates.js`, `rules.js` or `design/icons/test.js` fails on each one (all four run on every copy, in parallel). An unchanged copy runs first and every file must pass, so a broken test setup can't pass as "everything caught". Before that, the count in this paragraph and the one in the root `README.md` must be the list's length, and the table below must number its rows 1 to that length, or the run stops there: a new mutation means a new number in both and a new row. 1–6 are the breakages from the effects rework, 7–8 the Dispel and description rules, 9–11 the effect-behaviour rules, 12–14 the name/icon scan and the cast chance, 15–38 the meter, every ultimate, the 90% cap and the ultimate name/icon scan, 39–49 flip each interaction choice, 50–63 break the game rules (`rules.js` 1–13), 64–70 the result screen's hold and the `!start` guard, 71–77 ranked play (the queue, the underdog bonus, the Top), 78–94 tournaments, 95–99 the tournament prizes, 100–112 the play log's tournament events and every fight's HP, 113–115 the coin flip's Ukrainian words, 116–132 the renamed titles, the wording for the attacker (Ice Mirror, Thorns) and the saved tournament's title refresh, 133–135 the Top's last tie-break and the fights against the White Dragon, 136–168 the streamer's White Drake, 169–179 effect names after a verb or a preposition and the damage line, 180–186 the icon set, and 187–190 a ranked win's XP from the level gap (the floor, the cut, who pays it, Gold after it):
 
 | # | Breakage (one code change) | Caught by | First failure it printed |
 |---|---|---|---|
@@ -327,7 +331,7 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 145 | An own damaging attack under Перекування doesn't rebuild the scales | `rules.js` 23 (1 check) | `23. Перекування: each damaging own attack rebuilds 6% of max HP (8% at level 20) up to the starting size (0 rebuilds), a broken bar too (0), after whi` |
 | 146 | The target's new buffs stay with the target | `rules.js` 23 (2 checks) | `23. Магніт: the target's new buff lands on the White Drake («Лють притягується до Білого Дрейка»), its own Щит stays; with 2 buffs already the pulled` |
 | 147 | A pulled buff goes on top of 2 buffs instead of replacing the one closest to ending | `rules.js` 23 (1 check) | `23. Магніт: the target's new buff lands on the White Drake («Лють притягується до Білого Дрейка»), its own Щит stays; with 2 buffs already the pulled` |
-| 148 | Any drake can cast Перекування and Магніт | `effects.js` (2 checks), `rules.js` 23 (1 check) | `expected 14 effects (12 in the pool), found 14: rage, burn, shield, frost, shadow, weakness, blessing, mark, divine, dispel, regen, poison, reforge, m` |
+| 148 | Any drake can cast Перекування and Магніт | `effects.js` (2 checks), `rules.js` 23 (1 check) | `expected 22 effects (20 in the pool), found 22: rage, burn, shield, frost, shadow, weakness, blessing, mark, divine, dispel, regen, poison, reforge, m` |
 | 149 | The bar stays as it was after Удар ковадла | `rules.js` 23 (1 check) | `23. Удар ковадла: ×1.5 (×1.7 at level 20), and the bar is whole again after it (465 strikes) — [Хід 13] @wdx ➜ @vx (Маг / Сильна): 🔨 УЛЬТИМЕЙТ · Удар` |
 | 150 | Удар ковадла hits ×dmgMult at the top level too | `rules.js` 23 (1 check) | `23. Удар ковадла: ×1.5 (×1.7 at level 20), and the bar is whole again after it (461 strikes) — [Хід 14] @wdx ➜ @vx (Фіз / Сильна): 🔨 УЛЬТИМЕЙТ · Удар` |
 | 151 | The White Drake comes back from the Dragon at 0 XP | `rules.js` 23 (4 checks) | `23. both switches name the White Drake's level: «стає Білим Драконом! Білий Дрейк чекає на рівні 7.», «знову Білий Дрейк: рівень 1, нічого не втрачено` |
@@ -435,6 +439,131 @@ A Dispel that would find no buffs is cast as a different effect instead (from th
 | 253 | Контратака's hit back doesn't tell the view | `rules.js` 24 (1 check) | `nothing only in the hidden record: every ability that changes a fight tells the view (Синій екран and AFK: tests/fightview.js) — Контратака: {"n":{},"` |
 | 254 | The stuck hit landing doesn't tell the view | `rules.js` 24 (1 check) | `nothing only in the hidden record: every ability that changes a fight tells the view (Синій екран and AFK: tests/fightview.js) — Лаг: [{"lagHang":true` |
 | 255 | The eaten buff's chip stays in the nominative | `design/icons/test.js` (1 check) | `uk: «з’їдає» isn't followed by the accusative` |
+| 256 | A new note keeps its words when compact: Кривавий шал's compact chip isn't its icon and the number | `design/icons/test.js` (1 check) | `uk frenzy: not its icon and words, and its icon and +43% when compact / en frenzy: not its icon and words, and its icon and +43% when compact` |
+| 257 | The heat tick has no compact form: a crowded card can't shrink the heat tick to its icon and the number | `design/icons/test.js` (1 check) | `uk: two items on a crowded card look alike: frenzy,bloodprice,bleed,nacre,stoke,melt,fairydust,infatuation,seaweed / uk: the heat tick doesn't read «ж` |
+| 258 | Heat past its cap: heat goes on past 8 | `rules.js` (1 check) | `25. heat stops at 8 — 8,8,9` |
+| 259 | An attack that lands nothing adds heat: a blocked, missed or slept-through attack adds heat like one that lands | `rules.js` (4 checks) | `25. an ultra-blocked attack adds no heat — [0,1]` |
+| 260 | Лаг adds its heat at once: a hit that hangs adds its heat then, not when it lands | `rules.js` (1 check) | `25. Лаг: a hit that hangs adds no heat until it lands (0, then its landing's 1 and that turn's own hit's) — 1,1,2` |
+| 261 | A hung Виверження adds heat: an Eruption stuck on Лаг adds heat when it lands | `rules.js` (1 check) | `25. Лаг: a hung Виверження adds no heat when it lands (4 drops to 2, then only that turn's own hit adds one) — 2,2,4` |
+| 262 | Мороз adds heat: a frozen turn adds heat | `rules.js` (1 check) | `25. a turn lost to Мороз adds none — [Turn 1] @A is frozen: ❄️ Frost — the attack is skipped!` |
+| 263 | Двійник adds heat: Двійник's second hit adds a second heat | `rules.js` (1 check) | `25. Двійник's second hit is part of the same attack: one heat — {"twin":20}` |
+| 264 | Heat tick off the wrong max HP: the tick is a share of the holder's max HP, not the target's | `rules.js` (12 checks) | `25. the tick: 1.05% of the opponent's max HP per heat, 1.15% from the holder's level 5, 1.4% at its level 20 (340 HP at 8 heat: 38; a level-1 target o` |
+| 265 | Heat tick at the target's tier: the tick's rate comes from the target's level, not the holder's | `rules.js` (1 check) | `25. the tick: 1.05% of the opponent's max HP per heat, 1.15% from the holder's level 5, 1.4% at its level 20 (340 HP at 8 heat: 38; a level-1 target o` |
+| 266 | Heat tick has no tier: the tick stays at 0.5% at level 20 | `rules.js` (12 checks) | `25. the tick: 1.05% of the opponent's max HP per heat, 1.15% from the holder's level 5, 1.4% at its level 20 (340 HP at 8 heat: 38; a level-1 target o` |
+| 267 | Heat tick burns the White Dragon: the White Dragon takes the tick | `rules.js` (1 check) | `25. the White Dragon ignores the heat — @A 🌡️ heat -11200` |
+| 268 | Heat tick past the scales: the tick goes straight to the White Drake's HP | `rules.js` (2 checks) | `25. against the White Drake the heat burns the scales first (81 → 43), her HP stays — [{"now":81,"max":81},298]` |
+| 269 | Debuff immunity stops the heat: the tick treats immunity as if it were a debuff | `rules.js` (1 check) | `25. the tick is neither a hit nor a debuff: Щит, armour, reflect, Шипи, Контратака, 404, debuff immunity and Очищення don't touch it, and nothing come` |
+| 270 | Heat tick on a knocked-out drake: the tick still fires on a drake its own debuff just knocked out | `rules.js` (1 check) | `25. a debuff tick that knocks it out leaves the heat nothing to do — @A loses HP from 🔥 Burn (-340 HP) · last turn` |
+| 271 | The heat tick only in the hidden record: the tick doesn't tell the view | `rules.js` (5 checks) | `25. a tick is 1 HP at least (20 max HP at 1 heat) — {}` |
+| 272 | The heat tick rolls no block: nothing blocks the tick | `rules.js` (1 check) | `25. the tick rolls the ultra-block a hit would face now: 10%, Чорний 13–20%, Тінь +25%, Квантовий ухил +10% — a plain drake: a roll under 10% isn't bl` |
+| 273 | The heat tick ignores Тінь: Тінь's bonus doesn't count on the tick | `rules.js` (1 check) | `25. the tick rolls the ultra-block a hit would face now: 10%, Чорний 13–20%, Тінь +25%, Квантовий ухил +10% — Тінь: a roll under 35% isn't blocked: {"` |
+| 274 | The heat tick ignores the target's passive: only the plain 10% counts on the tick | `rules.js` (1 check) | `25. the tick rolls the ultra-block a hit would face now: 10%, Чорний 13–20%, Тінь +25%, Квантовий ухил +10% — Чорний at level 20: a roll under 20% isn` |
+| 275 | The heat tick rolls the holder's chance: the tick rolls its holder's block chance, not the target's | `rules.js` (1 check) | `25. the tick rolls the ultra-block a hit would face now: 10%, Чорний 13–20%, Тінь +25%, Квантовий ухил +10% — Чорний at level 20: a roll under 20% isn` |
+| 276 | A blocked tick uses up Тінь: a tick counts as a hit taken when it is blocked | `effects.js` (1 check), `rules.js` (1 check) | `19 wrong count change(s), first: turn 4 (attacker @A): @A's melt (hits) went 2 → 1, expected 2 / turn 10 (attacker @B): @B's melt (hits) went 2 → 1, e` |
+| 277 | A tick uses up Щит: a tick that lands counts as a hit taken | `effects.js` (1 check), `rules.js` (1 check) | `99 wrong count change(s), first: turn 2 (attacker @B): @B's melt (hits) went 2 → 1, expected 2 / turn 6 (attacker @A): @A's melt (hits) went 1 → gone,` |
+| 278 | Щит cuts the tick: the tick takes Щит like a hit | `rules.js` (1 check) | `25. the tick is neither a hit nor a debuff: Щит, armour, reflect, Шипи, Контратака, 404, debuff immunity and Очищення don't touch it, and nothing come` |
+| 279 | A blocked tick only in the hidden record: a blocked tick doesn't tell the view | `rules.js` (1 check) | `25. the tick rolls the ultra-block a hit would face now: 10%, Чорний 13–20%, Тінь +25%, Квантовий ухил +10% — a plain drake: a roll under 10% isn't bl` |
+| 280 | A blocked tick shows a zero: the card reads «жар 0», not a block | `design/icons/test.js` (1 check) | `uk: a blocked heat tick doesn't show as a block / uk: a heat tick Тінь's bonus blocked doesn't show Тінь's chip / en: a blocked heat tick doesn't show` |
+| 281 | The heat off the fighter card: the fighter card doesn't show the heat | `rules.js` (1 check) | `25. the fighter card shows the heat (2/8) in the meter's row, and only on Помаранчевий's card — an><span class="pm-pip on"></span><span class="pm-pip"` |
+| 282 | Запал on a blocked attack: an attack that dealt no damage still gets the extra point | `effects.js` (2 checks) | `♨️ Stoke (power ×1): two attacks fill 2 → 4 points (one attack: 2), count 2; a blocked attack adds 1 and still counts down (left 1) — expected 2 → 4,` |
+| 283 | Запал fills the meter on the ultimate: the ultimate gets the extra point | `ultimates.js` (1 check) | `🌋 Eruption with ♨️ Stoke: the ultimate never fills the meter, and it counts down Stoke as an own attack — meter 1, Stoke left 1` |
+| 284 | Effect power scales Запал: a count is scaled: the extra point grows with effect power | `effects.js` (1 check) | `♨️ Stoke (power ×1.80): two attacks fill 2 → 5 points (one attack: 3), count 2; a blocked attack adds 0 and still counts down (left 1) — expected 2 →` |
+| 285 | Запал's point only in the hidden record: the extra point doesn't tell the view | `rules.js` (1 check) | `25. nothing only in the hidden record: Запал's extra point tells the view — {}` |
+| 286 | Оплавлення on the wrong fighter: the attacker's own Оплавлення raises its damage | `effects.js` (2 checks) | `🫠 Melt (power ×1): magic 29 → 29, armour-piercing 41 → 41, vampire 41 → 41, count 2; a Burn tick stays 17 (17); a blocked hit uses one up (left 1); t` |
+| 287 | Оплавлення ignores effect power: the +25% never scales | `effects.js` (1 check) | `🫠 Melt (power ×1.80): magic 29 → 38, armour-piercing 41 → 53, vampire 41 → 53, count 2; a Burn tick stays 17 (17); a blocked hit uses one up (left 1)` |
+| 288 | Оплавлення on ticks: a Burn tick on a melted drake is +25% too | `effects.js` (2 checks) | `🫠 Melt (power ×1): magic 29 → 38, armour-piercing 41 → 53, vampire 41 → 53, count 2; a Burn tick stays 17 (21); a blocked hit uses one up (left 1); t` |
+| 289 | Кривавий шал has no tier: it stays +1% for every 3% at level 20 | `rules.js` (6 checks) | `26. Кривавий шал: +1% for every 2.5% of max HP lost (+36% at 10% HP), every 2.1% from level 10 (+43%), every 1.38% at level 20 (+65%), nothing at full` |
+| 290 | Кривавий шал doesn't stack: with a Загартування title it gives nothing | `rules.js` (1 check) | `26. it stacks with Загартування: ×1.65 and ×1.3 together — 1.295031055900621` |
+| 291 | Кривавий шал only in the hidden record: the bonus doesn't tell the view | `rules.js` (2 checks) | `26. nothing only in the hidden record: the bonus tells the view — {"tick:burn":-216}` |
+| 292 | The frenzy off the fighter card: the card doesn't show the bonus | `rules.js` (1 check) | `26. the card shows the bonus (+43% at 40% HP) once it's above 0, and nothing at full HP — /span><span class="pm-pip"></span><span class="pm-pip"></spa` |
+| 293 | The frenzy on a healthy card: the card shows +0% at full HP | `rules.js` (1 check) | `26. the card shows the bonus (+43% at 40% HP) once it's above 0, and nothing at full HP — class="pm-frenzy"><img class="px-icon" data-icon="frenzy" da` |
+| 294 | The card's frenzy never changes: the card's bonus stays at 0 as HP goes | `rules.js` (2 checks) | `26. the card shows the bonus (+43% at 40% HP) once it's above 0, and nothing at full HP — /span><span class="pm-pip"></span><span class="pm-pip"></spa` |
+| 295 | Кров за кров skips Отруєння: its heal doesn't go through the usual healing path | `rules.js` (1 check) | `26. Отруєння cuts it (45 → +23) — {"tick:burn":-260,"tick:poison":-11,"frenzy":55,"bloodprice":23}` |
+| 296 | Кров за кров past max HP: its heal goes over max HP | `rules.js` (1 check) | `26. it stops at max HP — [{"tick:burn":-5,"frenzy":1,"bloodprice":15},370]` |
+| 297 | Кров за кров past 90%: effect power takes its heal past 90% of the damage | `rules.js` (1 check) | `26. effect power scales it, up to 90% of the damage (power ×3: 45 → +68) — [45,{"tick:burn":-260,"frenzy":52,"bloodprice":68}]` |
+| 298 | Кров за кров ignores Двійник: the second hit's damage doesn't count | `rules.js` (1 check) | `26. Двійник's second hit is part of the attack, so its damage counts — [45,{"tick:burn":-287,"frenzy":52,"twin":31,"bloodprice":23}]` |
+| 299 | Кров за кров heals a knocked-out drake: the heal brings back a drake Шипи knocked out | `rules.js` (1 check) | `26. a drake Шипи knocked out on its own attack doesn't heal back — [false,{"tick:burn":-358,"frenzy":72,"thorns":8,"bloodprice":25}]` |
+| 300 | Кров за кров only in the hidden record: the heal doesn't tell the view | `rules.js` (6 checks) | `26. Кров за кров: heals half the damage the attack dealt (45 → +undefined) — [45,{"tick:burn":-260,"frenzy":52},123]` |
+| 301 | Кровотеча after a knockout: it ticks after the attack that ended the fight | `rules.js` (1 check) | `26. the attack that ends the fight: no tick after it — [true,326,{"bleed":14}]` |
+| 302 | Кровотеча on a frozen turn: a turn lost to Мороз ticks | `rules.js` (1 check) | `26. a turn lost to Мороз makes no attack: no tick, no HP lost, and it doesn't count down — [330,[{"id":"bleed","left":3,"power":1}]]` |
+| 303 | Кровотеча twice on Двійник: Двійник's second hit ticks too | `rules.js` (1 check) | `26. Двійник's second hit is part of the same attack: one tick, one 4% off its HP — [350,375,"[Turn 1] @A ➜ @B (Mag / Heavy):  [🩸 Bleed]   Damage: 29.` |
+| 304 | Кровотеча through the scales: the White Drake's scales take it | `rules.js` (1 check) | `26. it's damage, not a hit: the scales rebuilt over it don't take it, like Burn and Poison — [{"now":27,"max":81},336]` |
+| 305 | Кровотеча ignores effect power: the 3% never scales | `effects.js` (1 check) | `🩸 Bleed (power ×1.80): -24 HP after each of the target's 3 attacks, blocked or not, then gone: 14 0 14 0 14 0 0, count 3 — expected -24 on turns 1, 3` |
+| 306 | Кровотеча off the opponent's HP: the tick is a share of the wrong fighter's max HP | `effects.js` (2 checks), `rules.js` (6 checks) | `🩸 Bleed (power ×1): -14 HP after each of the target's 3 attacks, blocked or not, then gone: 20 0 20 0 20 0 0, count 3 — expected -14 on turns 1, 3 an` |
+| 307 | Кровотеча only in the hidden record: the tick doesn't tell the view | `rules.js` (6 checks) | `26. Кровотеча: 4% of its own max HP after its attack, blocked or not — [{},326]` |
+| 308 | Останній подих at the line: exactly 25% HP counts as below it | `ultimates.js` (1 check) | `🌬️ Last Breath: 360 HP: ×1.5, 29 → 44; 90 HP: ×1.5, 45 → 81; 89 HP: ×1.8, 45 → 81; 40 HP: ×1.8, 48 → 87 (25% of 360 is 90); it can be blocked — at 90` |
+| 309 | Останній подих always ×2.5: the HP check is gone | `ultimates.js` (1 check) | `🌬️ Last Breath: 360 HP: ×1.5, 29 → 53; 90 HP: ×1.5, 45 → 81; 89 HP: ×1.8, 45 → 81; 40 HP: ×1.8, 48 → 87 (25% of 360 is 90); it can be blocked — at 36` |
+| 310 | Effect power scales Останній подих: its multiplier is scaled by the caster's effect power | `ultimates.js` (1 check) | `🌬️ Last Breath: effect power doesn't scale its multiplier (48 → 121, ×1.8) — 121, expected 86.4` |
+| 311 | Layers past their cap: layers go on past 8 | `rules.js` (1 check) | `27. layers stop at 6 —` |
+| 312 | A blocked hit adds no layer: only a hit that deals damage adds a layer | `rules.js` (2 checks) | `27. a blocked hit adds one too —` |
+| 313 | Двійник's second hit adds no layer: it counts as part of the attack | `rules.js` (1 check) | `27. Двійник's second hit is a hit of its own: another layer — 1` |
+| 314 | Лаг's stuck hit adds no layer: it lands without one | `rules.js` (1 check) | `27. Лаг: the attack is a hit taken and the stuck hit a hit of its own (then that turn's attack): a layer each — 1,1,2` |
+| 315 | Layers have no tier: they stay at 3% at level 20 | `rules.js` (4 checks) | `27. Перламутр: −3.75% a layer, −4% from level 5, −4.5% from level 10 (−27% at 6), −5.5% at level 20 (−33%), on every kind of hit, armour-piercing and` |
+| 316 | Layers past the 90% cap: armour, Щит and layers together cut more than 90% | `rules.js` (1 check) | `27. defence, Щит and layers together stay inside the 90% cap (451 → 30) — [451,30]` |
+| 317 | Layers skip armour-piercing hits: they only cut hits that go through armour | `rules.js` (1 check) | `27. Перламутр: −3.75% a layer, −4% from level 5, −4.5% from level 10 (−27% at 6), −5.5% at level 20 (−33%), on every kind of hit, armour-piercing and` |
+| 318 | Layers cut Шипи: a damage return comes off the layers too | `rules.js` (1 check) | `27. nor is Шипи — [342,343]` |
+| 319 | Layers cut the ticks: a Burn tick comes off the layers too | `ultimates.js` (2 checks), `rules.js` (4 checks) | `🌊 High Tide: no attack; 0 layers: +0, 1 layers: +32, 3 layers: +94, 6 layers: +189 (4.25% of 346 HP per layer), and the layers stay — 1 layers healed` |
+| 320 | The cut only in the hidden record: the cut doesn't tell the view | `rules.js` (1 check) | `27. the cut tells the view, and the record says «🐚 −33%» — [{}," 1] @A ➜ @B (Mag / Heavy):  [💢 Rage]   Damage: 201. 🐚 −33%"]` |
+| 321 | The layers off the fighter card: the card doesn't show the layers | `rules.js` (1 check) | `27. the fighter card shows the layers (1/6) in the meter's row, and only on Бірюзовий's card — m-pip"></span><span class="pm-pip"></span><span class="` |
+| 322 | Чиста вода sits on the card: it goes on the buff list like a lasting buff | `effects.js` (0 checks), `rules.js` (2 checks) | `` |
+| 323 | Чиста вода wasted: with no debuffs to remove it does nothing | `effects.js` (2 checks) | `💧 Clear Water is never wasted: with no debuffs another effect is cast instead (cleansed) — 300 of 300 wasted` |
+| 324 | Чиста вода removes buffs: it takes its owner's buffs, like Dispel | `effects.js` (1 check), `rules.js` (2 checks) | `💧 Clear Water: its owner's debuffs (burn, mark) all go at once, and it doesn't sit on the card — {"before":"burn, mark","r":"applied","buffs":0,"debu` |
+| 325 | The opening buff can be Чиста вода: an instant buff is handed out to keep | `effects.js` (0 checks), `rules.js` (0 checks) | `` |
+| 326 | Водорості allow vampire: the vampire share of the roll stays | `effects.js` (1 check), `rules.js` (1 check) | `🌿 Seaweed: light only, physical below half of the roll and magical above it, never vampire — [[{"attack":0.95,"sub":0.3},"Mag"],[{"attack":0.95,"sub"` |
+| 327 | Водорості allow heavy hits: only the attack type is held | `effects.js` (1 check) | `🌿 Seaweed: light only, physical below half of the roll and magical above it, never vampire — [[{"attack":0.3,"sub":0.5},"Phys"],[{"attack":0.3,"sub":` |
+| 328 | Удар ковадла beats Водорості: the blow stays heavy under Seaweed | `rules.js` (1 check) | `27. Водорості: never heavy, so Удар ковадла goes out light — [Turn 1] @A ➜ @B (Mag / Heavy): 🔨 ULTIMATE · Anvil Strike ×1.7  [🌿 Seaweed]   Damage: 5` |
+| 329 | Приплив ignores the layers: it heals as if it had none | `ultimates.js` (2 checks), `rules.js` (2 checks) | `🌊 High Tide: no attack; 0 layers: +15, 1 layers: +15, 3 layers: +15, 6 layers: +15 (4.25% of 346 HP per layer), and the layers stay — 0 layers healed` |
+| 330 | Приплив skips Отруєння: its heal doesn't go through the usual healing path | `ultimates.js` (1 check) | `🌊 High Tide: Poison cuts it like any healing (88) — 118` |
+| 331 | Приплив without Перевантаження: the titles don't scale its heal | `rules.js` (2 checks) | `27. Перевантаження scales Приплив ×1.6 (+66) — {"m":386,"got":66}` |
+| 332 | Приплив spends the layers: the layers go with it | `ultimates.js` (2 checks) | `🌊 High Tide: no attack; 0 layers: +0, 1 layers: +15, 3 layers: +44, 6 layers: +88 (4.25% of 346 HP per layer), and the layers stay — 1 layers became` |
+| 333 | Ілюзія copies another Рожевий: it takes «pink» for a passive and shows the banner | `rules.js` (2 checks) | `28. and against another Рожевий — [["red","pink"],["blue","pink"],["black","pink"],["gold","pink"],["purple","pink"],["green","pink"],["orange","pink"` |
+| 334 | Ілюзія copies the White Drake: the White Drake's type goes through | `rules.js` (4 checks) | `28. against the White Drake the dice pick any of the other nine, each by its own share of the roll — [["red","steel"],["blue","steel"],["black","steel` |
+| 335 | Ілюзія without Зелений's HP: its max HP stays its own | `ultimates.js` (1 check), `rules.js` (2 checks) | `🪞 Borrowed Magic: Bloom heals a share of its own max HP (+75) — 115` |
+| 336 | Ілюзія at the opponent's tier: Зелений's HP comes at the opponent's level | `rules.js` (3 checks) | `28. at its own level's tier, not the opponent's — [201,414]` |
+| 337 | Ілюзія without Синій's armour: its armour stays its own | `rules.js` (1 check) | `28. from Синій its armour (29 → 29) —` |
+| 338 | Ілюзія without Червоний's crit: its crit stays its own | `rules.js` (1 check) | `28. from Червоний its crit: 48% at level 20, ×2.05 — [Turn 1] @A ➜ @B (Mag / Heavy):   Damage: 29.` |
+| 339 | Ілюзія without Синій's reflect: no reflect | `rules.js` (1 check) | `28. and the reflect, its chance at its own level — {"cast:applied":"infatuation"}` |
+| 340 | Ілюзія without Золотий's 1-HP hit: no fortune | `rules.js` (1 check) | `28. from Золотий the 1-HP hit — [{"cast:applied":"infatuation"},311]` |
+| 341 | Ілюзія without Чорний's block: the block chance stays the plain one | `rules.js` (1 check) | `28. from Чорний its block — [29,29]` |
+| 342 | Ілюзія without the cast chance: Чорний's and Фіолетовий's cast chance stays out | `rules.js` (1 check) | `28. and its cast chance (57% at level 20) — [0,0]` |
+| 343 | Ілюзія without Фіолетовий's power: its effects keep their plain strength | `rules.js` (1 check) | `28. from Фіолетовий its effect power (×1) — 1` |
+| 344 | Ілюзія without the heat: it gets no heat of its own | `rules.js` (1 check) | `28. from Помаранчевий its own heat, built by its own attacks, and it burns — [null,{"vamp":27}]` |
+| 345 | Ілюзія without the frenzy: it gets no frenzy | `rules.js` (1 check) | `28. from Вишневий the frenzy — {"tick:burn":-204}` |
+| 346 | Ілюзія without the layers: it gets no layers | `rules.js` (1 check) | `28. from Бірюзовий the layers — [0,null]` |
+| 347 | Ілюзія copies a drake's base HP: against Помаранчевий it has +12% HP it should never have | `rules.js` (1 check) | `28. it copies no base numbers: its HP stays its own against Помаранчевий, Вишневий and Бірюзовий (340) — 380,360,346` |
+| 348 | Ілюзія copies a drake's base armour: against Бірюзовий it takes the drake's +5 defense | `rules.js` (1 check) | `28. nor Бірюзовий's armour: a hit on it lands as on a plain drake — [27,29]` |
+| 349 | Ілюзія with nothing to copy gets nothing: against the White Drake and another Рожевий it has no passive | `rules.js` (6 checks) | `28. against the White Drake the dice pick any of the other nine, each by its own share of the roll — [["red",null],["blue",null],["black",null],["gold` |
+| 350 | Ілюзія's draw can land on Рожевий: the random copy can be Рожевий's own passive | `rules.js` (5 checks) | `28. against the White Drake the dice pick any of the other nine, each by its own share of the roll — [["purple","green"],["green","orange"],["orange",` |
+| 351 | Ілюзія's draw without the dice: the random copy is always the same element | `rules.js` (6 checks) | `28. against the White Drake the dice pick any of the other nine, each by its own share of the roll — [["blue","red"],["black","red"],["gold","red"],["` |
+| 352 | Ілюзія from the White Dragon too: it draws a passive against the White Dragon | `rules.js` (2 checks) | `28. against the White Dragon it still copies nothing —` |
+| 353 | The copied emblem off the card: its card doesn't show what it copied | `rules.js` (1 check) | `28. its card shows its own emblem and the one it copied — <img class="px-icon" data-icon="emPink" data-n="10" data-s="2" src="" width="20" height="20"` |
+| 354 | The card keeps its own stats: the stats row doesn't follow what it copied | `rules.js` (1 check) | `28. and the stats row follows what it copied (Синій's armour: 39% at level 20) — <span><span class="stat-label">CRIT</span> 34% ×1.5</span><span><span` |
+| 355 | Чарівний пилок rolls anyway: the cast still needs its usual roll | `effects.js` (1 check) | `✨ Fairy Dust: a hit casts on a roll that never would (0), a blocked attack casts nothing (0); both count down (left 1, 1) — [0,0,1,1]` |
+| 356 | Закоханість never fires: the attack always goes to its target | `effects.js` (2 checks), `rules.js` (23 checks) | `💘 Infatuation (power ×1): 37.5%: a roll under it lands on its maker, one past it on the target, count 1 — [["[Turn 1] @A ➜ @B (Phys / Heavy):  [💘 In` |
+| 357 | Закоханість ignores effect power: the 50% never scales | `effects.js` (1 check), `rules.js` (1 check) | `💘 Infatuation (power ×1.80): 67.5%: a roll under it lands on its maker, one past it on the target, count 1 — [["[Turn 1] @A ➜ @B (Mag / Heavy):  [💘` |
+| 358 | A self-hit ignores its own armour: it comes in unarmoured | `rules.js` (6 checks) | `28. Закоханість: the attack lands on its maker: its own armour, the same hit (29) — [39,29,340]` |
+| 359 | A self-hit ignores its own Щит: Щит doesn't cut it | `rules.js` (1 check) | `28. its own Щит cuts it, and uses up no count — [29,[{"id":"shield","left":2,"power":1}]]` |
+| 360 | A self-hit uses up a hit taken: the opponent's "hits taken" effects count down | `effects.js` (1 check), `rules.js` (1 check) | `7 wrong count change(s), first: turn 3 (attacker @B): @A's melt (hits) went 2 → 1, expected 2 / turn 7 (attacker @B): @A's shield (hits) went 1 → gone` |
+| 361 | A self-hit spares own attacks: its "own attacks" effects stay as they are | `effects.js` (1 check), `rules.js` (1 check) | `99 wrong count change(s), first: turn 20 (attacker @B): @B's infatuation (attacks) went 1 → 1, expected gone / turn 8 (attacker @B): @B's infatuation` |
+| 362 | A self-hit adds heat: Помаранчевий gains heat from it | `rules.js` (1 check) | `28. it adds no heat — 1` |
+| 363 | A self-hit adds a layer: Бірюзовий gains a layer from it | `rules.js` (1 check) | `28. not even on its own Бірюзовий — 1` |
+| 364 | A self-hit fills the meter: it gives Element Power | `rules.js` (1 check) | `28. no Element Power — 1` |
+| 365 | A self-hit can be copied: Копіпаст copies it | `rules.js` (1 check) | `28. it isn't a hit Копіпаст can copy — {"copy":29}` |
+| 366 | Кровотеча skips a self-hit: a self-hit isn't taken for an attack | `rules.js` (1 check) | `28. it's still its own attack: its own-attack effects count down, Кровотеча ticks, and Закоханість is used up — [{"buff":[{"id":"rage","left":1,"power` |
+| 367 | A self-hit takes the opponent's Мітка: the crit Мітка forces carries over | `rules.js` (1 check) | `28. the opponent's Мітка has no say in it, and stays — [Turn 1] @A (Mag / Heavy): 💘 hits itself -44.` |
+| 368 | A self-hit takes the opponent's Оплавлення: it comes in melted | `rules.js` (1 check) | `28. nor its Оплавлення — [38,[{"id":"melt","left":2,"power":1}]]` |
+| 369 | A self-hit never ends the fight: the knockout goes unseen | `rules.js` (1 check) | `28. it can knock its own maker out — [false,0]` |
+| 370 | Чужі чари borrows nothing: it fires its own ×1.5 attack against everyone | `ultimates.js` (6 checks) | `🪞 Borrowed Magic: the header names both, and it fires each opponent's own: Firestorm, Ice Mirror, Shadow Theft, Jackpot, Arcane Detonation, Bloom, Er` |
+| 371 | Чужі чари with nothing to borrow: its own attack gets no multiplier | `ultimates.js` (1 check) | `🪞 Borrowed Magic against another Рожевий: an attack ×1.5 (29 → 29), and the same with nothing to borrow — [29,29,29,29]` |
+| 372 | Чужі чари at the White Drake's ×1.7: the blow takes the White Drake's top multiplier at level 20 | `ultimates.js` (1 check) | `🪞 Borrowed Magic against the White Drake: only Удар ковадла's blow, ×1.5 at level 20 too (25 → 42), and no scales to re-forge — [25,42,null]` |
+| 373 | The header names one: the record says only what it borrowed | `ultimates.js` (1 check) | `🪞 Borrowed Magic: the header names both, and it fires each opponent's own: Firestorm, Ice Mirror, Shadow Theft, Jackpot, Arcane Detonation, Bloom, Er` |
+| 374 | Виверження ignores the heat: the multiplier stays ×1.5 at any heat | `ultimates.js` (2 checks), `rules.js` (1 check) | `🌋 Eruption: 0 heat: ×1.5, 44 damage, heat → 0; 1 heat: ×1.55, 44 damage, heat → 0; 3 heat: ×1.65, 44 damage, heat → 1; 7 heat: ×1.85, 44 damage, heat` |
+| 375 | Виверження adds heat: the ultimate adds a heat like any attack | `ultimates.js` (1 check) | `🌋 Eruption: 0 heat: ×1.5, 44 damage, heat → 0; 1 heat: ×1.55, 45 damage, heat → 1; 3 heat: ×1.65, 48 damage, heat → 2; 7 heat: ×1.85, 54 damage, heat` |
+| 376 | Виверження keeps the heat: the heat doesn't drop after it | `ultimates.js` (2 checks), `rules.js` (4 checks) | `🪞 Borrowed Magic: Виверження reads its own copied heat, and the heat drops — 8` |
+| 377 | Виверження rounds up: the heat drops by half, rounded up | `ultimates.js` (1 check) | `🌋 Eruption: 0 heat: ×1.5, 44 damage, heat → 0; 1 heat: ×1.55, 45 damage, heat → 1; 3 heat: ×1.65, 48 damage, heat → 2; 7 heat: ×1.85, 54 damage, heat` |
+| 378 | A blocked Виверження keeps the heat: the heat drops only when the hit lands | `ultimates.js` (1 check), `rules.js` (2 checks) | `🌋 Eruption: 0 heat: ×1.5, 44 damage, heat → 0; 1 heat: ×1.55, 45 damage, heat → 0; 3 heat: ×1.65, 48 damage, heat → 1; 7 heat: ×1.85, 54 damage, heat` |
+| 379 | Виверження can't be blocked: it gets Firestorm's unblockable flag | `ultimates.js` (1 check) | `🌋 Eruption: 0 heat: ×1.5, 44 damage, heat → 0; 1 heat: ×1.55, 45 damage, heat → 0; 3 heat: ×1.65, 48 damage, heat → 1; 7 heat: ×1.85, 54 damage, heat` |
+| 380 | Effect power scales Виверження: Виверження's multiplier is scaled by the caster's effect power | `ultimates.js` (1 check) | `🌋 Eruption: effect power doesn't scale its multiplier (29 → 78, ×1.9) — 78, expected 55.099999999999994` |
 
 Output of the last run (the "by" lines say which test file caught it and how many checks failed; N is the count above):
 
@@ -572,13 +701,14 @@ Catching those forms needs whole-word matching with some context, which the list
 
 | Command | What it measures | Target |
 |---|---|---|
-| `node tests/balance.js matrix 300 20` | Every element against every other, at level 20 | Each matchup within ~45–57% |
+| `node tests/balance.js matrix 300 20` | Every element against every other, at level 20 | Each matchup within ~45–55% |
 | `node tests/balance.js tiers 600` | Each title rarity against Common titles, at levels 1, 10 and 20 | Each rarity beats Common by a bit more than the rarity below it |
 | `node tests/balance.js levels 400` | How much a level gap matters | The higher level still clearly wins |
 | `node tests/balance.js elements 200` | Overall win rate per element at levels 1, 10 and 20 | Close to 50% |
 | `node tests/balance.js dragon 100` | The streamer's White Dragon against every viewer element, any title, levels 1/10/20 | Wins 100%; exits non-zero otherwise |
 | `node tests/balance.js whitedrake 1500` | The streamer's White Drake against each viewer element at levels 1, 5, 10 and 20: with its title (White Steel) against the roulette's title odds, and with no title on either side; also how many debuffs bounced off its scales per fight, and the effect and ultimate report. `whitedrake N titles:20` plays one table at one level | Printed for a person to read |
 | `npm run test:white-drake-gate` (`tests/white_drake_gate.js`) | The same tables, in 8 parallel parts: 20,000 fights per matchup with titles, 3,000 without | With titles: every level's average within 52–57%, every matchup within 48–60% (a known counter within 46–62%); exits non-zero otherwise ([below](#the-white-drake-gate)) |
+| `npm run balance:bighit` (`tests/big_hit.js`) | Per element, the 99th percentile of the biggest single hit per fight at levels 1, 10 and 20: every pairing, no titles | No Season 2 element more than 15% above the highest of the six older ones ([below](#biggest-hit)) |
 | `node tests/balance.js bonuses` / `rolls` | Every title bonus against Common; title roulette drop rates | Checked by hand |
 
 `npm test` runs the effect and ultimate tests and the mutation check, then the first three plus `dragon`.
@@ -589,14 +719,14 @@ Catching those forms needs whole-word matching with some context, which the list
 
 `tests/balance_check.js` plays the element matrix at levels **1, 10 and 20** (1,500 fights per matchup) and the title-tier report (2,000 fights per rarity and level), each on **three seeds** (12345, 42, 777), in parallel. It averages the seeds and fails if:
 
-- **any element matchup, at any of the three levels, is outside 45–57%**, except a listed **known counter** (below), which may be up to 2 points outside (43–59%). Element bonuses grow with level (`ELEMENT_TIERS`), so a matrix that's fine at level 20 can be lopsided at level 1. Averaging three seeds takes out most of the noise of a single run (one cell of 1,500 fights is about ±1.3%; three seeds about ±0.75%);
+- **any element matchup, at any of the three levels, is outside 45–57%**, except a listed **known counter** (below), which may be up to 2 points outside (43–59%). It reads each pair from both sides, so a pair really has to sit within 45–55%, or 43–57% as a known counter. Element bonuses grow with level (`ELEMENT_TIERS`), so a matrix that's fine at level 20 can be lopsided at level 1. Averaging three seeds takes out most of the noise of a single run (one cell of 1,500 fights is about ±1.3%; three seeds about ±0.75%);
 - **any rarity doesn't beat the one below it** by at least 1 point of win rate against Common titles, at any of the three levels, along Common < Uncommon < Rare < Epic < Legendary < Mythic. Meme is printed but not part of the ladder: it's the chaotic joke tier (0.2% drop), designed to be swingy, not stronger than Mythic. When tuning titles, aim for **2 points per step on the tuning seeds** (`--min-gap 2`): a single step can move by about a point between seed sets, and 2 points is what keeps the 1-point check passing on seeds nobody tuned on.
 
 Options: `--seeds 1,2,3`, `--fights N`, `--tier-fights N`, `--bounds 45,57`, `--min-gap 1`, `--no-counters` (check the known counters strictly too), `--file other.html`, and `--skip-tiers` / `--skip-elements` for quick half runs while tuning. `balance.js` writes the full-precision numbers for it with `--json out.json`.
 
 #### Known counters
 
-Some pairings sit just outside 45–57% because of how the two kits meet, not because one element is too strong overall. Once tuning has nothing left but cells within 2 points of the range, those pairings are listed in `KNOWN_COUNTERS` in `tests/balance_check.js`, with a reason. A listed pairing covers both directions (A vs B and B vs A are the same matchup) at that level. It may be up to 2 points outside the range; anything further still fails, and every unlisted cell must stay inside 45–57%.
+Some pairings sit just outside 45–55% because of how the two kits meet, not because one element is too strong overall. Once tuning has nothing left but cells within 2 points of the range, those pairings are listed in `KNOWN_COUNTERS` in `tests/balance_check.js`, with a one-line reason: the mechanic that makes it a counter. A pair with no such mechanic isn't a counter yet: it's rerun with more fights and left out if it settles inside 45–55%, or given a reason or retuned if it holds. A listed pairing covers both directions (A vs B and B vs A are the same matchup) at that level. It may be up to 2 points outside the range; anything further still fails, and every unlisted cell must stay inside 45–57%.
 
 | Level | Pairing | Why |
 |---|---|---|
@@ -604,6 +734,15 @@ Some pairings sit just outside 45–57% because of how the two kits meet, not be
 | 10, 20 | Black vs Red | ☄️ Firestorm can't be blocked, and blocking is Black's main defence |
 | 20 | Purple vs Blue | 💠 Ice Mirror blunts Purple's burst hits (🌟 Divine Might, ✴️ Arcane Detonation) |
 | 20 | Green vs Gold | Gold's 1-HP proc takes a share of Green's large HP pool |
+| 1, 10 | Red vs Turquoise | Nacre's layers count hits, not damage, so Red's crits get through before they build up. With a second layer for each crit it's 52.7 / 49.8, not 57.9 / 56.8 |
+| 1, 20 | Orange vs Turquoise | Heat is the one damage Nacre can't cut, and Turquoise's long fights give it time. With the layers cutting heat too it's 51.3 / 45.1, not 56.1 / 57.0 |
+| 1 | Pink vs Turquoise | Illusion copies the layers but not Turquoise's own armour and HP (`DRAKE_BASE`). With those numbers Pink is at 48.1, not 43.2 |
+| 20 | Orange vs Cherry | Heat's burn feeds Blood Frenzy: every tick raises Cherry's bonus. With the frenzy ignoring what heat burned Orange is at 51.3, not 43.5 |
+| 20 | Orange vs Red | Red's crits end the fight before heat has built up: 12.7 turns with 18% of its HP burned, against Green's 19.3 turns and 34% |
+| 20 | Blue vs Cherry | Blue's reflect sends back half of the bigger hits Blood Frenzy gives Cherry. With the reflect working from the unfrenzied hit Blue is at 50.7, not 54.5 |
+| 20 | Gold vs Turquoise | Gold's 1-HP hit takes no cut from Nacre. With the layers cutting it Gold is at 45.6, not 54.6 |
+
+The numbers in the reasons are experiments, each on a copy of the page with that one mechanic changed, 10,000 fights a cell. Orange vs Red is the one no single switch explains: Red's crit power matters about as much against every element, so its line rests on the fight lengths and heat burned, measured against every opponent.
 
 Which seeds were used for what (so a "fresh" check really is fresh):
 
@@ -612,45 +751,76 @@ Which seeds were used for what (so a "fresh" check really is fresh):
 | 12345, 42, 777 | Tuning (the default for `balance:check`) |
 | 1, 2, 3 | First fresh check, then used to fix the level-1 title ladder, so no longer clean |
 | 4, 5, 6 | Final check, never used for anything else |
+| 7, 8, 9 | Season 2's fresh check, below |
+| 101, 202, 303 and 404, 505, 606 | Season 2's reruns of the borderline pairs, 24,000 fights a pair |
 
 The final check on 4, 5, 6 found nothing below 43% or above 58% outside the known counters, but it does report two misses: Green vs Purple at level 1 (44.7%; 46.2% on the tuning seeds), and Epic only 0.8 points over Rare at level 1 (3.0 on the tuning seeds). Level 1 of the title ladder moves more between seed sets than the 2-point margin allows for. Pick new seeds for the next fresh check.
+
+Season 2's fresh check on 7, 8, 9 passes every listed counter and the title ladder. It reports four cells just under 45%, listed below: none has a mechanic behind it and each reads inside on the tuning seeds, so none is a known counter. One cell's reading on three seeds is about ±0.75%, and the check reads 270 of them, so a few cells near 45% land on either side on any set of seeds.
+
+#### Cells at the edge
+
+These readings sit on a limit, so a later failure on one of them reads as known noise, not a regression, as long as nothing that touches that pair has changed:
+
+| Where it was read | Cell | Reading | Its limit |
+|---|---|---|---|
+| Rerun, 24,000 fights a pair (404, 505, 606) | Red vs Turquoise, level 1 | 57.2% | 57%, as a known counter |
+| Rerun, 24,000 fights a pair (404, 505, 606) | Pink vs Turquoise, level 1 | 42.7% | 43%, as a known counter |
+| Fresh seeds 7, 8, 9 | Purple vs Black, level 20 | 44.7% | 45%, not listed |
+| Fresh seeds 7, 8, 9 | Pink vs Cherry, level 20 | 44.8% | 45%, not listed |
+| Fresh seeds 7, 8, 9 | Red vs Purple, level 1 | 45.0%, rounded | 45%, not listed |
+| Fresh seeds 7, 8, 9 | Green vs Black, level 20 | 45.0%, rounded | 45%, not listed |
+| White Drake gate, seeds 12345 and 23456 | Cherry, level 20 | 46.6% and 46.8% | 46%, as a known counter |
+
+`balance:check`'s own seeds read the first two inside the limits (43.4% and 44.6% on their low sides). One standard error at 24,000 fights is 0.3 points, and at the gate's 20,000 fights it's 0.35. The two level-1 pairs pull Turquoise's base numbers opposite ways: more HP helps it against Red's burst and widens its lead over Pink, which copies its layers but not its HP. Before reading a failure as noise, check that it's one of these cells, by a point or less, and that neither element's numbers nor a shared effect changed; rerun it with more fights. A cell that isn't here, or one that moves further, is a regression until shown otherwise.
 
 Last run on the tuning seeds (current numbers; `~` = known counter within 2 points):
 
 ```
 Elements, level 1 (row beats column, average of 3 seeds)
-            red   blue  black   gold purple  green
-red           -   53.5   52.2   49.5   46.1   50.3
-blue       46.4      -   52.8   46.5   47.5   48.0
-black      49.5   48.4      -   50.8   52.0   49.1
-gold       50.2   53.3   50.2      -   49.4   54.4
-purple     54.0   53.4   48.0   51.9      -   52.9
-green      50.8   51.8   51.6   46.2   46.2      -
+            red   blue  black   gold purple  green orange cherry   pinkturquoise
+red           -   53.6   51.4   48.6   47.6   49.3   50.0   46.8   45.8   57.0
+blue       46.2      -   53.4   46.1   49.1   47.7   46.6   49.4   53.7   51.5
+black      47.8   48.9      -   50.0   53.8   48.0   48.3   50.4   52.4   46.8
+gold       50.5   53.1   48.7      -   47.8   53.3   51.1   50.8   46.7   53.6
+purple     53.2   52.1   47.2   53.0      -   53.5   52.3   52.8   47.8   52.4
+green      49.8   50.6   53.1   46.9   45.7      -   49.8   47.9   50.9   52.9
+orange     48.6   51.3   51.8   47.6   46.5   52.7      -   46.1   51.7   54.5
+cherry     53.0   51.4   49.2   50.3   48.6   52.4   53.7      -   53.7   52.5
+pink       52.2   45.9   48.7   54.5   52.7   48.4   48.1   47.4      -  ~44.6
+turquoise  ~43.4   48.8   54.6   46.9   47.8   46.7  ~44.5   50.7   56.5      -
 
 Elements, level 10
-red           -   53.8   55.0   49.8   46.3   50.2
-blue       46.0      -   52.7   47.2   51.6  ~44.5
-black     ~43.7   47.4      -   51.3   53.6   48.4
-gold       49.8   51.7   49.0      -   49.2   52.5
-purple     53.2   48.6   46.3   51.7      -   51.5
-green      51.2   55.8   51.1   47.3   48.8      -
+red           -   53.5   54.5   50.2   48.2   48.4   54.0   51.1   45.9   55.2
+blue       46.4      -   54.1   47.7   53.3  ~44.7   46.5   52.7   53.1   46.2
+black      45.2   46.1      -   50.0   53.4   49.4   49.0   50.9   51.8   45.0
+gold       50.5   50.8   49.2      -   47.8   53.3   52.8   50.5   45.9   53.0
+purple     52.7   47.4   45.0   51.8      -   50.7   52.2   53.2   48.1   50.2
+green      51.2   56.0   51.4   47.4   49.6      -   52.4   52.4   51.5   50.8
+orange     45.3   52.5   50.9   49.0   46.5   48.7      -   47.7   53.6   55.6
+cherry     49.6   45.5   49.1   49.0   47.2   47.3   52.8      -   53.4   46.5
+pink       54.4   46.7   47.6   54.4   53.8   48.8   47.5   45.6      -   46.2
+turquoise  ~44.2   51.6   54.4   46.8   49.8   48.3   45.2   52.4   53.4      -
 
 Elements, level 20
-red           -   49.8   53.3   50.8   45.8   47.6
-blue       50.4      -   52.9   48.9   54.4  ~43.1
-black      45.7   47.0      -   52.0   52.9   55.2
-gold       48.0   50.9   49.6      -   47.0   55.9
-purple     54.0  ~44.3   47.5   53.1      -   53.2
-green      51.7   56.0   46.4  ~44.3   47.8      -
+red           -   50.1   54.8   52.1   46.7   48.5   56.2   48.9   46.4   54.0
+blue       52.0      -   54.7   50.6   56.4  ~43.8   47.5   54.8   52.7   46.1
+black     ~44.3   45.7      -   52.2   53.5   53.2   52.1   50.9   51.8   49.4
+gold       48.2   50.1   48.2      -   48.0   56.3   50.8   47.4   46.8   55.1
+purple     51.0  ~43.1   45.3   52.8      -   51.2   54.0   51.8   47.7   49.9
+green      51.6   55.5   45.7  ~44.2   47.5      -   49.4   47.8   52.4   47.6
+orange    ~43.7   53.0   48.5   48.8   46.6   51.2      -  ~44.6   52.3   55.6
+cherry     51.5  ~44.7   48.9   53.3   48.6   54.0   56.3      -   54.1   47.3
+pink       53.5   48.7   47.8   51.5   54.4   47.9   47.4   46.1      -   46.8
+turquoise   46.5   54.2   50.2  ~45.0   51.0   52.2  ~43.7   52.2   52.4      -
 
 Title rarities vs Common titles (average of 3 seeds)
            common  uncommon      rare      epic legendary    mythic      meme
-L1          49.6      53.8      56.7      59.7      63.2      66.7      56.3
-L10         49.7      52.5      55.7      59.0      62.9      66.0      53.7
-L20         49.4      53.1      56.3      59.4      61.7      66.5      53.3
+L1          49.5      53.5      57.2      58.3      62.2      66.0      56.1
+L10         49.8      53.9      56.4      60.9      62.9      67.1      53.1
+L20         49.9      53.1      56.3      59.9      62.1      66.6      52.4
 
-Balance check passed: every matchup at levels 1/10/20 within 45–57% (5 known counter(s) within 2 points),
-every rarity beats the one below it (smallest step 2.3 points).
+Balance check passed: every matchup at levels 1/10/20 within 45–57% (14 known counter(s) within 2 points), every rarity beats the one below it by ≥ 1.
 ```
 
 ### The White Drake gate
@@ -664,12 +834,15 @@ It checks the table with titles; the one without titles is printed, not checked:
 
 #### The White Drake's known counters
 
-Two matchups sit on the edge of 48–60% because of how the two kits meet, not because the White Drake is too strong or too weak overall. Their rates over the five runs below (100,000 fights a matchup in all) are right at the bounds, so any single run lands on either side.
+Three matchups sit on the edge of 48–60% because of how the two kits meet, not because the White Drake is too strong or too weak overall. Gold's and Green's rates over the five runs below (100,000 fights a matchup in all) are right at the bounds, so any single run lands on either side; Cherry's is from seed 12345, 20,000 fights.
 
 | Level | Matchup | Rate | Why |
 |---|---|---|---|
 | 20 | Gold | 48.0% | Gold's 1-HP hit (9% of its hits at level 20) slips past the bar and leaves the White Drake on 1 HP. The bar is the White Drake's main defence, and against that hit it doesn't count |
 | 20 | Green | 59.9% | Green's extra HP (+34% at level 20) makes the longest fights, and every Удар ковадла re-forges the bar to full |
+| 20 | Cherry | 46.6% | Blood Frenzy's step at level 20 (+1% per 1.38% of HP lost) turns the HP it loses into hits that chew through the bar. With level 10's step at level 20 the White Drake wins 56.8%, not 46.4% (20,000 fights each, on a copy of the page). It's on the edge of its limit: see [Cells at the edge](#cells-at-the-edge) |
+
+Рожевий has nothing to copy from the White Drake, so it draws a random viewer element's passive: with nothing at all the White Drake won 73–80%, far outside the band, and no number of Рожевий's could fix that without breaking its 50% against everyone else.
 
 #### Sized so it can't flake
 
@@ -686,6 +859,31 @@ A run's rate for a matchup misses its true value by about 50/√N points (one st
 Without the counters' slack, three of these five runs would have failed (seed 12345: level 20 vs gold 47.8%; seed 34567: level 20 vs gold 47.3%; seed 45678: level 20 vs green 60.2%).
 
 The table predates titles 195–294 and Meme at 0.5%. With them seed 12345 gives 53.7 / 53.9 / 54.1 / 52.9, L20 Gold 47.9%, L20 Green 59.6%, L10 Purple 58.4%, L10 Gold 50.1%, L1 Black 57.8%: passed, and each within about one standard error of its row above.
+
+Season 2 moves the closest checks. Seed 12345 gives 53.6 / 53.7 / 53.8 / 52.6 and seed 23456 gives 53.9 / 53.8 / 54.0 / 52.4, both passed: L20 Cherry (a counter) 46.6% and 46.8%, L10 Purple 59.3% and 58.7%, L1 Turquoise 49.1% and 48.6%, L5 Pink 58.3% and 58.6%. L20 Cherry sits about 2 standard errors inside its 46%, not the 4 this section aims for, and L10 Purple 2 to 4 inside its 60%. CI runs one seed, so its result doesn't change from run to run, but a change of seed could fail one of these.
+
+### Biggest hit
+
+Spikes look overpowered on stream even when the win rates are fair. `npm run balance:bighit` (`tests/big_hit.js`, not in CI) plays every pairing at levels 1, 10 and 20 with no titles, 300 fights a pairing on each of three seeds, and takes the 99th percentile of each element's biggest single hit per fight. It exits non-zero if a Season 2 element is more than 15% above the highest of the six older ones at a level.
+
+```
+element         L1     L10     L20
+red            105     152     220
+blue            86     143     221
+black           92     172     267
+gold           182     303     454
+purple         141     203     313
+green          105     168     254
+orange          93     135     193
+cherry         102     166     290
+pink           149     225     339
+turquoise      109     184     282
+
+The six's highest: L1 182, L10 303, L20 454; a new element is flagged above 209 / 348 / 522
+No new element is more than 15% above the highest of the six.
+```
+
+Gold's row is its 1-HP hit, and it sets the limit. Against the next highest of the six, Purple, the highest new element is Pink, 6%, 11% and 8% above it.
 
 ### Per-effect report
 
@@ -727,10 +925,10 @@ Four things fail the run:
 
 - **A broken effect rule.** Any failed check in `effects.js` exits non-zero before the balance sims start.
 - **A combat crash.** If any simulated fight logs a simulation error, the harness throws and `npm test` exits non-zero. Across the ~24,000 fights `npm test` plays, every element, title ability and buff/debuff comes up many times, so a code path that throws is very likely to be hit.
-- **The balance gate.** `npm run test:balance-gate` runs `matrix 1500 20 --seed 12345 --bounds 40,60`: 1,500 fights for each of the 30 element matchups at level 20. It fails if any matchup falls outside 40–60%, and lists the ones that did. The bound is deliberately wider than the ~45–57% tuning target: it catches a change that clearly breaks an element, not normal tuning. Because the run is seeded, a failure is repeatable, not a flaky run. It takes about 45 seconds. Today every matchup is between 45% (green vs gold) and 55%. The gate only looks at level 20 and one seed; the 45–57% tuning target across levels 1, 10 and 20 is what `npm run balance:check` enforces (below), and it isn't run in CI.
+- **The balance gate.** `npm run test:balance-gate` runs `matrix 1500 20 --seed 12345 --bounds 40,60`: 1,500 fights for each of the 90 element matchups at level 20. It fails if any matchup falls outside 40–60%, and lists the ones that did. The bound is deliberately wider than the ~45–57% tuning target: it catches a change that clearly breaks an element, not normal tuning. Because the run is seeded, a failure is repeatable, not a flaky run. It takes about 45 seconds. Today every matchup is between 45% (green vs gold) and 55%. The gate only looks at level 20 and one seed; the 45–57% tuning target across levels 1, 10 and 20 is what `npm run balance:check` enforces (below), and it isn't run in CI.
 - **The White Drake gate.** `npm run test:white-drake-gate` fails unless, with titles, every level's average is within 52–57% and every matchup within 48–60% (a known counter within 46–62%): see [The White Drake gate](#the-white-drake-gate).
 
-Everything else (the tier and level tables, the 45–57% target) is printed for a person to read, not asserted. Balance there is a judgment call.
+Everything else (the tier and level tables, the 45–55% target) is printed for a person to read, not asserted. Balance there is a judgment call.
 
 ## Layer 2: UI smoke test
 
@@ -743,7 +941,7 @@ Everything else (the tier and level tables, the 45–57% target) is printed for 
 - **Seeded fights.** `tests/page_hooks.js` runs in the page before the game's script: `Math.random` is replaced with a seeded generator (mulberry32), so every run plays the same fights and a failure can be reproduced. The default seed (`UI_SEED`, 3) is one where both languages reach a full Element Power meter; `UI_SEED=n npm run test:ui` tries another.
 - **Fight-event fingerprint.** The same hooks record what the fights *did*: who fought, every HP update and how each fight ended. The run ends by printing a fingerprint of those events (`fight events fingerprint (UI_SEED=3): …`): two runs with the same seed must print the same one. It doesn't depend on how the log looks, so `UI_FILE=path/to/other/index.html node tests/ui.js showcase` runs the same flow against another copy of the page (e.g. `git show main:showcase/index.html`): a change that is visual only must print the same fingerprint as main.
 
-First it checks the White Dragon is streamer-only: with no streamer set, `!дрейк білий` is refused; then it sets a streamer through **⚙️ Test Settings** (as `@TESTSTREAMER`, to check that `@` and case are ignored) and checks the name is saved and the chat simulator shows a streamer chip. It then registers the six viewer elements and the streamer's White Drake, checks another viewer is refused with `!дрейк білий`, `!drake white`, `!дракон`, `!dragon` and `!рерол білий`, uses `!стата`, `!титул` (as a channel-point reward) and `!шанси`, plays a ranked fight through `!черга`, then friendly duels (`!бій` / `!прийняти`), the White Drake's among them; for the heal-log duels the streamer switches to the White Dragon with `!дракон` (the White Drake's XP kept), and back after them (the same XP and title), so all 8 drake types are on screen.
+First it checks the White Dragon is streamer-only: with no streamer set, `!дрейк білий` is refused; then it sets a streamer through **⚙️ Test Settings** (as `@TESTSTREAMER`, to check that `@` and case are ignored) and checks the name is saved and the chat simulator shows a streamer chip. It then registers the ten viewer elements and the streamer's White Drake, checks another viewer is refused with `!дрейк білий`, `!drake white`, `!дракон`, `!dragon` and `!рерол білий`, uses `!стата`, `!титул` (as a channel-point reward) and `!шанси`, plays a ranked fight through `!черга`, then friendly duels (`!бій` / `!прийняти`), the White Drake's among them; for the heal-log duels the streamer switches to the White Dragon with `!дракон` (the White Drake's XP kept), and back after them (the same XP and title), so all 8 drake types are on screen.
 
 | Check | What it catches |
 |---|---|
@@ -758,7 +956,7 @@ First it checks the White Dragon is streamer-only: with no streamer set, `!др�
 | Every drake type's sprite painted pixels on its fighter-card canvas | Broken sprite data, a missing palette, a hidden canvas |
 | The info feed never overflows its column (clipped at the bottom, too wide, or running past the column) | Chat reply cards cut off or spilling into the rest of the overlay |
 | No page errors or `console.error` | Any uncaught exception anywhere during the run |
-| The streamer's forms are refused with no streamer set and for every other viewer; the streamer's White Drake gets title 998, the Dragon 999; all 8 types are in `DRAKE_TYPES` and drawn | The streamer-only check missing from a command path (`!drake`, `!reroll`, `!dragon`, either language), a type never drawn |
+| The streamer's forms are refused with no streamer set and for every other viewer; the streamer's White Drake gets title 998, the Dragon 999; all 12 types are in `DRAKE_TYPES` and drawn | The streamer-only check missing from a command path (`!drake`, `!reroll`, `!dragon`, either language), a type never drawn |
 | A saved title after the rename: a page loads (on a one-time `?setup` load) a save whose drake has title 189 under its old Ukrainian name; the save and `!стата` show «Герб чи число»; after a reload (once `storageSettled` sees the game's own save) they still do; in English `!stats` says "Heads or Tails" | A save keeping a title's old name (`migrateOldSaves` not refreshing titles from `TITLES_DB`), or the old name coming back after a reload |
 | Old-save migration: a second page loads a save from before the Green Drake, then reloads; the streamer's Dragon keeps level 20 and gets a White Drake at 0 XP (level 1, title 998) behind it | Viewers' `'white'` not becoming `'green'` (with XP kept), the streamer's dragon being converted, a level-20 White Drake, title 999 left on a non-dragon, or a second load changing the save again (not idempotent) |
 | Streamer card: a third page, in both languages. Before the streamer has a drake, the greyed-out dragon with «ще без дрейка: !дрейк білий» / "no drake yet: !drake white"; after `!дрейк білий`, the White Drake at an exact 2× (96×72) centred in the dragon's 120×84 slot, the label naming it; a `!рерол червоний` (a channel-point redemption, as chat sends it) is refused and changes nothing; after `!дракон`, the dragon at 120×84 with the text column where it was; after `!дракон` again, the White Drake. The Ukrainian run saves `showcase-streamer-card-white-drake.png` and `showcase-streamer-card-dragon.png` of the side column | The card drawing the wrong form, a drake stretched to the dragon's 120×84, or the text column moving with the sprite |
@@ -785,7 +983,9 @@ It also saves screenshots at each stage to `tests/screenshots/` (`showcase-01-re
 | **Result**: after a fight the winner's card has the gold frame and "ПЕРЕМОЖЕЦЬ" / "WINNER", the loser's is greyed with "НОКАУТ" / "KNOCKED OUT", the status plate names the winner; a draw marks neither card | Wrong or untranslated labels, the wrong card marked |
 | **HP bar colour** on both cards, either side of each threshold: green at 100% and 50.1%, yellow at 50%, 25.1% and 25%, red at 24.9%, 0.1% and 0% | A threshold off by one, or one card coloured differently |
 | **Fight type** in the header, in both languages: idle, then a ranked fight (`!черга`), a friendly duel (`!бій` / `!прийняти`) and a test battle (button) each show the right name during the fight and "name · N turns" after; the turn-count word is right for 1, 2, 4, 5, 11, 12, 14, 21, 22, 25 and 30 (хід / ходи / ходів) | Wrong or untranslated fight names, Ukrainian plural forms |
-| **Frame colours**: every pair of frame light edges (the six elements, the White Drake, the White Dragon, the winner — the same gold as the arena frame — and the loser; 45 pairs) is at least 20 apart in CIEDE2000 colour difference. Each frame still reads as its element: red, gold, green, blue and purple hues on both edges, neutral steel for Black, a cool white steel for the White Drake, near-white for the White Dragon, grey for the loser. Every light edge, and Black's dark edge, is at least 3:1 against the dark panel | Two frames that look alike (a drake that reads as "winner", Blue vs the White Dragon), a frame that no longer looks like its element, or one that vanishes on the dark overlay |
+| **Frame colours**: every pair of frame light edges (the ten elements, the White Drake, the White Dragon, the winner — the same gold as the arena frame — and the loser; 91 pairs) is at least 20 apart in CIEDE2000 colour difference. Each frame still reads as its element: red, gold, green, blue and purple hues on both edges, neutral steel for Black, a cool white steel for the White Drake, near-white for the White Dragon, grey for the loser. Every light edge, and Black's dark edge, is at least 3:1 against the dark panel | Two frames that look alike (a drake that reads as "winner", Blue vs the White Dragon), a frame that no longer looks like its element, or one that vanishes on the dark overlay |
+| **The plate**, both languages: all ten emblems in the game's order, five either side of the title, none mirrored, in one row, centred inside the arena | An emblem left off or out of order, a plate that outgrows the arena |
+| **Season 2 on the cards**: the meter row with Помаранчевий's heat at its 8, Вишневий's bonus and Бірюзовий's layers at their 6, on both cards; the name line with Рожевий's copied emblem and the longest name; each new element's frame reads as its colour | A count that pushes a block, a copied emblem cut off |
 | **HP number and bar agree**, in both languages: waiting cards show "—" with an empty bar; in the countdown, every few turns of a fight, the result, the result after a language switch, a test battle and its result, "h/max" matches the bar's width (±1%) and its colour | A number next to a bar that says something else (e.g. "150/150" by an empty bar) |
 | **The White Drake's scales**, both languages, on the left card and the right, each state read once its transitions are over: no segment on a viewer drake's card; on the White Drake's, a 62×20 steel segment at the VS end of the HP row: the HP bar's top, height and outer end a viewer card's, its VS end 66 px in; the segment 4 px from the bar and 12 px from the HP number, with the bar's top and height; the HP number's box a viewer card's; the number centred and wholly inside (three digits too), Press Start 2P 12/12 px in white with the 1 px outline in 8 directions and the 2 px drop; the fill's gradient, the HP fill's bevel and its 0.3 s transition, the HP bar's dark edge; full, part-gone (the number and fill at now/max, from the outer side), broken (a red «0», no fill, the dark red track and the red inset), rebuilt (steel again). The Ukrainian run saves `layout-white-drake-scales.png` (not committed): the card full, part-gone and broken, and part-gone as the right card, at 1920×1080 | A segment on a viewer's card, an HP bar or HP number that moves, a segment off its place or size, a number off-centre or cut off, the fill draining from the wrong side, a broken segment that stays red or a rebuilt one that doesn't |
 | **Review sheet** (`layout-review-cards.png`): the fighter card for every element, the White Drake (its scales part-gone) and the White Dragon, plus a winner (Gold drake) and a loser (Black drake), in both languages, on the arena panel inside the arena frame | Nothing by itself: it's for checking by eye |
@@ -876,7 +1076,11 @@ The tournament events and the HP are also checked in Node (`tests/rules.js` sect
 | **Scrollable log**, both languages, with the mouse wheel: a fight that runs to the 30-turn limit keeps all 15 rows (turns 1–30) and the result card; the log follows the newest card while at the bottom, with no scrollbar; scrolled to the top, the intro banner and turn 1 are fully clear of the fade; scrolled up, turns arriving don't move the view and the pill counts them ("↓ нові ходи (1)" → "(2)" → "(3)") from its own strip below the feed, covering no card; back at the bottom it follows again; scrolled up and left alone it stays put until exactly 15 s, then glides back; a click on the pill goes back and follows; on the result screen it scrolls from the intro banner to the result card and stays put after 15 s; the next fight starts with an empty log that follows. The Ukrainian run saves `fightview-log-top.png` (an ordinary fight scrolled to the top at turn 10) and `fightview-log-result.png` (its result screen scrolled up) | The start of a long fight dropped, an unreachable top, the first card under the fade, a scrolled-up view jumping when a turn arrives, the pill counting wrong, a stream stuck in the past, a visible scrollbar |
 | **Ranked play** through the chat simulator, both languages: while a test battle runs four join (L5, L12, L7, L4) and the strip reads "1 @qa 2 @qb 3 @qc 4 @qd"; after it #1 fights the closest level (L4) and the strip reads "1 @qb 2 @qc"; three more join, the strip's #1 fights next; a level tie goes to whoever waited longer. Rigged ranked fights: an L6 underdog beating L10 gets "+60 XP (+20 за сильнішого суперника)" on the result card (the loser "+10 XP"); a Gold L5 underdog beating L15 gets the +40 cap with Gold's % on all 80, and the longest XP text isn't cut off; a higher-level winner gets the cut: L15 beating L5 "+10 XP (-30 за слабшого суперника)" (the floor), and the cut's longest text, a Gold L12 beating L10, "+50 XP (-10 за слабшого суперника)" / "+50 XP (-10 for a weaker opponent)" (Gold's 65% on 30), not cut off (`fightview-cut-result-uk.png` / `-en.png`). The Top by wins, then fewer losses, then level, W–L shown as before. A ranked fight against the streamer's White Dragon: the viewer +10 XP, no win or loss for either side, and the result card's «🐉 Бій з Білим Драконом: без перемоги й поразки в Топі» / "🐉 A fight with the White Dragon: no win or loss in the Top", not cut off (and no such line after a fight between viewers) | The queue strip and the fights disagreeing; the bonus or the cut missing from the result card or cut off; a dragon fight counted or not explained |
 | **Damage numbers**: on every hit, the card's number pops on the target's card | Pops on the wrong card or with the wrong number |
-| **Every effect from the test menu** ("Наступний удар накладає"): each of the 12 of the shared pool is picked, the next damaging hit casts it, the card says so ("накладає 🎯 Мітку", "отримує 💢 Лють": the name after the verb in the accusative; or refresh / Dispel in words; a replacement reads «🌟 Божественна міць · 🍀 Благословіння зникає») and the owner's fighter card shows its chip, in the nominative; the pick is used up and the picker goes back to "— випадково —" / "— random —" | An effect without card text or chip, the picker not working |
+| **Помаранчевий as the stream sees it** (section 17, both languages, real fights with fixed dice): the heat on the fighter card from 0/8 with no block moving; the tick on the opponent's log card and as a pop; a blocked attack adding none, a blocked tick shown as a block; a tick on the knockout cell; Виверження's head, multiplier and heat | Heat that only the record shows, a card that moves when the count appears |
+| **Вишневий** (section 18): nothing at full HP, then +N% on the fighter card and the log card with no block moving; Кров за кров's and Кровотеча's numbers on the card, compact on a crowded line, and as pops on its own card; Кровотеча on the knockout cell; Останній подих's head and ×1.8 | A bonus the card doesn't show, a pop on the wrong card |
+| **Бірюзовий** (section 19): the layers from 0/6 with no block moving; the cut on the next hit, not on the one that adds the layer; Чиста вода naming what it took off; Приплив's head, heal and 6/6 | A cut shown on the wrong hit, a heal that loses its layers |
+| **Рожевий** (section 20): the banner naming what it copied, the copied emblem on its card alone; a self-hit's words, its pop on its own card, none of it counted as damage dealt; Чужі чари's header naming both; two Рожевий each drawing an element, both banners and both cards showing it | A copy only the record shows, a self-hit in the result card's damage |
+| **Every effect from the test menu** ("Наступний удар накладає"): each of the 20 of the shared pool is picked, the next damaging hit casts it, the card says so ("накладає 🎯 Мітку", "отримує 💢 Лють": the name after the verb in the accusative; or refresh / Dispel in words; a replacement reads «🌟 Божественна міць · 🍀 Благословіння зникає») and the owner's fighter card shows its chip, in the nominative; the pick is used up and the picker goes back to "— випадково —" / "— random —" | An effect without card text or chip, the picker not working |
 | **The White Drake on the log cards** (both languages): a duel of the streamer's White Drake against a Red Drake, turn by turn, with casts from the test menu: a 🔥 Burn on it bounces while its scales hold («🔥 Підпал 🤍 відскочило від луски», no chip); 🔗 Магніт on the foe (its chip there); a 💢 Rage the foe casts under it goes to the White Drake («💢 Лють притягується до Білого Дрейка», the chip on the White Drake); ⚒️ Перекування (picked before the foe's damaging hit, it waits for the White Drake's own); what a hit took off the scales, «💔 Луска розкололася!» and Перекування's «⚒️ +N»; every fight opening with «👑 Біла сталь виходить на бій!», its result card saying «👑 Сталь не гнеться» or «🐉 Дракон це запам'ятав…» as it ended; the faint White Dragon behind the log through every turn, gone in the next fight without it. Its scales' steel segment: on every turn its number and fill are battleFx's scales (broken: red, no fill), full in the countdown, as the fight left them on the result screen; then a duel with the betting window on (the segment full in the betting window, before the fight has scales of its own) and a ranked fight (the segment still there, in its final state, after the cards are drawn again for the XP); the HP row's boxes (the HP bar, the segment, the HP number; the right card's mirrored about the arena's centre, so a coin flip that moves the White Drake compares too) the same in every sample, from the countdown or the betting window to the result screen; no segment in the next fight without it. The Ukrainian run saves `white-drake-card.png` (the card, the segment part-gone), `white-drake-fight.png` and `white-drake-log.png` (not committed) | A White Drake line or chip missing, its pair cast by the foe, the silhouette left behind; a segment out of step with the scales, missing in the betting window or after a ranked fight's redraw, or an HP bar that changes width during the fight |
 | **Every ultimate from the test menu** (the СИЛА buttons fill a meter): the attacker's tab shows the ultimate's icon and name with the stronger glow; its card has the header strip ("☄️ УЛЬТИМЕЙТ · Вогняний шторм") and lists what it did (unblockable, Ice Mirror's hits, what Theft took or the guaranteed crit, Detonation's multiplier, Bloom's heal). **Jackpot** with the reels forced to 💎💎💎, 💎🪙💀, 🪙💀💀 and 💀💀💀: the card shows the three reels, the multiplier, or "промах" / "miss" with 0 damage | An ultimate without its card text, a Jackpot miss without reels |
 | **Level-ups**: two fighters a few XP short of level 5 fight; each level-up appears in the chat panel as "@x досягає 5-го рівня" / "@x reaches level 5" with the HP gain from `getMaxHP` and the attack gain from the level | Level-up numbers made up or missing |

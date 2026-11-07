@@ -1840,6 +1840,275 @@
             'mssssddppm',
             '.mmmmmmmm.',
         ],
+        // Orange: two short basalt horns rising from the back of the head, their tips glowing
+        emOrange: [
+            '.mmmmmmmm.',
+            'msssssqsqm',
+            'mssssspspm',
+            'mssshhpspm',
+            'mshhhkhssm',
+            'mwhhhhhnsm',
+            'msnnnnnnsm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Cherry: one horn snapped off halfway (its pale break), black spikes down the back of the neck
+        emCherry: [
+            '.mmmmmmmm.',
+            'mssssssssm',
+            'msssscssqm',
+            'mssshhpsqm',
+            'mshhhkhqsm',
+            'mwhhhhhnqm',
+            'msnnnnnnsm',
+            'mssssnnnqm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Pink: two thin feelers with pearl tips, a dark mask round the eye
+        emPink: [
+            '.mmmmmmmm.',
+            'msssssqsqm',
+            'mssssspspm',
+            'mssshhpssm',
+            'mshhckcssm',
+            'mwhhhhhnsm',
+            'msnnnnnnsm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // Turquoise: a small coral crest growing back from the head
+        emTurquoise: [
+            '.mmmmmmmm.',
+            'mssssqssqm',
+            'mssssppqpm',
+            'mssshhppsm',
+            'mshhhkhssm',
+            'mwhhhhhnsm',
+            'msnnnnnnsm',
+            'mssssnnnsm',
+            'mssssnnnsm',
+            '.mmmmmmmm.',
+        ],
+        // ----- Season 2: the four new drakes' kits (each drake: its passive's note, buff, debuff, ultimate) -----
+        // Heat: a thermometer, the mercury hot orange and breathing up and down
+        heat: [
+            '...oooo...',
+            '...ovpo...',
+            '...ovpo.o.',
+            '...ohmo...',
+            '...ohmo.o.',
+            '...ohmo...',
+            '..ohymmo..',
+            '.ohywyymo.',
+            '.omyyymdo.',
+            '..oooooo..',
+        ],
+        // Stoke: a lit fuse («запал»): a braided cord curling up to a crackling spark
+        stoke: [
+            '.....m...m',
+            '......yvy.',
+            '.....mvwvm',
+            '......yvy.',
+            '.....qm..m',
+            '....qp....',
+            '...qp.....',
+            '...qp.....',
+            '..qp......',
+            '.qq.......',
+        ],
+        // Melt: a breastplate going soft from the bottom up, a wavy glowing front, drips sagging
+        melt: [
+            '.oo....oo.',
+            'ohpo..oppo',
+            'ohppooppqo',
+            'ohppppppqo',
+            'ohdpdppdqo',
+            '.omdmmdmo.',
+            '.omyymymo.',
+            '.oyywyyyo.',
+            '..yoyoyo..',
+            '..y...y...',
+        ],
+        // Eruption: the top of a crater bursting open, lava fanning out in three plumes
+        eruption: [
+            '.....oo.....',
+            'oo..ohyo..oo',
+            'oyo.ohyo.oyo',
+            '.oyoohyooyo.',
+            '..oyohyoyo..',
+            '...oyyyyo...',
+            '...ohywyo...',
+            '...oyyyyo...',
+            '..opmmmmpo..',
+            '.oppqmmqppo.',
+            'oppqqqqqqpqo',
+            'oooooooooooo',
+        ],
+        // Blood Frenzy: a chain torn apart: a whole link, the next one snapped, its ends red hot
+        frenzy: [
+            '..........',
+            '.ooo..ooo.',
+            'ohpm..mpqo',
+            'op.y..y.qo',
+            'op..y...qo',
+            'op...y..qo',
+            'op.y..y.qo',
+            'ohpm..mpqo',
+            '.ooo..ooo.',
+            '..........',
+        ],
+        // Blood for Blood: a crimson bat, wings spread, yellow eyes
+        bloodprice: [
+            '..o....o..',
+            '..omoomo..',
+            'o.ommmmo.o',
+            'ohoymmyoho',
+            'ohmmmmmmdo',
+            'ommmhmmmdo',
+            'om.ommo.do',
+            'o..ommo..o',
+            '....oo....',
+            '..........',
+        ],
+        // Bleed: a deep curved cut, blood running off its lower edge
+        bleed: [
+            '........oo',
+            '.......oho',
+            '......ohmo',
+            '.....ohmo.',
+            '....ohwdo.',
+            '..oohmmdo.',
+            'oohmmmdo..',
+            'ommdm.mo..',
+            '.oo.m..m..',
+            '....m.....',
+        ],
+        // Last Breath: a last breath streaming out: three tapering crimson streaks curling at their ends
+        lastbreath: [
+            '.......oooo.',
+            '.oooooohwmmo',
+            'ohhhwwmmmo.o',
+            '.oooooommdo.',
+            '............',
+            'oooooooooo..',
+            'ohwwhhhmmmdo',
+            '.oooooooooo.',
+            '............',
+            '.ooooooommo.',
+            'ohhwwmmmdo.o',
+            '.oooooooooo.',
+        ],
+        // Illusion: the theatre masks: a pale smiling mask in front of a lilac frowning one
+        illusion: [
+            '.....oooo.',
+            '....oppppo',
+            '....opoopo',
+            '.oooooqppo',
+            'ohhhhmoqpo',
+            'ohohohoqo.',
+            'ohhhhmo.o.',
+            'ohohhodo..',
+            '.ohoodo...',
+            '..oooo....',
+        ],
+        // Fairy Dust: a puff of pink dust bursting with twinkles
+        fairydust: [
+            '.v......v.',
+            'vwv....vwv',
+            '.v.oooo.v.',
+            '..ohwwho..',
+            '.ohwwhhmo.',
+            'ohwwhhmmmo',
+            'ohhvhmmmdo',
+            '.ommmmmdo.',
+            '..oooooo..',
+            '.w..w...w.',
+        ],
+        // Infatuation: a pink heart pierced by a golden arrow
+        infatuation: [
+            '........yy',
+            '.oo.oo.yy.',
+            'opwoppoy..',
+            'opppppyo..',
+            'opppyppo..',
+            '.oypppo...',
+            '.yopqo....',
+            'yy.oo.....',
+            'pp........',
+            'p.........',
+        ],
+        // Borrowed Magic: an ornate hand mirror, a borrowed spell swirling in its glass
+        borrowed: [
+            '...oooooo...',
+            '..oppppppo..',
+            '.opvwwhhmpo.',
+            '.opwwhmmhpo.',
+            '.ophmpmmmpo.',
+            '.opmmmpmdpo.',
+            '..opmmmmpo..',
+            '...oppppqo..',
+            '......oqpo..',
+            '.......oqpo.',
+            '........oqpo',
+            '.........ooo',
+        ],
+        // Nacre: an abalone shell turned up: a rough turquoise rim, mother-of-pearl inside, the row of holes
+        nacre: [
+            '..oooooo..',
+            '.okmkmkmo.',
+            'ohmhhmmmdo',
+            'ohvwpwvmdo',
+            'ohwpvwpmdo',
+            'ohvwwpvmdo',
+            'omhwpvmmdo',
+            '.ommmmmdo.',
+            '..oooooo..',
+            '..........',
+        ],
+        // Clear Water: a crown splash of clear water rising from a ripple
+        clearwater: [
+            '....w.....',
+            '.w..o..w..',
+            '.o.ovo.o..',
+            'owoovooo.w',
+            'ohwohvowho',
+            '.ohhwvhho.',
+            'ohmmwwmmdo',
+            'ommhhhmmdo',
+            '.oooooooo.',
+            '..........',
+        ],
+        // Seaweed: three kelp fronds with little air bladders
+        seaweed: [
+            '....o.....',
+            '...opo....',
+            '...opo.o..',
+            '.o.oqpoqo.',
+            'opo.opoqo.',
+            'oqpoopoqo.',
+            '.opoqpoqp.',
+            '.oqpoqpoqo',
+            '.oqqoqqoqo',
+            '.ooooooooo',
+        ],
+        // High Tide: a great wave rising from the right and curling over, foam on its crest
+        hightide: [
+            '....oooo....',
+            '..oovwwhoo..',
+            '.ovwhoohmmo.',
+            'ovwoo..ohmo.',
+            'ovo.....omdo',
+            '.o......ommo',
+            '.......ohmdo',
+            '......ohmmdo',
+            '....oohmmmdo',
+            '.oooohmmmddo',
+            'ohhhhmmmmddo',
+            'oooooooooooo',
+        ],
     };
 
     // ----- Element colours: one family per element -----
@@ -1849,6 +2118,9 @@
     const ELEMENT_COLORS = {
         red: '#ff4f5a', blue: '#4a98ff', black: '#9b9ba8', gold: '#f2c14e', purple: '#b47aff', green: '#6fe896',
         steel: '#cdd6e4',   // the White Drake: its scale bar's white steel; never Black's grey (bluer, much lighter, green accents)
+        // Season 2's four: orange between Red and Gold, cherry darker and pinker than Red, pink paler than the Meme rarity's,
+        // turquoise between Green and Blue
+        orange: '#ff8f2e', cherry: '#d13a64', pink: '#ff8ccb', turquoise: '#2fd3c0',
     };
     // The White Drake's own letters: the sprite's navy outline and slate shade (not a neutral grey), pure white, the crack's red
     const STEEL = { accent: '#58e888', pal: { o: '#151b30', d: '#6a78a2', s: '#3a466e', h: '#e8eef6', w: '#ffffff', r: '#ff8a8a' } };
@@ -1874,6 +2146,24 @@
         jackpot:    { kind: 'ultimate', element: 'gold',   name: { uk: 'Джекпот', en: 'Jackpot' },           emoji: '🎰', was: '#ffd700', accent: '#ff4f5a' },
         detonation: { kind: 'ultimate', element: 'purple', name: { uk: 'Арканна детонація', en: 'Arcane Detonation' }, emoji: '✴️', was: '#e0a8ff' },
         bloom:      { kind: 'ultimate', element: 'green',  name: { uk: 'Цвітіння', en: 'Bloom' },             emoji: '🌸', was: '#ff9ad5', accent: '#ff9ad5' },
+
+        // ----- Season 2: the four new drakes' kits (the notes take the element's colour) -----
+        heat:        { kind: 'note', color: '#ff8f2e', name: { uk: 'Розжарення', en: 'Heat' }, emoji: '🌡️', accent: '#c8d6e6' },
+        stoke:       { kind: 'buff', element: 'orange', name: { uk: 'Запал', en: 'Stoke' }, emoji: '♨️', was: '#ff8f2e', accent: '#a8703a' },
+        melt:        { kind: 'debuff', element: 'orange', name: { uk: 'Оплавлення', en: 'Melt' }, emoji: '🫠', was: '#ff8f2e', accent: '#8a90a4' },
+        eruption:    { kind: 'ultimate', element: 'orange', name: { uk: 'Виверження', en: 'Eruption' }, emoji: '🌋', was: '#ff8f2e', accent: '#5a3a2c' },
+        frenzy:      { kind: 'note', color: '#d13a64', name: { uk: 'Кривавий шал', en: 'Blood Frenzy' }, emoji: '⛓️', accent: '#8e5a62' },
+        bloodprice:  { kind: 'buff', element: 'cherry', name: { uk: 'Кров за кров', en: 'Blood for Blood' }, emoji: '🫀', was: '#d13a64', accent: '#8e1838' },
+        bleed:       { kind: 'debuff', element: 'cherry', name: { uk: 'Кровотеча', en: 'Bleed' }, emoji: '🩸', was: '#d13a64', accent: '#c0182c' },
+        lastbreath:  { kind: 'ultimate', element: 'cherry', name: { uk: 'Останній подих', en: 'Last Breath' }, emoji: '🌬️', was: '#d13a64', accent: '#ffb4c6' },
+        illusion:    { kind: 'note', color: '#ff8ccb', name: { uk: 'Ілюзія', en: 'Illusion' }, emoji: '🎭', accent: '#a486d6' },
+        fairydust:   { kind: 'buff', element: 'pink', name: { uk: 'Чарівний пилок', en: 'Fairy Dust' }, emoji: '✨', was: '#ff8ccb', accent: '#fbd0e6' },
+        infatuation: { kind: 'debuff', element: 'pink', name: { uk: 'Закоханість', en: 'Infatuation' }, emoji: '💘', was: '#ff8ccb', accent: '#e8348a' },
+        borrowed:    { kind: 'ultimate', element: 'pink', name: { uk: 'Чужі чари', en: 'Borrowed Magic' }, emoji: '🪞', was: '#ff8ccb', accent: '#e0a830' },
+        nacre:       { kind: 'note', color: '#2fd3c0', name: { uk: 'Перламутр', en: 'Nacre' }, emoji: '🐚', accent: '#ffc6e6' },
+        clearwater:  { kind: 'buff', element: 'turquoise', name: { uk: 'Чиста вода', en: 'Clear Water' }, emoji: '💧', was: '#2fd3c0', accent: '#e0fffa' },
+        seaweed:     { kind: 'debuff', element: 'turquoise', name: { uk: 'Водорості', en: 'Seaweed' }, emoji: '🌿', was: '#2fd3c0', accent: '#4aaa5a' },
+        hightide:    { kind: 'ultimate', element: 'turquoise', name: { uk: 'Приплив', en: 'High Tide' }, emoji: '🌊', was: '#2fd3c0', accent: '#e0fffa' },
 
         // ----- Batch 2: log notes and title mechanics (bare, 10×10; colour = what they belong to) -----
         // mechanic: the title mechanic this note is the badge of (TITLES_DB bonus.mechanic), so the badge and the note match
@@ -2009,20 +2299,25 @@
         emGold:      { kind: 'emblem', element: 'gold', name: { uk: 'Золотий Дрейк', en: 'Gold Drake' }, emoji: '🟨', pal: { p: '#f6ead0', q: '#c9b48a', s: '#2d2006', h: '#ffd970', n: '#c08a1a', k: '#b36bff', w: '#fff4c8' } },
         emPurple:    { kind: 'emblem', element: 'purple', name: { uk: 'Фіолетовий Дрейк', en: 'Purple Drake' }, emoji: '🟪', pal: { p: '#eadcff', q: '#a98be0', s: '#1d0c33', h: '#c79bff', n: '#7d45c9', k: '#5ee0f0', w: '#efe2ff' } },
         emGreen:     { kind: 'emblem', element: 'green', name: { uk: 'Зелений Дрейк', en: 'Green Drake' }, emoji: '🟩', pal: { p: '#c4ff8f', q: '#2f9a3e', s: '#0a2412', h: '#8ff0a8', n: '#2f9c55', k: '#ffd23f', w: '#dcffe4' } },
+        emOrange:    { kind: 'emblem', element: 'orange', name: { uk: 'Помаранчевий Дрейк', en: 'Orange Drake' }, emoji: '🟧', pal: { p: '#3a3430', q: '#ffd45a', s: '#2a1406', h: '#ffb066', n: '#d4661a', k: '#fff4b0', w: '#ffe0c0' } },
+        emCherry:    { kind: 'emblem', element: 'cherry', name: { uk: 'Вишневий Дрейк', en: 'Cherry Drake' }, emoji: '🍒', pal: { p: '#3a2626', q: '#1a1010', c: '#e8b4bc', s: '#22050e', h: '#e0607e', n: '#9a1f48', k: '#ff3a22', w: '#ffc0cc' } },
+        emPink:      { kind: 'emblem', element: 'pink', name: { uk: 'Рожевий Дрейк', en: 'Pink Drake' }, emoji: '🩷', pal: { p: '#8a3e7e', q: '#f4eef8', c: '#3a1236', s: '#2a0a1e', h: '#ffb4d4', n: '#d4689c', k: '#4ad4e8', w: '#ffe8f2' } },
+        emTurquoise: { kind: 'emblem', element: 'turquoise', name: { uk: 'Бірюзовий Дрейк', en: 'Turquoise Drake' }, emoji: '🐚', pal: { p: '#d0503e', q: '#ffbfa6', s: '#032426', h: '#6fd8c6', n: '#16827c', k: '#f0fffa', w: '#d8fff6' } },
         emDragon:    { kind: 'emblem', color: '#bfe9ff', name: { uk: 'Білий Дракон', en: 'White Dragon' }, emoji: '🐉', pal: { p: '#58e888', s: '#16264a', h: '#f2f8ff', n: '#8fb2dc', k: '#1a2044', w: '#ffffff' } },
         emSteel:     { kind: 'emblem',   element: 'steel', name: { uk: 'Білий Дрейк', en: 'White Drake' },          emoji: '🤍', ...STEEL, pal: { ...STEEL.pal, s: '#1a1e28' } },
     };
     Object.values(ICONS).forEach(ic => { if (ic.element) ic.color = ELEMENT_COLORS[ic.element]; });
-    const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison'];
-    const ULTIMATE_ICON_IDS = ['firestorm', 'mirror', 'theft', 'jackpot', 'detonation', 'bloom'];
+    const EFFECT_ICON_IDS = ['rage', 'burn', 'shield', 'frost', 'shadow', 'weakness', 'blessing', 'mark', 'divine', 'dispel', 'regen', 'poison', 'stoke', 'melt', 'bloodprice', 'bleed', 'fairydust', 'infatuation', 'clearwater', 'seaweed'];
+    const ULTIMATE_ICON_IDS = ['firestorm', 'mirror', 'theft', 'jackpot', 'detonation', 'bloom', 'eruption', 'lastbreath', 'borrowed', 'hightide'];
     const NOTE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'note' && ICONS[id].element !== 'steel' && !ICONS[id].title);
     const TITLE_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].title && ICONS[id].element !== 'steel');   // «Біла сталь»'s is with the White Drake's kit
     const ATTACK_ICON_IDS = Object.keys(ICONS).filter(id => ICONS[id].kind === 'attack');
     const BATCH4_ICON_IDS = ['attacking', 'roulette'];
     const STEEL_ICON_IDS = ['scales', 'bounce', 'cracked', 'reforge', 'magnet', 'anvil', 'whiteSteel', 'emSteel'];
     // The emblems: the drakes' heads, every drake's in the game's order, then the streamer's two forms
-    const EMBLEM_IDS = ['emRed', 'emBlue', 'emBlack', 'emGold', 'emPurple', 'emGreen', 'emDragon', 'emSteel'];
+    const EMBLEM_IDS = ['emRed', 'emBlue', 'emBlack', 'emGold', 'emPurple', 'emGreen', 'emOrange', 'emCherry', 'emPink', 'emTurquoise', 'emDragon', 'emSteel'];
     const BATCH3_ICON_IDS = Object.keys(ICONS).filter(id => ['reel', 'bonus', 'medal', 'ui'].includes(ICONS[id].kind) && !BATCH4_ICON_IDS.includes(id) && ICONS[id].element !== 'steel');
+
 
     // ----- Palette from one colour -----
     const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
