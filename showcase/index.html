@@ -789,9 +789,9 @@
     <!-- The arena -->
     <div id="arena" class="frame-big">
         <div class="plaque frame-mid">
-            <span class="plaque-dots"><span style="background:#e0452f"></span><span style="background:#3b8fe8"></span><span style="background:#4a4a60"></span></span>
+            <span class="plaque-dots"><span style="background:#e0452f"></span><span style="background:#3b8fe8"></span><span style="background:#4a4a60"></span><span style="background:#f2c14e"></span><span style="background:#9b59d0"></span></span>
             <span class="plaque-text" data-i18n="arena_title">ДРЕЙК-АРЕНА</span>
-            <span class="plaque-dots"><span style="background:#f2c14e"></span><span style="background:#9b59d0"></span><span style="background:#3ec46d"></span></span>
+            <span class="plaque-dots"><span style="background:#3ec46d"></span><span style="background:#ff8a1f"></span><span style="background:#b8304f"></span><span style="background:#f78fbf"></span><span style="background:#26c2b0"></span></span>
         </div>
         <span class="stud" style="left:-10px; top:-10px"></span><span class="stud" style="left:918px; top:-10px"></span>
         <span class="stud" style="left:-10px; top:888px"></span><span class="stud" style="left:918px; top:888px"></span>
@@ -10421,8 +10421,10 @@ const ICONS_V2 = {
         function renderPlaque() {
             const dots = document.querySelectorAll('.plaque .plaque-dots');
             if (dots.length !== 2) return;
-            morphHtml(dots[0], ['red', 'blue', 'black'].map(t => emblem(t, 2)).join(''));
-            morphHtml(dots[1], ['gold', 'purple', 'green'].map(t => emblem(t, 2)).join(''));
+            // Every viewer element in the game's order, half either side of the title
+            const types = VIEWER_DRAKE_TYPES.map(d => d.type), half = Math.ceil(types.length / 2);
+            morphHtml(dots[0], types.slice(0, half).map(t => emblem(t, 2)).join(''));
+            morphHtml(dots[1], types.slice(half).map(t => emblem(t, 2)).join(''));
             dots.forEach(d => d.classList.add('px'));
         }
 

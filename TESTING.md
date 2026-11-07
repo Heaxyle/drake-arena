@@ -756,7 +756,23 @@ Which seeds were used for what (so a "fresh" check really is fresh):
 
 The final check on 4, 5, 6 found nothing below 43% or above 58% outside the known counters, but it does report two misses: Green vs Purple at level 1 (44.7%; 46.2% on the tuning seeds), and Epic only 0.8 points over Rare at level 1 (3.0 on the tuning seeds). Level 1 of the title ladder moves more between seed sets than the 2-point margin allows for. Pick new seeds for the next fresh check.
 
-Season 2's fresh check on 7, 8, 9 passes every listed counter and the title ladder. It reports four cells just under 45%: Purple vs Black (44.7%) and Pink vs Cherry (44.8%) at level 20, Red vs Purple at level 1 and Green vs Black at level 20 (both 45.0%, rounded). None has a mechanic behind it and each reads inside on the tuning seeds, so none is listed. One cell's reading on three seeds is about ±0.75%, and the check reads 270 of them, so a few cells near 45% land on either side on any set of seeds. Season 2's cells come closer to the limits than the six's did. The rerun at 24,000 fights a pair (404, 505, 606; one standard error is 0.3 points) puts two level-1 pairs just past a counter's 43–57%, though the check's own seeds read them inside: Red vs Turquoise at 57.2% and Pink vs Turquoise at 42.7%. They pull Turquoise's base numbers opposite ways: more HP helps it against Red's burst and widens its lead over Pink, which copies its layers but not its HP.
+Season 2's fresh check on 7, 8, 9 passes every listed counter and the title ladder. It reports four cells just under 45%, listed below: none has a mechanic behind it and each reads inside on the tuning seeds, so none is a known counter. One cell's reading on three seeds is about ±0.75%, and the check reads 270 of them, so a few cells near 45% land on either side on any set of seeds.
+
+#### Cells at the edge
+
+These readings sit on a limit, so a later failure on one of them reads as known noise, not a regression, as long as nothing that touches that pair has changed:
+
+| Where it was read | Cell | Reading | Its limit |
+|---|---|---|---|
+| Rerun, 24,000 fights a pair (404, 505, 606) | Red vs Turquoise, level 1 | 57.2% | 57%, as a known counter |
+| Rerun, 24,000 fights a pair (404, 505, 606) | Pink vs Turquoise, level 1 | 42.7% | 43%, as a known counter |
+| Fresh seeds 7, 8, 9 | Purple vs Black, level 20 | 44.7% | 45%, not listed |
+| Fresh seeds 7, 8, 9 | Pink vs Cherry, level 20 | 44.8% | 45%, not listed |
+| Fresh seeds 7, 8, 9 | Red vs Purple, level 1 | 45.0%, rounded | 45%, not listed |
+| Fresh seeds 7, 8, 9 | Green vs Black, level 20 | 45.0%, rounded | 45%, not listed |
+| White Drake gate, seeds 12345 and 23456 | Cherry, level 20 | 46.6% and 46.8% | 46%, as a known counter |
+
+`balance:check`'s own seeds read the first two inside the limits (43.4% and 44.6% on their low sides). One standard error at 24,000 fights is 0.3 points, and at the gate's 20,000 fights it's 0.35. The two level-1 pairs pull Turquoise's base numbers opposite ways: more HP helps it against Red's burst and widens its lead over Pink, which copies its layers but not its HP. Before reading a failure as noise, check that it's one of these cells, by a point or less, and that neither element's numbers nor a shared effect changed; rerun it with more fights. A cell that isn't here, or one that moves further, is a regression until shown otherwise.
 
 Last run on the tuning seeds (current numbers; `~` = known counter within 2 points):
 
@@ -824,7 +840,7 @@ Three matchups sit on the edge of 48–60% because of how the two kits meet, not
 |---|---|---|---|
 | 20 | Gold | 48.0% | Gold's 1-HP hit (9% of its hits at level 20) slips past the bar and leaves the White Drake on 1 HP. The bar is the White Drake's main defence, and against that hit it doesn't count |
 | 20 | Green | 59.9% | Green's extra HP (+34% at level 20) makes the longest fights, and every Удар ковадла re-forges the bar to full |
-| 20 | Cherry | 46.6% | Blood Frenzy's step at level 20 (+1% per 1.38% of HP lost) turns the HP it loses into hits that chew through the bar. With level 10's step at level 20 the White Drake wins 56.7% |
+| 20 | Cherry | 46.6% | Blood Frenzy's step at level 20 (+1% per 1.38% of HP lost) turns the HP it loses into hits that chew through the bar. With level 10's step at level 20 the White Drake wins 56.8%, not 46.4% (20,000 fights each, on a copy of the page). It's on the edge of its limit: see [Cells at the edge](#cells-at-the-edge) |
 
 Рожевий has nothing to copy from the White Drake, so it draws a random viewer element's passive: with nothing at all the White Drake won 73–80%, far outside the band, and no number of Рожевий's could fix that without breaking its 50% against everyone else.
 
@@ -968,6 +984,7 @@ It also saves screenshots at each stage to `tests/screenshots/` (`showcase-01-re
 | **HP bar colour** on both cards, either side of each threshold: green at 100% and 50.1%, yellow at 50%, 25.1% and 25%, red at 24.9%, 0.1% and 0% | A threshold off by one, or one card coloured differently |
 | **Fight type** in the header, in both languages: idle, then a ranked fight (`!черга`), a friendly duel (`!бій` / `!прийняти`) and a test battle (button) each show the right name during the fight and "name · N turns" after; the turn-count word is right for 1, 2, 4, 5, 11, 12, 14, 21, 22, 25 and 30 (хід / ходи / ходів) | Wrong or untranslated fight names, Ukrainian plural forms |
 | **Frame colours**: every pair of frame light edges (the ten elements, the White Drake, the White Dragon, the winner — the same gold as the arena frame — and the loser; 91 pairs) is at least 20 apart in CIEDE2000 colour difference. Each frame still reads as its element: red, gold, green, blue and purple hues on both edges, neutral steel for Black, a cool white steel for the White Drake, near-white for the White Dragon, grey for the loser. Every light edge, and Black's dark edge, is at least 3:1 against the dark panel | Two frames that look alike (a drake that reads as "winner", Blue vs the White Dragon), a frame that no longer looks like its element, or one that vanishes on the dark overlay |
+| **The plate**, both languages: all ten emblems in the game's order, five either side of the title, none mirrored, in one row, centred inside the arena | An emblem left off or out of order, a plate that outgrows the arena |
 | **Season 2 on the cards**: the meter row with Помаранчевий's heat at its 8, Вишневий's bonus and Бірюзовий's layers at their 6, on both cards; the name line with Рожевий's copied emblem and the longest name; each new element's frame reads as its colour | A count that pushes a block, a copied emblem cut off |
 | **HP number and bar agree**, in both languages: waiting cards show "—" with an empty bar; in the countdown, every few turns of a fight, the result, the result after a language switch, a test battle and its result, "h/max" matches the bar's width (±1%) and its colour | A number next to a bar that says something else (e.g. "150/150" by an empty bar) |
 | **The White Drake's scales**, both languages, on the left card and the right, each state read once its transitions are over: no segment on a viewer drake's card; on the White Drake's, a 62×20 steel segment at the VS end of the HP row: the HP bar's top, height and outer end a viewer card's, its VS end 66 px in; the segment 4 px from the bar and 12 px from the HP number, with the bar's top and height; the HP number's box a viewer card's; the number centred and wholly inside (three digits too), Press Start 2P 12/12 px in white with the 1 px outline in 8 directions and the 2 px drop; the fill's gradient, the HP fill's bevel and its 0.3 s transition, the HP bar's dark edge; full, part-gone (the number and fill at now/max, from the outer side), broken (a red «0», no fill, the dark red track and the red inset), rebuilt (steel again). The Ukrainian run saves `layout-white-drake-scales.png` (not committed): the card full, part-gone and broken, and part-gone as the right card, at 1920×1080 | A segment on a viewer's card, an HP bar or HP number that moves, a segment off its place or size, a number off-centre or cut off, the fill draining from the wrong side, a broken segment that stays red or a rebuilt one that doesn't |

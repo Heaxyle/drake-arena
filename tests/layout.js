@@ -368,6 +368,17 @@ async function layoutChecks(browser, lang) {
     const { page, context, errors } = await open(browser, { lang });
     const fontsLoaded = await page.evaluate(() => document.fonts.check('16px Rubik') && [...document.fonts].some(f => f.family.includes('Rubik') && f.status === 'loaded'));
     check(fontsLoaded, `${tag} Rubik and Press Start 2P loaded (embedded in the page)`, 'Rubik did not load');
+    // The plate: every viewer element's emblem in the game's order, half either side of the title, none mirrored, in one row inside the arena
+    const plate = await page.evaluate(() => {
+        const r = el => el.getBoundingClientRect(), sides = [...document.querySelectorAll('.plaque .plaque-dots')].map(d => [...d.querySelectorAll('[data-icon]')]), all = sides.flat();
+        const p = r(document.querySelector('.plaque')), a = r(document.getElementById('arena')), t = r(document.querySelector('.plaque-text'));
+        const flipped = e => { for (let n = e; n && n !== document.body; n = n.parentElement) if (getComputedStyle(n).transform.startsWith('matrix(-')) return true; return false; };
+        return { left: sides[0].map(e => e.dataset.icon), right: sides[1].map(e => e.dataset.icon), want: VIEWER_DRAKE_TYPES.map(d => EMBLEMS[d.type]), mirrored: all.filter(flipped).length,
+            inside: p.left >= a.left && p.right <= a.right, centred: Math.abs((p.left + p.right - a.left - a.right) / 2) <= 1, clear: r(sides[0].at(-1)).right <= t.left && r(sides[1][0]).left >= t.right,
+            rows: new Set(all.map(e => Math.round(r(e).top))).size };
+    });
+    check(plate.left.join() === plate.want.slice(0, 5).join() && plate.right.join() === plate.want.slice(5).join() && !plate.mirrored && plate.inside && plate.centred && plate.clear && plate.rows === 1,
+        `${tag} the plate: all ten emblems in the game's order, five either side of the title, none mirrored, in one row inside the arena`, JSON.stringify(plate));
     const worst = await page.evaluate(fillWorstCase);
     await settle(page);
     const problems = await page.evaluate(layoutProblems);
@@ -402,7 +413,7 @@ async function layoutChecks(browser, lang) {
         ['p1', 'p2'].forEach(p => renderPowerMeter(p, 'turquoise', { meter: METER.max, mirror: 0, layers: ELEMENT_BASE.turquoiseLayerMax }));
         return { over: rows.filter(r => r.scrollWidth > r.clientWidth + 0.5).map(r => r.id), text: rows.map(r => window.__vt(r)) };
     });
-    check(!layerRow.over.length, `${tag} the meter's row with a full meter and 8 layers fits on both cards: «${layerRow.text[0]}»`, JSON.stringify(layerRow));
+    check(!layerRow.over.length, `${tag} the meter's row with a full meter and 6 layers fits on both cards: «${layerRow.text[0]}»`, JSON.stringify(layerRow));
     check(!heatRow.over.length && !heatRow.moved.length && !heatProblems.length, `${tag} the meter's row with a full meter and 8 heat fits on both cards, and doesn't move: «${heatRow.text[0]}»`, JSON.stringify({ heatRow, problems: heatProblems.slice(0, 4) }));
     await page.evaluate(fillWorstCase);
     await settle(page);
